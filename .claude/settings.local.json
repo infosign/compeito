@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:opensalt.net)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:www.imsglobal.org)",
+      "WebFetch(domain:purl.imsglobal.org)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:ceds.ed.gov)",
+      "Bash(gh auth:*)",
+      "Bash(git:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
