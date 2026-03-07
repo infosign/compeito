@@ -16,7 +16,8 @@
       "Bash(gh auth:*)",
       "Bash(git:*)",
       "Bash(ls:*)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }
