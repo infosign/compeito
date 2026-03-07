@@ -1,7 +1,7 @@
 {
-  "name": case-server",
+  "name": "compeito",
   "image": "mcr.microsoft.com/devcontainers/base:bookworm",
-  "workspaceFolder": "/workspaces/case-server",
+  "workspaceFolder": "/workspaces/compeito",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}

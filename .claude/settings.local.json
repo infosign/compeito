@@ -15,7 +15,8 @@
       "WebFetch(domain:ceds.ed.gov)",
       "Bash(gh auth:*)",
       "Bash(git:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(gh repo:*)"
     ]
   }
 }
