@@ -252,7 +252,6 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
         {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
         {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
       ],
-      "CFPackageURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://.../ims/case/v1p1/CFPackages/d86774f2-..."},
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
     },
     "CFItems": [
@@ -274,7 +273,6 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
         "statusStartDate": null,
         "statusEndDate": null,
         "listEnumeration": null,
-        "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
       }
     ],
@@ -287,7 +285,6 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
         "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "sequenceNumber": 10,
         "CFAssociationGroupingURI": null,
-        "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
       }
     ],
