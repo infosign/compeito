@@ -1,6 +1,6 @@
 # APIリクエスト/レスポンス例
 
-全レスポンスはルートレベルに直接配置する（ラッパーなし）。
+全レスポンスは CASE v1.1 の DType 名をルートキーとして配置する（`{"data": ...}` 等のカスタムラッパーは追加しない）。
 テナントUUID `550e8400-e29b-41d4-a716-446655440000` を例として使用。
 
 ## CFDocuments
@@ -370,24 +370,31 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
 
 ### GET /{tenant}/ims/case/v1p1/CFItemTypes/{id}
 
+CASE v1.1 では Set 型（`CFItemTypeSetDType`）を返す。要求されたリソース 1 件を配列に含めて返す。
+
 **レスポンス (200):**
 ```json
 {
-  "CFItemType": {
-    "identifier": "fff11111-...",
-    "uri": "https://case.example.com/550e8400-.../uri/fff11111-...",
-    "title": "知識及び技能",
-    "description": null,
-    "typeCode": null,
-    "hierarchyCode": null,
-    "lastChangeDateTime": "2025-10-08T12:00:00Z"
-  }
+  "CFItemTypes": [
+    {
+      "identifier": "fff11111-...",
+      "uri": "https://case.example.com/550e8400-.../uri/fff11111-...",
+      "title": "知識及び技能",
+      "description": null,
+      "typeCode": null,
+      "hierarchyCode": null,
+      "lastChangeDateTime": "2025-10-08T12:00:00Z"
+    }
+  ]
 }
 ```
 
-CFSubjects, CFConcepts, CFLicenses, CFAssociationGroupings も同じ基本構造。
-ルートキー名のみ異なる（`CFSubjects`/`CFSubject`, `CFConcepts`/`CFConcept` 等）。
+**Set 型エンドポイント**（`/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}`）は複数形ルートキーで配列を返す（`{"CFConcepts": [...]}`, `{"CFSubjects": [...]}`, `{"CFItemTypes": [...]}`）。
+**単一オブジェクト型エンドポイント**（`/CFLicenses/{id}`, `/CFAssociationGroupings/{id}`）は単数形ルートキーで単一オブジェクトを返す（`{"CFLicense": {...}}`, `{"CFAssociationGrouping": {...}}`）。
+CFLicenses, CFAssociationGroupings も同じ基本構造（単数キー、単一オブジェクト）。
+全 lookup リソース共通フィールド: `identifier`, `uri`, `title`, `description` (nullable), `lastChangeDateTime`。
 各リソースの固有フィールド:
+- **CFItemType**: `typeCode` (string, nullable), `hierarchyCode` (string, nullable)
 - **CFSubject**: `hierarchyCode` (string, nullable)
 - **CFConcept**: `keywords` (string, nullable, パイプ区切り), `hierarchyCode` (string, nullable)
 - **CFLicense**: `licenseText` (string, nullable)

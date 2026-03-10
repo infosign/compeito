@@ -66,7 +66,7 @@
 | FR-6.2 | `#` で始まるメタデータ行からCFDocumentフィールドを設定する | 1 |
 | FR-6.3 | `--doc` 未指定時は新規CFDocumentを作成、指定時は既存を更新する | 1 |
 | FR-6.4 | CFItem の upsert を Identifier一致 → humanCodingScheme一致 の優先順で行う | 1 |
-| FR-6.5 | lookup テーブル（CFItemType, CFSubject, CFConcept）を同一テナント内 `title` 完全一致で自動生成する | 1 |
+| FR-6.5 | lookup テーブル（CFItemType, CFSubject, CFLicense）を同一テナント内 `title` 完全一致で自動生成する（CFConcept は外部 CASE ソースインポートでのみ作成） | 1 |
 | FR-6.6 | isChildOf の CFAssociation を親子関係から自動生成する | 1 |
 | FR-6.7 | 既存ドキュメントの更新時（`--doc` 指定、または OpenSALT `Is Part Of` で既存ドキュメントにマッチした場合）、該当ドキュメントの既存 isChildOf Association を全削除してから再生成する | 1 |
 | FR-6.8 | sequenceNumber が空の場合、同一親内で出現順に 10, 20, 30... で自動採番する（各親ごとに独立したカウンタ） | 1 |
