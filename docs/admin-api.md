@@ -22,6 +22,7 @@ Docker環境では認証なし（ローカル開発用）。
 | PATCH /admin/tenants/{id} | JSON body (name?, is_private?) | JSON (tenant) | テナント更新 |
 | DELETE /admin/tenants/{id} | - | JSON (message) | テナント削除（CASCADE） |
 | GET  /admin/tenants/{id}/documents | - | JSON (document[]) | フレームワーク一覧 |
+| GET  /admin/tenants/{id}/documents/{doc-uuid} | - | JSON (document) | フレームワーク取得（CLI の削除確認プロンプト等で使用） |
 | DELETE /admin/tenants/{id}/documents/{doc-uuid} | - | JSON (message) | フレームワーク削除 |
 | POST /admin/tenants/{id}/import/csv | JSON body (s3_key, doc_title?, doc_version?, doc_uuid?) | JSON (job結果) | CSVインポート |
 | POST /admin/tenants/{id}/import/case-url | JSON body (url, doc_uuid?) | JSON (job結果) | 外部CASEインポート |
@@ -82,6 +83,17 @@ Docker環境では認証なし（ローカル開発用）。
     "last_change_date_time": "2025-10-08T12:00:00Z"
   }
 ]
+```
+
+### ドキュメント取得 (GET /admin/tenants/{id}/documents/{doc-uuid})
+ドキュメント一覧と同一のスキーマ。CLI の `doc delete` 確認プロンプトで対象ドキュメントの名前・アイテム数を表示するために使用する。
+```json
+{
+  "identifier": "d86774f2-...",
+  "title": "高等学校学習指導要領",
+  "item_count": 1557,
+  "last_change_date_time": "2025-10-08T12:00:00Z"
+}
 ```
 
 ### インポート結果 (POST import/csv, import/case-url)
