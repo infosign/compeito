@@ -280,6 +280,8 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `creator` → `creator`
 - `publisher` → `publisher`
 - `description` → `description`
+- `frameworkType` → `framework_type`（v1.1 new）
+- `caseVersion` → `case_version`（v1.1 new。値は `"1.1"` のみ有効）
 - `language` → `language`（10文字以下であることを検証する。超過の場合は NULL として保存し警告出力。CSV インポートと同一ルール）
 - `version` → `version`
 - `adoptionStatus` → `adoption_status`
