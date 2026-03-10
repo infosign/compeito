@@ -34,7 +34,7 @@
 | FR-3.3 | `/uri/{uuid}` はテナントスコープ内で検索し、別テナントのリソースには404を返す | 1 |
 | FR-3.4 | リソースID（`/CFItems/{id}` 等の `{id}`）がUUID形式でない場合、400エラー（`invalid_uuid`）を返す | 1 |
 | FR-3.5 | リソースIDがUUID形式だがリソースが存在しない場合、404エラー（`unknownobject`）を返す | 1 |
-| FR-3.6 | `GET /CFItems/{id}/associations` でアイテムが存在しない場合、空配列ではなく404エラーを返す | 1 |
+| FR-3.6 | `GET /CFItemAssociations/{id}` でアイテムが存在しない場合、空配列ではなく404エラーを返す | 1 |
 
 ## FR-4: ヘルスチェック
 
