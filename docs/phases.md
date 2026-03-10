@@ -22,7 +22,7 @@
 - AWS CDK インフラ構築
 - Admin API エンドポイント（S3転送含む）
 - CloudFront invalidation
-- 1EdTech Conformance テスト通過
+- 1EdTech Conformance テスト通過（lookup リソースの required フィールド null 対応含む）
 
 ## Phase 3（将来）
 - isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応（isPeerOf, exactMatchOf 等）
