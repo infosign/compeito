@@ -109,11 +109,13 @@ identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 association_type: VARCHAR NOT NULL  -- CASE v1.1列挙値: isChildOf, isPeerOf, isPartOf, exactMatchOf, precedes, isRelatedTo, replacedBy, exemplar, hasSkillLevel, isTranslationOf
 origin_node_uri: VARCHAR NOT NULL
-origin_node_identifier: UUID NOT NULL
-origin_node_title: VARCHAR        -- LinkURIType.title。JOINで解決できない外部参照用に保持
+origin_node_identifier: VARCHAR NOT NULL  -- LinkGenURIDType: UUID制限なし（外部参照で非UUIDの場合あり）
+origin_node_title: VARCHAR               -- LinkGenURIDType.title。JOINで解決できない外部参照用に保持
+origin_node_target_type: VARCHAR         -- LinkGenURIDType.targetType。v1.1 new。"CASE" or "ext:*"
 destination_node_uri: VARCHAR NOT NULL
-destination_node_identifier: UUID NOT NULL
-destination_node_title: VARCHAR   -- LinkURIType.title。JOINで解決できない外部参照用に保持
+destination_node_identifier: VARCHAR NOT NULL  -- LinkGenURIDType: UUID制限なし（外部参照で非UUIDの場合あり）
+destination_node_title: VARCHAR               -- LinkGenURIDType.title。JOINで解決できない外部参照用に保持
+destination_node_target_type: VARCHAR         -- LinkGenURIDType.targetType。v1.1 new。"CASE" or "ext:*"
 sequence_number: INTEGER
 cf_association_grouping_id: UUID FK(cf_association_grouping.id) NULLABLE
 last_change_date_time: TIMESTAMP NOT NULL
