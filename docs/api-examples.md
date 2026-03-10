@@ -101,10 +101,7 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
     "humanCodingScheme": "A-1-(1)",
     "abbreviatedStatement": null,
     "conceptKeywords": ["言葉", "国語"],
-    "conceptKeywordsURI": [
-      {"title": "言葉", "identifier": "ccc-...", "uri": "https://..."},
-      {"title": "国語", "identifier": "ddd-...", "uri": "https://..."}
-    ],
+    "conceptKeywordsURI": {"title": "言語能力", "identifier": "ccc-concept-...", "uri": "https://..."},
     "educationLevel": ["10", "11", "12"],
     "CFItemType": "知識及び技能",
     "CFItemTypeURI": {
