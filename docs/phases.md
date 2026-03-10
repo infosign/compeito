@@ -3,13 +3,13 @@
 ## Phase 1（初期リリース）
 - Docker環境でのローカル開発・実行
 - 全CASEリソースのDBスキーマ（CFRubric含む）
-- CASE v1.1 必須APIエンドポイント11種（CFRubric除く）+ ヘルスチェック
+- CASE v1.1 必須APIエンドポイント16種（CFRubric除く）+ ヘルスチェック
 - v1p0 → v1p1 リダイレクト
 - CSVインポート（独自形式 + OpenSALT形式 + 簡易形式の自動判定）
 - 外部CASEソースインポート（v1.1のみ）
 - CSVエクスポート（独自形式のみ）
 - CLIツール（tenant/doc管理, import/export, db migrate）
-- Web UI: トップ一覧, テナント一覧, ツリービュー, アイテム詳細, エラーページ
+- Web UI: トップ一覧, テナント一覧, ツリービュー, リソース詳細（/uri/ — CFDocument・CFItem・CFAssociation・lookup各種）, エラーページ
 - ページネーション
 - pytest による unit/integration テスト
 - docker-compose.yml, Dockerfile
