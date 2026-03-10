@@ -12,7 +12,9 @@ CASCADE（所有関係）:
 - `cf_rubric_criterion_id` → cf_rubric_criterion削除で配下のcf_rubric_criterion_level自動削除
 
 SET NULL（参照関係）:
+- `cf_document.cf_license_id` → CFLicense削除時、ドキュメントのlicense参照をNULLにする（ドキュメント自体は残す）
 - `cf_item.cf_item_type_id` → CFItemType削除時、アイテムのtype参照をNULLにする（アイテム自体は残す）
+- `cf_item.cf_license_id` → CFLicense削除時、アイテムのlicense参照をNULLにする（アイテム自体は残す）
 - `cf_association.cf_association_grouping_id` → CFAssociationGrouping削除時、関連のgrouping参照をNULLにする（関連自体は残す）
 
 **`id` と `identifier` を分離する理由:**
@@ -44,6 +46,7 @@ created_at: TIMESTAMP NOT NULL DEFAULT now()
 ```
 id: UUID PK
 tenant_id: UUID FK(tenant.id) NOT NULL
+cf_license_id: UUID FK(cf_license.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 title: VARCHAR NOT NULL
@@ -55,7 +58,6 @@ version: VARCHAR
 adoption_status: VARCHAR
 status_start_date: DATE
 status_end_date: DATE
-license_uri: VARCHAR
 official_source_url: VARCHAR
 subject: JSONB           -- 文字列配列 ["数学", "理科"]
 subject_uri: JSONB       -- LinkURIオブジェクト配列 [{"title":"数学","identifier":"uuid","uri":"https://..."}]
@@ -71,6 +73,7 @@ id: UUID PK
 tenant_id: UUID FK(tenant.id) NOT NULL
 cf_document_id: UUID FK(cf_document.id) NOT NULL
 cf_item_type_id: UUID FK(cf_item_type.id) NULLABLE
+cf_license_id: UUID FK(cf_license.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 full_statement: TEXT NOT NULL
@@ -81,7 +84,6 @@ concept_keywords: JSONB    -- 文字列配列 ["分析", "評価"]
 concept_keywords_uri: JSONB -- LinkURIオブジェクト配列 [{"title":"分析","identifier":"uuid","uri":"https://..."}]
 education_level: JSONB     -- 文字列配列 ["09", "10", "11", "12"]
 language: VARCHAR(10)
-license_uri: VARCHAR              -- CASE v1.1 licenseURI (AnyURI型)
 status_start_date: DATE
 status_end_date: DATE
 depth: INTEGER NOT NULL DEFAULT 0  -- ツリーの深さ (0=ルート直下)。インポート時にisChildOfを再帰的にたどって計算

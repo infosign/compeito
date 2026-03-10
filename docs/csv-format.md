@@ -35,7 +35,7 @@ CSVファイルの先頭に `#` で始まるメタデータ行を配置できる
 #language,ja
 #adoption_status,Adopted
 #official_source_url,https://www.mext.go.jp/...
-#license_uri,https://creativecommons.org/licenses/by/4.0/
+#license,CC BY 4.0
 #status_start_date,2018-03-30
 #status_end_date,2028-03-31
 #subject,国語,地理歴史,公民
@@ -44,7 +44,8 @@ CSVファイルの先頭に `#` で始まるメタデータ行を配置できる
 - `#title`: CFDocumentのタイトル。CLI `--doc-title` が指定されている場合はCLI引数を優先
 - `#version`: CFDocumentのバージョン。CLI `--doc-version` が指定されている場合はCLI引数を優先
 - `#subject`: 教科・科目。カンマ区切りで複数指定可（例: `#subject,国語,地理歴史`）。cf_subject lookup を自動生成。各値の前後空白をトリムし、トリム後の空文字列はフィルタする（例: `#subject,国語,,地理歴史` → `["国語", "地理歴史"]`）
-- その他 (`#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#license_uri`, `#status_start_date`, `#status_end_date`): 対応するCFDocumentフィールドにマッピング。これらは**単一値フィールド**であり、CSVパース後の2番目のフィールドのみを値として使用する（3番目以降のフィールドは無視）。値にカンマを含める場合はダブルクォートで囲むこと（例: `#description,"情報I, 情報II向け"`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式
+- `#license`: ライセンス名（例: `CC BY 4.0`）。cf_license lookup を自動生成し、CFDocument の `cf_license_id` に FK で紐づける。CFItemType と同じ title ベースの lookup パターン
+- その他 (`#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#status_start_date`, `#status_end_date`): 対応するCFDocumentフィールドにマッピング。これらは**単一値フィールド**であり、CSVパース後の2番目のフィールドのみを値として使用する（3番目以降のフィールドは無視）。値にカンマを含める場合はダブルクォートで囲むこと（例: `#description,"情報I, 情報II向け"`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式
 - メタデータ行はヘッダー行より前に配置すること。ヘッダー行の後に `#` で始まる行があっても、メタデータとしては処理されずデータ行として扱われる（独自形式の場合、先頭列 `Identifier` として解釈されるため UUID バリデーションで行スキップとなる）
 - 同一キーが複数回出現した場合: 最後の行の値で上書きする（警告ログを出力する: 「Duplicate metadata key '#xxx', overwriting previous value」）。`#subject` も同様（結合ではなく上書き）
 - 未知のキーは無視（警告「Unknown metadata key '#xxx', ignored」を出力）
@@ -66,7 +67,7 @@ CSVファイルの先頭に `#` で始まるメタデータ行を配置できる
 | abbreviatedStatement | - | 短縮表記 |
 | language | - | 言語コード（例: "ja"）。空 = ドキュメントのlanguageを継承 |
 | listEnumeration | - | 列挙番号テキスト |
-| licenseURI | - | ライセンスURI（AnyURI型） |
+| license | - | ライセンス名（例: "CC BY 4.0"）。lookup自動生成 |
 | statusStartDate | - | ステータス開始日（YYYY-MM-DD形式） |
 | statusEndDate | - | ステータス終了日（YYYY-MM-DD形式） |
 

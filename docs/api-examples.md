@@ -294,6 +294,16 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
           "hierarchyCode": null,
           "lastChangeDateTime": "2025-10-08T12:00:00Z"
         }
+      ],
+      "CFLicenses": [
+        {
+          "identifier": "lic11111-...",
+          "uri": "https://...",
+          "title": "CC BY 4.0",
+          "description": null,
+          "licenseText": null,
+          "lastChangeDateTime": "2025-10-08T12:00:00Z"
+        }
       ]
     }
   }
@@ -356,6 +366,17 @@ CFSubjects, CFConcepts, CFLicenses, CFAssociationGroupings も同じ基本構造
 - **CFSubject / CFConcept**: `hierarchyCode` (string, nullable)
 - **CFLicense**: `licenseText` (string, nullable)
 - **CFAssociationGrouping**: 固有フィールドなし（共通フィールドのみ）
+
+**licenseURI が非 null の場合（CFDocument / CFItem 共通）:**
+```json
+{
+  "licenseURI": {
+    "title": "CC BY 4.0",
+    "identifier": "lic11111-1111-1111-1111-111111111111",
+    "uri": "https://case.example.com/550e8400-.../uri/lic11111-1111-1111-1111-111111111111"
+  }
+}
+```
 
 ## エラーレスポンス
 
