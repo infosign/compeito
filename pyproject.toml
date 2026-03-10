@@ -1,0 +1,32 @@
+[project]
+name = "case-server"
+version = "0.1.0"
+description = "1EdTech CASE v1.1 compliant web service"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic-settings>=2.7",
+    "mangum>=0.19",
+    "click>=8.1",
+    "rich>=13.9",
+    "httpx>=0.28",
+    "jinja2>=3.1",
+]
+
+[project.scripts]
+case-cli = "cli:cli"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
