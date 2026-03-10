@@ -259,7 +259,7 @@ CASE API は読み取り専用（GET のみ）。POST / PUT / DELETE / PATCH を
 ## associationType 列挙値
 
 CASE v1.1 で定義されている有効値:
-- `isChildOf` / `isPeerOf` / `isPartOf` / `exactMatchOf` / `precedes` / `isRelatedTo` / `replacedBy` / `exemplar` / `hasSkillLevel`
+- `isChildOf` / `isPeerOf` / `isPartOf` / `exactMatchOf` / `precedes` / `isRelatedTo` / `replacedBy` / `exemplar` / `hasSkillLevel` / `isTranslationOf`
 
 外部CASEソースインポート時にこの列挙値を検証し、不正な値の場合は該当 Association をスキップして警告を出力する。
 
