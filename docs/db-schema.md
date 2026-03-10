@@ -51,11 +51,11 @@ cf_license_id: UUID FK(cf_license.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 title: VARCHAR NOT NULL
-creator: VARCHAR
+creator: VARCHAR                 -- CASE v1.1 では required だが、CSV インポートで未指定のケースに対応するため nullable。Phase 2 で空文字列デフォルト化を検討
 publisher: VARCHAR
 description: TEXT
-framework_type: VARCHAR      -- v1.1 new. 例: "CourseCodes"
-case_version: VARCHAR        -- v1.1 new. 値は "1.1" のみ
+framework_type: VARCHAR      -- v1.1 new. 標準値は "CourseCodes"（OpenAPI 上は自由文字列）
+case_version: VARCHAR        -- v1.1 new. OpenAPI では enum: ["1.1"]。値は "1.1" のみ有効
 language: VARCHAR(10)
 version: VARCHAR
 adoption_status: VARCHAR
@@ -198,11 +198,13 @@ identifier: UUID UNIQUE NOT NULL       -- tenant_idを持たないため単独UN
                                        -- **設計リスク**: グローバルUNIQUEのため、複数テナントが同じ外部ソース（同一UUID）を
                                        -- インポートするとUNIQUE制約違反が発生する。Phase 2 で tenant_id 追加を検討する
 uri: VARCHAR NOT NULL
+cf_item_id: UUID FK(cf_item.id) NULLABLE  -- CASE v1.1 CFItemURI。関連する CFItem への FK 参照
+rubric_id: UUID                          -- CASE v1.1 rubricId。親 CFRubric の identifier（cf_rubric.identifier を JOIN で解決しても可）
 category: VARCHAR
 description: TEXT
 weight: FLOAT
 position: INTEGER
-rubric_criterion_text_plain: TEXT   -- cf_item.fullStatement に相当
+rubric_criterion_text_plain: TEXT   -- 独自カラム（CASE v1.1 に対応するフィールドなし）。cf_item.fullStatement に相当する表示用テキスト
 last_change_date_time: TIMESTAMP NOT NULL
 INDEX(cf_rubric_id), INDEX(identifier)
 ```
@@ -211,11 +213,13 @@ INDEX(cf_rubric_id), INDEX(identifier)
 ```
 id: UUID PK
 cf_rubric_criterion_id: UUID FK(cf_rubric_criterion.id) NOT NULL
+rubric_criterion_id: UUID                -- CASE v1.1 rubricCriterionId。親 CFRubricCriterion の identifier
 identifier: UUID UNIQUE NOT NULL       -- tenant_idを持たないため単独UNIQUE。Phase 2で詳細設計（cf_rubric_criterion と同一リスク）
 uri: VARCHAR NOT NULL
 description: TEXT
 quality: VARCHAR
 score: FLOAT
+feedback: TEXT                           -- CASE v1.1 feedback（任意）
 position: INTEGER
 last_change_date_time: TIMESTAMP NOT NULL
 INDEX(cf_rubric_criterion_id), INDEX(identifier)
@@ -224,5 +228,6 @@ INDEX(cf_rubric_criterion_id), INDEX(identifier)
 ### Phase 1 で省略する CASE v1.1 フィールド
 以下のフィールドは CASE v1.1 仕様に存在するが、実運用での使用頻度が低いため Phase 1 では省略する。
 Phase 2 以降で必要に応じてカラムを追加する。
-- `notes: TEXT` — CFDocument / CFItem 共通。自由記述メモ
+- `notes: TEXT` — CFDocument / CFItem / CFAssociation 共通。自由記述メモ（CFAssociation の notes は v1.1 新規フィールド）
 - `alternativeLabel: VARCHAR` — CFItem のみ。代替ラベル
+- `extensions` — 全リソース共通（v1.1 新規）。拡張データを格納する任意フィールド。外部インポート時に extensions が含まれている場合、Phase 1 では値が失われる
