@@ -393,6 +393,8 @@ CFSubjects, CFConcepts, CFLicenses, CFAssociationGroupings も同じ基本構造
 - **CFLicense**: `licenseText` (string, nullable)
 - **CFAssociationGrouping**: 固有フィールドなし（共通フィールドのみ）
 
+**注意**: CASE v1.1 仕様では `description`（CFItemType）、`hierarchyCode`（CFItemType/CFSubject/CFConcept）、`licenseText`（CFLicense）は required（non-nullable）として定義されている。Phase 1 では DB 上 nullable のため `null` を返す（上記例の通り）。Phase 2 の Conformance テスト対応で修正予定（api-spec.md 参照）。
+
 **licenseURI が非 null の場合（CFDocument / CFItem 共通）:**
 ```json
 {
