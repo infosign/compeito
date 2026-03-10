@@ -427,6 +427,7 @@ CASE v1.0 の CFPackage レスポンスを v1.1 形式に変換する:
 - `licenseURI` は `cf_item.license_uri` をそのまま出力（NULL なら空セル）
 - `statusStartDate` は `cf_item.status_start_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
 - `statusEndDate` は `cf_item.status_end_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
+- **cf_license / cf_association_grouping の round-trip 制約**: これらの lookup リソースは CSV に一切出力されない（CSV フォーマットに対応するカラムが存在しない）。外部 CASE ソースインポートで作成された cf_license・cf_association_grouping レコードは、CSV エクスポート→別テナントへの CSV インポートで完全に失われる。同一テナント内の更新ではテナント所有の lookup レコードが DB 上に残るため影響はないが、テナント間のデータ移行には CSV ではなく外部 CASE ソースインポートを使用すべきである
 
 ### OpenSALT形式エクスポート（Phase 2）
 

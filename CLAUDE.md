@@ -41,7 +41,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 ```
 case-server/
 ├── src/
-│   ├── main.py                  # FastAPI app エントリーポイント + Mangum handler
+│   ├── main.py                  # FastAPI app エントリーポイント + Mangum handler + GET /health + v1p0リダイレクトミドルウェア
 │   ├── config.py                # 設定 (Pydantic Settings)
 │   ├── database.py              # DB接続 (async SQLAlchemy)
 │   ├── models/                  # SQLAlchemy ORM モデル
@@ -71,6 +71,7 @@ case-server/
 │   │   └── cf_rubric.py              # Phase 2
 │   ├── routers/                 # FastAPI ルーター
 │   │   ├── admin.py             # POST /admin/* (管理API、Bearer token認証)
+│   │   ├── web.py               # Web UI: /{tenant}/, /cftree/doc/*, /uri/{uuid}
 │   │   ├── index.py             # GET / テナント一覧
 │   │   ├── cf_documents.py
 │   │   ├── cf_items.py
@@ -91,6 +92,7 @@ case-server/
 │   │   └── error.html           # エラーページ (404/400/500)
 │   ├── services/                # ビジネスロジック (router → service → repository)
 │   │   ├── tenant_service.py
+│   │   ├── case_query_service.py    # CASE API 単一リソース取得・一覧取得
 │   │   ├── cf_view_service.py       # ツリービュー・アイテム詳細・CFPackage構築
 │   │   ├── csv_import_service.py
 │   │   ├── csv_export_service.py
