@@ -105,7 +105,7 @@ tenant_id: UUID FK(tenant.id) NOT NULL
 cf_document_id: UUID FK(cf_document.id) NOT NULL
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
-association_type: VARCHAR NOT NULL  -- CASE v1.1列挙値: isChildOf, isPeerOf, isPartOf, exactMatchOf, precedes, isRelatedTo, replacedBy, exemplar, hasSkillLevel
+association_type: VARCHAR NOT NULL  -- CASE v1.1列挙値: isChildOf, isPeerOf, isPartOf, exactMatchOf, precedes, isRelatedTo, replacedBy, exemplar, hasSkillLevel, isTranslationOf
 origin_node_uri: VARCHAR NOT NULL
 origin_node_identifier: UUID NOT NULL
 origin_node_title: VARCHAR        -- LinkURIType.title。JOINで解決できない外部参照用に保持
