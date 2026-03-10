@@ -13,7 +13,7 @@
 
 | ID | 要件 | Phase |
 |----|------|-------|
-| FR-2.1 | CASE v1.1 準拠の全16エンドポイント（CFRubric除く）を `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
+| FR-2.1 | CASE v1.1 準拠の 11 エンドポイント（CFRubric 除く）+ 独自拡張の一覧エンドポイント 5 つを `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
 | FR-2.2 | CFPackage エンドポイントで、CFDocument・CFItems・CFAssociations・CFDefinitions を一括返却する | 1 |
 | FR-2.3 | CFPackage の CFItems・CFAssociations はデータがなくても空配列として常に含める。CFDefinitions はデータがなければ省略する | 1 |
 | FR-2.4 | 全一覧エンドポイントに `limit`（デフォルト100, 最大500）/ `offset`（デフォルト0, 最大100000）のページネーションを実装する | 1 |
