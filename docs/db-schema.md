@@ -84,6 +84,8 @@ list_enumeration: VARCHAR
 abbreviated_statement: TEXT
 concept_keywords: JSONB    -- 文字列配列 ["分析", "評価"]
 education_level: JSONB     -- 文字列配列 ["09", "10", "11", "12"]
+subject: JSONB             -- 文字列配列 ["数学"]. v1.1 new. CFDocument と同じ形式
+subject_uri: JSONB         -- LinkURIオブジェクト配列. v1.1 new. CFDocument と同じ形式
 language: VARCHAR(10)
 status_start_date: DATE
 status_end_date: DATE
