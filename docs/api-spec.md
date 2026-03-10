@@ -56,6 +56,19 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 **null フィールドの扱い:** null 許容フィールドはレスポンスに含める方針とする（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用し、一貫性を優先する。
 エラー時は `{"imsx_codeMajor": "failure", ...}` をルートレベルに直接返す（エラー形式参照）。
 
+## CFItemAssociations レスポンス構造
+
+CASE v1.1 の `CFAssociationSetDType` 形式。対象 CFItem と、そのアイテムに関連する全 Association を返す:
+```json
+{
+  "CFItem": {...},
+  "CFAssociations": [...]
+}
+```
+- `CFItem`: 対象アイテムのスタンドアロンスキーマ（`GET /CFItems/{id}` と同一。`CFDocumentURI` を含む）
+- `CFAssociations`: 対象アイテムに関連する全 Association の配列。各 Association は `CFDocumentURI` を**含まない**（CASE v1.1 の `CFPckgAssociationDType`。CFPackage 内の CFAssociation と同じスキーマ）
+- `CFAssociations` はデータがなくても空配列 `[]` として常に含める
+
 ## バリデーション（全エンドポイント共通）
 
 **テナントUUID:**
