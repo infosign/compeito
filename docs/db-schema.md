@@ -54,6 +54,8 @@ title: VARCHAR NOT NULL
 creator: VARCHAR
 publisher: VARCHAR
 description: TEXT
+framework_type: VARCHAR      -- v1.1 new. 例: "CourseCodes"
+case_version: VARCHAR        -- v1.1 new. 値は "1.1" のみ
 language: VARCHAR(10)
 version: VARCHAR
 adoption_status: VARCHAR
