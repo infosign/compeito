@@ -7,7 +7,7 @@ Public:  CloudFront → API Gateway → Lambda (FastAPI + Mangum) → Aurora Ser
 Admin:   CLI → Lambda Function URL (HTTPS + Bearer token) → Lambda → Aurora
 ```
 
-- **Lambda**: 単一の Lambda 関数。タイムアウト 300s。アクセス経路が2つ（API Gateway / Function URL）
+- **Lambda**: 基本的に単一の Lambda 関数。タイムアウト 300s。アクセス経路が2つ（API Gateway / Function URL）。ただし `POST /admin/migrate` は並行実行防止のため別 Lambda 関数（同一コード）として予約同時実行数=1 で CDK デプロイする（NFR-2.4）
 - **Public API**: API Gateway 経由。API Gateway の統合タイムアウト (29s) で自然に制限される
 - **Admin API**: Lambda Function URL 経由。API Gateway を通さないため 300s の長時間処理が可能
 
@@ -65,7 +65,7 @@ CLI → HTTPS + Bearer token → Lambda Function URL (/admin/*) → Lambda → A
 
 **認証:**
 - Lambda Function URL: `auth_type=NONE`（インフラ層の認証なし）
-- アプリ層: FastAPIミドルウェアで `Authorization: Bearer <shared-secret>` を検証
+- アプリ層: FastAPIミドルウェアで `Authorization: Bearer <shared-secret>` を検証（timing attack 防止のため `hmac.compare_digest()` で定数時間比較する）
 - CDKデプロイ時にシークレットを生成し、Secrets Manager に保存。CDK Outputs に Function URL を出力
 - オペレーター側: `.env` ファイル（ローカル）、Repository Secrets（CI/CD）
 
@@ -78,18 +78,28 @@ CASE_ADMIN_KEY=xxxxxxxxxxxxxxxxxxxx
 CLIは環境変数で接続先を自動判定:
 - `DATABASE_URL` あり → 直接DB接続（Docker環境）
 - `CASE_ADMIN_URL` + `CASE_ADMIN_KEY` あり → 管理API経由（AWS環境）
+- `CASE_ADMIN_URL` と `CASE_ADMIN_KEY` のどちらか一方のみ設定 → エラー終了（「CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set」）
 - 両方設定されている場合 → `DATABASE_URL` を優先（直接DB接続）。ログに警告を出す。
-- どちらもない場合 → エラー終了（「DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY を設定してください」）
+- どちらもない場合 → エラー終了（「DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set」）
 
 ## CloudFront Invalidation戦略
 
 ワイルドカードを使い常に無料枠（月1000パス）内に収める。
-importコマンド完了時に自動でinvalidationを実行する。
+CLIのデータ変更操作（import csv, import case-url, doc delete, tenant create, tenant update, tenant delete）完了時に自動でinvalidationを実行する（Phase 2）。
 
 | 操作 | invalidationパス | カウント |
 |------|----------------|---------|
-| テナント全体 | `/{tenant-uuid}/*` | 1 |
-| ドキュメント更新 | `/{tenant-uuid}/cftree/doc/{doc-uuid}*` / `/{tenant-uuid}/ims/case/v1p1/CFPackages/{doc-uuid}` / `/{tenant-uuid}/ims/case/v1p1/CFDocuments*` | 3 |
+| テナント全体（手動） | `/{tenant-uuid}/*` / `/` | 2 |
+| ドキュメント更新（import） | `/{tenant-uuid}/cftree/doc/{doc-uuid}*` / `/{tenant-uuid}/uri/*` / `/{tenant-uuid}/ims/case/v1p1/CFPackages/{doc-uuid}` / `/{tenant-uuid}/ims/case/v1p1/CFDocuments*` / `/{tenant-uuid}/` | 5 |
+| ドキュメント削除（doc delete） | `/{tenant-uuid}/cftree/doc/{doc-uuid}*` / `/{tenant-uuid}/uri/*` / `/{tenant-uuid}/ims/case/v1p1/CFPackages/{doc-uuid}` / `/{tenant-uuid}/ims/case/v1p1/CFDocuments*` / `/{tenant-uuid}/` | 5 |
+| テナント作成（tenant create） | `/` | 1 |
+| テナント更新（tenant update） | `/{tenant-uuid}/*` / `/` | 2 |
+| テナント削除（tenant delete） | `/{tenant-uuid}/*` / `/` | 2 |
+
+**ドキュメント更新時のトレードオフ:** 個別リソースAPI（`/CFItems/{id}`, `/CFItems/{id}/associations`, `/CFAssociations/{id}`, `/CFItemTypes`, `/CFSubjects`, `/CFConcepts`, `/CFLicenses`, `/CFAssociationGroupings` 等）は
+invalidation対象に含めない。これらは `max-age=3600` の自然失効に委ねる（最大1時間のステール許容）。
+全パスを個別にinvalidateすると無料枠を超過するリスクがあるため、アクセス頻度の高いパス（ツリービュー・詳細ページ・CFPackage・CFDocuments一覧）に絞る。
+即座に全API応答を最新化したい場合は、テナント全体の invalidation（`/{tenant-uuid}/*`、1パス）を使用する。
 
 ```bash
 # import実行時は自動でinvalidation（手動実行も可能）
@@ -101,7 +111,7 @@ python cli.py cache invalidate --tenant {uuid} --doc {doc-uuid}
 
 | 操作 | v1.0 | v1.1 |
 |------|------|------|
-| インポート (CSV / 外部CASEソース) | ○ (v1.1に正規化して保存) | ○ |
+| インポート (CSV / 外部CASEソース) | ○ (v1.1に正規化して保存、Phase 2) | ○ |
 | API配信 | なし | ○ (v1.1のみ) |
 
 ## 背景・差別化
