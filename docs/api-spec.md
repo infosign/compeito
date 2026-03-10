@@ -35,6 +35,15 @@ CASE v1.1 準拠の 12 エンドポイント（CFRubric を含めると 12。Pha
 
 **注意**: CASE v1.1 では `/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}` の取得エンドポイントはそれぞれ Set 型（`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`）を返し、要求されたリソースに加えて階層下の子リソースも配列で返す仕様だが、本システムでは階層構造を持たないため、要求されたリソース 1 件のみを配列に含めて返す。`/CFLicenses/{id}` は単一オブジェクト `CFLicenseDType` を返す（Set 型ではない）。
 
+**lookup リソースの必須フィールドに関する準拠性（Phase 2 対応）:**
+CASE v1.1 OpenAPI 仕様では、lookup リソースの一部フィールドが "required"（non-nullable）として定義されている:
+- CFItemType: `description`, `hierarchyCode`
+- CFSubject: `hierarchyCode`
+- CFConcept: `hierarchyCode`
+- CFLicense: `licenseText`
+
+Phase 1 ではこれらのフィールドを DB 上 nullable として扱い、値がない場合は `null` を返す（CSV インポートで自動生成された lookup レコードではこれらのフィールドは常に NULL）。Phase 2 の 1EdTech Conformance テスト対応で、`null` の代わりに空文字列 `""` を返すか、スキーマ上 nullable として扱うかを検討する。
+
 ## CFPackage レスポンス構造
 
 ```json
