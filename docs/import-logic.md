@@ -315,6 +315,8 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。形式不正の場合は NULL として保存し警告出力）
 - `statusEndDate` → `status_end_date`（`statusStartDate` と同一ルール）
 - `educationLevel` → `education_level`（JSONB。外部データをそのまま保存）
+- `subject` → `subject`（JSONB 文字列配列。外部データをそのまま保存。v1.1 new）
+- `subjectURI` → `subject_uri`（JSONB LinkURI オブジェクト配列。外部データをそのまま保存。v1.1 new）
 - `conceptKeywords` → `concept_keywords`（JSONB。外部データをそのまま保存）
 - `conceptKeywordsURI` → `cf_concept_id`（`conceptKeywordsURI.identifier` で同一テナント内の cf_concept を検索し、内部PK を設定する。一致する cf_concept がない場合は `cf_concept_id = NULL` とし、警告を出力する。CFItemTypeURI FK 解決と同一パターン。CASE v1.1 では `conceptKeywordsURI` は単一の LinkURIDType）
 - `CFItemTypeURI.identifier` → `cf_item_type_id` の FK 解決（Step 5 参照）
