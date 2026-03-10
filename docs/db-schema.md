@@ -15,6 +15,7 @@ SET NULL（参照関係）:
 - `cf_document.cf_license_id` → CFLicense削除時、ドキュメントのlicense参照をNULLにする（ドキュメント自体は残す）
 - `cf_item.cf_item_type_id` → CFItemType削除時、アイテムのtype参照をNULLにする（アイテム自体は残す）
 - `cf_item.cf_license_id` → CFLicense削除時、アイテムのlicense参照をNULLにする（アイテム自体は残す）
+- `cf_item.cf_concept_id` → CFConcept削除時、アイテムのconcept参照をNULLにする（アイテム自体は残す）
 - `cf_association.cf_association_grouping_id` → CFAssociationGrouping削除時、関連のgrouping参照をNULLにする（関連自体は残す）
 
 **`id` と `identifier` を分離する理由:**
@@ -74,6 +75,7 @@ tenant_id: UUID FK(tenant.id) NOT NULL
 cf_document_id: UUID FK(cf_document.id) NOT NULL
 cf_item_type_id: UUID FK(cf_item_type.id) NULLABLE
 cf_license_id: UUID FK(cf_license.id) NULLABLE
+cf_concept_id: UUID FK(cf_concept.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 full_statement: TEXT NOT NULL
@@ -81,7 +83,6 @@ human_coding_scheme: VARCHAR
 list_enumeration: VARCHAR
 abbreviated_statement: TEXT
 concept_keywords: JSONB    -- 文字列配列 ["分析", "評価"]
-concept_keywords_uri: JSONB -- LinkURIオブジェクト配列 [{"title":"分析","identifier":"uuid","uri":"https://..."}]
 education_level: JSONB     -- 文字列配列 ["09", "10", "11", "12"]
 language: VARCHAR(10)
 status_start_date: DATE
@@ -165,7 +166,7 @@ license_text: TEXT         -- ライセンス本文
 
 CSVインポート時に**同一テナント内で** `title` の完全一致で検索し、一致するレコードがなければ自動生成する（find or create。大文字小文字を区別する）。既存レコードに一致した場合はそのまま再利用し、フィールドの更新は行わない。
 テナント横断の共有はしない。一致するものがなければ新規UUID採番して作成する。
-CFSubject/CFConceptはCFDocument/CFItemの `*_uri` JSONB配列からURIで参照される。
+CFSubject は CFDocument の `subject_uri` JSONB 配列から URI で参照される。CFConcept は CFItem の `cf_concept_id` FK で参照される（CSV インポートでは cf_concept は生成されない。外部 CASE ソースインポートでのみ作成される）。
 固有カラム（typeCode等）はCSVインポートでは設定されない。外部CASEソースインポート時にのみ値が入る。
 
 ### cf_rubric（Phase 2、DBスキーマは Phase 1 で作成）
