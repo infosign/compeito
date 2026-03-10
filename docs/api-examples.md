@@ -103,6 +103,8 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
     "conceptKeywords": ["言葉", "国語"],
     "conceptKeywordsURI": {"title": "言語能力", "identifier": "ccc-concept-...", "uri": "https://..."},
     "educationLevel": ["10", "11", "12"],
+    "subject": null,
+    "subjectURI": null,
     "CFItemType": "知識及び技能",
     "CFItemTypeURI": {
       "title": "知識及び技能",
@@ -246,6 +248,8 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
         "conceptKeywords": null,
         "conceptKeywordsURI": null,
         "educationLevel": ["10", "11", "12"],
+        "subject": null,
+        "subjectURI": null,
         "CFItemType": "知識及び技能",
         "CFItemTypeURI": {"title": "知識及び技能", "identifier": "fff-...", "uri": "https://..."},
         "language": "ja",
