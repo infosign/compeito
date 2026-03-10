@@ -6,25 +6,34 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 
 ## エンドポイント一覧
 
-| Path | レスポンスルートキー | 説明 | 必須 |
-|------|---------------------|------|------|
+CASE v1.1 準拠の 12 エンドポイント（CFRubric を含めると 12。Phase 1 では CFRubric を除く 11）:
+
+| Path | レスポンスルートキー | 説明 | CASE v1.1 |
+|------|---------------------|------|-----------|
 | GET /{tenant}/ims/case/v1p1/CFPackages/{id} | `{"CFPackage": {...}}` | パッケージ取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFDocuments | `{"CFDocuments": [...]}` | 文書一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFDocuments/{id} | `{"CFDocument": {...}}` | 文書取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFItems/{id} | `{"CFItem": {...}}` | 項目取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFItemAssociations/{id} | `{"CFItem": {...}, "CFAssociations": [...]}` | 項目の関連一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFAssociations/{id} | `{"CFAssociation": {...}}` | 関連取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFAssociationGroupings | `{"CFAssociationGroupings": [...]}` | 関連グループ一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFAssociationGroupings/{id} | `{"CFAssociationGrouping": {...}}` | 関連グループ取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFConcepts | `{"CFConcepts": [...]}` | コンセプト一覧 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFConcepts/{id} | `{"CFConcept": {...}}` | コンセプト取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFItemTypes | `{"CFItemTypes": [...]}` | 項目種別一覧 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFItemTypes/{id} | `{"CFItemType": {...}}` | 項目種別取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFLicenses | `{"CFLicenses": [...]}` | ライセンス一覧 | ○ |
+| GET /{tenant}/ims/case/v1p1/CFConcepts/{id} | `{"CFConcepts": [...]}` | コンセプト取得 | ○ |
+| GET /{tenant}/ims/case/v1p1/CFItemTypes/{id} | `{"CFItemTypes": [...]}` | 項目種別取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFLicenses/{id} | `{"CFLicense": {...}}` | ライセンス取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFSubjects | `{"CFSubjects": [...]}` | 教科一覧 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFSubjects/{id} | `{"CFSubject": {...}}` | 教科取得 | ○ |
+| GET /{tenant}/ims/case/v1p1/CFSubjects/{id} | `{"CFSubjects": [...]}` | 教科取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFRubrics/{id} | `{"CFRubric": {...}}` | ルーブリック取得 | Phase 2 |
+
+**独自拡張エンドポイント**（CASE v1.1 仕様外。テナント内の全リソースを一覧取得。利便性のため提供）:
+
+| Path | レスポンスルートキー | 説明 |
+|------|---------------------|------|
+| GET /{tenant}/ims/case/v1p1/CFItemTypes | `{"CFItemTypes": [...]}` | 項目種別一覧 |
+| GET /{tenant}/ims/case/v1p1/CFSubjects | `{"CFSubjects": [...]}` | 教科一覧 |
+| GET /{tenant}/ims/case/v1p1/CFConcepts | `{"CFConcepts": [...]}` | コンセプト一覧 |
+| GET /{tenant}/ims/case/v1p1/CFLicenses | `{"CFLicenses": [...]}` | ライセンス一覧 |
+| GET /{tenant}/ims/case/v1p1/CFAssociationGroupings | `{"CFAssociationGroupings": [...]}` | 関連グループ一覧 |
+
+**注意**: CASE v1.1 では `/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}` の取得エンドポイントはそれぞれ Set 型（`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`）を返し、要求されたリソースに加えて階層下の子リソースも配列で返す仕様だが、本システムでは階層構造を持たないため、要求されたリソース 1 件のみを配列に含めて返す。`/CFLicenses/{id}` は単一オブジェクト `CFLicenseDType` を返す（Set 型ではない）。
 
 ## CFPackage レスポンス構造
 
