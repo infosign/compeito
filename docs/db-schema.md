@@ -155,6 +155,7 @@ hierarchy_code: VARCHAR    -- CASE v1.1 hierarchyCode
 
 ### cf_concept（追加カラム）
 ```
+keywords: VARCHAR          -- CASE v1.1 keywords（パイプ区切り文字列。例: "analysis|evaluation"）
 hierarchy_code: VARCHAR    -- CASE v1.1 hierarchyCode
 ```
 

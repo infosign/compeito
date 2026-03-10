@@ -384,7 +384,8 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
 CFSubjects, CFConcepts, CFLicenses, CFAssociationGroupings も同じ基本構造。
 ルートキー名のみ異なる（`CFSubjects`/`CFSubject`, `CFConcepts`/`CFConcept` 等）。
 各リソースの固有フィールド:
-- **CFSubject / CFConcept**: `hierarchyCode` (string, nullable)
+- **CFSubject**: `hierarchyCode` (string, nullable)
+- **CFConcept**: `keywords` (string, nullable, パイプ区切り), `hierarchyCode` (string, nullable)
 - **CFLicense**: `licenseText` (string, nullable)
 - **CFAssociationGrouping**: 固有フィールドなし（共通フィールドのみ）
 

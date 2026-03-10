@@ -299,7 +299,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 外部 CASE JSON のフィールド名（camelCase）を DB カラム名（snake_case）にマッピングする。共通フィールド（`identifier`, `uri`, `title`, `description`, `lastChangeDateTime`）は全 lookup テーブルで同一。`lastChangeDateTime` は ISO 8601 文字列をパースし、形式不正の場合はインポート実行時の UTC タイムスタンプを使用し警告出力する（CFItem の `lastChangeDateTime` と同一ルール）。未存在の場合も同様。固有フィールド:
 - CFItemType: `typeCode` → `type_code`、`hierarchyCode` → `hierarchy_code`
 - CFSubject: `hierarchyCode` → `hierarchy_code`
-- CFConcept: `hierarchyCode` → `hierarchy_code`
+- CFConcept: `keywords` → `keywords`、`hierarchyCode` → `hierarchy_code`
 - CFLicense: `licenseText` → `license_text`
 - CFAssociationGrouping: 固有フィールドなし
 
