@@ -50,7 +50,12 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 - `CFDefinitions` に含めるスコープ: このドキュメントのリソースから参照されている定義のみ（テナント内の全定義ではない）。具体的には: CFItemTypes = ドキュメント配下の CFItem が `cf_item_type_id` で参照するもの、CFSubjects = CFDocument および配下の CFItem の `subject_uri` から参照されるもの、CFConcepts = ドキュメント配下の CFItem が `cf_concept_id` で参照するもの、CFLicenses = CFDocument または配下の CFItem が `cf_license_id` で参照するもの、CFAssociationGroupings = ドキュメント配下の CFAssociation が `cf_association_grouping_id` で参照するもの
 - `CFRubrics` は Phase 2。Phase 1 ではデータがないためキー自体を省略する。Phase 2 で実装後は `CFItems` / `CFAssociations` と同様に空配列 `[]` として常に含める（`CFRubrics` は配列型であり、CFDefinitions のオブジェクト型省略ルールとは異なる）
 - **CFPackage 内のソート順**: CFItems・CFAssociations・CFDefinitions 内の各配列は `identifier ASC` で並べる（一覧エンドポイントのデフォルトソート順と統一し、決定的な出力を保証する）
-- **CFPackage 内のリソーススキーマ**: CFItems 内の各 CFItem、CFAssociations 内の各 CFAssociation、CFDefinitions 内の各リソースは、対応するスタンドアロン API エンドポイント（`GET /CFItems/{id}` 等）と同一の Pydantic スキーマを使用する
+- **CFPackage 内のリソーススキーマ（CFPckg* 型）**: CASE v1.1 では CFPackage 内のリソースはスタンドアロン型とは異なる CFPckg* 型を使用する:
+  - `CFPckgDocument`: スタンドアロン `CFDocument` から `CFPackageURI` を**除外**（CFPackage 自体がこのドキュメントを包含しているため冗長）
+  - `CFPckgItem`: スタンドアロン `CFItem` から `CFDocumentURI` を**除外**（CFPackage のコンテキストからドキュメントが明確なため冗長）
+  - `CFPckgAssociation`: スタンドアロン `CFAssociation` から `CFDocumentURI` を**除外**（同上）
+  - CFDefinitions 内の各リソース（CFItemType, CFSubject 等）はスタンドアロンと同一スキーマ
+  - Pydantic で CFPckg* 用の派生スキーマを定義し、`CFPackageURI` / `CFDocumentURI` フィールドを除外する
 
 レスポンスにカスタムラッパー (`{"data": ...}` 等) を**追加してはならない**。
 **null フィールドの扱い:** null 許容フィールドはレスポンスに含める方針とする（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用し、一貫性を優先する。
