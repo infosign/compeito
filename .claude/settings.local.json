@@ -23,7 +23,17 @@
       "WebSearch",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(gh label:*)"
+      "Bash(gh label:*)",
+      "Bash(gh issue:*)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv --version)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv sync)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && rm -rf .venv && uv sync)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv run pytest -v)",
+      "Bash(docker compose:*)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv run alembic --help | head -5)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv run python -c \"from alembic.config import Config; c = Config\\('alembic.ini'\\); print\\('Alembic config OK, script_location:', c.get_main_option\\('script_location'\\)\\)\")",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv run python -c \"\nfrom src.config import settings\nprint\\('database_url:', settings.database_url\\)\nprint\\('base_url:', settings.base_url\\)\nprint\\('is_lambda:', settings.is_lambda\\)\n\")",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\" && uv run python -c \"\nfrom src.main import app\nprint\\('FastAPI app title:', app.title\\)\nprint\\('Routes:', [r.path for r in app.routes]\\)\n\")"
     ]
   }
 }
