@@ -12,7 +12,7 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 | GET /{tenant}/ims/case/v1p1/CFDocuments | `{"CFDocuments": [...]}` | 文書一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFDocuments/{id} | `{"CFDocument": {...}}` | 文書取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFItems/{id} | `{"CFItem": {...}}` | 項目取得 | ○ |
-| GET /{tenant}/ims/case/v1p1/CFItems/{id}/associations | `{"CFAssociations": [...]}` | 項目の関連一覧 | ○ |
+| GET /{tenant}/ims/case/v1p1/CFItemAssociations/{id} | `{"CFItem": {...}, "CFAssociations": [...]}` | 項目の関連一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFAssociations/{id} | `{"CFAssociation": {...}}` | 関連取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFAssociationGroupings | `{"CFAssociationGroupings": [...]}` | 関連グループ一覧 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFAssociationGroupings/{id} | `{"CFAssociationGrouping": {...}}` | 関連グループ取得 | ○ |
@@ -66,8 +66,8 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 - 全リソース取得エンドポイントはテナントスコープ内で検索する（パスの `{tenant-uuid}` で指定されたテナント内のみ）
 - `{id}`（`/CFItems/{id}`, `/CFDocuments/{id}` 等）が UUID 形式でない → **400** (`imsx_codeMinorFieldValue: invalid_uuid`)
 - UUID 形式だがテナント内にリソースが存在しない → **404** (`imsx_codeMinorFieldValue: unknownobject`)
-- `GET /CFItems/{id}/associations` で `{id}` のアイテムが存在しない → **404** (`imsx_codeMinorFieldValue: unknownobject`)（空配列ではなく404を返す）
-- `GET /CFItems/{id}/associations` の検索スコープ: テナント内の全ドキュメントから `origin_node_identifier = {id}` OR `destination_node_identifier = {id}` の Association を返す（アイテムが属するドキュメントに限定しない）
+- `GET /CFItemAssociations/{id}` で `{id}` のアイテムが存在しない → **404** (`imsx_codeMinorFieldValue: unknownobject`)（空配列ではなく404を返す）
+- `GET /CFItemAssociations/{id}` の検索スコープ: テナント内の全ドキュメントから `origin_node_identifier = {id}` OR `destination_node_identifier = {id}` の Association を返す（アイテムが属するドキュメントに限定しない）
 
 **スコープ:**
 - `/uri/{uuid}` はテナントスコープ内で検索する。別テナントの UUID を指定した場合は **404**
@@ -76,7 +76,7 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 ## ページネーション
 
 CASE v1.1準拠。全一覧エンドポイントに `limit`(デフォルト100, 最大500) / `offset`(デフォルト0) を実装。
-対象: `CFDocuments`, `CFItems/{id}/associations`, `CFItemTypes`, `CFSubjects`, `CFConcepts`, `CFLicenses`, `CFAssociationGroupings`（レスポンスが配列の全エンドポイント）。
+対象: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects`, `CFConcepts`, `CFLicenses`, `CFAssociationGroupings`（レスポンスが配列の全エンドポイント）。
 `CFPackages/{id}` はページネーション対象外。CASE v1.1 仕様に従い、CFPackage 内の CFItems・CFAssociations・CFDefinitions は全件を返す。**注意**: API Gateway のレスポンスペイロード上限は 10MB。大規模ドキュメント（10,000+ アイテム）ではこの制限に達する可能性がある。制限超過時は API Gateway が 502 を返す。必要に応じて Lambda Function URL 経由での直接アクセスを検討する（Phase 2 以降）。
 `sort` / `orderBy` / `filter` / `fields` パラメータは Phase 1 では実装しない（無視する）。
 レスポンスに総件数は含めない（CASE v1.1仕様に総件数フィールドはない）。
