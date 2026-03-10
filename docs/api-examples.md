@@ -169,12 +169,14 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
       "originNodeURI": {
         "title": "実社会に必要な国語の知識や技能を...",
         "identifier": "e97885g3-2345-6789-abcd-ef0123456789",
-        "uri": "https://case.example.com/550e8400-.../uri/e97885g3-..."
+        "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
+        "targetType": null
       },
       "destinationNodeURI": {
         "title": "言葉の特徴や使い方に関する事項",
         "identifier": "f08896h4-3456-7890-bcde-f01234567890",
-        "uri": "https://case.example.com/550e8400-.../uri/f08896h4-..."
+        "uri": "https://case.example.com/550e8400-.../uri/f08896h4-...",
+        "targetType": null
       },
       "sequenceNumber": 10,
       "CFAssociationGroupingURI": null,
@@ -196,12 +198,14 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
     "originNodeURI": {
       "title": "実社会に必要な国語の知識や技能を...",
       "identifier": "e97885g3-...",
-      "uri": "https://..."
+      "uri": "https://...",
+      "targetType": null
     },
     "destinationNodeURI": {
       "title": "言葉の特徴や使い方に関する事項",
       "identifier": "f08896h4-...",
-      "uri": "https://..."
+      "uri": "https://...",
+      "targetType": null
     },
     "sequenceNumber": 10,
     "CFAssociationGroupingURI": null,
@@ -287,8 +291,8 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
         "identifier": "aaa11111-...",
         "uri": "https://case.example.com/550e8400-.../uri/aaa11111-...",
         "associationType": "isChildOf",
-        "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://..."},
-        "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
+        "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://...", "targetType": null},
+        "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://...", "targetType": null},
         "sequenceNumber": 10,
         "CFAssociationGroupingURI": null,
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
