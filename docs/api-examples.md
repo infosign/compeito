@@ -130,11 +130,33 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
 
 ### GET /{tenant}/ims/case/v1p1/CFItemAssociations/{id}
 
-アイテムに関連する全Association（origin/destination両方向）を返す。
+対象アイテムと、そのアイテムに関連する全Association（origin/destination両方向）を返す。
+CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Association は CFDocumentURI を含まない（CFPckgAssociationDType）。
 
 **レスポンス (200):**
 ```json
 {
+  "CFItem": {
+    "identifier": "e97885g3-2345-6789-abcd-ef0123456789",
+    "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
+    "fullStatement": "実社会に必要な国語の知識や技能を身に付けるようにする。",
+    "humanCodingScheme": "A-1-(1)",
+    "abbreviatedStatement": null,
+    "conceptKeywords": ["言葉", "国語"],
+    "conceptKeywordsURI": null,
+    "educationLevel": ["10", "11", "12"],
+    "subject": null,
+    "subjectURI": null,
+    "CFItemType": "知識及び技能",
+    "CFItemTypeURI": {"title": "知識及び技能", "identifier": "fff-...", "uri": "https://..."},
+    "language": "ja",
+    "licenseURI": null,
+    "statusStartDate": null,
+    "statusEndDate": null,
+    "listEnumeration": "1",
+    "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
+    "lastChangeDateTime": "2025-10-08T12:00:00Z"
+  },
   "CFAssociations": [
     {
       "identifier": "aaa11111-1111-1111-1111-111111111111",
@@ -152,11 +174,6 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
       },
       "sequenceNumber": 10,
       "CFAssociationGroupingURI": null,
-      "CFDocumentURI": {
-        "title": "高等学校学習指導要領",
-        "identifier": "d86774f2-1234-5678-9abc-def012345678",
-        "uri": "https://case.example.com/550e8400-.../uri/d86774f2-..."
-      },
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
     }
   ]
