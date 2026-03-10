@@ -22,7 +22,8 @@
       "WebFetch(domain:casenetwork.imsglobal.org)",
       "WebSearch",
       "Bash(git push:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh label:*)"
     ]
   }
 }
