@@ -36,7 +36,7 @@
 `#` で始まる行をキー・バリューとしてパースし、CFDocument のフィールドにマッピングする。
 CLI引数が指定されている場合はCLI引数が優先。
 
-**空文字列の扱い（全メタデータ共通）:** 全ての単一値メタデータフィールド（`#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#license_uri`, `#status_start_date`, `#status_end_date`）において、値が空文字列（前後空白をトリムした後に空）の場合は NULL（未指定）として扱う。新規作成時は NULL が設定され、更新時は既存値を保持する（キー自体が未記載の場合と同じ動作）。
+**空文字列の扱い（全メタデータ共通）:** 全ての単一値メタデータフィールド（`#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#license`, `#status_start_date`, `#status_end_date`）において、値が空文字列（前後空白をトリムした後に空）の場合は NULL（未指定）として扱う。新規作成時は NULL が設定され、更新時は既存値を保持する（キー自体が未記載の場合と同じ動作）。
 
 ### ステップ2.5: Is Part Of 事前スキャン（OpenSALT形式のみ）
 
@@ -83,7 +83,7 @@ OpenSALT形式の場合、Step 3 で CFDocument を特定するために `Is Par
 - `sequenceNumber` → 整数に変換。変換失敗時はエラー（行スキップ。警告「Row N: Invalid sequenceNumber 'xxx', skipped」）。値が PostgreSQL INTEGER 範囲（-2147483648 ～ 2147483647）を超える場合も変換失敗として同じ扱い
 - `statusStartDate` → 非空の場合、`YYYY-MM-DD` 形式の有効な日付かを検証する。形式不正または無効な日付（例: `2025-13-45`）の場合は警告を出力し（「Row N: Invalid statusStartDate 'xxx', set to null」）、該当フィールドを NULL として扱う（行スキップではない）
 - `statusEndDate` → `statusStartDate` と同じバリデーションルール（警告メッセージのフィールド名は `statusEndDate`）
-- `licenseURI` → 文字列としてそのまま保存する（形式バリデーションなし。空セルなら NULL）
+- `license` → CFItemType と同じ lookup パターン。Step 5 で cf_license を find or create し、`cf_item.cf_license_id` に FK を設定する。空セルなら NULL（新規作成時）、または既存値を保持（更新時）
 - `language` → 非空の場合、10文字以下であることを検証する。超過の場合は警告を出力し（「Row N: language 'xxx' exceeds 10 characters, set to null」）、値を NULL として扱う（行スキップではない。DB の `VARCHAR(10)` 制約によるトランザクション全体のロールバックを防止する）
 
 **メタデータのバリデーション:**
@@ -93,9 +93,9 @@ OpenSALT形式の場合、Step 3 で CFDocument を特定するために `Is Par
 
 ### ステップ5: lookup系テーブル自動生成
 
-CSVの `CFItemType` 列・`conceptKeywords` 列・メタデータ `#subject` の値から、lookup系テーブル（cf_item_type, cf_concept, cf_subject）のレコードを自動生成する。
+CSVの `CFItemType` 列・`license` 列・`conceptKeywords` 列・メタデータ `#subject`・メタデータ `#license` の値から、lookup系テーブル（cf_item_type, cf_license, cf_concept, cf_subject）のレコードを自動生成する。
 
-**前処理:** lookup のキーとなる値（CFItemType 列の値、`conceptKeywords` の各要素、`#subject` の各要素）は前後空白をトリムしてからマッチングに使用する（トリム後の値を `title` として lookup テーブルに保存する）。トリム後に空文字列となる場合は「値なし」として扱う（lookup レコードの作成・検索を行わない）。`conceptKeywords` と `#subject` は Step 4 / csv-format.md のパース段階で個々の要素がトリム済みだが、`CFItemType` は本ステップで追加でトリムする。
+**前処理:** lookup のキーとなる値（CFItemType 列の値、`license` 列の値、`#license` の値、`conceptKeywords` の各要素、`#subject` の各要素）は前後空白をトリムしてからマッチングに使用する（トリム後の値を `title` として lookup テーブルに保存する）。トリム後に空文字列となる場合は「値なし」として扱う（lookup レコードの作成・検索を行わない）。`conceptKeywords` と `#subject` は Step 4 / csv-format.md のパース段階で個々の要素がトリム済みだが、`CFItemType` と `license` / `#license` は本ステップで追加でトリムする。
 
 **マッチングルール（全lookup共通）:**
 1. 同一テナント内で `title` の**完全一致**を検索（大文字小文字を区別する）
@@ -107,6 +107,7 @@ CSVの `CFItemType` 列・`conceptKeywords` 列・メタデータ `#subject` の
 | lookup テーブル | CSVの列 | 備考 |
 |---------------|---------|------|
 | cf_item_type | CFItemType | 値が空なら: 新規作成時は cf_item.cf_item_type_id = NULL、更新時は既存の cf_item_type_id を保持する（Step 6 の空セル→既存値保持ルールと同一） |
+| cf_license | `license` 列（CFItem用）/ メタデータ `#license`（CFDocument用） | CFItemType と同じ title ベースの find or create パターン。`license` 列の値が空なら: 新規作成時は cf_item.cf_license_id = NULL、更新時は既存の cf_license_id を保持する。`#license` の値が空なら: 新規作成時は cf_document.cf_license_id = NULL、更新時は既存の cf_license_id を保持する。CFItem と CFDocument が同じ license 名を参照する場合、同一の cf_license レコードを共有する |
 | cf_subject | メタデータ `#subject` | カンマ区切り。cf_documentの `subject` / `subject_uri` に格納 |
 | cf_concept | conceptKeywords | cf_item の `concept_keywords` / `concept_keywords_uri` に格納 |
 
@@ -133,7 +134,7 @@ CSVの `CFItemType` 列・`conceptKeywords` 列・メタデータ `#subject` の
 
 **更新時の動作:**
 - CSVに値がある列 → 上書き
-- CSVに値がない列（空セル、またはフォーマット定義にカラム自体が存在しない場合。例: OpenSALT形式の `listEnumeration`, `licenseURI`, `statusStartDate`, `statusEndDate`） → 既存値を保持（NULLで上書きしない）。**「空セル」の判定はパース前の原値で行う**（セル値が空文字列または未存在の場合。区切り文字のみの入力（例: `educationLevel` 列が `","` ）はパース前の原値が非空のため「値がある」として扱い、パース結果の `[]` で上書きされる）
+- CSVに値がない列（空セル、またはフォーマット定義にカラム自体が存在しない場合。例: OpenSALT形式の `listEnumeration`, `license`, `statusStartDate`, `statusEndDate`） → 既存値を保持（NULLで上書きしない）。**「空セル」の判定はパース前の原値で行う**（セル値が空文字列または未存在の場合。区切り文字のみの入力（例: `educationLevel` 列が `","` ）はパース前の原値が非空のため「値がある」として扱い、パース結果の `[]` で上書きされる）
 - `uri` → 既存値を保持する（再生成しない。外部CASEソースインポート由来のアイテムの外部URIを上書きしないため）
 - `last_change_date_time` → インポート実行時のUTCタイムスタンプで上書き
 
@@ -283,7 +284,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `adoptionStatus` → `adoption_status`
 - `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。形式不正の場合は NULL として保存し警告出力。CFItem と同一ルール）
 - `statusEndDate` → `status_end_date`（`statusStartDate` と同一ルール）
-- `licenseURI` → `license_uri`
+- `licenseURI` → `cf_license_id`（`licenseURI.identifier` で同一テナント内の cf_license を検索し、内部PK を設定する。一致する cf_license がない場合は `cf_license_id = NULL` とし、警告を出力する。CFItem の CFItemTypeURI FK 解決と同一パターン）
 - `officialSourceURL` → `official_source_url`
 - `subject` → `subject`（文字列配列 JSONB）
 - `subjectURI` → `subject_uri`（LinkURI オブジェクト配列 JSONB）
@@ -309,7 +310,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `abbreviatedStatement` → `abbreviated_statement`
 - `listEnumeration` → `list_enumeration`
 - `language` → `language`（10文字以下であることを検証する。超過の場合は NULL として保存し警告出力。CSV インポートと同一ルール）
-- `licenseURI` → `license_uri`
+- `licenseURI` → `cf_license_id`（`licenseURI.identifier` で同一テナント内の cf_license を検索し、内部PK を設定する。一致する cf_license がない場合は `cf_license_id = NULL` とし、警告を出力する。CFDocument の licenseURI FK 解決と同一パターン）
 - `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。形式不正の場合は NULL として保存し警告出力）
 - `statusEndDate` → `status_end_date`（`statusStartDate` と同一ルール）
 - `educationLevel` → `education_level`（JSONB。外部データをそのまま保存）
@@ -412,8 +413,8 @@ CASE v1.0 の CFPackage レスポンスを v1.1 形式に変換する:
 
 ### 独自形式エクスポート
 
-- CFDocumentの非NULLかつ非空のフィールドからメタデータ行を出力する（VARCHAR 型フィールドは NULL なら出力しない。JSONB 配列型フィールド `subject` は NULL または空配列 `[]` なら出力しない。**round-trip 制約**: `[]`（空配列）は出力されないため、新規ドキュメントとしての re-import 時に `subject` / `subject_uri` は NULL に変わる。既存ドキュメントの更新時はキー未記載→既存値保持のため問題ない）。出力順: `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license_uri`, `#official_source_url`, `#subject`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式で出力する。メタデータ行もCSV行として出力するため、値にカンマ・改行・ダブルクォートが含まれる場合はRFC 4180に従いダブルクォートで囲む（例: `#description,"情報I, 情報II向け"`）。`#subject` は JSONB配列の各要素を個別のCSVフィールドとして出力する（単一のクォート文字列にまとめない。例: `#subject,国語,地理歴史,公民`）。個々の subject 値にカンマ等が含まれる場合は RFC 4180 に従い個別にクォートする（例: `#subject,国語,"情報I, 情報II",地理歴史`）
-- ヘッダー行を出力する（`Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,language,listEnumeration,licenseURI,statusStartDate,statusEndDate`）
+- CFDocumentの非NULLかつ非空のフィールドからメタデータ行を出力する（VARCHAR 型フィールドは NULL なら出力しない。FK 参照型フィールド `cf_license_id` は NULL なら出力しない、非 NULL なら `cf_license.title` を解決して `#license` として出力する。JSONB 配列型フィールド `subject` は NULL または空配列 `[]` なら出力しない。**round-trip 制約**: `[]`（空配列）は出力されないため、新規ドキュメントとしての re-import 時に `subject` / `subject_uri` は NULL に変わる。既存ドキュメントの更新時はキー未記載→既存値保持のため問題ない）。出力順: `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式で出力する。メタデータ行もCSV行として出力するため、値にカンマ・改行・ダブルクォートが含まれる場合はRFC 4180に従いダブルクォートで囲む（例: `#description,"情報I, 情報II向け"`）。`#subject` は JSONB配列の各要素を個別のCSVフィールドとして出力する（単一のクォート文字列にまとめない。例: `#subject,国語,地理歴史,公民`）。個々の subject 値にカンマ等が含まれる場合は RFC 4180 に従い個別にクォートする（例: `#subject,国語,"情報I, 情報II",地理歴史`）
+- ヘッダー行を出力する（`Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,language,listEnumeration,license,statusStartDate,statusEndDate`）
 - 全列を出力（Identifier含む）
 - `parentIdentifier` には親アイテムのUUIDを出力。ルートレベルアイテム（親が CFDocument）の場合は空セル。1つのアイテムが複数の `isChildOf` association を持つ場合（外部CASEソースインポート由来）は、`sequence_number` が最小の association の親を採用する（NULL は非NULLの後に配置する。`sequence_number` が同じ場合は `destination_node_identifier` の辞書順で最初のもの）。**round-trip 制約**: 複数の isChildOf 親を持つアイテムは、エクスポート時に1つの親に集約される。このCSVを再インポートすると、選択されなかった親子関係は isChildOf 全削除→再生成により失われる
 - `sequenceNumber` は `parentIdentifier` の決定に使用した isChildOf association の `sequence_number` を出力する（複数 isChildOf がある場合も、選択した association の値を使用）。NULL の場合は空セル。**round-trip 制約**: 空セルの `sequenceNumber` は re-import 時に自動採番（10, 20, 30...）に変わる。エクスポート時のソート順で自動採番されるため表示順序は維持されるが、実際の値は変化する
@@ -424,10 +425,10 @@ CASE v1.0 の CFPackage レスポンスを v1.1 形式に変換する:
 - `language` は `cf_item.language` をそのまま出力（NULL なら空セル）
 - `abbreviatedStatement` は `cf_item.abbreviated_statement` をそのまま出力（NULL なら空セル）
 - `listEnumeration` は `cf_item.list_enumeration` をそのまま出力（NULL なら空セル）
-- `licenseURI` は `cf_item.license_uri` をそのまま出力（NULL なら空セル）
+- `license` は `cf_item.cf_license_id` から `cf_license.title` を解決して出力（`cf_license_id` が NULL なら空セル）。CFItemType と同じ FK → JOIN パターン。**round-trip 制約**: `title` のみ出力されるため、cf_license の `license_text`・`description` は CSV に含まれない。同一テナント内の再インポートでは title 一致で既存 cf_license レコードを使用するためこれらのフィールドは保持されるが、別テナントへのインポートでは title のみの新規レコードが作成され、これらのフィールドは欠落する
 - `statusStartDate` は `cf_item.status_start_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
 - `statusEndDate` は `cf_item.status_end_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
-- **cf_license / cf_association_grouping の round-trip 制約**: これらの lookup リソースは CSV に一切出力されない（CSV フォーマットに対応するカラムが存在しない）。外部 CASE ソースインポートで作成された cf_license・cf_association_grouping レコードは、CSV エクスポート→別テナントへの CSV インポートで完全に失われる。同一テナント内の更新ではテナント所有の lookup レコードが DB 上に残るため影響はないが、テナント間のデータ移行には CSV ではなく外部 CASE ソースインポートを使用すべきである
+- **cf_association_grouping の round-trip 制約**: cf_association_grouping は CSV に一切出力されない（CSV フォーマットに対応するカラムが存在しない）。外部 CASE ソースインポートで作成された cf_association_grouping レコードは、CSV エクスポート→別テナントへの CSV インポートで完全に失われる。同一テナント内の更新ではテナント所有の lookup レコードが DB 上に残るため影響はないが、テナント間のデータ移行には CSV ではなく外部 CASE ソースインポートを使用すべきである
 
 ### OpenSALT形式エクスポート（Phase 2）
 
