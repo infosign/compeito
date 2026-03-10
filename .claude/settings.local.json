@@ -20,7 +20,9 @@
       "Bash(gh pr:*)",
       "Bash(apt list:*)",
       "WebFetch(domain:casenetwork.imsglobal.org)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ]
   }
 }
