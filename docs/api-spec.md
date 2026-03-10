@@ -200,7 +200,7 @@ JOINで解決できない外部参照に備え、cf_association の originNodeUR
 `cf_association_grouping_id` FK で JOIN し、CFAssociationGrouping の `{title, identifier, uri}` を使用する。`cf_association_grouping_id` が NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。
 
 **originNodeURI / destinationNodeURI の構築（CFAssociation 内）:**
-DBの `origin_node_identifier`, `origin_node_uri`, `origin_node_title` カラムから直接構築する（JOINしない）。外部参照のリソースに対応するため、保存時点の値をそのまま使用する。
+DBの `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` カラムから直接構築する（JOINしない）。外部参照のリソースに対応するため、保存時点の値をそのまま使用する。CASE v1.1 では `LinkGenURIDType` を使用し、`identifier` は UUID 制限なし、`targetType` フィールドが追加されている。`targetType` は NULL の場合レスポンスに null として含める。
 
 **subject / subjectURI の構築（CFDocument / CFItem 内）:**
 DB の `subject` JSONB カラム（文字列配列）と `subject_uri` JSONB カラム（LinkURI オブジェクト配列）をそのまま出力する。NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。CASE v1.1 では `subject` と `subjectURI` は CFDocument と CFItem の両方に定義されている。
