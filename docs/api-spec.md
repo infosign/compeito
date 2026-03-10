@@ -47,7 +47,7 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 ```
 - `CFItems` と `CFAssociations` はデータがなくても空配列 `[]` として常に含める。いずれも `cf_document_id` でフィルタする（このドキュメントに属するリソースのみ。他ドキュメントからこのドキュメントのアイテムを参照する Association は含まない）
 - `CFDefinitions` はデータがなければオブジェクトごと省略する。内部の各キーもデータがなければ省略する（`exclude_none=False` グローバルポリシーの例外。CFDefinitions 内の空配列キーは `null` として含めるのではなく、キー自体を省略する。Pydantic のカスタムシリアライザ（`model_serializer` 等）で空配列のキーを除外する。`exclude_none=True` は `None` 値のみ除外し空配列 `[]` は除外しないため、それだけでは不十分）
-- `CFDefinitions` に含めるスコープ: このドキュメントのリソースから参照されている定義のみ（テナント内の全定義ではない）。具体的には: CFItemTypes = ドキュメント配下の CFItem が `cf_item_type_id` で参照するもの、CFSubjects = CFDocument の `subject_uri` から参照されるもの、CFConcepts = CFItem の `concept_keywords_uri` から参照されるもの、CFLicenses = CFDocument または配下の CFItem が `cf_license_id` で参照するもの、CFAssociationGroupings = ドキュメント配下の CFAssociation が `cf_association_grouping_id` で参照するもの
+- `CFDefinitions` に含めるスコープ: このドキュメントのリソースから参照されている定義のみ（テナント内の全定義ではない）。具体的には: CFItemTypes = ドキュメント配下の CFItem が `cf_item_type_id` で参照するもの、CFSubjects = CFDocument の `subject_uri` から参照されるもの、CFConcepts = ドキュメント配下の CFItem が `cf_concept_id` で参照するもの、CFLicenses = CFDocument または配下の CFItem が `cf_license_id` で参照するもの、CFAssociationGroupings = ドキュメント配下の CFAssociation が `cf_association_grouping_id` で参照するもの
 - `CFRubrics` は Phase 2。Phase 1 ではデータがないためキー自体を省略する。Phase 2 で実装後は `CFItems` / `CFAssociations` と同様に空配列 `[]` として常に含める（`CFRubrics` は配列型であり、CFDefinitions のオブジェクト型省略ルールとは異なる）
 - **CFPackage 内のソート順**: CFItems・CFAssociations・CFDefinitions 内の各配列は `identifier ASC` で並べる（一覧エンドポイントのデフォルトソート順と統一し、決定的な出力を保証する）
 - **CFPackage 内のリソーススキーマ**: CFItems 内の各 CFItem、CFAssociations 内の各 CFAssociation、CFDefinitions 内の各リソースは、対応するスタンドアロン API エンドポイント（`GET /CFItems/{id}` 等）と同一の Pydantic スキーマを使用する
@@ -179,7 +179,7 @@ DBの `origin_node_identifier`, `origin_node_uri`, `origin_node_title` カラム
 DB の `subject_uri` JSONB カラム（LinkURI オブジェクト配列）をそのまま出力する。NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。
 
 **conceptKeywordsURI の構築（CFItem 内）:**
-DB の `concept_keywords_uri` JSONB カラム（LinkURI オブジェクト配列）をそのまま出力する。NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。
+`cf_concept_id` FK で JOIN し、CFConcept の `{title, identifier, uri}` を使用する。`cf_concept_id` が NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。CASE v1.1 仕様では `conceptKeywordsURI` は単一の LinkURIDType（配列ではない）。CFItemTypeURI と同じ FK → JOIN パターン。
 
 **API レスポンスに含めない内部フィールド:**
 `cf_item.depth` は内部用フィールド（ツリービューの描画用）であり、CASE v1.1 仕様に存在しないため、全 API レスポンス（CFItem, CFPackage 内の CFItems）に含めない。Pydantic スキーマで除外すること。
