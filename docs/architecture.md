@@ -96,7 +96,7 @@ CLIのデータ変更操作（import csv, import case-url, doc delete, tenant cr
 | テナント更新（tenant update） | `/{tenant-uuid}/*` / `/` | 2 |
 | テナント削除（tenant delete） | `/{tenant-uuid}/*` / `/` | 2 |
 
-**ドキュメント更新時のトレードオフ:** 個別リソースAPI（`/CFItems/{id}`, `/CFItems/{id}/associations`, `/CFAssociations/{id}`, `/CFItemTypes`, `/CFSubjects`, `/CFConcepts`, `/CFLicenses`, `/CFAssociationGroupings` 等）は
+**ドキュメント更新時のトレードオフ:** 個別リソースAPI（`/CFItems/{id}`, `/CFItemAssociations/{id}`, `/CFAssociations/{id}`, `/CFItemTypes`, `/CFSubjects`, `/CFConcepts`, `/CFLicenses`, `/CFAssociationGroupings` 等）は
 invalidation対象に含めない。これらは `max-age=3600` の自然失効に委ねる（最大1時間のステール許容）。
 全パスを個別にinvalidateすると無料枠を超過するリスクがあるため、アクセス頻度の高いパス（ツリービュー・詳細ページ・CFPackage・CFDocuments一覧）に絞る。
 即座に全API応答を最新化したい場合は、テナント全体の invalidation（`/{tenant-uuid}/*`、1パス）を使用する。
