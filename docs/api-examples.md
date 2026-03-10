@@ -35,7 +35,8 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
       "subject": ["国語", "地理歴史", "公民"],
       "subjectURI": [
         {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
-        {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."}
+        {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
+        {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
       ],
       "CFPackageURI": {
         "title": "高等学校学習指導要領",
@@ -57,12 +58,34 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
     "identifier": "d86774f2-1234-5678-9abc-def012345678",
     "uri": "https://case.example.com/550e8400-.../uri/d86774f2-1234-5678-9abc-def012345678",
     "title": "高等学校学習指導要領",
+    "creator": "文部科学省",
+    "publisher": "文部科学省",
+    "description": "高等学校学習指導要領（平成30年告示）",
+    "language": "ja",
+    "version": "1.0",
+    "adoptionStatus": "Adopted",
+    "statusStartDate": "2018-03-30",
+    "statusEndDate": null,
+    "licenseURI": null,
+    "officialSourceURL": "https://www.mext.go.jp/...",
+    "subject": ["国語", "地理歴史", "公民"],
+    "subjectURI": [
+      {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
+      {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
+      {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+    ],
+    "CFPackageURI": {
+      "title": "高等学校学習指導要領",
+      "identifier": "d86774f2-1234-5678-9abc-def012345678",
+      "uri": "https://case.example.com/550e8400-.../ims/case/v1p1/CFPackages/d86774f2-1234-5678-9abc-def012345678"
+    },
     "lastChangeDateTime": "2025-10-08T12:00:00Z"
   }
 }
 ```
 
-値が null のフィールドはレスポンスに含めてもよい（CASE仕様上、null許容フィールドは省略可）。
+null 許容フィールドは全てレスポンスに含める（Pydantic の `exclude_none=False`）。一覧エンドポイントと単一取得エンドポイントで同一のスキーマ・同一のフィールドセットを返す。
+`CFPackageURI` は必須フィールドであり、常に含めなければならない。
 
 ## CFItems
 
@@ -79,7 +102,8 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
     "abbreviatedStatement": null,
     "conceptKeywords": ["言葉", "国語"],
     "conceptKeywordsURI": [
-      {"title": "言葉", "identifier": "ccc-...", "uri": "https://..."}
+      {"title": "言葉", "identifier": "ccc-...", "uri": "https://..."},
+      {"title": "国語", "identifier": "ddd-...", "uri": "https://..."}
     ],
     "educationLevel": ["10", "11", "12"],
     "CFItemType": "知識及び技能",
@@ -89,6 +113,9 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
       "uri": "https://case.example.com/550e8400-.../uri/fff-..."
     },
     "language": "ja",
+    "licenseURI": null,
+    "statusStartDate": null,
+    "statusEndDate": null,
     "listEnumeration": "1",
     "CFDocumentURI": {
       "title": "高等学校学習指導要領",
@@ -144,6 +171,7 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
 {
   "CFAssociation": {
     "identifier": "aaa11111-1111-1111-1111-111111111111",
+    "uri": "https://case.example.com/550e8400-.../uri/aaa11111-1111-1111-1111-111111111111",
     "associationType": "isChildOf",
     "originNodeURI": {
       "title": "実社会に必要な国語の知識や技能を...",
@@ -167,6 +195,17 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
 }
 ```
 
+**CFAssociationGroupingURI が非 null の場合:**
+```json
+{
+  "CFAssociationGroupingURI": {
+    "title": "教科間関連",
+    "identifier": "ggg11111-1111-1111-1111-111111111111",
+    "uri": "https://case.example.com/550e8400-.../uri/ggg11111-1111-1111-1111-111111111111"
+  }
+}
+```
+
 ## CFPackages
 
 ### GET /{tenant}/ims/case/v1p1/CFPackages/{id}
@@ -181,12 +220,42 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
       "identifier": "d86774f2-...",
       "uri": "https://...",
       "title": "高等学校学習指導要領",
+      "creator": "文部科学省",
+      "publisher": "文部科学省",
+      "description": "高等学校学習指導要領（平成30年告示）",
+      "language": "ja",
+      "version": "1.0",
+      "adoptionStatus": "Adopted",
+      "statusStartDate": "2018-03-30",
+      "statusEndDate": null,
+      "licenseURI": null,
+      "officialSourceURL": "https://www.mext.go.jp/...",
+      "subject": ["国語", "地理歴史", "公民"],
+      "subjectURI": [
+        {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
+        {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
+        {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+      ],
+      "CFPackageURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://.../ims/case/v1p1/CFPackages/d86774f2-..."},
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
     },
     "CFItems": [
       {
         "identifier": "e97885g3-...",
+        "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
         "fullStatement": "国語",
+        "humanCodingScheme": "A",
+        "abbreviatedStatement": null,
+        "conceptKeywords": null,
+        "conceptKeywordsURI": null,
+        "educationLevel": ["10", "11", "12"],
+        "CFItemType": "知識及び技能",
+        "CFItemTypeURI": {"title": "知識及び技能", "identifier": "fff-...", "uri": "https://..."},
+        "language": "ja",
+        "licenseURI": null,
+        "statusStartDate": null,
+        "statusEndDate": null,
+        "listEnumeration": null,
         "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
       }
@@ -194,10 +263,13 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
     "CFAssociations": [
       {
         "identifier": "aaa11111-...",
+        "uri": "https://case.example.com/550e8400-.../uri/aaa11111-...",
         "associationType": "isChildOf",
         "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://..."},
         "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "sequenceNumber": 10,
+        "CFAssociationGroupingURI": null,
+        "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
       }
     ],
@@ -207,6 +279,9 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
           "identifier": "fff-...",
           "uri": "https://...",
           "title": "知識及び技能",
+          "description": null,
+          "typeCode": null,
+          "hierarchyCode": null,
           "lastChangeDateTime": "2025-10-08T12:00:00Z"
         }
       ],
@@ -215,6 +290,8 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
           "identifier": "aaa-...",
           "uri": "https://...",
           "title": "国語",
+          "description": null,
+          "hierarchyCode": null,
           "lastChangeDateTime": "2025-10-08T12:00:00Z"
         }
       ]
@@ -348,6 +425,54 @@ GET /99999999-9999-9999-9999-999999999999/ims/case/v1p1/CFDocuments
 }
 ```
 
+### 404 Not Found — /CFItems/{id}/associations でアイテムが存在しない
+
+```
+GET /550e8400-.../ims/case/v1p1/CFItems/99999999-9999-9999-9999-999999999999/associations
+```
+
+```json
+{
+  "imsx_codeMajor": "failure",
+  "imsx_severity": "error",
+  "imsx_description": "CFItem not found: '99999999-9999-9999-9999-999999999999'",
+  "imsx_codeMinor": {
+    "imsx_codeMinorField": [
+      {
+        "imsx_codeMinorFieldName": "sourcedId",
+        "imsx_codeMinorFieldValue": "unknownobject"
+      }
+    ]
+  }
+}
+```
+
+空配列ではなく 404 を返す（api-spec.md 参照）。
+
+### 405 Method Not Allowed — CASE API への非GETリクエスト
+
+```
+POST /550e8400-.../ims/case/v1p1/CFDocuments
+```
+
+```json
+{
+  "imsx_codeMajor": "failure",
+  "imsx_severity": "error",
+  "imsx_description": "Method not allowed",
+  "imsx_codeMinor": {
+    "imsx_codeMinorField": [
+      {
+        "imsx_codeMinorFieldName": "sourcedId",
+        "imsx_codeMinorFieldValue": "invalid_selection_field"
+      }
+    ]
+  }
+}
+```
+
+`Allow: GET` レスポンスヘッダーを含める。
+
 ### 500 Internal Server Error
 
 ```json
@@ -367,6 +492,31 @@ GET /99999999-9999-9999-9999-999999999999/ims/case/v1p1/CFDocuments
 ```
 
 ## ページネーション例
+
+### バリデーションエラー — limit が負数
+
+```
+GET /550e8400-.../ims/case/v1p1/CFDocuments?limit=-1
+```
+
+```json
+{
+  "imsx_codeMajor": "failure",
+  "imsx_severity": "error",
+  "imsx_description": "Invalid limit: must be a non-negative integer",
+  "imsx_codeMinor": {
+    "imsx_codeMinorField": [
+      {
+        "imsx_codeMinorFieldName": "sourcedId",
+        "imsx_codeMinorFieldValue": "invalid_selection_field"
+      }
+    ]
+  }
+}
+```
+
+`offset` 不正時も同様の形式（`imsx_description` は `"Invalid offset: must be a non-negative integer"`）。
+`limit` / `offset` が整数でない場合は `"Invalid limit: must be a non-negative integer"` / `"Invalid offset: must be a non-negative integer"`。
 
 ### デフォルト（limit=100, offset=0）
 
