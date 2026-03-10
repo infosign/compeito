@@ -340,6 +340,10 @@ CASE v1.1 の CFAssociationSetDType 形式。CFAssociations 内の各 Associatio
 
 ## lookup系リソース
 
+### 独自拡張一覧エンドポイント（CASE v1.1 仕様外）
+
+`GET /CFItemTypes`, `GET /CFSubjects`, `GET /CFConcepts`, `GET /CFLicenses`, `GET /CFAssociationGroupings` はテナント内の全リソースを配列で返す。ページネーション対応。レスポンス構造は CASE v1.1 準拠の Set 型エンドポイントと同一（複数形ルートキー + 配列）。
+
 ### GET /{tenant}/ims/case/v1p1/CFItemTypes
 
 **レスポンス (200):**
@@ -401,6 +405,82 @@ CFLicenses, CFAssociationGroupings も同じ基本構造（単数キー、単一
 - **CFAssociationGrouping**: 固有フィールドなし（共通フィールドのみ）
 
 **注意**: CASE v1.1 仕様では `description`（CFItemType）、`hierarchyCode`（CFItemType/CFSubject/CFConcept）、`licenseText`（CFLicense）は required（non-nullable）として定義されている。Phase 1 では DB 上 nullable のため `null` を返す（上記例の通り）。Phase 2 の Conformance テスト対応で修正予定（api-spec.md 参照）。
+
+### GET /{tenant}/ims/case/v1p1/CFConcepts/{id}
+
+CASE v1.1 では Set 型（`CFConceptSetDType`）を返す。要求されたリソース 1 件を配列に含めて返す。
+
+**レスポンス (200):**
+```json
+{
+  "CFConcepts": [
+    {
+      "identifier": "ccc-concept-1111-...",
+      "uri": "https://case.example.com/550e8400-.../uri/ccc-concept-1111-...",
+      "title": "言語能力",
+      "description": null,
+      "keywords": "言葉|表現|理解",
+      "hierarchyCode": null,
+      "lastChangeDateTime": "2025-10-08T12:00:00Z"
+    }
+  ]
+}
+```
+
+### GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
+
+CASE v1.1 では Set 型（`CFSubjectSetDType`）を返す。要求されたリソース 1 件を配列に含めて返す。
+
+**レスポンス (200):**
+```json
+{
+  "CFSubjects": [
+    {
+      "identifier": "aaa-subject-1111-...",
+      "uri": "https://case.example.com/550e8400-.../uri/aaa-subject-1111-...",
+      "title": "国語",
+      "description": null,
+      "hierarchyCode": null,
+      "lastChangeDateTime": "2025-10-08T12:00:00Z"
+    }
+  ]
+}
+```
+
+### GET /{tenant}/ims/case/v1p1/CFLicenses/{id}
+
+単一オブジェクト型（`CFLicenseDType`）を返す。
+
+**レスポンス (200):**
+```json
+{
+  "CFLicense": {
+    "identifier": "lic11111-1111-1111-1111-111111111111",
+    "uri": "https://case.example.com/550e8400-.../uri/lic11111-...",
+    "title": "CC BY 4.0",
+    "description": "Creative Commons Attribution 4.0 International",
+    "licenseText": null,
+    "lastChangeDateTime": "2025-10-08T12:00:00Z"
+  }
+}
+```
+
+### GET /{tenant}/ims/case/v1p1/CFAssociationGroupings/{id}
+
+単一オブジェクト型（`CFAssociationGroupingDType`）を返す。
+
+**レスポンス (200):**
+```json
+{
+  "CFAssociationGrouping": {
+    "identifier": "ggg11111-1111-1111-1111-111111111111",
+    "uri": "https://case.example.com/550e8400-.../uri/ggg11111-...",
+    "title": "教科間関連",
+    "description": null,
+    "lastChangeDateTime": "2025-10-08T12:00:00Z"
+  }
+}
+```
 
 **licenseURI が非 null の場合（CFDocument / CFItem 共通）:**
 ```json
