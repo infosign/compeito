@@ -128,7 +128,7 @@ null 許容フィールドは全てレスポンスに含める（Pydantic の `e
 
 ## CFAssociations
 
-### GET /{tenant}/ims/case/v1p1/CFItems/{id}/associations
+### GET /{tenant}/ims/case/v1p1/CFItemAssociations/{id}
 
 アイテムに関連する全Association（origin/destination両方向）を返す。
 
@@ -447,10 +447,10 @@ GET /99999999-9999-9999-9999-999999999999/ims/case/v1p1/CFDocuments
 }
 ```
 
-### 404 Not Found — /CFItems/{id}/associations でアイテムが存在しない
+### 404 Not Found — /CFItemAssociations/{id} でアイテムが存在しない
 
 ```
-GET /550e8400-.../ims/case/v1p1/CFItems/99999999-9999-9999-9999-999999999999/associations
+GET /550e8400-.../ims/case/v1p1/CFItemAssociations/99999999-9999-9999-9999-999999999999
 ```
 
 ```json
@@ -559,7 +559,7 @@ GET /550e8400-.../ims/case/v1p1/CFDocuments?limit=50&offset=50
 ### 最大件数
 
 ```
-GET /550e8400-.../ims/case/v1p1/CFItems/xxx/associations?limit=500&offset=0
+GET /550e8400-.../ims/case/v1p1/CFItemAssociations/xxx?limit=500&offset=0
 ```
 
 → limit の上限は500。500を超える値を指定した場合は500として扱う。
