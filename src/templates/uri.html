@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - CASE Server{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-500 mb-1">
+    <a href="/" class="hover:text-gray-700">テナント一覧</a>
+    <span class="mx-1">&gt;</span>
+    <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
+</nav>
+{% endblock %}
+
+{% block heading %}
+{{ page_title }}
+{% if resource_type == "CFDocument" and resource.adoption_status %}
+<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded
+    {% if resource.adoption_status == 'Adopted' %}bg-green-100 text-green-800
+    {% elif resource.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
+    {% elif resource.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
+    {% else %}bg-gray-100 text-gray-800{% endif %}">
+    {{ resource.adoption_status }}
+</span>
+{% endif %}
+{% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping") %}
+<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">{{ resource_type }}</span>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{# Define macros first #}
+{% macro field(label, value) %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900">{{ value }}</dd>
+</div>
+{% endmacro %}
+
+{% macro optional_field(label, value) %}
+{% if value is not none and value != "" %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900">{{ value }}</dd>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro safe_url(url) %}
+{%- if url and (url.startswith("http:") or url.startswith("https:")) %}<a href="{{ url }}" class="text-blue-600 hover:text-blue-800 break-all" rel="noopener">{{ url }}</a>{% else %}{{ url }}{% endif -%}
+{% endmacro %}
+
+{% macro uri_field(label, url) %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900">{{ safe_url(url) }}</dd>
+</div>
+{% endmacro %}
+
+{% macro optional_uri_field(label, url) %}
+{% if url %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900">{{ safe_url(url) }}</dd>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro nested_uri(label, url) %}
+<div><span class="text-xs text-gray-500">{{ label }}:</span> {{ safe_url(url) }}</div>
+{% endmacro %}
+
+{% macro array_field(label, arr) %}
+{% if arr and arr|length > 0 %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900">{{ arr | join(", ") }}</dd>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro nested_resource(label, title, ident, uri) %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-900 ml-4 mt-1">
+        <div><span class="text-xs text-gray-500">title:</span> {{ title }}</div>
+        <div><span class="text-xs text-gray-500">identifier:</span> {{ ident }}</div>
+        {{ nested_uri("uri", uri) }}
+    </dd>
+</div>
+{% endmacro %}
+
+{% macro subject_uri_list(items) %}
+{% if items %}
+<div>
+    <dt class="text-xs font-medium text-gray-500 uppercase">subjectURI</dt>
+    <dd class="text-gray-900 ml-4 mt-1">
+        {% for su in items %}
+        <div class="{% if not loop.first %}mt-2{% endif %}">
+            {% if su.get("title") %}<div><span class="text-xs text-gray-500">title:</span> {{ su.title }}</div>{% endif %}
+            {% if su.get("identifier") %}<div><span class="text-xs text-gray-500">identifier:</span> {{ su.identifier }}</div>{% endif %}
+            {% if su.get("uri") %}{{ nested_uri("uri", su.uri) }}{% endif %}
+        </div>
+        {% endfor %}
+    </dd>
+</div>
+{% endif %}
+{% endmacro %}
+
+{# ========== Main content ========== #}
+<div class="bg-white rounded-lg shadow p-6">
+    <dl class="space-y-4">
+
+    {# ========== CFItem ========== #}
+    {% if resource_type == "CFItem" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {% if doc %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-900 ml-4 mt-1">
+                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+                {{ nested_uri("uri", doc.uri) }}
+            </dd>
+        </div>
+        {% endif %}
+        {{ field("fullStatement", resource.full_statement) }}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+        {{ optional_field("humanCodingScheme", resource.human_coding_scheme) }}
+        {{ optional_field("abbreviatedStatement", resource.abbreviated_statement) }}
+        {% if resource.item_type %}
+            {{ nested_resource("CFItemType", resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
+        {% endif %}
+        {{ array_field("educationLevel", resource.education_level) }}
+        {{ array_field("conceptKeywords", resource.concept_keywords) }}
+        {% if resource.concept %}
+            {{ nested_resource("conceptKeywordsURI", resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
+        {% endif %}
+        {{ array_field("subject", resource.subject) }}
+        {{ subject_uri_list(resource.subject_uri) }}
+        {{ optional_field("language", resource.language) }}
+        {% if resource.license %}
+            {{ nested_resource("licenseURI", resource.license.title, resource.license.identifier, resource.license.uri) }}
+        {% endif %}
+        {{ optional_field("statusStartDate", resource.status_start_date) }}
+        {{ optional_field("statusEndDate", resource.status_end_date) }}
+        {{ optional_field("listEnumeration", resource.list_enumeration) }}
+    </dl>
+    <div class="mt-6">
+        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">ツリーで表示</a>
+    </div>
+
+    {# ========== CFDocument ========== #}
+    {% elif resource_type == "CFDocument" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {{ field("title", resource.title) }}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+        {{ optional_field("creator", resource.creator) }}
+        {{ optional_field("publisher", resource.publisher) }}
+        {{ optional_field("description", resource.description) }}
+        {{ optional_field("language", resource.language) }}
+        {{ optional_field("version", resource.version) }}
+        {% if resource.adoption_status %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">adoptionStatus</dt>
+            <dd><span class="inline-block px-2 py-0.5 text-xs font-medium rounded
+                {% if resource.adoption_status == 'Adopted' %}bg-green-100 text-green-800
+                {% elif resource.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
+                {% elif resource.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">{{ resource.adoption_status }}</span></dd>
+        </div>
+        {% endif %}
+        {{ optional_field("statusStartDate", resource.status_start_date) }}
+        {{ optional_field("statusEndDate", resource.status_end_date) }}
+        {% if resource.license %}
+            {{ nested_resource("licenseURI", resource.license.title, resource.license.identifier, resource.license.uri) }}
+        {% endif %}
+        {{ optional_uri_field("officialSourceURL", resource.official_source_url) }}
+        {{ optional_field("frameworkType", resource.framework_type) }}
+        {{ optional_field("caseVersion", resource.case_version) }}
+        {{ array_field("subject", resource.subject) }}
+        {{ subject_uri_list(resource.subject_uri) }}
+        {{ nested_resource("CFPackageURI", resource.title, resource.identifier, resource.uri) }}
+    </dl>
+    <div class="mt-6">
+        <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">ツリーで表示</a>
+    </div>
+
+    {# ========== CFAssociation ========== #}
+    {% elif resource_type == "CFAssociation" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {% if doc %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-900 ml-4 mt-1">
+                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+                {{ nested_uri("uri", doc.uri) }}
+            </dd>
+        </div>
+        {% endif %}
+        {{ field("associationType", resource.association_type) }}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">originNodeURI</dt>
+            <dd class="text-gray-900 ml-4 mt-1">
+                {% if resource.origin_node_title %}<div><span class="text-xs text-gray-500">title:</span> {{ resource.origin_node_title }}</div>{% endif %}
+                <div><span class="text-xs text-gray-500">identifier:</span> {{ resource.origin_node_identifier }}</div>
+                {{ nested_uri("uri", resource.origin_node_uri) }}
+                {% if resource.origin_node_target_type %}<div><span class="text-xs text-gray-500">targetType:</span> {{ resource.origin_node_target_type }}</div>{% endif %}
+            </dd>
+        </div>
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">destinationNodeURI</dt>
+            <dd class="text-gray-900 ml-4 mt-1">
+                {% if resource.destination_node_title %}<div><span class="text-xs text-gray-500">title:</span> {{ resource.destination_node_title }}</div>{% endif %}
+                <div><span class="text-xs text-gray-500">identifier:</span> {{ resource.destination_node_identifier }}</div>
+                {{ nested_uri("uri", resource.destination_node_uri) }}
+                {% if resource.destination_node_target_type %}<div><span class="text-xs text-gray-500">targetType:</span> {{ resource.destination_node_target_type }}</div>{% endif %}
+            </dd>
+        </div>
+        {% if resource.sequence_number is not none %}
+            {{ field("sequenceNumber", resource.sequence_number) }}
+        {% endif %}
+        {% if resource.association_grouping %}
+            {{ nested_resource("CFAssociationGroupingURI", resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
+        {% endif %}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+    </dl>
+
+    {# ========== Lookup resources ========== #}
+    {% else %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {{ field("title", resource.title) }}
+        {{ optional_field("description", resource.description) }}
+        {% if resource.type_code is defined %}{{ optional_field("typeCode", resource.type_code) }}{% endif %}
+        {% if resource.hierarchy_code is defined %}{{ optional_field("hierarchyCode", resource.hierarchy_code) }}{% endif %}
+        {% if resource.keywords is defined %}{{ optional_field("keywords", resource.keywords) }}{% endif %}
+        {% if resource.license_text is defined %}{{ optional_field("licenseText", resource.license_text) }}{% endif %}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+    </dl>
+    {% endif %}
+</div>
+{% endblock %}
