@@ -8,8 +8,10 @@ from fastapi import APIRouter
 from src.routers.cf_associations import router as cf_associations_router
 from src.routers.cf_documents import router as cf_documents_router
 from src.routers.cf_items import router as cf_items_router
+from src.routers.cf_packages import router as cf_packages_router
 
 router = APIRouter()
 router.include_router(cf_documents_router)
 router.include_router(cf_items_router)
 router.include_router(cf_associations_router)
+router.include_router(cf_packages_router)
