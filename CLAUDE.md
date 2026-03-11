@@ -44,6 +44,8 @@ case-server/
 │   ├── main.py                  # FastAPI app エントリーポイント + Mangum handler + GET /health + v1p0リダイレクトミドルウェア
 │   ├── config.py                # 設定 (Pydantic Settings)
 │   ├── database.py              # DB接続 (async SQLAlchemy)
+│   ├── errors.py                # imsx_StatusInfo エラーレスポンス生成 + 例外クラス
+│   ├── dependencies.py          # 共通依存 (require_tenant, validate_uuid)
 │   ├── models/                  # SQLAlchemy ORM モデル
 │   │   ├── tenant.py
 │   │   ├── cf_document.py
