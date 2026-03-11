@@ -44,6 +44,8 @@ case-server/
 │   ├── main.py                  # FastAPI app エントリーポイント + Mangum handler + GET /health + v1p0リダイレクトミドルウェア
 │   ├── config.py                # 設定 (Pydantic Settings)
 │   ├── database.py              # DB接続 (async SQLAlchemy)
+│   ├── errors.py                # imsx_StatusInfo エラーレスポンス生成 + 例外クラス
+│   ├── dependencies.py          # 共通依存 (require_tenant, validate_uuid)
 │   ├── models/                  # SQLAlchemy ORM モデル
 │   │   ├── tenant.py
 │   │   ├── cf_document.py
@@ -152,6 +154,10 @@ case-server/
   - `/admin/*`: Lambda Function URL経由のためCache-Controlは不要
 - **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は [docs/api-spec.md](docs/api-spec.md)）。Admin API は `{"error": "...", "detail": "..."}`
 - **LinkURI型**: 複合オブジェクト `{"title": "...", "identifier": "uuid", "uri": "https://..."}`（詳細は [docs/api-spec.md](docs/api-spec.md)）
+
+## 開発ワークフロー
+
+- **コミット前チェック**: コードをコミットする前に、実装内容と docs/ 配下のドキュメント群 (api-spec.md, api-examples.md, db-schema.md 等) および CLAUDE.md に矛盾がないか必ず確認する。矛盾があればドキュメントまたはコードを修正してからコミットする。
 
 ## ローカル開発
 
