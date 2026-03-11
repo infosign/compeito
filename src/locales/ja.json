@@ -15,5 +15,6 @@
     "error_tenant_not_found": "テナントが見つかりません",
     "error_document_not_found": "ドキュメントが見つかりません",
     "error_item_not_found": "アイテムが見つかりません",
-    "error_server": "サーバーエラーが発生しました"
+    "error_server": "サーバーエラーが発生しました",
+    "error_invalid_uuid": "不正なUUID形式: '{value}'"
 }
