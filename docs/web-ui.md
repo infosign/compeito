@@ -31,11 +31,11 @@
 OpenSALT のツリービューを参考にした 2 ペイン構成。見た目は Tailwind CSS のデフォルトスタイルでモダンに仕上げる（OpenSALT の見た目をコピーしない）。
 
 **HTML `<title>` 要素:** ページごとに設定する:
-- `GET /`: 「CASE Server」（固定）
-- `GET /{tenant}/`: 「{テナント名} - CASE Server」
-- `GET /{tenant}/cftree/doc/{doc}`: 「{ドキュメントタイトル} - {テナント名} - CASE Server」
-- `GET /{tenant}/uri/{uuid}`: リソース種別による。CFItem → 「{fullStatement の先頭50文字} - CASE Server」。CFDocument → 「{title} - CASE Server」。lookup/CFAssociation → 「{title or identifier} - CASE Server」
-- エラーページ: 「{ステータスコード} - CASE Server」
+- `GET /`: 「COMPEITO」（固定）
+- `GET /{tenant}/`: 「{テナント名} - COMPEITO」
+- `GET /{tenant}/cftree/doc/{doc}`: 「{ドキュメントタイトル} - {テナント名} - COMPEITO」
+- `GET /{tenant}/uri/{uuid}`: リソース種別による。CFItem → 「{fullStatement の先頭50文字} - COMPEITO」。CFDocument → 「{title} - COMPEITO」。lookup/CFAssociation → 「{title or identifier} - COMPEITO」
+- エラーページ: 「{ステータスコード} - COMPEITO」
 
 **HTML `<html lang>` 属性:** `base.html` で `lang="ja"` を固定値として設定する（管理UIの言語が日本語であるため）。`/uri/` ページでリソースに `language` フィールドがある場合も `<html lang>` は変更しない（コンテンツの言語は `lang` 属性ではなくリソースの `language` フィールドで表現される）。
 

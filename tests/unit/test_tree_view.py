@@ -302,7 +302,7 @@ class TestTreeViewPage:
         resp = await db_client.get(
             f"/{tenant.id}/cftree/doc/{sample_document.identifier}",
         )
-        assert f"<title>{sample_document.title} - {tenant.name} - CASE Server</title>" in resp.text
+        assert f"<title>{sample_document.title} - {tenant.name} - COMPEITO</title>" in resp.text
 
     async def test_breadcrumb(
         self, db_session: AsyncSession, db_client, tenant: Tenant,
