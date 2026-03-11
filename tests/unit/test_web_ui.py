@@ -205,6 +205,15 @@ class TestIndexPage:
         resp = await db_client.get("/")
         assert 'lang="ja"' in resp.text
 
+    async def test_html_lang_en_fallback(self, db_client):
+        resp = await db_client.get("/", headers={"Accept-Language": "en"})
+        assert 'lang="en"' in resp.text
+        assert "No public tenants" in resp.text
+
+    async def test_i18n_unsupported_lang_falls_back_to_en(self, db_client):
+        resp = await db_client.get("/", headers={"Accept-Language": "fr"})
+        assert 'lang="en"' in resp.text
+
 
 class TestTenantPage:
     async def test_returns_html(self, db_session, db_client, tenant):
