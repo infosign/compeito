@@ -277,14 +277,14 @@ class TestUriDetailPage:
         await db_session.flush()
 
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
-        assert f"<title>{stmt[:50]} - CASE Server</title>" in resp.text
+        assert f"<title>{stmt[:50]} - COMPEITO</title>" in resp.text
 
     async def test_html_title_document(
         self, db_session: AsyncSession, db_client, tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
-        assert f"<title>{sample_document.title} - CASE Server</title>" in resp.text
+        assert f"<title>{sample_document.title} - COMPEITO</title>" in resp.text
 
     async def test_cache_control(
         self, db_session: AsyncSession, db_client, tenant: Tenant,

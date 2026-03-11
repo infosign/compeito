@@ -1,4 +1,4 @@
-"""CASE Server CLI — tenant/doc management, import/export, db migrate."""
+"""COMPEITO CLI — tenant/doc management, import/export, db migrate."""
 from __future__ import annotations
 
 import asyncio
@@ -97,7 +97,7 @@ def _parse_uuid(value: str, label: str = "UUID") -> uuid.UUID:
 
 @click.group()
 def cli():
-    """CASE Server CLI."""
+    """COMPEITO CLI."""
     pass
 
 
