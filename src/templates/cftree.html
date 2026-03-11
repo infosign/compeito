@@ -4,7 +4,7 @@
 
 {% block breadcrumb %}
 <nav class="text-sm text-gray-500 mb-1">
-    <a href="/" class="hover:text-gray-700">テナント一覧</a>
+    <a href="/" class="hover:text-gray-700">{{ t("tenant_list") }}</a>
     <span class="mx-1">&gt;</span>
     <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
     <span class="mx-1">&gt;</span>
@@ -31,7 +31,7 @@
     <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow overflow-auto" style="max-height: 80vh;">
         <div class="p-4 border-b border-gray-200">
             <div class="font-medium text-gray-900">{{ doc.title }}</div>
-            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-blue-600 hover:text-blue-800">ドキュメント詳細</a>
+            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-blue-600 hover:text-blue-800">{{ t("document_details") }}</a>
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
@@ -46,7 +46,7 @@
                 </div>
                 {% endif %}
             {% else %}
-            <p class="text-gray-500 p-4">アイテムがありません</p>
+            <p class="text-gray-500 p-4">{{ t("no_items") }}</p>
             {% endif %}
         </div>
     </div>
