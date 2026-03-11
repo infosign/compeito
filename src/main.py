@@ -9,7 +9,7 @@ from src.routers.web import router as web_router
 
 app = FastAPI(
     title="COMPEITO",
-    description="1EdTech CASE v1.1 compliant web service",
+    description="1EdTech CASE v1.1 compatible web service",
 )
 
 
