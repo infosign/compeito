@@ -1,7 +1,7 @@
 [project]
 name = "compeito"
 version = "0.1.0"
-description = "1EdTech CASE v1.1 compliant web service"
+description = "1EdTech CASE v1.1 compatible web service"
 license = "Elastic-2.0"
 requires-python = ">=3.12"
 dependencies = [
