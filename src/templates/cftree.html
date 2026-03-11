@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ doc.title }} - {{ tenant.name }} - CASE Server{% endblock %}
+
+{% block breadcrumb %}
+<nav class="text-sm text-gray-500 mb-1">
+    <a href="/" class="hover:text-gray-700">テナント一覧</a>
+    <span class="mx-1">&gt;</span>
+    <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
+    <span class="mx-1">&gt;</span>
+    <span class="text-gray-700">{{ doc.title }}</span>
+</nav>
+{% endblock %}
+
+{% block heading %}
+{{ doc.title }}
+{% if doc.adoption_status %}
+<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded
+    {% if doc.adoption_status == 'Adopted' %}bg-green-100 text-green-800
+    {% elif doc.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
+    {% elif doc.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
+    {% else %}bg-gray-100 text-gray-800{% endif %}">
+    {{ doc.adoption_status }}
+</span>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col md:flex-row gap-6">
+    {# Left pane: tree #}
+    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow overflow-auto" style="max-height: 80vh;">
+        <div class="p-4 border-b border-gray-200">
+            <div class="font-medium text-gray-900">{{ doc.title }}</div>
+            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-blue-600 hover:text-blue-800">ドキュメント詳細</a>
+        </div>
+        <div class="p-2">
+            {% if root_nodes or orphan_nodes %}
+                {% with nodes=root_nodes, tenant_id=tenant_id, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                    {% include "fragments/tree_nodes.html" %}
+                {% endwith %}
+                {% if orphan_nodes %}
+                <div class="mt-2 pt-2 border-t border-gray-100">
+                    {% with nodes=orphan_nodes, tenant_id=tenant_id, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                        {% include "fragments/tree_nodes.html" %}
+                    {% endwith %}
+                </div>
+                {% endif %}
+            {% else %}
+            <p class="text-gray-500 p-4">アイテムがありません</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Right pane: detail (hidden on mobile) #}
+    <div id="detail-pane" class="hidden md:block md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow p-6" style="max-height: 80vh; overflow-y: auto;">
+        {% if selected_item %}
+            {% with tenant_id=tenant_id %}
+                {% include "fragments/detail.html" %}
+            {% endwith %}
+        {% else %}
+            {# Document info as default #}
+            <h2 class="text-xl font-bold text-gray-900 mb-4">{{ doc.title }}</h2>
+            <dl class="space-y-3">
+                {% if doc.description %}
+                <div><dt class="text-xs font-medium text-gray-500 uppercase">description</dt><dd class="text-gray-900">{{ doc.description }}</dd></div>
+                {% endif %}
+                {% if doc.adoption_status %}
+                <div><dt class="text-xs font-medium text-gray-500 uppercase">adoptionStatus</dt><dd class="text-gray-900">{{ doc.adoption_status }}</dd></div>
+                {% endif %}
+                <div><dt class="text-xs font-medium text-gray-500 uppercase">lastChangeDateTime</dt><dd class="text-gray-900">{{ doc.last_change_date_time.isoformat() }}</dd></div>
+                {% if doc.version %}
+                <div><dt class="text-xs font-medium text-gray-500 uppercase">version</dt><dd class="text-gray-900">{{ doc.version }}</dd></div>
+                {% endif %}
+                {% if doc.language %}
+                <div><dt class="text-xs font-medium text-gray-500 uppercase">language</dt><dd class="text-gray-900">{{ doc.language }}</dd></div>
+                {% endif %}
+            </dl>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
