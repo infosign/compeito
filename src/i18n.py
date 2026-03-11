@@ -62,7 +62,11 @@ def get_translator(lang: str):
     messages = _MESSAGES.get(lang, _MESSAGES.get(_DEFAULT_LANG, {}))
     fallback = _MESSAGES.get(_DEFAULT_LANG, {})
 
-    def t(key: str) -> str:
-        return messages.get(key, fallback.get(key, key))
+    def t(key: str, **kwargs: str) -> str:
+        msg = messages.get(key, fallback.get(key, key))
+        if kwargs:
+            for k, v in kwargs.items():
+                msg = msg.replace(f"{{{k}}}", v)
+        return msg
 
     return t
