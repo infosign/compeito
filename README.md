@@ -109,4 +109,4 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 
 ## Developed by
 
-[INFOSIGN Inc.](https://www.infosign.co.jp/) (インフォザイン)
+[Infosign, Inc.](https://www.infosign.co.jp/) (株式会社インフォザイン)
