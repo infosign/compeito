@@ -1,4 +1,4 @@
-# CASE Server — Claude Code Instructions
+# COMPEITO — Claude Code Instructions
 
 ## プロジェクト概要
 
@@ -39,7 +39,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 ## ディレクトリ構成
 
 ```
-case-server/
+compeito/
 ├── src/
 │   ├── main.py                  # FastAPI app エントリーポイント + Mangum handler + GET /health + v1p0リダイレクトミドルウェア
 │   ├── config.py                # 設定 (Pydantic Settings)

@@ -8,7 +8,7 @@ from src.routers.case_api import router as case_api_router
 from src.routers.web import router as web_router
 
 app = FastAPI(
-    title="CASE Server",
+    title="COMPEITO",
     description="1EdTech CASE v1.1 compliant web service",
 )
 
