@@ -98,7 +98,7 @@ async def tenant_page(
     if tenant_uuid is None:
         return _error_response(
             request, 400, t("error_bad_request"),
-            f"Invalid UUID format: '{tenant}'",
+            t("error_invalid_uuid", value=tenant),
         )
 
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
@@ -132,7 +132,7 @@ async def tree_view(
     if tenant_uuid is None:
         return _error_response(
             request, 400, t("error_bad_request"),
-            f"Invalid UUID format: '{tenant}'",
+            t("error_invalid_uuid", value=tenant),
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
@@ -143,7 +143,7 @@ async def tree_view(
     if doc_uuid is None:
         return _error_response(
             request, 400, t("error_bad_request"),
-            f"Invalid UUID format: '{doc_id}'",
+            t("error_invalid_uuid", value=doc_id),
         )
     doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
     if doc is None:
@@ -188,7 +188,7 @@ async def uri_detail(
     if tenant_uuid is None:
         return _error_response(
             request, 400, t("error_bad_request"),
-            f"Invalid UUID format: '{tenant}'",
+            t("error_invalid_uuid", value=tenant),
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
@@ -199,7 +199,7 @@ async def uri_detail(
     if res_uuid is None:
         return _error_response(
             request, 400, t("error_bad_request"),
-            f"Invalid UUID format: '{resource_id}'",
+            t("error_invalid_uuid", value=resource_id),
         )
 
     result = await uri_service.find_resource_by_identifier(
