@@ -4,7 +4,7 @@
 
 1EdTech CASE v1.1 準拠のWebサービス。コンピテンシーフレームワークをAPIで配信する。
 Open Badge Factory (OB v3) と TAO Testing (QTI v3.0) の参照先として機能する。
-インフォザインが開発・運用。Apache License 2.0 でOSS公開。
+インフォザインが開発・運用。Elastic License 2.0 (ELv2) で公開。
 
 ## 仕様ドキュメント
 
