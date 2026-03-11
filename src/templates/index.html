@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}CASE Server{% endblock %}
+
+{% block heading %}CASE Server{% endblock %}
+
+{% block content %}
+{% if tenants %}
+<ul class="divide-y divide-gray-200 bg-white rounded-lg shadow">
+    {% for tenant in tenants %}
+    <li>
+        <a href="/{{ tenant.id }}/" class="block px-6 py-4 hover:bg-gray-50 transition-colors text-blue-600 hover:text-blue-800">
+            {{ tenant.name }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-gray-500">公開テナントはありません</p>
+{% endif %}
+{% endblock %}
