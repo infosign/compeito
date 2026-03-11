@@ -105,7 +105,7 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[Elastic License 2.0 (ELv2)](LICENSE)
 
 ## Developed by
 
