@@ -1,0 +1,50 @@
+{# Renders a list of TreeNodes. Uses: nodes, tenant_id, doc_identifier, selected_item, depth #}
+{% for node in nodes %}
+<div>
+    <div class="flex items-center group py-1 px-2 rounded
+        {% if selected_item and node.item.identifier == selected_item.identifier %}bg-blue-50 ring-1 ring-blue-200{% else %}hover:bg-gray-50{% endif %}"
+        data-tree-item>
+        {# Expand/collapse icon #}
+        {% if node.has_children %}
+            {% if node.is_expanded %}
+            <button class="w-5 h-5 flex-shrink-0 text-gray-400 hover:text-gray-600 cursor-pointer"
+                onclick="this.parentElement.parentElement.querySelector('.tree-children').classList.toggle('hidden'); this.textContent = this.textContent.trim() === '▼' ? '▶' : '▼'">▼</button>
+            {% else %}
+            <button class="w-5 h-5 flex-shrink-0 text-gray-400 hover:text-gray-600 cursor-pointer"
+                hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
+                hx-target="next .tree-children"
+                hx-swap="innerHTML"
+                hx-trigger="click once"
+                onclick="this.textContent = '▼'">▶</button>
+            {% endif %}
+        {% else %}
+            <span class="w-5 h-5 flex-shrink-0 text-gray-300 text-center">●</span>
+        {% endif %}
+
+        {# Item content - link for mobile, HTMX for desktop #}
+        <a href="/{{ tenant_id }}/uri/{{ node.item.identifier }}"
+           class="md:cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-900"
+           hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
+           hx-target="#detail-pane"
+           hx-swap="innerHTML"
+           hx-trigger="click[window.innerWidth>=768]"
+           onclick="if(window.innerWidth>=768){document.querySelectorAll('[data-tree-item]').forEach(el => {el.classList.remove('bg-blue-50','ring-1','ring-blue-200'); el.classList.add('hover:bg-gray-50')}); this.closest('[data-tree-item]').classList.remove('hover:bg-gray-50'); this.closest('[data-tree-item]').classList.add('bg-blue-50','ring-1','ring-blue-200');}">
+            {% if node.item.item_type %}
+            <span class="inline-block px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded mr-1">{{ node.item.item_type.title }}</span>
+            {% endif %}
+            {% if node.item.human_coding_scheme %}
+            <span class="font-medium">{{ node.item.human_coding_scheme }}</span>
+            {% endif %}
+            <span>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>
+        </a>
+    </div>
+    {# Children container #}
+    <div class="tree-children ml-4 {% if not node.is_expanded %}hidden{% endif %}">
+        {% if node.children %}
+            {% with nodes=node.children %}
+                {% include "fragments/tree_nodes.html" %}
+            {% endwith %}
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
