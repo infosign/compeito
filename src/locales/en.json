@@ -1,0 +1,19 @@
+{
+    "tenant_list": "Tenants",
+    "no_public_tenants": "No public tenants",
+    "title": "Title",
+    "last_updated": "Last Updated",
+    "item_count": "Items",
+    "no_frameworks": "No frameworks",
+    "document_details": "Document Details",
+    "no_items": "No items",
+    "show_in_tree": "Show in Tree",
+    "return_to_top": "Return to Top",
+    "details": "Details",
+    "error_bad_request": "Bad Request",
+    "error_not_found": "Page Not Found",
+    "error_tenant_not_found": "Tenant not found",
+    "error_document_not_found": "Document not found",
+    "error_item_not_found": "Item not found",
+    "error_server": "Internal Server Error"
+}
