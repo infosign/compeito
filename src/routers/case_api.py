@@ -1,22 +1,11 @@
-"""CASE v1.1 API router stub.
+"""CASE v1.1 API router aggregator.
 
-Provides tenant-scoped routing with UUID validation. Individual resource
-endpoints (CFDocuments, CFItems, etc.) will be added in subsequent issues.
+Collects all CASE API sub-routers for registration in main.py.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from src.dependencies import require_tenant
-from src.models.tenant import Tenant
+from src.routers.cf_documents import router as cf_documents_router
 
-router = APIRouter(
-    prefix="/{tenant}/ims/case/v1p1",
-)
-
-
-@router.get("/CFDocuments")
-async def list_cf_documents(
-    tenant_obj: Tenant = Depends(require_tenant),
-) -> dict:
-    # Stub — will be implemented in Issue #27
-    return {"CFDocuments": []}
+router = APIRouter()
+router.include_router(cf_documents_router)
