@@ -1,25 +1,46 @@
-"""Internationalization (i18n) support for Web UI."""
+"""Internationalization (i18n) support for Web UI and CLI."""
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 _LOCALES_DIR = Path(__file__).parent / "locales"
 _DEFAULT_LANG = "en"
 _SUPPORTED_LANGS: set[str] = set()
 _MESSAGES: dict[str, dict[str, str]] = {}
+_CLI_MESSAGES: dict[str, dict[str, str]] = {}
 
 
 def _load_messages() -> None:
-    """Load all locale JSON files."""
+    """Load all locale JSON files (web and CLI)."""
     for path in _LOCALES_DIR.glob("*.json"):
-        lang = path.stem
+        name = path.stem
         with open(path, encoding="utf-8") as f:
-            _MESSAGES[lang] = json.load(f)
+            data = json.load(f)
+        if name.startswith("cli_"):
+            lang = name[4:]  # "cli_ja" -> "ja"
+            _CLI_MESSAGES[lang] = data
+        else:
+            lang = name
+            _MESSAGES[lang] = data
         _SUPPORTED_LANGS.add(lang)
 
 
 _load_messages()
+
+
+def detect_lang_from_env() -> str:
+    """Detect language from LANG environment variable.
+
+    Example: "ja_JP.UTF-8" -> "ja", "en_US.UTF-8" -> "en"
+    """
+    lang_env = os.environ.get("LANG", "")
+    if lang_env:
+        lang = lang_env.split("_")[0].split(".")[0].lower()
+        if lang in _SUPPORTED_LANGS:
+            return lang
+    return _DEFAULT_LANG
 
 
 def parse_accept_language(header: str) -> str:
@@ -57,10 +78,16 @@ def parse_accept_language(header: str) -> str:
     return _DEFAULT_LANG
 
 
-def get_translator(lang: str):
-    """Return a translation function for the given language."""
-    messages = _MESSAGES.get(lang, _MESSAGES.get(_DEFAULT_LANG, {}))
-    fallback = _MESSAGES.get(_DEFAULT_LANG, {})
+def get_translator(lang: str, *, cli: bool = False):
+    """Return a translation function for the given language.
+
+    Args:
+        lang: Language code (e.g. "en", "ja")
+        cli: If True, use CLI message catalog instead of web catalog
+    """
+    catalog = _CLI_MESSAGES if cli else _MESSAGES
+    messages = catalog.get(lang, catalog.get(_DEFAULT_LANG, {}))
+    fallback = catalog.get(_DEFAULT_LANG, {})
 
     def t(key: str, **kwargs: str) -> str:
         msg = messages.get(key, fallback.get(key, key))
