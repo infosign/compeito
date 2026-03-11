@@ -2,7 +2,7 @@
 
 **Comp**etency **E**xchange & **I**nteroperability **To**ol
 
-A modern [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) compatible server for publishing competency frameworks via REST API. Designed to work with [Open Badge Factory (OB v3)](https://www.imsglobal.org/spec/ob/v3p0) and [TAO Testing (QTI v3.0)](https://www.imsglobal.org/spec/qti/v3p0) as a competency reference endpoint.
+A modern [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) compatible server for publishing competency frameworks via REST API. Aiming to serve as a competency reference endpoint for platforms such as [Open Badge Factory (OB v3)](https://www.imsglobal.org/spec/ob/v3p0) and [TAO Testing (QTI v3.0)](https://www.imsglobal.org/spec/qti/v3p0) in the future.
 
 > "compeito" is also the Japanese word for [konpeitō](https://en.wikipedia.org/wiki/Konpeit%C5%8D) (金平糖), a traditional Japanese sugar candy.
 
@@ -117,7 +117,7 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 
 **Comp**etency **E**xchange & **I**nteroperability **To**ol
 
-[1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) 対応のコンピテンシーフレームワーク配信サーバーです。[Open Badge Factory (OB v3)](https://www.imsglobal.org/spec/ob/v3p0) や [TAO Testing (QTI v3.0)](https://www.imsglobal.org/spec/qti/v3p0) のコンピテンシー参照先として機能します。
+[1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) 対応のコンピテンシーフレームワーク配信サーバーです。将来的に [Open Badge Factory (OB v3)](https://www.imsglobal.org/spec/ob/v3p0) や [TAO Testing (QTI v3.0)](https://www.imsglobal.org/spec/qti/v3p0) のコンピテンシー参照先として連携することを目指しています。
 
 > "compeito" は日本語の「[金平糖](https://ja.wikipedia.org/wiki/%E9%87%91%E5%B9%B3%E7%B3%96)（こんぺいとう）」にも由来しています。
 
