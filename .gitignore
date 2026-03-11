@@ -27,3 +27,6 @@ htmlcov/
 *.png
 *.jpg
 *.jpeg
+
+# Sample data
+*.csv
