@@ -262,10 +262,13 @@ def _validate_cf_package(data: dict) -> dict:
 
     Raises ValueError on structural issues.
     """
-    if "CFPackage" not in data:
-        raise ValueError("Invalid CFPackage response: missing 'CFPackage' key")
-
-    pkg = data["CFPackage"]
+    if "CFPackage" in data:
+        pkg = data["CFPackage"]
+    elif "CFDocument" in data:
+        # CASE v1p0 format: top-level keys without CFPackage wrapper
+        pkg = data
+    else:
+        raise ValueError("Invalid CFPackage response: missing 'CFPackage' or 'CFDocument' key")
     cf_doc = pkg.get("CFDocument")
     if cf_doc is None or not isinstance(cf_doc, dict):
         raise ValueError("Invalid CFPackage response: CFDocument is missing or not an object")
