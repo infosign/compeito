@@ -155,6 +155,10 @@ case-server/
 - **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は [docs/api-spec.md](docs/api-spec.md)）。Admin API は `{"error": "...", "detail": "..."}`
 - **LinkURI型**: 複合オブジェクト `{"title": "...", "identifier": "uuid", "uri": "https://..."}`（詳細は [docs/api-spec.md](docs/api-spec.md)）
 
+## 開発ワークフロー
+
+- **コミット前チェック**: コードをコミットする前に、実装内容と docs/ 配下のドキュメント群 (api-spec.md, api-examples.md, db-schema.md 等) および CLAUDE.md に矛盾がないか必ず確認する。矛盾があればドキュメントまたはコードを修正してからコミットする。
+
 ## ローカル開発
 
 ```bash
