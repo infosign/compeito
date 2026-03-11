@@ -7,7 +7,7 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.repositories import cf_association_repository, cf_document_repository, cf_item_repository
-from src.schemas.cf_association import CFPckgAssociationDType
+from src.schemas.cf_association import CFAssociationDType, CFPckgAssociationDType
 from src.schemas.cf_document import CFDocumentDType
 from src.schemas.cf_item import CFItemDType
 from src.schemas.common import LinkGenURIDType, LinkURIType
@@ -187,6 +187,20 @@ def _build_association_grouping_uri(assoc: CFAssociation) -> LinkURIType | None:
     )
 
 
+def association_to_schema(assoc: CFAssociation) -> CFAssociationDType:
+    return CFAssociationDType(
+        identifier=str(assoc.identifier),
+        uri=assoc.uri,
+        associationType=assoc.association_type,
+        originNodeURI=_build_origin_node_uri(assoc),
+        destinationNodeURI=_build_destination_node_uri(assoc),
+        sequenceNumber=assoc.sequence_number,
+        CFAssociationGroupingURI=_build_association_grouping_uri(assoc),
+        CFDocumentURI=_build_document_uri(assoc.cf_document),
+        lastChangeDateTime=assoc.last_change_date_time,
+    )
+
+
 def association_to_pckg_schema(assoc: CFAssociation) -> CFPckgAssociationDType:
     return CFPckgAssociationDType(
         identifier=str(assoc.identifier),
@@ -198,6 +212,19 @@ def association_to_pckg_schema(assoc: CFAssociation) -> CFPckgAssociationDType:
         CFAssociationGroupingURI=_build_association_grouping_uri(assoc),
         lastChangeDateTime=assoc.last_change_date_time,
     )
+
+
+async def get_cf_association(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
+) -> CFAssociationDType | None:
+    assoc = await cf_association_repository.get_cf_association_by_identifier(
+        session, tenant_id, identifier
+    )
+    if assoc is None:
+        return None
+    return association_to_schema(assoc)
 
 
 async def list_item_associations(
