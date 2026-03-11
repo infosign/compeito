@@ -1,0 +1,19 @@
+{
+    "tenant_list": "テナント一覧",
+    "no_public_tenants": "公開テナントはありません",
+    "title": "タイトル",
+    "last_updated": "最終更新",
+    "item_count": "アイテム数",
+    "no_frameworks": "フレームワークはありません",
+    "document_details": "ドキュメント詳細",
+    "no_items": "アイテムがありません",
+    "show_in_tree": "ツリーで表示",
+    "return_to_top": "トップページに戻る",
+    "details": "詳細",
+    "error_bad_request": "リクエストが不正です",
+    "error_not_found": "ページが見つかりません",
+    "error_tenant_not_found": "テナントが見つかりません",
+    "error_document_not_found": "ドキュメントが見つかりません",
+    "error_item_not_found": "アイテムが見つかりません",
+    "error_server": "サーバーエラーが発生しました"
+}
