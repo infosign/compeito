@@ -15,5 +15,6 @@
     "error_tenant_not_found": "Tenant not found",
     "error_document_not_found": "Document not found",
     "error_item_not_found": "Item not found",
-    "error_server": "Internal Server Error"
+    "error_server": "Internal Server Error",
+    "error_invalid_uuid": "Invalid UUID format: '{value}'"
 }

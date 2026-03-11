@@ -59,7 +59,16 @@ class TestGetTranslator:
             "show_in_tree", "return_to_top", "details",
             "error_bad_request", "error_not_found", "error_tenant_not_found",
             "error_document_not_found", "error_item_not_found", "error_server",
+            "error_invalid_uuid",
         ]
         for key in keys:
             assert t_ja(key) != key, f"Missing ja translation for '{key}'"
             assert t_en(key) != key, f"Missing en translation for '{key}'"
+
+    def test_placeholder_substitution(self):
+        t = get_translator("en")
+        assert t("error_invalid_uuid", value="bad") == "Invalid UUID format: 'bad'"
+
+    def test_placeholder_substitution_ja(self):
+        t = get_translator("ja")
+        assert t("error_invalid_uuid", value="bad") == "不正なUUID形式: 'bad'"
