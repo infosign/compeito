@@ -16,6 +16,6 @@
     {% endfor %}
 </ul>
 {% else %}
-<p class="text-gray-500">公開テナントはありません</p>
+<p class="text-gray-500">{{ t("no_public_tenants") }}</p>
 {% endif %}
 {% endblock %}
