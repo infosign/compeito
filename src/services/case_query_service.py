@@ -6,10 +6,24 @@ from src.config import settings
 from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
-from src.repositories import cf_association_repository, cf_document_repository, cf_item_repository
+from src.repositories import (
+    cf_association_grouping_repository,
+    cf_association_repository,
+    cf_concept_repository,
+    cf_document_repository,
+    cf_item_repository,
+    cf_item_type_repository,
+    cf_license_repository,
+    cf_subject_repository,
+)
 from src.schemas.cf_association import CFAssociationDType, CFPckgAssociationDType
+from src.schemas.cf_association_grouping import CFAssociationGroupingDType
+from src.schemas.cf_concept import CFConceptDType
 from src.schemas.cf_document import CFDocumentDType
 from src.schemas.cf_item import CFItemDType
+from src.schemas.cf_item_type import CFItemTypeDType
+from src.schemas.cf_license import CFLicenseDType
+from src.schemas.cf_subject import CFSubjectDType
 from src.schemas.common import LinkGenURIDType, LinkURIType
 
 
@@ -238,3 +252,129 @@ async def list_item_associations(
         session, tenant_id, item_identifier, limit, offset
     )
     return [association_to_pckg_schema(a) for a in assocs]
+
+
+# ---------------------------------------------------------------------------
+# Lookup resources
+# ---------------------------------------------------------------------------
+
+def _item_type_to_schema(obj) -> CFItemTypeDType:
+    return CFItemTypeDType(
+        identifier=str(obj.identifier), uri=obj.uri, title=obj.title,
+        description=obj.description, typeCode=obj.type_code,
+        hierarchyCode=obj.hierarchy_code,
+        lastChangeDateTime=obj.last_change_date_time,
+    )
+
+
+def _concept_to_schema(obj) -> CFConceptDType:
+    return CFConceptDType(
+        identifier=str(obj.identifier), uri=obj.uri, title=obj.title,
+        description=obj.description, keywords=obj.keywords,
+        hierarchyCode=obj.hierarchy_code,
+        lastChangeDateTime=obj.last_change_date_time,
+    )
+
+
+def _subject_to_schema(obj) -> CFSubjectDType:
+    return CFSubjectDType(
+        identifier=str(obj.identifier), uri=obj.uri, title=obj.title,
+        description=obj.description, hierarchyCode=obj.hierarchy_code,
+        lastChangeDateTime=obj.last_change_date_time,
+    )
+
+
+def _license_to_schema(obj) -> CFLicenseDType:
+    return CFLicenseDType(
+        identifier=str(obj.identifier), uri=obj.uri, title=obj.title,
+        description=obj.description, licenseText=obj.license_text,
+        lastChangeDateTime=obj.last_change_date_time,
+    )
+
+
+def _association_grouping_to_schema(obj) -> CFAssociationGroupingDType:
+    return CFAssociationGroupingDType(
+        identifier=str(obj.identifier), uri=obj.uri, title=obj.title,
+        description=obj.description,
+        lastChangeDateTime=obj.last_change_date_time,
+    )
+
+
+# --- CFItemType ---
+
+async def get_cf_item_type(
+    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+) -> CFItemTypeDType | None:
+    obj = await cf_item_type_repository.get_by_identifier(session, tenant_id, identifier)
+    return _item_type_to_schema(obj) if obj else None
+
+
+async def list_cf_item_types(
+    session: AsyncSession, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0,
+) -> list[CFItemTypeDType]:
+    objs = await cf_item_type_repository.list_all(session, tenant_id, limit, offset)
+    return [_item_type_to_schema(o) for o in objs]
+
+
+# --- CFConcept ---
+
+async def get_cf_concept(
+    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+) -> CFConceptDType | None:
+    obj = await cf_concept_repository.get_by_identifier(session, tenant_id, identifier)
+    return _concept_to_schema(obj) if obj else None
+
+
+async def list_cf_concepts(
+    session: AsyncSession, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0,
+) -> list[CFConceptDType]:
+    objs = await cf_concept_repository.list_all(session, tenant_id, limit, offset)
+    return [_concept_to_schema(o) for o in objs]
+
+
+# --- CFSubject ---
+
+async def get_cf_subject(
+    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+) -> CFSubjectDType | None:
+    obj = await cf_subject_repository.get_by_identifier(session, tenant_id, identifier)
+    return _subject_to_schema(obj) if obj else None
+
+
+async def list_cf_subjects(
+    session: AsyncSession, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0,
+) -> list[CFSubjectDType]:
+    objs = await cf_subject_repository.list_all(session, tenant_id, limit, offset)
+    return [_subject_to_schema(o) for o in objs]
+
+
+# --- CFLicense ---
+
+async def get_cf_license(
+    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+) -> CFLicenseDType | None:
+    obj = await cf_license_repository.get_by_identifier(session, tenant_id, identifier)
+    return _license_to_schema(obj) if obj else None
+
+
+async def list_cf_licenses(
+    session: AsyncSession, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0,
+) -> list[CFLicenseDType]:
+    objs = await cf_license_repository.list_all(session, tenant_id, limit, offset)
+    return [_license_to_schema(o) for o in objs]
+
+
+# --- CFAssociationGrouping ---
+
+async def get_cf_association_grouping(
+    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+) -> CFAssociationGroupingDType | None:
+    obj = await cf_association_grouping_repository.get_by_identifier(session, tenant_id, identifier)
+    return _association_grouping_to_schema(obj) if obj else None
+
+
+async def list_cf_association_groupings(
+    session: AsyncSession, tenant_id: uuid.UUID, limit: int = 100, offset: int = 0,
+) -> list[CFAssociationGroupingDType]:
+    objs = await cf_association_grouping_repository.list_all(session, tenant_id, limit, offset)
+    return [_association_grouping_to_schema(o) for o in objs]
