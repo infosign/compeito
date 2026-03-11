@@ -121,9 +121,23 @@ class TestValidation:
         result = _validate_cf_package(pkg)
         assert "CFDocument" in result
 
-    def test_missing_cf_package_key(self):
-        with pytest.raises(ValueError, match="missing 'CFPackage' key"):
+    def test_missing_cf_package_and_cf_document_key(self):
+        with pytest.raises(ValueError, match="missing 'CFPackage' or 'CFDocument' key"):
             _validate_cf_package({"other": "data"})
+
+    def test_v1p0_format_without_wrapper(self):
+        """CASE v1p0 format: CFDocument at top level without CFPackage wrapper."""
+        doc_id = str(uuid.uuid4())
+        data = {
+            "CFDocument": {
+                "identifier": doc_id,
+                "title": "Test Doc",
+                "uri": "https://example.com/uri/" + doc_id,
+            },
+            "CFItems": [],
+        }
+        result = _validate_cf_package(data)
+        assert result["CFDocument"]["identifier"] == doc_id
 
     def test_missing_cf_document(self):
         with pytest.raises(ValueError, match="CFDocument is missing"):
