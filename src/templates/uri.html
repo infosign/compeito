@@ -4,7 +4,7 @@
 
 {% block breadcrumb %}
 <nav class="text-sm text-gray-500 mb-1">
-    <a href="/" class="hover:text-gray-700">テナント一覧</a>
+    <a href="/" class="hover:text-gray-700">{{ t("tenant_list") }}</a>
     <span class="mx-1">&gt;</span>
     <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
 </nav>
@@ -146,7 +146,7 @@
         {{ optional_field("listEnumeration", resource.list_enumeration) }}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">ツリーで表示</a>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFDocument ========== #}
@@ -183,7 +183,7 @@
         {{ nested_resource("CFPackageURI", resource.title, resource.identifier, resource.uri) }}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">ツリーで表示</a>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFAssociation ========== #}

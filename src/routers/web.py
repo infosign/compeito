@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
+from src.i18n import get_translator, parse_accept_language
 from src.services import tenant_service
 from src.services import tree_service
 from src.services import uri_service
@@ -21,6 +22,11 @@ templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
 
 CACHE_CONTROL = "public, max-age=3600"
 CACHE_CONTROL_FRAGMENT = "public, max-age=86400"
+
+
+def _get_lang(request: Request) -> str:
+    """Extract language from Accept-Language header."""
+    return parse_accept_language(request.headers.get("accept-language", ""))
 
 
 def _parse_uuid(value: str) -> uuid.UUID | None:
@@ -35,6 +41,8 @@ def _error_response(
     request: Request, status_code: int, message: str, detail: str = "",
 ) -> HTMLResponse:
     """Render an error page."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     return templates.TemplateResponse(
         request,
         "error.html",
@@ -42,6 +50,8 @@ def _error_response(
             "status_code": status_code,
             "message": message,
             "detail": detail,
+            "t": t,
+            "lang": lang,
         },
         status_code=status_code,
     )
@@ -65,9 +75,11 @@ async def index(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Public tenant list."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     tenants = await tenant_service.list_public_tenants(session)
     response = templates.TemplateResponse(
-        request, "index.html", {"tenants": tenants},
+        request, "index.html", {"tenants": tenants, "t": t, "lang": lang},
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
@@ -80,23 +92,25 @@ async def tenant_page(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Framework list for a tenant."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, "リクエストが不正です",
+            request, 400, t("error_bad_request"),
             f"Invalid UUID format: '{tenant}'",
         )
 
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
-        return _error_response(request, 404, "ページが見つかりません")
+        return _error_response(request, 404, t("error_not_found"))
 
     documents = await tenant_service.list_documents_with_item_count(
         session, tenant_obj.id,
     )
     response = templates.TemplateResponse(
         request, "tenant.html",
-        {"tenant": tenant_obj, "documents": documents},
+        {"tenant": tenant_obj, "documents": documents, "t": t, "lang": lang},
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
@@ -111,27 +125,29 @@ async def tree_view(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Tree view page (SSR depth 0-1 + HTMX lazy load)."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     # Validate tenant
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, "リクエストが不正です",
+            request, 400, t("error_bad_request"),
             f"Invalid UUID format: '{tenant}'",
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
-        return _error_response(request, 404, "ページが見つかりません")
+        return _error_response(request, 404, t("error_not_found"))
 
     # Validate document
     doc_uuid = _parse_uuid(doc_id)
     if doc_uuid is None:
         return _error_response(
-            request, 400, "リクエストが不正です",
+            request, 400, t("error_bad_request"),
             f"Invalid UUID format: '{doc_id}'",
         )
     doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
     if doc is None:
-        return _error_response(request, 404, "ページが見つかりません")
+        return _error_response(request, 404, t("error_not_found"))
 
     # Parse optional ?item= parameter (ignore if invalid)
     selected_ident = _parse_uuid(item) if item else None
@@ -149,6 +165,8 @@ async def tree_view(
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
             "tenant_id": str(tenant_obj.id),
+            "t": t,
+            "lang": lang,
         },
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
@@ -163,22 +181,24 @@ async def uri_detail(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Resource detail page (/uri/{uuid})."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     # Validate tenant
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, "リクエストが不正です",
+            request, 400, t("error_bad_request"),
             f"Invalid UUID format: '{tenant}'",
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
-        return _error_response(request, 404, "ページが見つかりません")
+        return _error_response(request, 404, t("error_not_found"))
 
     # Validate resource UUID
     res_uuid = _parse_uuid(resource_id)
     if res_uuid is None:
         return _error_response(
-            request, 400, "リクエストが不正です",
+            request, 400, t("error_bad_request"),
             f"Invalid UUID format: '{resource_id}'",
         )
 
@@ -186,7 +206,7 @@ async def uri_detail(
         session, tenant_obj.id, res_uuid,
     )
     if result is None:
-        return _error_response(request, 404, "ページが見つかりません")
+        return _error_response(request, 404, t("error_not_found"))
 
     # Build page title per spec
     if result.resource_type == "CFItem":
@@ -205,6 +225,8 @@ async def uri_detail(
             "resource": result.resource,
             "doc": result.doc,
             "page_title": page_title,
+            "t": t,
+            "lang": lang,
         },
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
@@ -227,21 +249,23 @@ async def children_fragment(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """HTMX fragment: child items of {item_id}."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     # Validate tenant
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
-        return _error_fragment(400, "リクエストが不正です")
+        return _error_fragment(400, t("error_bad_request"))
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
-        return _error_fragment(404, "テナントが見つかりません")
+        return _error_fragment(404, t("error_tenant_not_found"))
 
     # Validate document
     doc_uuid = _parse_uuid(doc_id)
     if doc_uuid is None:
-        return _error_fragment(400, "リクエストが不正です")
+        return _error_fragment(400, t("error_bad_request"))
     doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
     if doc is None:
-        return _error_fragment(404, "ドキュメントが見つかりません")
+        return _error_fragment(404, t("error_document_not_found"))
 
     # Validate item UUID format
     item_uuid = _parse_uuid(item_id)
@@ -274,21 +298,23 @@ async def detail_fragment(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """HTMX fragment: item detail for the right pane."""
+    lang = _get_lang(request)
+    t = get_translator(lang)
     # Validate tenant
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
-        return _error_fragment(400, "リクエストが不正です")
+        return _error_fragment(400, t("error_bad_request"))
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
     if tenant_obj is None:
-        return _error_fragment(404, "テナントが見つかりません")
+        return _error_fragment(404, t("error_tenant_not_found"))
 
     # Validate document
     doc_uuid = _parse_uuid(doc_id)
     if doc_uuid is None:
-        return _error_fragment(400, "リクエストが不正です")
+        return _error_fragment(400, t("error_bad_request"))
     doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
     if doc is None:
-        return _error_fragment(404, "ドキュメントが見つかりません")
+        return _error_fragment(404, t("error_document_not_found"))
 
     # Validate item
     item_uuid = _parse_uuid(item_id)
@@ -297,13 +323,15 @@ async def detail_fragment(
 
     selected_item = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
     if selected_item is None:
-        return _error_fragment(404, "アイテムが見つかりません")
+        return _error_fragment(404, t("error_item_not_found"))
 
     response = templates.TemplateResponse(
         request, "fragments/detail.html",
         {
             "selected_item": selected_item,
             "tenant_id": str(tenant_obj.id),
+            "t": t,
+            "lang": lang,
         },
     )
     response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
