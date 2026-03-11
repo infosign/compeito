@@ -5,6 +5,7 @@ from mangum import Mangum
 
 from src.errors import InvalidUUIDError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
+from src.routers.web import router as web_router
 
 app = FastAPI(
     title="CASE Server",
@@ -17,6 +18,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 app.include_router(case_api_router)
+app.include_router(web_router)
 
 
 # ---------------------------------------------------------------------------
