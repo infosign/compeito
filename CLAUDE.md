@@ -58,7 +58,7 @@ case-server/
 │   │   ├── cf_rubric_criterion.py
 │   │   └── cf_rubric_criterion_level.py
 │   ├── schemas/                 # Pydantic スキーマ (CASE v1.1 準拠)
-│   │   ├── common.py            # LinkURIType, imsx_StatusInfo 等の共通型
+│   │   ├── common.py            # LinkURIType, LinkGenURIDType, imsx_StatusInfo, CASEBaseSchema 等の共通型
 │   │   ├── cf_document.py
 │   │   ├── cf_item.py
 │   │   ├── cf_association.py
