@@ -8,14 +8,14 @@
         {% if node.has_children %}
             {% if node.is_expanded %}
             <button class="w-5 h-5 flex-shrink-0 text-gray-400 hover:text-gray-600 cursor-pointer"
-                onclick="this.parentElement.parentElement.querySelector('.tree-children').classList.toggle('hidden'); this.textContent = this.textContent.trim() === '▼' ? '▶' : '▼'">▼</button>
+                onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▼</button>
             {% else %}
             <button class="w-5 h-5 flex-shrink-0 text-gray-400 hover:text-gray-600 cursor-pointer"
                 hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
-                hx-target="next .tree-children"
+                hx-target="#ch-{{ node.item.identifier }}"
                 hx-swap="innerHTML"
                 hx-trigger="click once"
-                onclick="this.textContent = '▼'">▶</button>
+                onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▶</button>
             {% endif %}
         {% else %}
             <span class="w-5 h-5 flex-shrink-0 text-gray-300 text-center">●</span>
@@ -39,7 +39,7 @@
         </a>
     </div>
     {# Children container #}
-    <div class="tree-children ml-4 {% if not node.is_expanded %}hidden{% endif %}">
+    <div id="ch-{{ node.item.identifier }}" class="tree-children ml-4 {% if not node.is_expanded %}hidden{% endif %}">
         {% if node.children %}
             {% with nodes=node.children %}
                 {% include "fragments/tree_nodes.html" %}
