@@ -10,8 +10,13 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from src.i18n import detect_lang_from_env, get_translator
+
 console = Console(stderr=True)
 err_console = Console(stderr=True, style="bold red")
+
+# Module-level translator for Click decorator help texts (evaluated at import time)
+t = get_translator(detect_lang_from_env(), cli=True)
 
 
 # ---------------------------------------------------------------------------
@@ -30,25 +35,18 @@ def _detect_mode() -> str:
 
     if has_db:
         if has_admin_url or has_admin_key:
-            console.print(
-                "[yellow]Warning: DATABASE_URL and CASE_ADMIN_URL/KEY both set; "
-                "using DATABASE_URL (Docker mode)[/yellow]",
-            )
+            console.print(f"[yellow]{t('warn_both_env')}[/yellow]")
         return "docker"
 
     if has_admin_url and has_admin_key:
-        err_console.print("AWS mode is not yet supported in Phase 1")
+        err_console.print(t("err_aws_not_supported"))
         raise SystemExit(1)
 
     if has_admin_url or has_admin_key:
-        err_console.print(
-            "CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set",
-        )
+        err_console.print(t("err_admin_both_required"))
         raise SystemExit(1)
 
-    err_console.print(
-        "DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set",
-    )
+    err_console.print(t("err_env_required"))
     raise SystemExit(1)
 
 
@@ -87,8 +85,13 @@ def _parse_uuid(value: str, label: str = "UUID") -> uuid.UUID:
     try:
         return uuid.UUID(value)
     except (ValueError, AttributeError):
-        err_console.print(f"Invalid UUID format: '{value}'")
+        err_console.print(t("err_invalid_uuid", value=value))
         raise SystemExit(1)
+
+
+def _visibility(is_private: bool) -> str:
+    """Return localized visibility label."""
+    return t("visibility_private") if is_private else t("visibility_public")
 
 
 # ---------------------------------------------------------------------------
@@ -101,10 +104,16 @@ def cli():
     pass
 
 
+cli.help = t("cli_description")
+
+
 @cli.group()
 def tenant():
     """Tenant management commands."""
     pass
+
+
+tenant.help = t("tenant_group")
 
 
 @cli.group()
@@ -113,10 +122,16 @@ def doc():
     pass
 
 
+doc.help = t("doc_group")
+
+
 @cli.group(name="import")
 def import_group():
     """Import commands."""
     pass
+
+
+import_group.help = t("import_group")
 
 
 @cli.group(name="export")
@@ -125,10 +140,16 @@ def export_group():
     pass
 
 
+export_group.help = t("export_group")
+
+
 @cli.group()
 def db():
     """Database commands."""
     pass
+
+
+db.help = t("db_group")
 
 
 @cli.group()
@@ -137,13 +158,16 @@ def cache():
     pass
 
 
+cache.help = t("cache_group")
+
+
 # ---------------------------------------------------------------------------
 # tenant create
 # ---------------------------------------------------------------------------
 
-@tenant.command("create")
-@click.option("--name", required=True, help="Tenant name")
-@click.option("--private", "is_private", is_flag=True, default=False, help="Make tenant private")
+@tenant.command("create", help=t("cmd_tenant_create"))
+@click.option("--name", required=True, help=t("help_tenant_name"))
+@click.option("--private", "is_private", is_flag=True, default=False, help=t("help_make_private"))
 def tenant_create(name: str, is_private: bool):
     """Create a new tenant."""
     _detect_mode()
@@ -152,11 +176,14 @@ def tenant_create(name: str, is_private: bool):
         from src.models.tenant import Tenant
 
         async for session in _get_session():
-            t = Tenant(name=name, is_private=is_private)
-            session.add(t)
+            tenant_obj = Tenant(name=name, is_private=is_private)
+            session.add(tenant_obj)
             await session.flush()
-            visibility = "private" if t.is_private else "public"
-            console.print(f"Created tenant: {t.id} ({t.name}, {visibility})")
+            console.print(
+                t("msg_created_tenant",
+                  id=str(tenant_obj.id), name=tenant_obj.name,
+                  visibility=_visibility(tenant_obj.is_private)),
+            )
             await session.commit()
 
     _run(_run_create())
@@ -166,8 +193,8 @@ def tenant_create(name: str, is_private: bool):
 # tenant list
 # ---------------------------------------------------------------------------
 
-@tenant.command("list")
-@click.option("--with-docs", is_flag=True, default=False, help="Show documents under each tenant")
+@tenant.command("list", help=t("cmd_tenant_list"))
+@click.option("--with-docs", is_flag=True, default=False, help=t("help_show_docs"))
 def tenant_list(with_docs: bool):
     """List all tenants."""
     _detect_mode()
@@ -186,7 +213,7 @@ def tenant_list(with_docs: bool):
             tenants = list(result.scalars().all())
 
             if not tenants:
-                console.print("No tenants found.")
+                console.print(t("msg_no_tenants"))
                 return
 
             if not with_docs:
@@ -195,19 +222,19 @@ def tenant_list(with_docs: bool):
                 table.add_column("NAME")
                 table.add_column("VISIBILITY")
                 table.add_column("CREATED")
-                for t in tenants:
+                for tenant_obj in tenants:
                     table.add_row(
-                        str(t.id),
-                        t.name,
-                        "private" if t.is_private else "public",
-                        t.created_at.strftime("%Y-%m-%d") if t.created_at else "",
+                        str(tenant_obj.id),
+                        tenant_obj.name,
+                        _visibility(tenant_obj.is_private),
+                        tenant_obj.created_at.strftime("%Y-%m-%d") if tenant_obj.created_at else "",
                     )
                 console.print(table)
             else:
                 # With docs: tree-style output
-                for t in tenants:
-                    visibility = "private" if t.is_private else "public"
-                    console.print(f"{t.id}  {t.name}  {visibility}")
+                for tenant_obj in tenants:
+                    visibility = _visibility(tenant_obj.is_private)
+                    console.print(f"{tenant_obj.id}  {tenant_obj.name}  {visibility}")
                     # Fetch documents with item counts
                     stmt = (
                         select(
@@ -216,7 +243,7 @@ def tenant_list(with_docs: bool):
                             func.count(CFItem.id).label("item_count"),
                         )
                         .outerjoin(CFItem, CFItem.cf_document_id == CFDocument.id)
-                        .where(CFDocument.tenant_id == t.id)
+                        .where(CFDocument.tenant_id == tenant_obj.id)
                         .group_by(CFDocument.id)
                         .order_by(CFDocument.title.asc(), CFDocument.identifier.asc())
                     )
@@ -225,7 +252,8 @@ def tenant_list(with_docs: bool):
                     for i, (doc_ident, doc_title, item_count) in enumerate(docs):
                         prefix = "└─" if i == len(docs) - 1 else "├─"
                         console.print(
-                            f"  {prefix} {doc_ident}  {doc_title}  ({item_count} items)",
+                            f"  {prefix} {doc_ident}  {doc_title}  "
+                            f"({item_count} {t('items_suffix')})",
                         )
 
     _run(_run_list())
@@ -235,23 +263,21 @@ def tenant_list(with_docs: bool):
 # tenant update
 # ---------------------------------------------------------------------------
 
-@tenant.command("update")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--name", default=None, help="New tenant name")
-@click.option("--private", "set_private", is_flag=True, default=False, help="Set tenant to private")
-@click.option("--public", "set_public", is_flag=True, default=False, help="Set tenant to public")
+@tenant.command("update", help=t("cmd_tenant_update"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--name", default=None, help=t("help_new_name"))
+@click.option("--private", "set_private", is_flag=True, default=False, help=t("help_set_private"))
+@click.option("--public", "set_public", is_flag=True, default=False, help=t("help_set_public"))
 def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_public: bool):
     """Update a tenant."""
     _detect_mode()
 
     if set_private and set_public:
-        err_console.print("--private and --public are mutually exclusive")
+        err_console.print(t("err_private_public_exclusive"))
         raise SystemExit(1)
 
     if not name and not set_private and not set_public:
-        err_console.print(
-            "At least one of --name, --private, or --public is required",
-        )
+        err_console.print(t("err_update_requires_option"))
         raise SystemExit(1)
 
     tid = _parse_uuid(tenant_id)
@@ -265,21 +291,24 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
-            t = result.scalar_one_or_none()
-            if t is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+            tenant_obj = result.scalar_one_or_none()
+            if tenant_obj is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             if name is not None:
-                t.name = name
+                tenant_obj.name = name
             if set_private:
-                t.is_private = True
+                tenant_obj.is_private = True
             if set_public:
-                t.is_private = False
+                tenant_obj.is_private = False
 
             await session.flush()
-            visibility = "private" if t.is_private else "public"
-            console.print(f"Updated tenant: {t.id} ({t.name}, {visibility})")
+            console.print(
+                t("msg_updated_tenant",
+                  id=str(tenant_obj.id), name=tenant_obj.name,
+                  visibility=_visibility(tenant_obj.is_private)),
+            )
             await session.commit()
 
     _run(_run_update())
@@ -289,9 +318,9 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
 # tenant delete
 # ---------------------------------------------------------------------------
 
-@tenant.command("delete")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--force", is_flag=True, default=False, help="Skip confirmation prompt")
+@tenant.command("delete", help=t("cmd_tenant_delete"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def tenant_delete(tenant_id: str, force: bool):
     """Delete a tenant and all its data."""
     _detect_mode()
@@ -306,27 +335,27 @@ def tenant_delete(tenant_id: str, force: bool):
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
-            t = result.scalar_one_or_none()
-            if t is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+            tenant_obj = result.scalar_one_or_none()
+            if tenant_obj is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             if not force:
                 answer = click.prompt(
-                    f"Delete tenant '{t.name}' ({t.id})? "
-                    "This will delete all documents and items. [y/N]",
+                    t("prompt_delete_tenant",
+                      name=tenant_obj.name, id=str(tenant_obj.id)),
                     default="N",
                     show_default=False,
                 )
                 if answer.lower() not in ("y", "yes"):
-                    console.print("Cancelled.")
+                    console.print(t("msg_cancelled"))
                     raise SystemExit(2)
 
-            name = t.name
-            tid_str = str(t.id)
-            await session.delete(t)
+            name = tenant_obj.name
+            tid_str = str(tenant_obj.id)
+            await session.delete(tenant_obj)
             await session.commit()
-            console.print(f"Deleted tenant: {tid_str} ({name})")
+            console.print(t("msg_deleted_tenant", id=tid_str, name=name))
 
     _run(_run_delete())
 
@@ -335,8 +364,8 @@ def tenant_delete(tenant_id: str, force: bool):
 # doc list
 # ---------------------------------------------------------------------------
 
-@doc.command("list")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
+@doc.command("list", help=t("cmd_doc_list"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 def doc_list(tenant_id: str):
     """List documents in a tenant."""
     _detect_mode()
@@ -355,7 +384,7 @@ def doc_list(tenant_id: str):
                 select(Tenant).where(Tenant.id == tid),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             stmt = (
@@ -374,7 +403,7 @@ def doc_list(tenant_id: str):
             docs = list(docs_result.all())
 
             if not docs:
-                console.print("No documents found.")
+                console.print(t("msg_no_documents"))
                 return
 
             table = Table()
@@ -398,10 +427,10 @@ def doc_list(tenant_id: str):
 # doc delete
 # ---------------------------------------------------------------------------
 
-@doc.command("delete")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--doc", "doc_id", required=True, help="Document UUID")
-@click.option("--force", is_flag=True, default=False, help="Skip confirmation prompt")
+@doc.command("delete", help=t("cmd_doc_delete"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def doc_delete(tenant_id: str, doc_id: str, force: bool):
     """Delete a document and its items/associations."""
     _detect_mode()
@@ -421,7 +450,7 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
                 select(Tenant).where(Tenant.id == tid),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             # Find document
@@ -433,7 +462,7 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
             )
             doc = result.scalar_one_or_none()
             if doc is None:
-                err_console.print(f"Document not found: '{did}'")
+                err_console.print(t("err_doc_not_found", value=str(did)))
                 raise SystemExit(1)
 
             # Get item count for prompt
@@ -444,20 +473,21 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 
             if not force:
                 answer = click.prompt(
-                    f"Delete document '{doc.title}' ({doc.identifier}, "
-                    f"{item_count} items)? [y/N]",
+                    t("prompt_delete_document",
+                      title=doc.title, id=str(doc.identifier),
+                      count=str(item_count)),
                     default="N",
                     show_default=False,
                 )
                 if answer.lower() not in ("y", "yes"):
-                    console.print("Cancelled.")
+                    console.print(t("msg_cancelled"))
                     raise SystemExit(2)
 
             title = doc.title
             ident_str = str(doc.identifier)
             await session.delete(doc)
             await session.commit()
-            console.print(f"Deleted document: {ident_str} ({title})")
+            console.print(t("msg_deleted_document", id=ident_str, title=title))
 
     _run(_run_delete())
 
@@ -466,12 +496,12 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 # import csv
 # ---------------------------------------------------------------------------
 
-@import_group.command("csv")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--file", "file_path", required=True, type=click.Path(), help="CSV file path")
-@click.option("--doc", "doc_id", default=None, help="Document UUID (for update)")
-@click.option("--doc-title", default=None, help="Document title")
-@click.option("--doc-version", default=None, help="Document version")
+@import_group.command("csv", help=t("cmd_import_csv"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_csv_file"))
+@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
+@click.option("--doc-title", default=None, help=t("help_doc_title"))
+@click.option("--doc-version", default=None, help=t("help_doc_version"))
 def import_csv_cmd(
     tenant_id: str, file_path: str, doc_id: str | None,
     doc_title: str | None, doc_version: str | None,
@@ -484,19 +514,19 @@ def import_csv_cmd(
     # Validate file
     p = Path(file_path)
     if not p.exists():
-        err_console.print(f"File not found: '{file_path}'")
+        err_console.print(t("err_file_not_found", value=file_path))
         raise SystemExit(1)
     try:
         csv_data = p.read_bytes()
     except PermissionError:
-        err_console.print(f"Cannot read file: '{file_path}'")
+        err_console.print(t("err_file_unreadable", value=file_path))
         raise SystemExit(1)
 
     # Check UTF-8
     try:
         csv_data.decode("utf-8")
     except UnicodeDecodeError:
-        err_console.print("CSV file is not valid UTF-8")
+        err_console.print(t("err_csv_not_utf8"))
         raise SystemExit(1)
 
     async def _run_import():
@@ -512,7 +542,7 @@ def import_csv_cmd(
                 select(Tenant).where(Tenant.id == tid),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             # Check doc if specified
@@ -524,10 +554,10 @@ def import_csv_cmd(
                     ),
                 )
                 if result.scalar_one_or_none() is None:
-                    err_console.print(f"Document not found: '{did}'")
+                    err_console.print(t("err_doc_not_found", value=str(did)))
                     raise SystemExit(1)
 
-            with console.status("Importing CSV..."):
+            with console.status(t("msg_importing_csv")):
                 report = await import_csv(
                     session, tid, csv_data,
                     doc_identifier=did,
@@ -537,15 +567,20 @@ def import_csv_cmd(
                 await session.commit()
 
             console.print(
-                f"Imported into '{report.document_title}' "
-                f"({report.document_identifier})",
+                t("msg_imported_into",
+                  title=report.document_title,
+                  id=str(report.document_identifier)),
             )
             console.print(
-                f"  Items: {report.items_created} created, "
-                f"{report.items_updated} updated, "
-                f"{report.items_skipped} skipped",
+                t("msg_items_summary",
+                  created=str(report.items_created),
+                  updated=str(report.items_updated),
+                  skipped=str(report.items_skipped)),
             )
-            console.print(f"  Associations: {report.associations_created} created")
+            console.print(
+                t("msg_assoc_summary_short",
+                  created=str(report.associations_created)),
+            )
             if report.warnings:
                 for w in report.warnings:
                     console.print(f"  [yellow]Warning: {w}[/yellow]")
@@ -557,10 +592,10 @@ def import_csv_cmd(
 # import case-url
 # ---------------------------------------------------------------------------
 
-@import_group.command("case-url")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--url", required=True, help="CASE API URL or CFPackage URL")
-@click.option("--doc", "doc_id", default=None, help="Document UUID (for update)")
+@import_group.command("case-url", help=t("cmd_import_case_url"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--url", required=True, help=t("help_case_url"))
+@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
 def import_case_url(tenant_id: str, url: str, doc_id: str | None):
     """Import from an external CASE source."""
     _detect_mode()
@@ -580,7 +615,7 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                 select(Tenant).where(Tenant.id == tid),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             # Check doc if specified
@@ -592,10 +627,10 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                     ),
                 )
                 if result.scalar_one_or_none() is None:
-                    err_console.print(f"Document not found: '{did}'")
+                    err_console.print(t("err_doc_not_found", value=str(did)))
                     raise SystemExit(1)
 
-            with console.status("Importing from CASE source..."):
+            with console.status(t("msg_importing_case")):
                 report = await import_case_package(
                     session, tid, url,
                     doc_identifier=did,
@@ -603,18 +638,21 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                 await session.commit()
 
             console.print(
-                f"Imported '{report.document_title}' "
-                f"({report.document_identifier})",
+                t("msg_imported",
+                  title=report.document_title,
+                  id=str(report.document_identifier)),
             )
             console.print(
-                f"  Items: {report.items_created} created, "
-                f"{report.items_updated} updated, "
-                f"{report.items_skipped} skipped",
+                t("msg_items_summary",
+                  created=str(report.items_created),
+                  updated=str(report.items_updated),
+                  skipped=str(report.items_skipped)),
             )
             console.print(
-                f"  Associations: {report.associations_created} created, "
-                f"{report.associations_updated} updated, "
-                f"{report.associations_skipped} skipped",
+                t("msg_assoc_summary",
+                  created=str(report.associations_created),
+                  updated=str(report.associations_updated),
+                  skipped=str(report.associations_skipped)),
             )
             if report.warnings:
                 for w in report.warnings:
@@ -627,13 +665,13 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
 # export csv
 # ---------------------------------------------------------------------------
 
-@export_group.command("csv")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--doc", "doc_id", required=True, help="Document UUID")
-@click.option("--file", "file_path", required=True, type=click.Path(), help="Output file path")
+@export_group.command("csv", help=t("cmd_export_csv"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
 @click.option(
     "--format", "fmt", default="custom",
-    help="Export format: custom (default) or opensalt",
+    help=t("help_export_format"),
 )
 def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
     """Export a document to CSV."""
@@ -643,13 +681,11 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 
     # Validate format
     if fmt not in ("custom", "opensalt"):
-        err_console.print(
-            f"Invalid format: '{fmt}'. Valid values: custom, opensalt",
-        )
+        err_console.print(t("err_invalid_format", value=fmt))
         raise SystemExit(1)
 
     if fmt == "opensalt":
-        err_console.print("opensalt format is not yet supported")
+        err_console.print(t("err_opensalt_not_supported"))
         raise SystemExit(1)
 
     # Check output path is writable
@@ -660,7 +696,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
         out.touch()
         out.unlink()
     except (PermissionError, OSError):
-        err_console.print(f"Cannot write file: '{file_path}'")
+        err_console.print(t("err_file_unwritable", value=file_path))
         raise SystemExit(1)
 
     async def _run_export():
@@ -676,7 +712,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
                 select(Tenant).where(Tenant.id == tid),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Tenant not found: '{tid}'")
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
             # Check document
@@ -687,21 +723,22 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
                 ),
             )
             if result.scalar_one_or_none() is None:
-                err_console.print(f"Document not found: '{did}'")
+                err_console.print(t("err_doc_not_found", value=str(did)))
                 raise SystemExit(1)
 
-            with console.status("Exporting CSV..."):
+            with console.status(t("msg_exporting_csv")):
                 csv_str = await export_csv(session, tid, did)
 
             out.write_text(csv_str, encoding="utf-8")
-            item_count = csv_str.count("\n") - 1  # rough estimate: lines minus header
             # Count actual data rows (exclude meta lines starting with #)
             lines = csv_str.strip().split("\n")
             data_lines = [
                 l for l in lines
                 if l and not l.startswith("#") and not l.startswith("Identifier,")
             ]
-            console.print(f"Exported {len(data_lines)} items to {file_path}")
+            console.print(
+                t("msg_exported", count=str(len(data_lines)), path=file_path),
+            )
 
     _run(_run_export())
 
@@ -710,7 +747,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 # db migrate
 # ---------------------------------------------------------------------------
 
-@db.command("migrate")
+@db.command("migrate", help=t("cmd_db_migrate"))
 def db_migrate():
     """Run database migrations (alembic upgrade head)."""
     _detect_mode()
@@ -728,16 +765,16 @@ def db_migrate():
         console.print(result.stderr.rstrip())
     if result.returncode != 0:
         raise SystemExit(1)
-    console.print("[green]Migration complete.[/green]")
+    console.print(f"[green]{t('msg_migration_complete')}[/green]")
 
 
 # ---------------------------------------------------------------------------
 # cache invalidate
 # ---------------------------------------------------------------------------
 
-@cache.command("invalidate")
-@click.option("--tenant", "tenant_id", required=True, help="Tenant UUID")
-@click.option("--doc", "doc_id", default=None, help="Document UUID (optional)")
+@cache.command("invalidate", help=t("cmd_cache_invalidate"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_optional"))
 def cache_invalidate(tenant_id: str, doc_id: str | None):
     """Invalidate CloudFront cache (AWS only)."""
     mode = _detect_mode()
@@ -746,7 +783,7 @@ def cache_invalidate(tenant_id: str, doc_id: str | None):
         _parse_uuid(doc_id)
 
     if mode == "docker":
-        err_console.print("This command requires AWS environment")
+        err_console.print(t("err_aws_required"))
         raise SystemExit(1)
 
 
