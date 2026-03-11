@@ -1,0 +1,46 @@
+<h2 class="text-lg font-bold text-gray-900 mb-4">
+    {% if selected_item.human_coding_scheme %}{{ selected_item.human_coding_scheme }} {% endif %}{{ selected_item.full_statement[:200] }}
+</h2>
+<dl class="space-y-3">
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">fullStatement</dt>
+        <dd class="text-gray-900">{{ selected_item.full_statement }}</dd>
+    </div>
+    {% if selected_item.human_coding_scheme %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">humanCodingScheme</dt>
+        <dd class="text-gray-900">{{ selected_item.human_coding_scheme }}</dd>
+    </div>
+    {% endif %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">identifier</dt>
+        <dd class="text-gray-900 font-mono text-sm">{{ selected_item.identifier }}</dd>
+    </div>
+    {% if selected_item.item_type %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">CFItemType</dt>
+        <dd class="text-gray-900">{{ selected_item.item_type.title }}</dd>
+    </div>
+    {% endif %}
+    {% if selected_item.education_level %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">educationLevel</dt>
+        <dd class="text-gray-900">{{ selected_item.education_level | join(', ') }}</dd>
+    </div>
+    {% endif %}
+    {% if selected_item.language %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">language</dt>
+        <dd class="text-gray-900">{{ selected_item.language }}</dd>
+    </div>
+    {% endif %}
+    {% if selected_item.concept_keywords %}
+    <div>
+        <dt class="text-xs font-medium text-gray-500 uppercase">conceptKeywords</dt>
+        <dd class="text-gray-900">{{ selected_item.concept_keywords | join(', ') }}</dd>
+    </div>
+    {% endif %}
+</dl>
+<div class="mt-4">
+    <a href="/{{ tenant_id }}/uri/{{ selected_item.identifier }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">詳細 &rarr;</a>
+</div>
