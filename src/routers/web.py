@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_session
 from src.services import tenant_service
 from src.services import tree_service
+from src.services import uri_service
 
 router = APIRouter()
 
@@ -148,6 +149,62 @@ async def tree_view(
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
             "tenant_id": str(tenant_obj.id),
+        },
+    )
+    response.headers["Cache-Control"] = CACHE_CONTROL
+    return response
+
+
+@router.get("/{tenant}/uri/{resource_id}", response_class=HTMLResponse)
+async def uri_detail(
+    tenant: str,
+    resource_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """Resource detail page (/uri/{uuid})."""
+    # Validate tenant
+    tenant_uuid = _parse_uuid(tenant)
+    if tenant_uuid is None:
+        return _error_response(
+            request, 400, "リクエストが不正です",
+            f"Invalid UUID format: '{tenant}'",
+        )
+    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    if tenant_obj is None:
+        return _error_response(request, 404, "ページが見つかりません")
+
+    # Validate resource UUID
+    res_uuid = _parse_uuid(resource_id)
+    if res_uuid is None:
+        return _error_response(
+            request, 400, "リクエストが不正です",
+            f"Invalid UUID format: '{resource_id}'",
+        )
+
+    result = await uri_service.find_resource_by_identifier(
+        session, tenant_obj.id, res_uuid,
+    )
+    if result is None:
+        return _error_response(request, 404, "ページが見つかりません")
+
+    # Build page title per spec
+    if result.resource_type == "CFItem":
+        stmt = result.resource.full_statement
+        page_title = stmt[:50] if len(stmt) > 50 else stmt
+    elif result.resource_type == "CFDocument":
+        page_title = result.resource.title
+    else:
+        page_title = getattr(result.resource, "title", None) or str(result.resource.identifier)
+
+    response = templates.TemplateResponse(
+        request, "uri.html",
+        {
+            "tenant": tenant_obj,
+            "resource_type": result.resource_type,
+            "resource": result.resource,
+            "doc": result.doc,
+            "page_title": page_title,
         },
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
