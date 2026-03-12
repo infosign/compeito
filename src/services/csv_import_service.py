@@ -1,6 +1,6 @@
 """CSV Import Service — supports custom, OpenSALT, and simple formats.
 
-See docs/csv-format.md and docs/import-logic.md for the full specification.
+See docs/spec/csv-format.md and docs/spec/import-logic.md for the full specification.
 """
 
 from __future__ import annotations

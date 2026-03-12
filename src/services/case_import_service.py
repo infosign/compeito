@@ -1,6 +1,6 @@
 """External CASE source import service — fetches CFPackage JSON and saves to DB.
 
-See docs/import-logic.md "外部CASEソースインポート" section for the full specification.
+See docs/spec/import-logic.md "外部CASEソースインポート" section for the full specification.
 """
 
 from __future__ import annotations
