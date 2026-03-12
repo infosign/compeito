@@ -8,6 +8,7 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_subject import CFSubject
+from src.repositories import cf_rubric_repository
 from src.schemas.cf_association_grouping import CFAssociationGroupingDType
 from src.schemas.cf_concept import CFConceptDType
 from src.schemas.cf_document import CFPckgDocumentDType
@@ -22,6 +23,7 @@ from src.services.case_query_service import (
     _build_license_uri_from_model,
     _build_subject_uri_list,
     association_to_pckg_schema,
+    rubric_to_schema,
 )
 
 
@@ -280,10 +282,14 @@ async def get_cf_package(
             )
             subjects = list(subj_result.scalars().all())
 
-    # 5. Build package
+    # 5. Get rubrics for this document
+    rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
+
+    # 6. Build package
     return CFPackageDType(
         CFDocument=_pckg_document_to_schema(doc),
         CFItems=[_pckg_item_to_schema(item) for item in items],
         CFAssociations=[association_to_pckg_schema(a) for a in assocs],
         CFDefinitions=_build_definitions(doc, items, assocs, subjects),
+        CFRubrics=[rubric_to_schema(r) for r in rubrics],
     )
