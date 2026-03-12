@@ -682,10 +682,6 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
         err_console.print(t("err_invalid_format", value=fmt))
         raise SystemExit(1)
 
-    if fmt == "opensalt":
-        err_console.print(t("err_opensalt_not_supported"))
-        raise SystemExit(1)
-
     # Check output path is writable
     out = Path(file_path)
     try:
@@ -702,7 +698,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 
         from src.models.cf_document import CFDocument
         from src.models.tenant import Tenant
-        from src.services.csv_export_service import export_csv
+        from src.services.csv_export_service import export_csv, export_opensalt_csv
 
         async for session in _get_session():
             # Check tenant
@@ -725,13 +721,21 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
                 raise SystemExit(1)
 
             with console.status(t("msg_exporting_csv")):
-                csv_str = await export_csv(session, tid, did)
+                if fmt == "opensalt":
+                    csv_str = await export_opensalt_csv(session, tid, did)
+                else:
+                    csv_str = await export_csv(session, tid, did)
 
             out.write_text(csv_str, encoding="utf-8")
-            # Count actual data rows (exclude meta lines starting with #)
+            # Count actual data rows (exclude meta lines starting with #, and header rows)
             lines = csv_str.strip().split("\n")
             data_lines = [
-                line for line in lines if line and not line.startswith("#") and not line.startswith("Identifier,")
+                line
+                for line in lines
+                if line
+                and not line.startswith("#")
+                and not line.startswith("Identifier,")
+                and not line.startswith("CASE Item Identifier,")
             ]
             console.print(
                 t("msg_exported", count=str(len(data_lines)), path=file_path),
