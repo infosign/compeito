@@ -20,7 +20,9 @@ class CFDefinitionsDType(CASEBaseSchema):
     cf_subjects: list[CFSubjectDType] | None = Field(default=None, alias="CFSubjects")
     cf_concepts: list[CFConceptDType] | None = Field(default=None, alias="CFConcepts")
     cf_licenses: list[CFLicenseDType] | None = Field(default=None, alias="CFLicenses")
-    cf_association_groupings: list[CFAssociationGroupingDType] | None = Field(default=None, alias="CFAssociationGroupings")
+    cf_association_groupings: list[CFAssociationGroupingDType] | None = Field(
+        default=None, alias="CFAssociationGroupings"
+    )
 
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
