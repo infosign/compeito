@@ -25,7 +25,7 @@
 - GitHub Actions CI
 
 ## Phase 3（将来）
-- OpenSALT 形式の互換性改善（smartLevel/notes 対応、列順調整等。詳細は [reference/opensalt-csv-format.md](reference/opensalt-csv-format.md)）
+- OpenSALT 形式の互換性改善（smartLevel/notes 対応、列順調整等。詳細は [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md)）
 - isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応（isPeerOf, exactMatchOf 等）
 - OAuth 2.0 Bearer Token 認証（オプション）
 - コンピテンシーの意味検索（ベクトル埋め込み）

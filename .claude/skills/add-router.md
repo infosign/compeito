@@ -12,7 +12,7 @@
 
 ### 1. 仕様確認
 
-`docs/reference/case-v1p1-rest-binding.md` と `docs/api-spec.md` でエンドポイントの仕様を確認:
+`docs/reference/case-v1p1-rest-binding.md` と `docs/spec/api-spec.md` でエンドポイントの仕様を確認:
 - パス
 - レスポンスの DType 名（ルートキー）
 - Set型（配列）か単体オブジェクトか
@@ -41,7 +41,7 @@ async def get_{resource}(tenant_id: UUID, id: UUID, db=Depends(get_db)):
 - ルートキーは DType 名を使用（`docs/reference/case-v1p1-rest-binding.md` で確認）
 - Set型エンドポイント（CFConcepts/{id}, CFSubjects/{id}, CFItemTypes/{id}）は配列で返す
 - `exclude_none=False` で null フィールドを含める（FR-2.10）
-- エラーは imsx_StatusInfo 形式（`docs/api-spec.md` 参照）
+- エラーは imsx_StatusInfo 形式（`docs/spec/api-spec.md` 参照）
 
 ### 3. ルーターを main.py に登録
 

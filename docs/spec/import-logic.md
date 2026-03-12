@@ -29,7 +29,7 @@
 
 **UUID の大文字/小文字:** UUID 識別子の比較（upsert マッチング、parentIdentifier 解決、`/uri/{uuid}` 検索等）は**大文字小文字を区別しない**（PostgreSQL の UUID 型はケースインセンシティブ。`D86774F2-...` と `d86774f2-...` は同一と見なす）。新規作成時は小文字で正規化して保存する。外部インポート由来の UUID は元の形式のまま保存するが、比較時にはケースインセンシティブで行う。
 
-フォーマット自動判定ロジックは [csv-format.md](csv-format.md) を参照。
+フォーマット自動判定ロジックは [csv-format.md](./csv-format.md) を参照。
 
 ### ステップ2: メタデータパース
 
@@ -525,7 +525,7 @@ Imported into 'Document Title' (doc-uuid)
 
 ### OpenSALT形式エクスポート
 
-> OpenSALT の実際のフォーマットとの差異については [reference/opensalt-csv-format.md](reference/opensalt-csv-format.md) を参照。
+> OpenSALT の実際のフォーマットとの差異については [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md) を参照。
 
 - メタデータ行は独自形式と同一のルールで出力する（`#title`, `#version`, ..., `#subject` の順。非NULLかつ非空のフィールドのみ出力）
 - ヘッダー行: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of`（12列）

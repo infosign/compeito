@@ -13,18 +13,18 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 
 | ドキュメント | 内容 |
 |-------------|------|
-| [docs/architecture.md](docs/architecture.md) | システム構成・技術スタック・参照仕様 |
-| [docs/api-spec.md](docs/api-spec.md) | CASE v1.1 APIエンドポイント・レスポンス形式・エラー形式・ページネーション |
-| [docs/api-examples.md](docs/api-examples.md) | 各エンドポイントの具体的なJSON例・エラー例 |
-| [docs/db-schema.md](docs/db-schema.md) | DBスキーマ・テーブル定義・インデックス |
-| [docs/web-ui.md](docs/web-ui.md) | Web UIパス設計・ツリービュー・詳細ページ・URI生成ルール |
-| [docs/csv-format.md](docs/csv-format.md) | CSVフォーマット仕様（独自形式・OpenSALT形式・簡易形式） |
-| [docs/import-logic.md](docs/import-logic.md) | インポート/エクスポートのビジネスロジック・upsertルール |
-| [docs/cli.md](docs/cli.md) | CLIコマンド仕様 |
+| [docs/spec/architecture.md](docs/spec/architecture.md) | システム構成・技術スタック・参照仕様 |
+| [docs/spec/api-spec.md](docs/spec/api-spec.md) | CASE v1.1 APIエンドポイント・レスポンス形式・エラー形式・ページネーション |
+| [docs/spec/api-examples.md](docs/spec/api-examples.md) | 各エンドポイントの具体的なJSON例・エラー例 |
+| [docs/spec/db-schema.md](docs/spec/db-schema.md) | DBスキーマ・テーブル定義・インデックス |
+| [docs/spec/web-ui.md](docs/spec/web-ui.md) | Web UIパス設計・ツリービュー・詳細ページ・URI生成ルール |
+| [docs/spec/csv-format.md](docs/spec/csv-format.md) | CSVフォーマット仕様（独自形式・OpenSALT形式・簡易形式） |
+| [docs/spec/import-logic.md](docs/spec/import-logic.md) | インポート/エクスポートのビジネスロジック・upsertルール |
+| [docs/spec/cli.md](docs/spec/cli.md) | CLIコマンド仕様 |
 | [docs/guide/initial-setup.md](docs/guide/initial-setup.md) | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで） |
-| [docs/phases.md](docs/phases.md) | フェーズ定義・ロードマップ |
-| [docs/functional-requirements.md](docs/functional-requirements.md) | 機能要件一覧（FR-1〜FR-12） |
-| [docs/non-functional-requirements.md](docs/non-functional-requirements.md) | 非機能要件一覧（NFR-1〜NFR-11） |
+| [docs/requirements/phases.md](docs/requirements/phases.md) | フェーズ定義・ロードマップ |
+| [docs/requirements/functional-requirements.md](docs/requirements/functional-requirements.md) | 機能要件一覧（FR-1〜FR-12） |
+| [docs/requirements/non-functional-requirements.md](docs/requirements/non-functional-requirements.md) | 非機能要件一覧（NFR-1〜NFR-11） |
 
 ### CASE v1.1 公式仕様リファレンス
 
@@ -133,8 +133,8 @@ compeito/
 - **Cache-Control**:
   - 全テナント (public/private共通): `Cache-Control: public, max-age=3600`
   - HTMXフラグメント (`/cftree/doc/*/children/*`, `/cftree/doc/*/detail/*`): `Cache-Control: public, max-age=86400`
-- **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は [docs/api-spec.md](docs/api-spec.md)）
-- **LinkURI型**: 複合オブジェクト `{"title": "...", "identifier": "uuid", "uri": "https://..."}`（詳細は [docs/api-spec.md](docs/api-spec.md)）
+- **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は [docs/spec/api-spec.md](docs/spec/api-spec.md)）
+- **LinkURI型**: 複合オブジェクト `{"title": "...", "identifier": "uuid", "uri": "https://..."}`（詳細は [docs/spec/api-spec.md](docs/spec/api-spec.md)）
 
 ## 開発ワークフロー
 
