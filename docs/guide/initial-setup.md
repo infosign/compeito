@@ -9,7 +9,7 @@
 docker compose up -d
 
 # DBマイグレーションを実行
-docker compose exec app python cli.py db migrate
+docker compose exec app uv run python cli.py db migrate
 ```
 
 ## 1. テナントの作成
@@ -17,7 +17,7 @@ docker compose exec app python cli.py db migrate
 まずデータの所有者となるテナントを作成する。
 
 ```bash
-docker compose exec app python cli.py tenant create --name "大学A"
+docker compose exec app uv run python cli.py tenant create --name "大学A"
 # Created tenant: 550e8400-e29b-41d4-a716-446655440000 (大学A, public)
 ```
 
@@ -26,7 +26,7 @@ docker compose exec app python cli.py tenant create --name "大学A"
 既存テナントを使う場合:
 
 ```bash
-docker compose exec app python cli.py tenant list
+docker compose exec app uv run python cli.py tenant list
 ```
 
 ## 2. アイテム（コンピテンシーフレームワーク）のインポート
@@ -65,7 +65,7 @@ Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFIte
 
 ```bash
 # 新規作成（--doc なし → 新しいドキュメントを作成）
-docker compose exec app python cli.py import csv --tenant {tenant} --file framework.csv
+docker compose exec app uv run python cli.py import csv --tenant {tenant} --file framework.csv
 
 # 出力例:
 # Imported '情報Iコンピテンシー' (d86774f2-...-...)
@@ -79,7 +79,7 @@ docker compose exec app python cli.py import csv --tenant {tenant} --file framew
 
 ```bash
 # ドキュメント一覧で確認
-docker compose exec app python cli.py doc list --tenant {tenant}
+docker compose exec app uv run python cli.py doc list --tenant {tenant}
 ```
 
 Web UI（`http://localhost:8000/`）でもツリー構造を確認できる。
@@ -132,7 +132,7 @@ Level,,,,,,,,3,要改善,2.0,分析が不十分である,
 先にインポートしたアイテムのUUIDが必要。エクスポートで取得できる:
 
 ```bash
-docker compose exec app python cli.py export csv --tenant {tenant} --doc {doc} --file items.csv
+docker compose exec app uv run python cli.py export csv --tenant {tenant} --doc {doc} --file items.csv
 ```
 
 出力された `items.csv` の `Identifier` 列からUUIDを確認し、ルーブリックCSV の `CFItemIdentifier` 列に記入する。
@@ -140,7 +140,7 @@ docker compose exec app python cli.py export csv --tenant {tenant} --doc {doc} -
 ## 4. ルーブリックのインポート
 
 ```bash
-docker compose exec app python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # 出力例:
 # Imported into '情報Iコンピテンシー' (d86774f2-...)
@@ -156,7 +156,7 @@ docker compose exec app python cli.py import csv-rubric --tenant {tenant} --doc 
 ### エクスポート
 
 ```bash
-docker compose exec app python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
+docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
 
 # 出力例:
 # Exported 1 rubrics (2 criteria, 6 levels) to rubric-export.csv
@@ -180,9 +180,9 @@ CFPackage にもルーブリックが含まれる。
 
 ```bash
 # エクスポート → 編集 → 再インポート
-docker compose exec app python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
 # rubric.csv を編集（スコアの変更、レベルの追加等）
-docker compose exec app python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # 出力例:
 # Imported into '情報Iコンピテンシー' (d86774f2-...)
