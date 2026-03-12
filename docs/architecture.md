@@ -3,29 +3,21 @@
 ## システム構成
 
 ```
-Public:  CloudFront → API Gateway → Lambda (FastAPI + Mangum) → Aurora Serverless v2 (PostgreSQL)
-Admin:   CLI → Lambda Function URL (HTTPS + Bearer token) → Lambda → Aurora
+Docker (FastAPI + uvicorn) → PostgreSQL
 ```
-
-- **Lambda**: 基本的に単一の Lambda 関数。タイムアウト 300s。アクセス経路が2つ（API Gateway / Function URL）。ただし `POST /admin/migrate` は並行実行防止のため別 Lambda 関数（同一コード）として予約同時実行数=1 で CDK デプロイする（NFR-2.4）
-- **Public API**: API Gateway 経由。API Gateway の統合タイムアウト (29s) で自然に制限される
-- **Admin API**: Lambda Function URL 経由。API Gateway を通さないため 300s の長時間処理が可能
 
 - **マルチテナント**: `/{tenant-uuid}/ims/case/v1p1/` でテナント分離（v1p0も後方互換で維持）
 - **公開制御**: public/private フラグ。privateはトップ一覧に非表示、URL直接アクセスは可能
-- **キャッシュ**: CloudFront が主キャッシュ。CLIインポート時にinvalidate
 - **データ更新**: CLI経由のみ（Web UIなし）。CSV または外部CASEソースからインポート
 
 ## 技術スタック
 
 | レイヤー | 技術 |
 |---------|------|
-| API | Python 3.12 + FastAPI + Mangum |
+| API | Python 3.12 + FastAPI |
 | ORM | SQLAlchemy 2.x (async) |
 | マイグレーション | Alembic |
-| DB | PostgreSQL (Aurora Serverless v2 / ローカルはDocker) |
-| キャッシュ | CloudFront (HTTP Cache-Control headers) |
-| インフラ | AWS CDK (Python) |
+| DB | PostgreSQL (Docker) |
 | ローカル開発 | Docker + docker-compose |
 | テスト | pytest + pytest-asyncio |
 | パッケージ管理 | uv |
@@ -37,75 +29,13 @@ Admin:   CLI → Lambda Function URL (HTTPS + Bearer token) → Lambda → Auror
 Alembic は asyncpg（async ドライバ）をそのまま使用する。同期ドライバ（psycopg2）は不要。
 `env.py` で `run_async_migrations()` パターンを使い、`connectable = create_async_engine(...)` で接続する。
 
-**ローカル/Docker環境:**
 ```bash
 docker-compose exec app alembic upgrade head
 ```
 
-**AWS環境:**
-CLIから管理APIを叩いてLambda内でマイグレーションを実行する。
-```bash
-python cli.py db migrate   # POST /admin/migrate → Lambda内でalembic upgrade head
-```
-Lambda起動時の自動マイグレーションは行わない（並列実行時の競合リスクのため）。
+## CLI実行環境
 
-## CLI実行環境と認証
-
-### Docker環境（ローカル開発）
 CLIは `DATABASE_URL` 環境変数で PostgreSQL に直接接続。
-Admin APIに認証なし（ローカル開発用）。
-
-### AWS環境
-CLIは Lambda Function URL 経由で Lambda を呼び出す。
-Lambda がVPC内でAuroraに接続する。
-
-```
-CLI → HTTPS + Bearer token → Lambda Function URL (/admin/*) → Lambda → Aurora
-```
-
-**認証:**
-- Lambda Function URL: `auth_type=NONE`（インフラ層の認証なし）
-- アプリ層: FastAPIミドルウェアで `Authorization: Bearer <shared-secret>` を検証（timing attack 防止のため `hmac.compare_digest()` で定数時間比較する）
-- CDKデプロイ時にシークレットを生成し、Secrets Manager に保存。CDK Outputs に Function URL を出力
-- オペレーター側: `.env` ファイル（ローカル）、Repository Secrets（CI/CD）
-
-```bash
-# .env (gitignoreに追加)
-CASE_ADMIN_URL=https://xxxxxxxx.lambda-url.ap-northeast-1.on.aws
-CASE_ADMIN_KEY=xxxxxxxxxxxxxxxxxxxx
-```
-
-CLIは環境変数で接続先を自動判定:
-- `DATABASE_URL` あり → 直接DB接続（Docker環境）
-- `CASE_ADMIN_URL` + `CASE_ADMIN_KEY` あり → 管理API経由（AWS環境）
-- `CASE_ADMIN_URL` と `CASE_ADMIN_KEY` のどちらか一方のみ設定 → エラー終了（「CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set」）
-- 両方設定されている場合 → `DATABASE_URL` を優先（直接DB接続）。ログに警告を出す。
-- どちらもない場合 → エラー終了（「DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set」）
-
-## CloudFront Invalidation戦略
-
-ワイルドカードを使い常に無料枠（月1000パス）内に収める。
-CLIのデータ変更操作（import csv, import case-url, doc delete, tenant create, tenant update, tenant delete）完了時に自動でinvalidationを実行する（Phase 2）。
-
-| 操作 | invalidationパス | カウント |
-|------|----------------|---------|
-| テナント全体（手動） | `/{tenant-uuid}/*` / `/` | 2 |
-| ドキュメント更新（import） | `/{tenant-uuid}/cftree/doc/{doc-uuid}*` / `/{tenant-uuid}/uri/*` / `/{tenant-uuid}/ims/case/v1p1/CFPackages/{doc-uuid}` / `/{tenant-uuid}/ims/case/v1p1/CFDocuments*` / `/{tenant-uuid}/` | 5 |
-| ドキュメント削除（doc delete） | `/{tenant-uuid}/cftree/doc/{doc-uuid}*` / `/{tenant-uuid}/uri/*` / `/{tenant-uuid}/ims/case/v1p1/CFPackages/{doc-uuid}` / `/{tenant-uuid}/ims/case/v1p1/CFDocuments*` / `/{tenant-uuid}/` | 5 |
-| テナント作成（tenant create） | `/` | 1 |
-| テナント更新（tenant update） | `/{tenant-uuid}/*` / `/` | 2 |
-| テナント削除（tenant delete） | `/{tenant-uuid}/*` / `/` | 2 |
-
-**ドキュメント更新時のトレードオフ:** 個別リソースAPI（`/CFItems/{id}`, `/CFItemAssociations/{id}`, `/CFAssociations/{id}`, `/CFItemTypes`, `/CFSubjects`, `/CFConcepts`, `/CFLicenses`, `/CFAssociationGroupings` 等）は
-invalidation対象に含めない。これらは `max-age=3600` の自然失効に委ねる（最大1時間のステール許容）。
-全パスを個別にinvalidateすると無料枠を超過するリスクがあるため、アクセス頻度の高いパス（ツリービュー・詳細ページ・CFPackage・CFDocuments一覧）に絞る。
-即座に全API応答を最新化したい場合は、テナント全体の invalidation（`/{tenant-uuid}/*`、1パス）を使用する。
-
-```bash
-# import実行時は自動でinvalidation（手動実行も可能）
-python cli.py cache invalidate --tenant {uuid}
-python cli.py cache invalidate --tenant {uuid} --doc {doc-uuid}
-```
 
 ## バージョン対応方針
 

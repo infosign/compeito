@@ -43,21 +43,6 @@
 | FR-4.1 | `GET /health` で `{"status": "ok"}` を返す（認証不要、テナントパス不要） | 1 |
 | FR-4.2 | DB接続確認は行わない（コールドスタート高速化を優先） | 1 |
 
-## FR-5: 管理API
-
-| ID | 要件 | Phase |
-|----|------|-------|
-| FR-5.1 | テナントCRUD（作成・一覧・単一取得・更新・削除）を `/admin/tenants` で提供する | 2 |
-| FR-5.2 | フレームワーク一覧・削除を `/admin/tenants/{id}/documents` で提供する | 2 |
-| FR-5.3 | CSVインポートを `/admin/tenants/{id}/import/csv` で提供する（S3経由） | 2 |
-| FR-5.4 | 外部CASEソースインポートを `/admin/tenants/{id}/import/case-url` で提供する | 2 |
-| FR-5.5 | CSVエクスポートを `/admin/tenants/{id}/documents/{doc-uuid}/export/csv` で提供する（S3経由） | 2 |
-| FR-5.6 | CloudFront invalidation を `/admin/cache/invalidate` で提供する | 2 |
-| FR-5.7 | Alembicマイグレーションを `/admin/migrate` で提供する | 2 |
-| FR-5.8 | CSVアップロード用 presigned URL を `/admin/upload-url` で提供する | 2 |
-| FR-5.9 | AWS環境では Bearer token 認証を行い、Docker環境では認証なしとする | 2 |
-| FR-5.10 | エラーレスポンスは `{"error": "...", "detail": "..."}` 形式とする（imsx_StatusInfo ではない） | 2 |
-
 ## FR-6: CSVインポート
 
 | ID | 要件 | Phase |
@@ -122,8 +107,7 @@
 | FR-10.4 | 外部CASEソースインポート（`import case-url`）コマンドを提供する | 1 |
 | FR-10.5 | CSVエクスポート（`export csv`）コマンドを提供する | 1 |
 | FR-10.6 | DBマイグレーション（`db migrate`）コマンドを提供する | 1 |
-| FR-10.7 | キャッシュ無効化（`cache invalidate`）コマンドを提供する（Phase 1 ではスタブのみ。AWS環境でのみ有効） | 2 |
-| FR-10.8 | Docker環境では `DATABASE_URL` で直接DB接続する。AWS環境では管理API経由で動作する（管理APIはPhase 2） | 1/2 |
+| FR-10.7 | `DATABASE_URL` 環境変数で直接DB接続する | 1 |
 | FR-10.9 | 削除コマンドは確認プロンプトを表示し、`--force` でスキップ可能とする | 1 |
 | FR-10.10 | rich ライブラリでテーブル・プログレスバー・カラー出力を行う | 1 |
 
