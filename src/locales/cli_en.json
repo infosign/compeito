@@ -5,7 +5,6 @@
     "import_group": "Import commands.",
     "export_group": "Export commands.",
     "db_group": "Database commands.",
-    "cache_group": "Cache commands.",
 
     "cmd_tenant_create": "Create a new tenant.",
     "cmd_tenant_list": "List all tenants.",
@@ -17,7 +16,6 @@
     "cmd_import_case_url": "Import from an external CASE source.",
     "cmd_export_csv": "Export a document to CSV.",
     "cmd_db_migrate": "Run database migrations (alembic upgrade head).",
-    "cmd_cache_invalidate": "Invalidate CloudFront cache (AWS only).",
 
     "help_tenant_name": "Tenant name",
     "help_make_private": "Make tenant private",
@@ -35,12 +33,7 @@
     "help_case_url": "CASE API URL or CFPackage URL",
     "help_output_file": "Output file path",
     "help_export_format": "Export format: custom (default) or opensalt",
-    "help_doc_uuid_optional": "Document UUID (optional)",
-
-    "warn_both_env": "Warning: DATABASE_URL and CASE_ADMIN_URL/KEY both set; using DATABASE_URL (Docker mode)",
-    "err_aws_not_supported": "AWS mode is not yet supported in Phase 1",
-    "err_admin_both_required": "CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set",
-    "err_env_required": "DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set",
+    "err_env_required": "DATABASE_URL must be set",
     "err_invalid_uuid": "Invalid UUID format: '{value}'",
     "err_private_public_exclusive": "--private and --public are mutually exclusive",
     "err_update_requires_option": "At least one of --name, --private, or --public is required",
@@ -52,7 +45,6 @@
     "err_invalid_format": "Invalid format: '{value}'. Valid values: custom, opensalt",
     "err_opensalt_not_supported": "opensalt format is not yet supported",
     "err_file_unwritable": "Cannot write file: '{value}'",
-    "err_aws_required": "This command requires AWS environment",
 
     "msg_created_tenant": "Created tenant: {id} ({name}, {visibility})",
     "msg_updated_tenant": "Updated tenant: {id} ({name}, {visibility})",

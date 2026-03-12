@@ -1,15 +1,9 @@
 # CLIコマンド仕様
 
-## 実行環境（Docker / AWS）
+## 実行環境
 
-CLIは環境変数により実行モードを自動判定する:
-- **Docker環境**: `DATABASE_URL` が設定されている場合。直接DB接続で全操作を実行する
-- **AWS環境**: `CASE_ADMIN_URL` + `CASE_ADMIN_KEY` が設定されている場合。管理API (`/admin/*`) 経由で全操作を実行する
-- `CASE_ADMIN_URL` と `CASE_ADMIN_KEY` のどちらか一方のみ設定 → エラー終了（「CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set」、終了コード 1）
-- 全て未設定 → エラー終了（「DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set」、終了コード 1）
-- `DATABASE_URL` と `CASE_ADMIN_URL`+`CASE_ADMIN_KEY` の両方が設定されている場合 → `DATABASE_URL` を優先（Docker環境として動作。警告ログを出力）
-
-全コマンド（tenant/doc CRUD、import、export、migrate、cache）がこの共通ルールに従う。以下のコマンド説明では、Docker/AWS で動作が異なる場合にのみ個別に注記する。
+CLIは `DATABASE_URL` 環境変数で PostgreSQL に直接接続する。
+`DATABASE_URL` が未設定の場合はエラー終了する（終了コード 1）。
 
 ## コマンド一覧
 
@@ -44,20 +38,12 @@ python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force]
 # CSVインポート (新規: --doc省略、更新: --doc指定でupsert)
 # --doc-title: CFDocumentタイトル。新規作成時はCSVの#title行があれば省略可、なければ必須。更新時は省略可（既存値を保持）
 # --doc-version: バージョン（任意、省略時は既存値を保持。新規作成時のデフォルトは NULL）
-# Docker環境: 直接DB接続でインポート処理を実行
-# AWS環境:    S3にCSVアップロード後、POST /admin/tenants/{id}/import/csv を呼び出す
-#             upload-url API の filename には --file パスのベースネームを使用する。
-#             ベースネームが API のバリデーション（[a-zA-Z0-9._-]+）に通らない場合は
-#             "import.csv" を代替ファイル名として使用する（S3キーにUUIDプレフィックスが
-#             付与されるため、ファイル名の一意性は不要）
 python cli.py import csv --tenant {uuid} --file framework.csv
 python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "名称" --doc-version "1.0"
 python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
 
 # 外部CASEソースインポート (v1.1対応、v1.0はPhase 2、upsert)
 # --url: CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
-# Docker環境: 直接DB接続で外部URLからフェッチ・インポート処理を実行
-# AWS環境:    POST /admin/tenants/{id}/import/case-url を呼び出す（Lambda が外部URLにアクセス）
 python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
 python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
 
@@ -71,19 +57,6 @@ python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --fo
 
 # DBマイグレーション
 python cli.py db migrate
-# Docker環境: alembic upgrade head を直接実行
-# AWS環境:    POST /admin/migrate を呼び出す
-
-# キャッシュ無効化 (CloudFront、AWS環境のみ有効)
-python cli.py cache invalidate --tenant {uuid}
-python cli.py cache invalidate --tenant {uuid} --doc {doc-uuid}
-# Docker環境で実行した場合: "This command requires AWS environment" と表示して終了（終了コード 1）
-
-# 自動キャッシュ無効化 (Phase 2、AWS環境のみ)
-# import csv / import case-url / doc delete / tenant create / tenant update / tenant delete コマンドの
-# 完了時に CloudFront invalidation を自動実行する。
-# invalidation パスの詳細は architecture.md の CloudFront Invalidation戦略を参照。
-# Docker環境では自動invalidationはスキップされる（CloudFrontがないため）。
 ```
 
 ## コマンド出力形式
@@ -153,18 +126,4 @@ python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 ```
 Exported 1523 items to output.csv
 ```
-Docker環境（直接DB接続）では `--file` で指定したパスにファイルを書き出す。AWS環境（管理API経由）では presigned URL 経由で S3 からダウンロードし、`--file` で指定したパスに保存する
-
-### AWS環境での管理API接続エラー
-
-Admin API への HTTP リクエストが失敗した場合:
-- 接続エラー（タイムアウト・接続拒否・DNS解決失敗等） → エラー終了（「Admin API connection failed: {error}」、終了コード 1）
-- HTTP ステータスが 4xx/5xx → Admin API のエラーレスポンス（`detail` フィールド）をそのまま表示してエラー終了（終了コード 1）
-- レスポンスが JSON としてパースできない → エラー終了（「Admin API returned invalid response」、終了コード 1）
-
-### AWS環境での S3 操作エラー
-
-AWS環境での presigned URL 操作（インポート時の S3 アップロード、エクスポート時の S3 ダウンロード）が失敗した場合:
-- ネットワークエラー → エラー終了（「S3 upload failed: {error}」/「S3 download failed: {error}」、終了コード 1）
-- HTTP ステータスが 2xx 以外 → エラー終了（「S3 upload returned HTTP {status}」/「S3 download returned HTTP {status}」、終了コード 1）
-- presigned URL 期限切れ（403 Forbidden） → 上記の HTTP ステータスエラーとして処理される。リトライしない
+`--file` で指定したパスにファイルを書き出す。
