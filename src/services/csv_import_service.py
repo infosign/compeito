@@ -84,9 +84,12 @@ class FormatType:
 
 def _detect_format(header_columns: list[str]) -> str:
     lower = [c.lower().strip() for c in header_columns]
+    # OpenSALT: "is child of" or "is part of" columns (not present in custom format)
+    if "is child of" in lower or "is part of" in lower:
+        return FormatType.OPENSALT
     if "identifier" in lower and "fullstatement" in lower:
         return FormatType.CUSTOM
-    if "case item identifier" in lower or "full statement" in lower:
+    if "full statement" in lower:
         return FormatType.OPENSALT
     return FormatType.SIMPLE
 
@@ -423,8 +426,8 @@ def _parse_opensalt_rows(
                 warnings.append(f"Row {row_num}: fullStatement is empty, skipped")
             continue
 
-        # CASE Item Identifier
-        ident_raw = _get_cell(row, col_map, "case item identifier").strip()
+        # Identifier
+        ident_raw = _get_cell(row, col_map, "identifier").strip()
         ident: uuid.UUID | None = None
         if ident_raw:
             present.add("identifier")

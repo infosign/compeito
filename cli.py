@@ -730,12 +730,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
             # Count actual data rows (exclude meta lines starting with #, and header rows)
             lines = csv_str.strip().split("\n")
             data_lines = [
-                line
-                for line in lines
-                if line
-                and not line.startswith("#")
-                and not line.startswith("Identifier,")
-                and not line.startswith("CASE Item Identifier,")
+                line for line in lines if line and not line.startswith("#") and not line.startswith("Identifier,")
             ]
             console.print(
                 t("msg_exported", count=str(len(data_lines)), path=file_path),

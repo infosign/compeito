@@ -43,14 +43,17 @@ class TestFormatDetection:
     def test_custom_format_case_insensitive(self):
         assert _detect_format(["identifier", "FULLSTATEMENT", "other"]) == FormatType.CUSTOM
 
-    def test_opensalt_format_by_case_item_identifier(self):
-        assert _detect_format(["CASE Item Identifier", "Full Statement"]) == FormatType.OPENSALT
+    def test_opensalt_format_by_is_child_of(self):
+        assert _detect_format(["Identifier", "Full Statement", "Is Child Of"]) == FormatType.OPENSALT
+
+    def test_opensalt_format_by_is_part_of(self):
+        assert _detect_format(["Identifier", "Full Statement", "Is Part Of"]) == FormatType.OPENSALT
 
     def test_opensalt_format_by_full_statement(self):
         assert _detect_format(["Something", "Full Statement", "Other"]) == FormatType.OPENSALT
 
     def test_opensalt_case_insensitive(self):
-        assert _detect_format(["case item identifier", "full statement"]) == FormatType.OPENSALT
+        assert _detect_format(["identifier", "full statement", "is child of"]) == FormatType.OPENSALT
 
     def test_simple_format_fallback(self):
         assert _detect_format(["name", "code"]) == FormatType.SIMPLE
@@ -447,7 +450,7 @@ class TestImportOpenSALTFormat:
     async def test_basic_opensalt(self, db_session: AsyncSession, tenant: Tenant):
         csv = (
             "#title,OpenSALT Test\n"
-            "CASE Item Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,"
+            "Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,"
             "Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of\n"
             "aaaa2222-1111-1111-1111-111111111111,国語,,,,,教科,ja,,,,\n"
             "bbbb2222-1111-1111-1111-111111111111,現代の国語,,,,,科目,ja,,aaaa2222-1111-1111-1111-111111111111,10,\n"
@@ -461,7 +464,7 @@ class TestImportOpenSALTFormat:
 
     async def test_opensalt_is_part_of_creates_doc(self, db_session: AsyncSession, tenant: Tenant):
         doc_ident = "eeee2222-1111-1111-1111-111111111111"
-        csv = (f"#title,IPO Doc\nCASE Item Identifier,Full Statement,Is Part Of\n,Item 1,{doc_ident}\n").encode("utf-8")
+        csv = (f"#title,IPO Doc\nIdentifier,Full Statement,Is Part Of\n,Item 1,{doc_ident}\n").encode("utf-8")
 
         await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -472,7 +475,7 @@ class TestImportOpenSALTFormat:
         assert doc.title == "IPO Doc"
 
     async def test_opensalt_is_part_of_invalid_uuid(self, db_session: AsyncSession, tenant: Tenant):
-        csv = ("#title,Bad IPO\nCASE Item Identifier,Full Statement,Is Part Of\n,Item 1,not-a-uuid\n").encode("utf-8")
+        csv = ("#title,Bad IPO\nIdentifier,Full Statement,Is Part Of\n,Item 1,not-a-uuid\n").encode("utf-8")
 
         with pytest.raises(ValueError, match="Is Part Of value is not a valid UUID"):
             await import_csv(db_session, tenant.id, csv)
