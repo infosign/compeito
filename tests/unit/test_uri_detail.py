@@ -1,8 +1,8 @@
 """Tests for Web UI: URI detail page (Issue #38)."""
+
 import uuid
 from datetime import datetime, timezone
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_association import CFAssociation
@@ -16,7 +16,6 @@ from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 from src.services import uri_service
 
-
 NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
 
@@ -27,153 +26,230 @@ NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
 class TestFindResource:
     async def test_finds_cf_item(
-        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
     ):
         ident = uuid.uuid4()
         item = CFItem(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=ident, uri="u", full_statement="stmt",
-            last_change_date_time=NOW, depth=0,
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="u",
+            full_statement="stmt",
+            last_change_date_time=NOW,
+            depth=0,
         )
         db_session.add(item)
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result is not None
         assert result.resource_type == "CFItem"
         assert result.doc is not None
 
     async def test_finds_cf_document(
-        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
     ):
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, sample_document.identifier,
+            db_session,
+            tenant.id,
+            sample_document.identifier,
         )
         assert result is not None
         assert result.resource_type == "CFDocument"
 
     async def test_finds_cf_association(
-        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
     ):
         ident = uuid.uuid4()
         assoc = CFAssociation(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=ident, uri="u", association_type="isChildOf",
-            origin_node_uri="ou", origin_node_identifier=str(uuid.uuid4()),
-            destination_node_uri="du", destination_node_identifier=str(uuid.uuid4()),
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="u",
+            association_type="isChildOf",
+            origin_node_uri="ou",
+            origin_node_identifier=str(uuid.uuid4()),
+            destination_node_uri="du",
+            destination_node_identifier=str(uuid.uuid4()),
             last_change_date_time=NOW,
         )
         db_session.add(assoc)
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result is not None
         assert result.resource_type == "CFAssociation"
         assert result.doc is not None
 
     async def test_finds_lookup_item_type(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
         it = CFItemType(
-            tenant_id=tenant.id, identifier=ident, uri="u",
-            title="Standard", last_change_date_time=NOW,
+            tenant_id=tenant.id,
+            identifier=ident,
+            uri="u",
+            title="Standard",
+            last_change_date_time=NOW,
         )
         db_session.add(it)
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result is not None
         assert result.resource_type == "CFItemType"
 
     async def test_finds_lookup_subject(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
-        db_session.add(CFSubject(
-            tenant_id=tenant.id, identifier=ident, uri="u",
-            title="Math", last_change_date_time=NOW,
-        ))
+        db_session.add(
+            CFSubject(
+                tenant_id=tenant.id,
+                identifier=ident,
+                uri="u",
+                title="Math",
+                last_change_date_time=NOW,
+            )
+        )
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result.resource_type == "CFSubject"
 
     async def test_finds_lookup_concept(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
-        db_session.add(CFConcept(
-            tenant_id=tenant.id, identifier=ident, uri="u",
-            title="Algebra", last_change_date_time=NOW,
-        ))
+        db_session.add(
+            CFConcept(
+                tenant_id=tenant.id,
+                identifier=ident,
+                uri="u",
+                title="Algebra",
+                last_change_date_time=NOW,
+            )
+        )
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result.resource_type == "CFConcept"
 
     async def test_finds_lookup_license(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
-        db_session.add(CFLicense(
-            tenant_id=tenant.id, identifier=ident, uri="u",
-            title="MIT", last_change_date_time=NOW,
-        ))
+        db_session.add(
+            CFLicense(
+                tenant_id=tenant.id,
+                identifier=ident,
+                uri="u",
+                title="MIT",
+                last_change_date_time=NOW,
+            )
+        )
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result.resource_type == "CFLicense"
 
     async def test_finds_lookup_grouping(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
-        db_session.add(CFAssociationGrouping(
-            tenant_id=tenant.id, identifier=ident, uri="u",
-            title="Group A", last_change_date_time=NOW,
-        ))
+        db_session.add(
+            CFAssociationGrouping(
+                tenant_id=tenant.id,
+                identifier=ident,
+                uri="u",
+                title="Group A",
+                last_change_date_time=NOW,
+            )
+        )
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, ident,
+            db_session,
+            tenant.id,
+            ident,
         )
         assert result.resource_type == "CFAssociationGrouping"
 
     async def test_not_found(self, db_session: AsyncSession, tenant: Tenant):
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id,
+            db_session,
+            tenant.id,
             uuid.UUID("99999999-9999-9999-9999-999999999999"),
         )
         assert result is None
 
     async def test_item_priority_over_document(
-        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
     ):
         """CFItem is found before CFDocument with the same identifier."""
         shared_ident = sample_document.identifier
         item = CFItem(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=shared_ident, uri="u", full_statement="item",
-            last_change_date_time=NOW, depth=0,
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=shared_ident,
+            uri="u",
+            full_statement="item",
+            last_change_date_time=NOW,
+            depth=0,
         )
         db_session.add(item)
         await db_session.flush()
 
         result = await uri_service.find_resource_by_identifier(
-            db_session, tenant.id, shared_ident,
+            db_session,
+            tenant.id,
+            shared_ident,
         )
         assert result.resource_type == "CFItem"
 
@@ -185,16 +261,22 @@ class TestFindResource:
 
 class TestUriDetailPage:
     async def test_cf_item_page(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         ident = uuid.uuid4()
         item = CFItem(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=ident, uri="https://example.com/item",
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/item",
             full_statement="The full statement",
             human_coding_scheme="A-1",
-            last_change_date_time=NOW, depth=0,
+            last_change_date_time=NOW,
+            depth=0,
         )
         db_session.add(item)
         await db_session.flush()
@@ -207,7 +289,10 @@ class TestUriDetailPage:
         assert str(sample_document.identifier) in resp.text
 
     async def test_cf_document_page(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
@@ -217,13 +302,18 @@ class TestUriDetailPage:
         assert "CFPackageURI" in resp.text
 
     async def test_cf_association_page(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         ident = uuid.uuid4()
         assoc = CFAssociation(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=ident, uri="https://example.com/assoc",
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/assoc",
             association_type="isRelatedTo",
             origin_node_uri="https://example.com/origin",
             origin_node_identifier=str(uuid.uuid4()),
@@ -245,13 +335,18 @@ class TestUriDetailPage:
         assert "targetType" in resp.text
 
     async def test_lookup_page(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
     ):
         ident = uuid.uuid4()
         it = CFItemType(
-            tenant_id=tenant.id, identifier=ident,
+            tenant_id=tenant.id,
+            identifier=ident,
             uri="https://example.com/type",
-            title="Knowledge", type_code="KN",
+            title="Knowledge",
+            type_code="KN",
             last_change_date_time=NOW,
         )
         db_session.add(it)
@@ -264,14 +359,21 @@ class TestUriDetailPage:
         assert "CFItemType" in resp.text  # badge
 
     async def test_html_title_item(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         stmt = "A" * 60
         item = CFItem(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=uuid.uuid4(), uri="u", full_statement=stmt,
-            last_change_date_time=NOW, depth=0,
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            full_statement=stmt,
+            last_change_date_time=NOW,
+            depth=0,
         )
         db_session.add(item)
         await db_session.flush()
@@ -280,21 +382,30 @@ class TestUriDetailPage:
         assert f"<title>{stmt[:50]} - COMPEITO</title>" in resp.text
 
     async def test_html_title_document(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
         assert f"<title>{sample_document.title} - COMPEITO</title>" in resp.text
 
     async def test_cache_control(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
         assert resp.headers["cache-control"] == "public, max-age=3600"
 
     async def test_breadcrumb(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
@@ -314,14 +425,20 @@ class TestUriDetailErrors:
         assert resp.status_code == 404
 
     async def test_invalid_resource_uuid_400(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/not-uuid")
         assert resp.status_code == 400
         assert "リクエストが不正です" in resp.text
 
     async def test_resource_not_found_404(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
     ):
         resp = await db_client.get(
             f"/{tenant.id}/uri/99999999-9999-9999-9999-999999999999",
@@ -329,7 +446,10 @@ class TestUriDetailErrors:
         assert resp.status_code == 404
 
     async def test_error_no_cache_control(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/bad-uuid")
         assert "cache-control" not in resp.headers
@@ -337,7 +457,10 @@ class TestUriDetailErrors:
 
 class TestUriSecurityUrls:
     async def test_https_url_is_link(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
@@ -345,14 +468,21 @@ class TestUriSecurityUrls:
         assert f'href="{sample_document.uri}"' in resp.text
 
     async def test_javascript_url_is_text(
-        self, db_session: AsyncSession, db_client, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
         sample_document: CFDocument,
     ):
         """javascript: URLs should NOT be rendered as links."""
         item = CFItem(
-            tenant_id=tenant.id, cf_document_id=sample_document.id,
-            identifier=uuid.uuid4(), uri="javascript:alert(1)",
-            full_statement="test", last_change_date_time=NOW, depth=0,
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="javascript:alert(1)",
+            full_statement="test",
+            last_change_date_time=NOW,
+            depth=0,
         )
         db_session.add(item)
         await db_session.flush()

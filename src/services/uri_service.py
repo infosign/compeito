@@ -1,4 +1,5 @@
 """URI resource lookup service for the /uri/{uuid} page."""
+
 from __future__ import annotations
 
 import uuid
@@ -22,13 +23,16 @@ from src.models.cf_subject import CFSubject
 @dataclass
 class UriResult:
     """Result of a URI lookup."""
+
     resource_type: str  # "CFItem", "CFDocument", "CFAssociation", or lookup type name
-    resource: Any       # The ORM model instance
+    resource: Any  # The ORM model instance
     doc: CFDocument | None = None  # Parent document (for CFItem/CFAssociation)
 
 
 async def find_resource_by_identifier(
-    session: AsyncSession, tenant_id: uuid.UUID, identifier: uuid.UUID,
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
 ) -> UriResult | None:
     """Search for a resource by identifier across all resource types.
 
@@ -81,8 +85,7 @@ async def find_resource_by_identifier(
         (CFAssociationGrouping, "CFAssociationGrouping"),
     ]:
         result = await session.execute(
-            select(model)
-            .where(model.tenant_id == tenant_id, model.identifier == identifier)
+            select(model).where(model.tenant_id == tenant_id, model.identifier == identifier)
         )
         obj = result.scalar_one_or_none()
         if obj is not None:

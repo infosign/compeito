@@ -60,7 +60,8 @@ class CASEBaseSchema(BaseModel):
         return v.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @field_serializer(
-        "status_start_date", "status_end_date",
+        "status_start_date",
+        "status_end_date",
         check_fields=False,
     )
     @classmethod
