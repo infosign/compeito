@@ -175,6 +175,60 @@ fullStatement の先頭のインデントで階層を判定する:
 - `#title` メタデータ行、または CLI `--doc-title` が必須（なければエラー）。ただし `--doc` 指定の更新時は省略可（既存タイトルを保持）
 - **upsert の制約**: Identifier が自動採番のため、`--doc` 指定で再インポートしても Identifier 一致による更新はできない。2列目（humanCodingScheme）が指定されていれば同一ドキュメント内の humanCodingScheme 一致で更新される。humanCodingScheme も空の場合は毎回新規作成となる（既存アイテムとの紐づけ手段がないため）
 
+## ルーブリックCSV形式
+
+ルーブリック（CFRubric / CFRubricCriterion / CFRubricCriterionLevel）専用のCSV形式。アイテムCSVとは独立したフォーマットであり、`import csv-rubric` / `export csv-rubric` コマンドで使用する。
+
+### 列定義
+
+| 列名 | 説明 |
+|------|------|
+| Type | 行タイプ: `Rubric`, `Criterion`, `Level` のいずれか（大文字小文字不問） |
+| Identifier | UUID。空の場合は UUID v4 を自動採番 |
+| RubricIdentifier | Criterion行で親ルーブリックを指定。空の場合は直前のRubric行を使用 |
+| CriterionIdentifier | Level行で親クライテリアを指定。空の場合は直前のCriterion行を使用 |
+| Title | ルーブリックのタイトル（Rubric行のみ） |
+| Description | 説明文 |
+| Category | クライテリアのカテゴリ（Criterion行のみ） |
+| Weight | クライテリアの重み（浮動小数点、Criterion行のみ） |
+| Position | 表示順序（整数） |
+| Quality | レベルの品質ラベル（Level行のみ） |
+| Score | レベルのスコア（浮動小数点、Level行のみ） |
+| Feedback | レベルのフィードバック文（Level行のみ） |
+| CFItemIdentifier | クライテリアに紐づくCFItemのUUID（Criterion行のみ） |
+
+### 例
+
+```csv
+Type,Identifier,RubricIdentifier,CriterionIdentifier,Title,Description,Category,Weight,Position,Quality,Score,Feedback,CFItemIdentifier
+Rubric,aabbcc01-0000-0000-0000-000000000001,,,Writing Rubric,Evaluates writing skills,,,,,,,
+Criterion,aabbcc02-0000-0000-0000-000000000001,aabbcc01-0000-0000-0000-000000000001,,,,Organization,0.3,1,,,,aabbcc05-0000-0000-0000-000000000001
+Level,aabbcc03-0000-0000-0000-000000000001,,aabbcc02-0000-0000-0000-000000000001,,Well organized,,,,1,Excellent,4.0,Great structure,
+Level,aabbcc04-0000-0000-0000-000000000001,,aabbcc02-0000-0000-0000-000000000001,,Mostly organized,,,,2,Good,3.0,Room for improvement,
+```
+
+### 行タイプと列の使い分け
+
+| 列 | Rubric | Criterion | Level |
+|----|--------|-----------|-------|
+| Type | ○ | ○ | ○ |
+| Identifier | ○ | ○ | ○ |
+| RubricIdentifier | - | ○（親指定） | - |
+| CriterionIdentifier | - | - | ○（親指定） |
+| Title | ○ | - | - |
+| Description | ○ | ○ | ○ |
+| Category | - | ○ | - |
+| Weight | - | ○ | - |
+| Position | - | ○ | ○ |
+| Quality | - | - | ○ |
+| Score | - | - | ○ |
+| Feedback | - | - | ○ |
+| CFItemIdentifier | - | ○ | - |
+
+### 位置コンテキスト（暗黙の親解決）
+
+CSV行は上から順に処理される。Criterion行で `RubricIdentifier` が空の場合、直前に処理されたRubric行のIdentifierを親として使用する。Level行で `CriterionIdentifier` が空の場合、直前に処理されたCriterion行のIdentifierを親として使用する。これにより、同一ルーブリック配下の複数クライテリア、同一クライテリア配下の複数レベルを、親IDを省略して記述できる。
+
 ## 共通ルール
 
 ### エンコーディング
