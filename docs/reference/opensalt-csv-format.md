@@ -62,9 +62,9 @@ hasSkillLevel, isRelatedTo, sequenceNumber
 
 ## compeito「OpenSALT形式」との差異
 
-### 1列目: `CASE Item Identifier` vs `identifier`
+### 1列目: `Identifier`
 
-compeito は `CASE Item Identifier` を使用しているが、OpenSALT は `identifier` を使用する。`simplify("CASE Item Identifier")` = `"caseitemidentifier"` は `simplify("identifier")` = `"identifier"` にマッチ**しない**。そのため、compeito がエクスポートした CSV を OpenSALT にインポートすると、identifier 列が認識されない。
+compeito は `Identifier` を使用。OpenSALT は `identifier`（小文字）を使用するが、OpenSALT の `simplify()` により大文字小文字は区別されないためマッチする。（初期実装では `CASE Item Identifier` を使用していたが、OpenSALT で認識されないため修正済み。）
 
 ### エクスポートに含まれない列
 
@@ -79,6 +79,6 @@ OpenSALT の Excel エクスポートには `Is Child Of`, `Is Part Of`, `Sequen
 
 OpenSALT のエクスポートはキャメルケース（`fullStatement`）。compeito はスペース区切りタイトルケース（`Full Statement`）。OpenSALT の `simplify()` により 2〜12列目は互換性があるが、1列目（上記）は非互換。
 
-### インポート時のフォーマット自動判定への影響
+### インポート時のフォーマット自動判定
 
-compeito のフォーマット自動判定は `CASE Item Identifier` の存在で OpenSALT 形式と判定する（[csv-format.md](../csv-format.md) 参照）。ヘッダー名を `identifier` に変更すると、独自形式の `Identifier` との区別が必要になる。
+compeito のフォーマット自動判定は `Is Child Of` または `Is Part Of` の存在で OpenSALT 形式と判定する（[csv-format.md](../csv-format.md) 参照）。これらの列名は独自形式に存在しないため、`Identifier` 列名が共通でも区別可能。

@@ -527,7 +527,7 @@ class TestOpenSALTExport:
         lines = csv_str.strip().split("\n")
         # Find header line (first non-metadata line)
         header_line = next(line for line in lines if not line.startswith("#"))
-        assert header_line.startswith("CASE Item Identifier,")
+        assert header_line.startswith("Identifier,")
         assert "Is Part Of" in header_line
         assert "Is Child Of" in header_line
 
@@ -536,9 +536,7 @@ class TestOpenSALTExport:
         doc = doc_with_items
         csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
         lines = csv_str.strip().split("\n")
-        data_lines = [
-            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
-        ]
+        data_lines = [line for line in lines if not line.startswith("#") and not line.startswith("Identifier")]
         doc_ident = str(doc.identifier)
         for line in data_lines:
             assert line.endswith(doc_ident)
@@ -595,9 +593,7 @@ class TestOpenSALTExport:
         doc = doc_with_items
         csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
         lines = csv_str.strip().split("\n")
-        data_lines = [
-            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
-        ]
+        data_lines = [line for line in lines if not line.startswith("#") and not line.startswith("Identifier")]
         statements = [line.split(",")[1] for line in data_lines]
         assert statements == ["Root Item 1", "Child Item 1", "Root Item 2"]
 
@@ -616,9 +612,7 @@ class TestOpenSALTExport:
 
         csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
         lines = csv_str.strip().split("\n")
-        data_lines = [
-            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
-        ]
+        data_lines = [line for line in lines if not line.startswith("#") and not line.startswith("Identifier")]
         assert len(data_lines) == 0
 
     async def test_opensalt_column_mapping(self, db_session: AsyncSession, tenant: Tenant):
@@ -669,7 +663,7 @@ class TestOpenSALTExport:
         header = rows[0]
         data = dict(zip(header, rows[1]))
 
-        assert data["CASE Item Identifier"] == str(item.identifier)
+        assert data["Identifier"] == str(item.identifier)
         assert data["Full Statement"] == "国語"
         assert data["Abbreviated Statement"] == "Kokugo"
         assert data["CF Item Type"] == "教科"
@@ -699,7 +693,7 @@ class TestOpenSALTRoundTrip:
         # Verify structure
         lines = csv_output.strip().split("\n")
         assert any("#title,OpenSALT RT" in line for line in lines)
-        header_line = next(line for line in lines if line.startswith("CASE Item Identifier"))
+        header_line = next(line for line in lines if line.startswith("Identifier"))
         assert "Is Part Of" in header_line
 
         # Reimport the OpenSALT CSV
