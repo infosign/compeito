@@ -277,7 +277,13 @@ UPDATE cf_associations SET origin_node_uri = REPLACE(origin_node_uri, 'https://o
 UPDATE cf_associations SET destination_node_uri = REPLACE(destination_node_uri, 'https://old.example.com', 'https://new.example.com');
 ```
 
-ホスト名が同じ場合（サーバーの IP だけ変わる場合）は、バックアップのリストアのみで完了する。
+### 注意: 外部サーバーの URI
+
+CASE API インポート（`import case-url`）で取り込んだデータには、元のサーバーの URI（例: `https://opensalt.net/uri/...`）がそのまま保存されている。REPLACE の対象は自サーバーの旧ホスト名のみにすること。上記の SQL は旧ホスト名を明示的に指定しているので、外部 URI に影響はない。
+
+### ホスト名が変わらない場合
+
+サーバーの IP だけ変わる場合は、バックアップのリストアのみで完了する。
 
 ## 10. セキュリティチェックリスト
 
