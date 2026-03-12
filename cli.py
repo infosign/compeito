@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from pathlib import Path
 
@@ -23,31 +22,13 @@ t = get_translator(detect_lang_from_env(), cli=True)
 # Environment detection
 # ---------------------------------------------------------------------------
 
-def _detect_mode() -> str:
-    """Detect execution mode from environment variables.
+def _check_db():
+    """Verify DATABASE_URL is set or exit."""
+    import os
 
-    Returns "docker" or raises SystemExit on misconfiguration.
-    AWS mode is Phase 2 — currently only Docker mode is supported.
-    """
-    has_db = bool(os.environ.get("DATABASE_URL"))
-    has_admin_url = bool(os.environ.get("CASE_ADMIN_URL"))
-    has_admin_key = bool(os.environ.get("CASE_ADMIN_KEY"))
-
-    if has_db:
-        if has_admin_url or has_admin_key:
-            console.print(f"[yellow]{t('warn_both_env')}[/yellow]")
-        return "docker"
-
-    if has_admin_url and has_admin_key:
-        err_console.print(t("err_aws_not_supported"))
+    if not os.environ.get("DATABASE_URL"):
+        err_console.print(t("err_env_required"))
         raise SystemExit(1)
-
-    if has_admin_url or has_admin_key:
-        err_console.print(t("err_admin_both_required"))
-        raise SystemExit(1)
-
-    err_console.print(t("err_env_required"))
-    raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -152,13 +133,6 @@ def db():
 db.help = t("db_group")
 
 
-@cli.group()
-def cache():
-    """Cache commands."""
-    pass
-
-
-cache.help = t("cache_group")
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +144,7 @@ cache.help = t("cache_group")
 @click.option("--private", "is_private", is_flag=True, default=False, help=t("help_make_private"))
 def tenant_create(name: str, is_private: bool):
     """Create a new tenant."""
-    _detect_mode()
+    _check_db()
 
     async def _run_create():
         from src.models.tenant import Tenant
@@ -197,7 +171,7 @@ def tenant_create(name: str, is_private: bool):
 @click.option("--with-docs", is_flag=True, default=False, help=t("help_show_docs"))
 def tenant_list(with_docs: bool):
     """List all tenants."""
-    _detect_mode()
+    _check_db()
 
     async def _run_list():
         from sqlalchemy import func, select
@@ -270,7 +244,7 @@ def tenant_list(with_docs: bool):
 @click.option("--public", "set_public", is_flag=True, default=False, help=t("help_set_public"))
 def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_public: bool):
     """Update a tenant."""
-    _detect_mode()
+    _check_db()
 
     if set_private and set_public:
         err_console.print(t("err_private_public_exclusive"))
@@ -323,7 +297,7 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
 @click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def tenant_delete(tenant_id: str, force: bool):
     """Delete a tenant and all its data."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
 
     async def _run_delete():
@@ -368,7 +342,7 @@ def tenant_delete(tenant_id: str, force: bool):
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 def doc_list(tenant_id: str):
     """List documents in a tenant."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
 
     async def _run_list():
@@ -433,7 +407,7 @@ def doc_list(tenant_id: str):
 @click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def doc_delete(tenant_id: str, doc_id: str, force: bool):
     """Delete a document and its items/associations."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id)
 
@@ -507,7 +481,7 @@ def import_csv_cmd(
     doc_title: str | None, doc_version: str | None,
 ):
     """Import items from a CSV file."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id) if doc_id else None
 
@@ -598,7 +572,7 @@ def import_csv_cmd(
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
 def import_case_url(tenant_id: str, url: str, doc_id: str | None):
     """Import from an external CASE source."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id) if doc_id else None
 
@@ -675,7 +649,7 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
 )
 def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
     """Export a document to CSV."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id)
 
@@ -750,7 +724,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 @db.command("migrate", help=t("cmd_db_migrate"))
 def db_migrate():
     """Run database migrations (alembic upgrade head)."""
-    _detect_mode()
+    _check_db()
 
     import subprocess
 
@@ -766,25 +740,6 @@ def db_migrate():
     if result.returncode != 0:
         raise SystemExit(1)
     console.print(f"[green]{t('msg_migration_complete')}[/green]")
-
-
-# ---------------------------------------------------------------------------
-# cache invalidate
-# ---------------------------------------------------------------------------
-
-@cache.command("invalidate", help=t("cmd_cache_invalidate"))
-@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
-@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_optional"))
-def cache_invalidate(tenant_id: str, doc_id: str | None):
-    """Invalidate CloudFront cache (AWS only)."""
-    mode = _detect_mode()
-    _parse_uuid(tenant_id)
-    if doc_id:
-        _parse_uuid(doc_id)
-
-    if mode == "docker":
-        err_console.print(t("err_aws_required"))
-        raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
