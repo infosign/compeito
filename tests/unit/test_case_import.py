@@ -20,6 +20,9 @@ from src.models.cf_item_type import CFItemType
 from src.models.tenant import Tenant
 from src.services.case_import_service import (
     VALID_ASSOCIATION_TYPES,
+    _is_v1p0,
+    _normalize_concept_keywords_uri,
+    _normalize_v1p0_package,
     _parse_sequence_number,
     _validate_association,
     _validate_cf_package,
@@ -103,6 +106,171 @@ def _make_mock_response(data: dict, status_code: int = 200) -> httpx.Response:
         json=data,
         request=httpx.Request("GET", "https://example.com"),
     )
+
+
+# ---------------------------------------------------------------------------
+# v1.0 normalization tests
+# ---------------------------------------------------------------------------
+
+
+class TestV1p0Detection:
+    def test_detects_v1p0_url(self):
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p0/CFPackages/xxx") is True
+
+    def test_detects_v1p0_structure(self):
+        """v1.0 structure: CFDocument at root, no CFPackage wrapper, no caseVersion."""
+        data = {
+            "CFDocument": {"identifier": "x", "title": "T"},
+            "CFItems": [],
+        }
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is True
+
+    def test_v1p1_with_wrapper_not_detected(self):
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
+
+    def test_v1p0_structure_with_case_version_not_detected(self):
+        """If caseVersion is present, it's not v1.0 even without wrapper."""
+        data = {
+            "CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"},
+            "CFItems": [],
+        }
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
+
+
+class TestNormalizeConceptKeywordsUri:
+    def test_array_single_element(self):
+        item = {"conceptKeywordsURI": [{"identifier": "aaa", "uri": "x", "title": "T"}]}
+        warnings: list[str] = []
+        _normalize_concept_keywords_uri(item, warnings)
+        assert item["conceptKeywordsURI"] == {"identifier": "aaa", "uri": "x", "title": "T"}
+        assert len(warnings) == 0
+
+    def test_array_multiple_elements_uses_first(self):
+        item = {
+            "identifier": "item-1",
+            "conceptKeywordsURI": [
+                {"identifier": "aaa", "uri": "x", "title": "First"},
+                {"identifier": "bbb", "uri": "y", "title": "Second"},
+            ],
+        }
+        warnings: list[str] = []
+        _normalize_concept_keywords_uri(item, warnings)
+        assert item["conceptKeywordsURI"]["title"] == "First"
+        assert len(warnings) == 1
+        assert "2 elements" in warnings[0]
+
+    def test_empty_array(self):
+        item = {"conceptKeywordsURI": []}
+        warnings: list[str] = []
+        _normalize_concept_keywords_uri(item, warnings)
+        assert item["conceptKeywordsURI"] is None
+
+    def test_dict_unchanged(self):
+        original = {"identifier": "aaa", "uri": "x", "title": "T"}
+        item = {"conceptKeywordsURI": original}
+        warnings: list[str] = []
+        _normalize_concept_keywords_uri(item, warnings)
+        assert item["conceptKeywordsURI"] is original
+
+    def test_none_unchanged(self):
+        item = {"conceptKeywordsURI": None}
+        warnings: list[str] = []
+        _normalize_concept_keywords_uri(item, warnings)
+        assert item["conceptKeywordsURI"] is None
+
+
+class TestNormalizeV1p0Package:
+    def test_v1p0_adds_warning(self):
+        data = {
+            "CFDocument": {
+                "identifier": "aaaa0000-0000-0000-0000-000000000001",
+                "uri": "https://example.com/uri/x",
+                "title": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [],
+            "CFAssociations": [],
+        }
+        warnings: list[str] = []
+        _normalize_v1p0_package(data, "https://example.com/ims/case/v1p0/CFPackages/xxx", warnings)
+        assert any("v1.0" in w for w in warnings)
+
+    def test_v1p1_no_warning(self):
+        pkg = _make_cf_package()
+        warnings: list[str] = []
+        _normalize_v1p0_package(pkg, "https://example.com/ims/case/v1p1/CFPackages/xxx", warnings)
+        assert not any("v1.0" in w for w in warnings)
+
+    def test_v1p0_normalizes_concept_keywords_uri_array(self):
+        data = {
+            "CFDocument": {
+                "identifier": "aaaa0000-0000-0000-0000-000000000001",
+                "uri": "https://example.com/uri/x",
+                "title": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [
+                {
+                    "identifier": "bbbb0000-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/uri/y",
+                    "fullStatement": "Item 1",
+                    "conceptKeywordsURI": [{"identifier": "c1", "uri": "x", "title": "Concept"}],
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFAssociations": [],
+        }
+        warnings: list[str] = []
+        _normalize_v1p0_package(data, "https://example.com/ims/case/v1p0/CFPackages/xxx", warnings)
+        assert data["CFItems"][0]["conceptKeywordsURI"] == {"identifier": "c1", "uri": "x", "title": "Concept"}
+
+
+class TestV1p0FullImport:
+    """Integration test: import a v1.0-style CFPackage."""
+
+    async def test_v1p0_import_succeeds(self, db_session: AsyncSession, tenant: Tenant):
+        """v1.0 package (no wrapper, no v1.1-only fields) imports correctly."""
+        v1p0_data = {
+            "CFDocument": {
+                "identifier": "aaaa0000-0000-0000-0000-000000000001",
+                "uri": "https://example.com/uri/doc1",
+                "title": "v1.0 Framework",
+                "creator": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [
+                {
+                    "identifier": "bbbb0000-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/uri/item1",
+                    "fullStatement": "Item from v1.0",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFAssociations": [],
+        }
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (v1p0_data, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/ims/case/v1p0/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.items_created == 1
+        assert report.document_title == "v1.0 Framework"
+        assert any("v1.0" in w for w in report.warnings)
+
+        # v1.1-only fields should be None
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.framework_type is None
+        assert doc.case_version is None
 
 
 # ---------------------------------------------------------------------------
