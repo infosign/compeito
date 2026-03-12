@@ -145,9 +145,9 @@ compeito/
 ## ローカル開発
 
 ```bash
-docker-compose up -d          # PostgreSQL + アプリ起動
-docker-compose exec app alembic upgrade head   # マイグレーション実行
-docker-compose exec app pytest                 # テスト実行
+docker compose up -d          # PostgreSQL + アプリ起動
+docker compose exec app alembic upgrade head   # マイグレーション実行
+docker compose exec app pytest                 # テスト実行
 ```
 
 開発時はアプリもDockerで実行する（Fargate等へのポータビリティ確保）。
