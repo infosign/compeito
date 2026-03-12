@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [phase2, main]
+  pull_request:
+    branches: [phase2, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff check
+        run: uv run ruff check src/ tests/ cli.py
+
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/ cli.py
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start PostgreSQL
+        run: docker compose up -d db
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            if docker compose exec db pg_isready -U case; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://case:case@localhost:5432/case
+          BASE_URL: http://localhost:8000
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://case:case@localhost:5432/case
+          BASE_URL: http://localhost:8000
+        run: uv run pytest tests/ -v
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down

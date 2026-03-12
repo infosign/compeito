@@ -10,13 +10,15 @@ from src.database import Base
 
 class CFDocument(Base):
     __tablename__ = "cf_documents"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "identifier", name="uq_cf_documents_tenant_identifier"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "identifier", name="uq_cf_documents_tenant_identifier"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    cf_license_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_licenses.id", ondelete="SET NULL"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    cf_license_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_licenses.id", ondelete="SET NULL")
+    )
     identifier: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     uri: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
