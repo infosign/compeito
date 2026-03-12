@@ -60,7 +60,7 @@ Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFIte
 ,情報に関する法規や制度,A-2,,20,知識及び技能
 ```
 
-フォーマットの詳細は [csv-format.md](csv-format.md) を参照。
+フォーマットの詳細は [csv-format.md](../csv-format.md) を参照。
 
 ### 2b. インポート実行
 
