@@ -17,6 +17,9 @@ from src.models.cf_concept import CFConcept
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
+from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.tenant import Tenant
 from src.services.case_import_service import (
     VALID_ASSOCIATION_TYPES,
@@ -44,9 +47,10 @@ def _make_cf_package(
     items: list | None = None,
     associations: list | None = None,
     definitions: dict | None = None,
+    rubrics: list | None = None,
 ) -> dict:
     """Build a minimal valid CFPackage JSON."""
-    return {
+    pkg: dict = {
         "CFPackage": {
             "CFDocument": {
                 "identifier": doc_identifier,
@@ -59,6 +63,9 @@ def _make_cf_package(
             "CFDefinitions": definitions or {},
         }
     }
+    if rubrics is not None:
+        pkg["CFPackage"]["CFRubrics"] = rubrics
+    return pkg
 
 
 def _make_item(
@@ -1138,3 +1145,302 @@ class TestItemMovement:
         await db_session.flush()
         assert report.items_updated == 1
         assert any("moved from document" in w for w in report.warnings)
+
+
+# ---------------------------------------------------------------------------
+# Rubric import helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_rubric(
+    identifier: str = "eee10000-0000-0000-0000-000000000001",
+    title: str = "Test Rubric",
+    criteria: list | None = None,
+    **kwargs,
+) -> dict:
+    rubric: dict = {
+        "identifier": identifier,
+        "uri": f"https://example.com/uri/{identifier}",
+        "title": title,
+        "lastChangeDateTime": "2025-01-01T00:00:00Z",
+        **kwargs,
+    }
+    if criteria is not None:
+        rubric["CFRubricCriteria"] = criteria
+    return rubric
+
+
+def _make_criterion(
+    identifier: str = "eee20000-0000-0000-0000-000000000001",
+    rubric_id: str = "eee10000-0000-0000-0000-000000000001",
+    levels: list | None = None,
+    **kwargs,
+) -> dict:
+    crit: dict = {
+        "identifier": identifier,
+        "uri": f"https://example.com/uri/{identifier}",
+        "rubricId": rubric_id,
+        "category": "Quality",
+        "weight": 1.0,
+        "position": 1,
+        "lastChangeDateTime": "2025-01-01T00:00:00Z",
+        **kwargs,
+    }
+    if levels is not None:
+        crit["CFRubricCriterionLevels"] = levels
+    return crit
+
+
+def _make_level(
+    identifier: str = "eee30000-0000-0000-0000-000000000001",
+    criterion_id: str = "eee20000-0000-0000-0000-000000000001",
+    **kwargs,
+) -> dict:
+    return {
+        "identifier": identifier,
+        "uri": f"https://example.com/uri/{identifier}",
+        "rubricCriterionId": criterion_id,
+        "description": "Excellent",
+        "quality": "High",
+        "score": 5.0,
+        "feedback": "Great work",
+        "position": 1,
+        "lastChangeDateTime": "2025-01-01T00:00:00Z",
+        **kwargs,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Rubric import tests
+# ---------------------------------------------------------------------------
+
+
+class TestRubricImport:
+    async def test_import_rubric_with_criteria_and_levels(self, db_session: AsyncSession, tenant: Tenant):
+        levels = [_make_level()]
+        criteria = [_make_criterion(levels=levels)]
+        rubrics = [_make_rubric(criteria=criteria)]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.rubrics_created == 1
+
+        # Verify rubric in DB
+        result = await db_session.execute(
+            select(CFRubric).where(CFRubric.identifier == uuid.UUID("eee10000-0000-0000-0000-000000000001"))
+        )
+        rubric = result.scalar_one()
+        assert rubric.title == "Test Rubric"
+
+        # Verify criterion
+        result = await db_session.execute(
+            select(CFRubricCriterion).where(
+                CFRubricCriterion.identifier == uuid.UUID("eee20000-0000-0000-0000-000000000001")
+            )
+        )
+        criterion = result.scalar_one()
+        assert criterion.category == "Quality"
+        assert criterion.weight == 1.0
+        assert criterion.rubric_id == uuid.UUID("eee10000-0000-0000-0000-000000000001")
+
+        # Verify level
+        result = await db_session.execute(
+            select(CFRubricCriterionLevel).where(
+                CFRubricCriterionLevel.identifier == uuid.UUID("eee30000-0000-0000-0000-000000000001")
+            )
+        )
+        level = result.scalar_one()
+        assert level.quality == "High"
+        assert level.score == 5.0
+        assert level.feedback == "Great work"
+
+    async def test_rubric_upsert_on_reimport(self, db_session: AsyncSession, tenant: Tenant):
+        rubrics = [_make_rubric()]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report1 = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report1.rubrics_created == 1
+
+        # Re-import with updated title
+        rubrics2 = [_make_rubric(title="Updated Rubric")]
+        pkg2 = _make_cf_package(rubrics=rubrics2)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg2, [])
+            report2 = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report2.rubrics_updated == 1
+        assert report2.rubrics_created == 0
+
+        result = await db_session.execute(
+            select(CFRubric).where(CFRubric.identifier == uuid.UUID("eee10000-0000-0000-0000-000000000001"))
+        )
+        rubric = result.scalar_one()
+        assert rubric.title == "Updated Rubric"
+
+    async def test_skip_rubric_invalid_identifier(self, db_session: AsyncSession, tenant: Tenant):
+        rubrics = [
+            _make_rubric(identifier="not-a-uuid"),
+            {"title": "No ID"},
+        ]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.rubrics_skipped == 2
+
+    async def test_rubric_without_criteria(self, db_session: AsyncSession, tenant: Tenant):
+        rubrics = [_make_rubric(description="A rubric with no criteria")]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.rubrics_created == 1
+
+        result = await db_session.execute(
+            select(CFRubric).where(CFRubric.identifier == uuid.UUID("eee10000-0000-0000-0000-000000000001"))
+        )
+        rubric = result.scalar_one()
+        assert rubric.description == "A rubric with no criteria"
+
+    async def test_criterion_cf_item_fk_resolved(self, db_session: AsyncSession, tenant: Tenant):
+        item_ident = "bbbb0000-0000-0000-0000-000000000001"
+        items = [_make_item(identifier=item_ident)]
+        criteria = [
+            _make_criterion(
+                CFItemURI={
+                    "identifier": item_ident,
+                    "uri": f"https://example.com/uri/{item_ident}",
+                    "title": "Test Item",
+                },
+            )
+        ]
+        rubrics = [_make_rubric(criteria=criteria)]
+        pkg = _make_cf_package(items=items, rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+
+        result = await db_session.execute(
+            select(CFRubricCriterion).where(
+                CFRubricCriterion.identifier == uuid.UUID("eee20000-0000-0000-0000-000000000001")
+            )
+        )
+        criterion = result.scalar_one()
+        assert criterion.cf_item_id is not None
+
+    async def test_criterion_cf_item_not_found_warning(self, db_session: AsyncSession, tenant: Tenant):
+        criteria = [
+            _make_criterion(
+                CFItemURI={
+                    "identifier": "ffff0000-0000-0000-0000-000000000099",
+                    "uri": "https://example.com/missing",
+                    "title": "Missing Item",
+                },
+            )
+        ]
+        rubrics = [_make_rubric(criteria=criteria)]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert any("CFItem" in w and "not found" in w for w in report.warnings)
+
+    async def test_no_rubrics_key_in_package(self, db_session: AsyncSession, tenant: Tenant):
+        """CFPackage without CFRubrics key should work fine."""
+        pkg = _make_cf_package()  # No rubrics parameter
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.rubrics_created == 0
+        assert report.rubrics_updated == 0
+        assert report.rubrics_skipped == 0
+
+    async def test_skip_criterion_bad_uuid(self, db_session: AsyncSession, tenant: Tenant):
+        criteria = [_make_criterion(identifier="bad-uuid")]
+        rubrics = [_make_rubric(criteria=criteria)]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert report.rubrics_created == 1
+        assert any("CFRubricCriterion" in w and "not a valid UUID" in w for w in report.warnings)
+
+    async def test_skip_level_bad_uuid(self, db_session: AsyncSession, tenant: Tenant):
+        levels = [_make_level(identifier="bad-uuid")]
+        criteria = [_make_criterion(levels=levels)]
+        rubrics = [_make_rubric(criteria=criteria)]
+        pkg = _make_cf_package(rubrics=rubrics)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        assert any("CFRubricCriterionLevel" in w and "not a valid UUID" in w for w in report.warnings)
