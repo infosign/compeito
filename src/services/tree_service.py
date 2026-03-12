@@ -1,4 +1,5 @@
 """Tree view query service for the Web UI."""
+
 from __future__ import annotations
 
 import uuid
@@ -13,14 +14,15 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 
-
 # ---------------------------------------------------------------------------
 # Data types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TreeNode:
     """A node in the tree view."""
+
     item: CFItem
     seq: int | None  # sequence_number from isChildOf association
     has_children: bool = False
@@ -62,8 +64,11 @@ def _strs_to_uuids(idents: list[str]) -> list[uuid.UUID]:
 # Core queries
 # ---------------------------------------------------------------------------
 
+
 async def get_document_for_tree(
-    session: AsyncSession, tenant_id: uuid.UUID, doc_identifier: uuid.UUID,
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc_identifier: uuid.UUID,
 ) -> CFDocument | None:
     """Load a document by identifier with license joinedload."""
     result = await session.execute(
@@ -78,7 +83,9 @@ async def get_document_for_tree(
 
 
 async def get_children(
-    session: AsyncSession, doc_id: uuid.UUID, parent_identifier: str,
+    session: AsyncSession,
+    doc_id: uuid.UUID,
+    parent_identifier: str,
 ) -> list[TreeNode]:
     """Get child items of a parent via isChildOf associations within a document.
 
@@ -86,8 +93,7 @@ async def get_children(
     """
     # Find isChildOf associations where destination = parent
     assoc_result = await session.execute(
-        select(CFAssociation)
-        .where(
+        select(CFAssociation).where(
             CFAssociation.cf_document_id == doc_id,
             CFAssociation.association_type == "isChildOf",
             CFAssociation.destination_node_identifier == parent_identifier,
@@ -125,9 +131,7 @@ async def get_children(
             CFItem.identifier.in_(child_uuids),
         )
     )
-    items_by_ident = {
-        str(i.identifier): i for i in item_result.scalars().unique().all()
-    }
+    items_by_ident = {str(i.identifier): i for i in item_result.scalars().unique().all()}
 
     # Build nodes
     nodes = []
@@ -139,7 +143,9 @@ async def get_children(
     # Batch check which children have their own children
     if nodes:
         has_children_set = await _get_idents_with_children(
-            session, doc_id, [str(n.item.identifier) for n in nodes],
+            session,
+            doc_id,
+            [str(n.item.identifier) for n in nodes],
         )
         for n in nodes:
             n.has_children = str(n.item.identifier) in has_children_set
@@ -149,7 +155,8 @@ async def get_children(
 
 
 async def get_orphan_items(
-    session: AsyncSession, doc_id: uuid.UUID,
+    session: AsyncSession,
+    doc_id: uuid.UUID,
 ) -> list[TreeNode]:
     """Get items with no isChildOf association within the same document.
 
@@ -169,9 +176,7 @@ async def get_orphan_items(
 
     # All depth=0 items
     item_result = await session.execute(
-        select(CFItem)
-        .options(joinedload(CFItem.item_type))
-        .where(CFItem.cf_document_id == doc_id, CFItem.depth == 0)
+        select(CFItem).options(joinedload(CFItem.item_type)).where(CFItem.cf_document_id == doc_id, CFItem.depth == 0)
     )
     depth0_items = item_result.scalars().unique().all()
 
@@ -180,7 +185,9 @@ async def get_orphan_items(
 
     if nodes:
         has_children_set = await _get_idents_with_children(
-            session, doc_id, [str(n.item.identifier) for n in nodes],
+            session,
+            doc_id,
+            [str(n.item.identifier) for n in nodes],
         )
         for n in nodes:
             n.has_children = str(n.item.identifier) in has_children_set
@@ -190,7 +197,8 @@ async def get_orphan_items(
 
 
 async def build_ssr_tree(
-    session: AsyncSession, doc: CFDocument,
+    session: AsyncSession,
+    doc: CFDocument,
     selected_item_ident: uuid.UUID | None = None,
 ) -> tuple[list[TreeNode], list[TreeNode], CFItem | None]:
     """Build the initial SSR tree (depth 0-1).
@@ -207,7 +215,9 @@ async def build_ssr_tree(
     for node in root_nodes:
         if node.has_children:
             node.children = await get_children(
-                session, doc_id, str(node.item.identifier),
+                session,
+                doc_id,
+                str(node.item.identifier),
             )
             node.is_expanded = True
 
@@ -218,18 +228,26 @@ async def build_ssr_tree(
     selected_item = None
     if selected_item_ident is not None:
         selected_item = await _resolve_selected_item(
-            session, doc.id, selected_item_ident,
+            session,
+            doc.id,
+            selected_item_ident,
         )
         if selected_item is not None:
             await _expand_ancestor_path(
-                session, doc, root_nodes, orphan_nodes, selected_item,
+                session,
+                doc,
+                root_nodes,
+                orphan_nodes,
+                selected_item,
             )
 
     return root_nodes, orphan_nodes, selected_item
 
 
 async def get_item_for_detail(
-    session: AsyncSession, doc_id: uuid.UUID, item_identifier: uuid.UUID,
+    session: AsyncSession,
+    doc_id: uuid.UUID,
+    item_identifier: uuid.UUID,
 ) -> CFItem | None:
     """Load a single item with joinedloads for the detail pane."""
     result = await session.execute(
@@ -251,8 +269,11 @@ async def get_item_for_detail(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_idents_with_children(
-    session: AsyncSession, doc_id: uuid.UUID, idents: list[str],
+    session: AsyncSession,
+    doc_id: uuid.UUID,
+    idents: list[str],
 ) -> set[str]:
     """Return subset of idents that are a destination in isChildOf (= have children)."""
     if not idents:
@@ -270,7 +291,9 @@ async def _get_idents_with_children(
 
 
 async def _resolve_selected_item(
-    session: AsyncSession, doc_id: uuid.UUID, item_ident: uuid.UUID,
+    session: AsyncSession,
+    doc_id: uuid.UUID,
+    item_ident: uuid.UUID,
 ) -> CFItem | None:
     """Load selected item, returning None if not in this document."""
     result = await session.execute(
@@ -289,7 +312,9 @@ async def _resolve_selected_item(
 
 
 async def _get_ancestor_path(
-    session: AsyncSession, doc: CFDocument, item_ident: str,
+    session: AsyncSession,
+    doc: CFDocument,
+    item_ident: str,
 ) -> list[str]:
     """Walk isChildOf upward to build ancestor path (root-first order).
 
@@ -302,8 +327,7 @@ async def _get_ancestor_path(
 
     for _ in range(100):  # safety limit
         result = await session.execute(
-            select(CFAssociation)
-            .where(
+            select(CFAssociation).where(
                 CFAssociation.cf_document_id == doc.id,
                 CFAssociation.association_type == "isChildOf",
                 CFAssociation.origin_node_identifier == current,
@@ -314,10 +338,12 @@ async def _get_ancestor_path(
             break
 
         # Pick best parent
-        assocs.sort(key=lambda a: (
-            (0, a.sequence_number) if a.sequence_number is not None else (1, 0),
-            a.destination_node_identifier,
-        ))
+        assocs.sort(
+            key=lambda a: (
+                (0, a.sequence_number) if a.sequence_number is not None else (1, 0),
+                a.destination_node_identifier,
+            )
+        )
         parent_ident = assocs[0].destination_node_identifier
 
         if parent_ident == doc_ident or parent_ident in visited:
@@ -331,8 +357,10 @@ async def _get_ancestor_path(
 
 
 async def _expand_ancestor_path(
-    session: AsyncSession, doc: CFDocument,
-    root_nodes: list[TreeNode], orphan_nodes: list[TreeNode],
+    session: AsyncSession,
+    doc: CFDocument,
+    root_nodes: list[TreeNode],
+    orphan_nodes: list[TreeNode],
     selected_item: CFItem,
 ) -> None:
     """Expand tree nodes along the ancestor path to the selected item."""
@@ -348,7 +376,9 @@ async def _expand_ancestor_path(
             nid = str(node.item.identifier)
             if nid in expand_set and node.has_children and not node.is_expanded:
                 node.children = await get_children(
-                    session, doc.id, nid,
+                    session,
+                    doc.id,
+                    nid,
                 )
                 node.is_expanded = True
             if node.children:

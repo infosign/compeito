@@ -2,6 +2,7 @@
 
 See docs/csv-format.md and docs/import-logic.md for the full specification.
 """
+
 from __future__ import annotations
 
 import csv
@@ -22,10 +23,10 @@ from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
 from src.models.cf_subject import CFSubject
 
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ImportReport:
@@ -48,6 +49,7 @@ class ImportReport:
 @dataclass
 class ParsedRow:
     """Internal representation of one parsed CSV row."""
+
     row_number: int
     identifier: uuid.UUID | None  # None = auto-generate
     full_statement: str
@@ -72,6 +74,7 @@ class ParsedRow:
 # ---------------------------------------------------------------------------
 # Format detection
 # ---------------------------------------------------------------------------
+
 
 class FormatType:
     CUSTOM = "custom"
@@ -164,9 +167,18 @@ def _simple_depth_from_indent(text: str) -> int:
 # ---------------------------------------------------------------------------
 
 _KNOWN_META_KEYS = {
-    "title", "version", "creator", "publisher", "description",
-    "language", "adoption_status", "official_source_url",
-    "license", "status_start_date", "status_end_date", "subject",
+    "title",
+    "version",
+    "creator",
+    "publisher",
+    "description",
+    "language",
+    "adoption_status",
+    "official_source_url",
+    "license",
+    "status_start_date",
+    "status_end_date",
+    "subject",
 }
 
 
@@ -192,9 +204,7 @@ def _parse_metadata_lines(lines: list[list[str]]) -> tuple[dict[str, str], list[
             continue
 
         if key in seen_keys:
-            warnings.append(
-                f"Duplicate metadata key '#{key}', overwriting previous value"
-            )
+            warnings.append(f"Duplicate metadata key '#{key}', overwriting previous value")
         seen_keys[key] = 1
 
         if key == "subject":
@@ -212,6 +222,7 @@ def _parse_metadata_lines(lines: list[list[str]]) -> tuple[dict[str, str], list[
 # ---------------------------------------------------------------------------
 # Row parsing — Custom format
 # ---------------------------------------------------------------------------
+
 
 def _build_column_map(header: list[str]) -> dict[str, int]:
     """Map lowercase column names to indices."""
@@ -258,8 +269,7 @@ def _parse_custom_rows(
             ident_str = str(ident)
             if ident_str in seen_identifiers:
                 warnings.append(
-                    f"Row {row_num}: Duplicate Identifier '{ident_str}', "
-                    f"overwriting Row {seen_identifiers[ident_str]}"
+                    f"Row {row_num}: Duplicate Identifier '{ident_str}', overwriting Row {seen_identifiers[ident_str]}"
                 )
             seen_identifiers[ident_str] = row_num
 
@@ -278,9 +288,7 @@ def _parse_custom_rows(
             if _is_valid_uuid(parent_raw):
                 parent_id = str(uuid.UUID(parent_raw))
             else:
-                warnings.append(
-                    f"Row {row_num}: parentIdentifier '{parent_raw}' is not a valid UUID, treated as root"
-                )
+                warnings.append(f"Row {row_num}: parentIdentifier '{parent_raw}' is not a valid UUID, treated as root")
 
         # sequenceNumber
         seq_raw = _get_cell(row, col_map, "sequencenumber").strip()
@@ -352,24 +360,26 @@ def _parse_custom_rows(
             if sed is None:
                 warnings.append(f"Row {row_num}: Invalid statusEndDate '{sed_raw}', set to null")
 
-        results.append(ParsedRow(
-            row_number=row_num,
-            identifier=ident,
-            full_statement=fs,
-            human_coding_scheme=hcs,
-            parent_identifier=parent_id,
-            sequence_number=seq,
-            cf_item_type=item_type_raw,
-            education_level=el,
-            concept_keywords=ck,
-            abbreviated_statement=abst,
-            language=lang,
-            list_enumeration=le,
-            license=lic,
-            status_start_date=ssd,
-            status_end_date=sed,
-            _present_fields=present,
-        ))
+        results.append(
+            ParsedRow(
+                row_number=row_num,
+                identifier=ident,
+                full_statement=fs,
+                human_coding_scheme=hcs,
+                parent_identifier=parent_id,
+                sequence_number=seq,
+                cf_item_type=item_type_raw,
+                education_level=el,
+                concept_keywords=ck,
+                abbreviated_statement=abst,
+                language=lang,
+                list_enumeration=le,
+                license=lic,
+                status_start_date=ssd,
+                status_end_date=sed,
+                _present_fields=present,
+            )
+        )
 
     # Handle duplicate identifiers: keep last occurrence
     final: dict[str, ParsedRow] = {}
@@ -389,6 +399,7 @@ def _parse_custom_rows(
 # ---------------------------------------------------------------------------
 # Row parsing — OpenSALT format
 # ---------------------------------------------------------------------------
+
 
 def _parse_opensalt_rows(
     data_rows: list[tuple[int, list[str]]],
@@ -424,8 +435,7 @@ def _parse_opensalt_rows(
             ident_str = str(ident)
             if ident_str in seen_identifiers:
                 warnings.append(
-                    f"Row {row_num}: Duplicate Identifier '{ident_str}', "
-                    f"overwriting Row {seen_identifiers[ident_str]}"
+                    f"Row {row_num}: Duplicate Identifier '{ident_str}', overwriting Row {seen_identifiers[ident_str]}"
                 )
             seen_identifiers[ident_str] = row_num
 
@@ -444,15 +454,14 @@ def _parse_opensalt_rows(
             if _is_valid_uuid(parent_raw):
                 parent_id = str(uuid.UUID(parent_raw))
             else:
-                warnings.append(
-                    f"Row {row_num}: parentIdentifier '{parent_raw}' is not a valid UUID, treated as root"
-                )
+                warnings.append(f"Row {row_num}: parentIdentifier '{parent_raw}' is not a valid UUID, treated as root")
 
         # Is Part Of — warn if differs from doc_identifier
         is_part_of = _get_cell(row, col_map, "is part of").strip()
         if is_part_of and doc_identifier_str and str(_parse_uuid(is_part_of) or is_part_of) != doc_identifier_str:
             warnings.append(
-                f"Row {row_num}: Is Part Of '{is_part_of}' differs from document identifier '{doc_identifier_str}', ignored"
+                f"Row {row_num}: Is Part Of '{is_part_of}' differs from"
+                f" document identifier '{doc_identifier_str}', ignored"
             )
 
         # Sequence Number
@@ -499,20 +508,22 @@ def _parse_opensalt_rows(
 
         # License column is ignored for OpenSALT (managed at document level)
 
-        results.append(ParsedRow(
-            row_number=row_num,
-            identifier=ident,
-            full_statement=fs,
-            human_coding_scheme=hcs,
-            parent_identifier=parent_id,
-            sequence_number=seq,
-            cf_item_type=item_type_raw,
-            education_level=el,
-            concept_keywords=ck,
-            abbreviated_statement=abst,
-            language=lang,
-            _present_fields=present,
-        ))
+        results.append(
+            ParsedRow(
+                row_number=row_num,
+                identifier=ident,
+                full_statement=fs,
+                human_coding_scheme=hcs,
+                parent_identifier=parent_id,
+                sequence_number=seq,
+                cf_item_type=item_type_raw,
+                education_level=el,
+                concept_keywords=ck,
+                abbreviated_statement=abst,
+                language=lang,
+                _present_fields=present,
+            )
+        )
 
     # Handle duplicate identifiers: keep last occurrence
     final: dict[str, ParsedRow] = {}
@@ -531,6 +542,7 @@ def _parse_opensalt_rows(
 # ---------------------------------------------------------------------------
 # Row parsing — Simple format
 # ---------------------------------------------------------------------------
+
 
 def _parse_simple_rows(
     data_rows: list[tuple[int, list[str]]],
@@ -575,16 +587,18 @@ def _parse_simple_rows(
             present.add("education_level")
             el = _parse_csv_list(el_raw)
 
-        results.append(ParsedRow(
-            row_number=row_num,
-            identifier=None,
-            full_statement=fs,
-            human_coding_scheme=hcs,
-            cf_item_type=item_type,
-            education_level=el,
-            depth=depth,
-            _present_fields=present,
-        ))
+        results.append(
+            ParsedRow(
+                row_number=row_num,
+                identifier=None,
+                full_statement=fs,
+                human_coding_scheme=hcs,
+                cf_item_type=item_type,
+                education_level=el,
+                depth=depth,
+                _present_fields=present,
+            )
+        )
 
     return results
 
@@ -592,6 +606,7 @@ def _parse_simple_rows(
 # ---------------------------------------------------------------------------
 # Simple format: resolve parent from indent depth
 # ---------------------------------------------------------------------------
+
 
 def _resolve_simple_parents(rows: list[ParsedRow], warnings: list[str]) -> None:
     """For simple format, assign parent_identifier based on depth using a stack."""
@@ -607,8 +622,7 @@ def _resolve_simple_parents(rows: list[ParsedRow], warnings: list[str]) -> None:
         if stack:
             if d - stack[-1][0] > 1:
                 warnings.append(
-                    f"Row {pr.row_number}: depth jumped from {stack[-1][0]} to {d}, "
-                    f"treating previous item as parent"
+                    f"Row {pr.row_number}: depth jumped from {stack[-1][0]} to {d}, treating previous item as parent"
                 )
             pr.parent_identifier = stack[-1][1]
 
@@ -620,6 +634,7 @@ def _resolve_simple_parents(rows: list[ParsedRow], warnings: list[str]) -> None:
 # ---------------------------------------------------------------------------
 # OpenSALT: scan Is Part Of
 # ---------------------------------------------------------------------------
+
 
 def _scan_is_part_of(
     data_rows: list[tuple[int, list[str]]],
@@ -643,6 +658,7 @@ def _scan_is_part_of(
 # ---------------------------------------------------------------------------
 # Lookup find-or-create
 # ---------------------------------------------------------------------------
+
 
 async def _find_or_create_item_type(
     session: AsyncSession,
@@ -765,6 +781,7 @@ async def _find_or_create_subject(
 # CFItem upsert
 # ---------------------------------------------------------------------------
 
+
 async def _upsert_item(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -805,13 +822,23 @@ async def _upsert_item(
     item_type_id: uuid.UUID | None = None
     if pr.cf_item_type and pr.cf_item_type.strip():
         item_type_id = await _find_or_create_item_type(
-            session, tenant_id, pr.cf_item_type.strip(), now, report, item_type_cache,
+            session,
+            tenant_id,
+            pr.cf_item_type.strip(),
+            now,
+            report,
+            item_type_cache,
         )
 
     license_id: uuid.UUID | None = None
     if pr.license and pr.license.strip():
         license_id = await _find_or_create_license(
-            session, tenant_id, pr.license.strip(), now, report, license_cache,
+            session,
+            tenant_id,
+            pr.license.strip(),
+            now,
+            report,
+            license_cache,
         )
 
     if existing is not None:
@@ -887,6 +914,7 @@ async def _upsert_item(
 # isChildOf Association generation
 # ---------------------------------------------------------------------------
 
+
 def _generate_is_child_of(
     tenant_id: uuid.UUID,
     doc: CFDocument,
@@ -909,9 +937,7 @@ def _generate_is_child_of(
 
         # Self-reference check
         if parent_ident and parent_ident == str(item.identifier):
-            warnings.append(
-                f"Row {pr.row_number}: parentIdentifier references self, treated as root"
-            )
+            warnings.append(f"Row {pr.row_number}: parentIdentifier references self, treated as root")
             parent_ident = None
 
         # Determine destination (parent)
@@ -922,9 +948,7 @@ def _generate_is_child_of(
             dest_title = parent_item.full_statement
         elif parent_ident:
             # Parent not found in document items
-            warnings.append(
-                f"Row {pr.row_number}: Parent '{parent_ident}' not found, treated as root"
-            )
+            warnings.append(f"Row {pr.row_number}: Parent '{parent_ident}' not found, treated as root")
             dest_ident = str(doc.identifier)
             dest_uri = doc.uri
             dest_title = doc.title
@@ -970,6 +994,7 @@ def _generate_is_child_of(
 # ---------------------------------------------------------------------------
 # Depth calculation (BFS)
 # ---------------------------------------------------------------------------
+
 
 def _calculate_depths(
     doc: CFDocument,
@@ -1036,19 +1061,16 @@ def _calculate_depths(
         if cycle_nodes:
             sorted_cycle = sorted(cycle_nodes)
             ident_list = ", ".join(f"'{i}'" for i in sorted_cycle)
-            warnings.append(
-                f"Circular reference detected involving items: {ident_list}, set to depth 0"
-            )
+            warnings.append(f"Circular reference detected involving items: {ident_list}, set to depth 0")
 
         for ident in unreachable - cycle_nodes:
-            warnings.append(
-                f"Orphan item '{ident}' has no reachable parent, set to depth 0"
-            )
+            warnings.append(f"Orphan item '{ident}' has no reachable parent, set to depth 0")
 
 
 # ---------------------------------------------------------------------------
 # Main import function
 # ---------------------------------------------------------------------------
+
 
 async def import_csv(
     session: AsyncSession,
@@ -1101,9 +1123,7 @@ async def import_csv(
     # Validate metadata fields
     meta_language = metadata.get("language")
     if meta_language and len(meta_language) > 10:
-        report.warnings.append(
-            f"Metadata #language '{meta_language}' exceeds 10 characters, set to null"
-        )
+        report.warnings.append(f"Metadata #language '{meta_language}' exceeds 10 characters, set to null")
         meta_language = None
     elif meta_language == "":
         meta_language = None
@@ -1151,9 +1171,7 @@ async def import_csv(
             # Simple format: no header skip, first row is data
             # Row numbers are 1-based from the original file
             data_rows_indexed = [
-                (data_start + i + 1, row)
-                for i, row in enumerate(remaining_rows)
-                if any(cell.strip() for cell in row)
+                (data_start + i + 1, row) for i, row in enumerate(remaining_rows) if any(cell.strip() for cell in row)
             ]
             header = []
         else:
@@ -1195,10 +1213,12 @@ async def import_csv(
     if doc_identifier is not None:
         # --doc specified: must exist
         result = await session.execute(
-            select(CFDocument).where(
+            select(CFDocument)
+            .where(
                 CFDocument.tenant_id == tenant_id,
                 CFDocument.identifier == doc_identifier,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         doc_obj = result.scalar_one_or_none()
         if doc_obj is None:
@@ -1233,10 +1253,12 @@ async def import_csv(
         # OpenSALT with Is Part Of
         ident_uuid = uuid.UUID(opensalt_doc_ident)
         result = await session.execute(
-            select(CFDocument).where(
+            select(CFDocument)
+            .where(
                 CFDocument.tenant_id == tenant_id,
                 CFDocument.identifier == ident_uuid,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         doc_obj = result.scalar_one_or_none()
         if doc_obj is not None:
@@ -1317,7 +1339,12 @@ async def import_csv(
     meta_license = metadata.get("license", "").strip()
     if meta_license:
         doc_license_id = await _find_or_create_license(
-            session, tenant_id, meta_license, now, report, license_cache,
+            session,
+            tenant_id,
+            meta_license,
+            now,
+            report,
+            license_cache,
         )
         doc.cf_license_id = doc_license_id
     elif "license" in metadata:
@@ -1332,14 +1359,21 @@ async def import_csv(
         subject_uri_list: list[dict] = []
         for subj_title in meta_subjects:
             _id, subj_ident, subj_uri = await _find_or_create_subject(
-                session, tenant_id, subj_title, now, report, subject_cache,
+                session,
+                tenant_id,
+                subj_title,
+                now,
+                report,
+                subject_cache,
             )
             subject_list.append(subj_title)
-            subject_uri_list.append({
-                "title": subj_title,
-                "identifier": str(subj_ident),
-                "uri": subj_uri,
-            })
+            subject_uri_list.append(
+                {
+                    "title": subj_title,
+                    "identifier": str(subj_ident),
+                    "uri": subj_uri,
+                }
+            )
         doc.subject = subject_list
         doc.subject_uri = subject_uri_list
     elif any(row and row[0].startswith("#") and row[0][1:].strip().lower() == "subject" for row in meta_lines):
@@ -1358,7 +1392,10 @@ async def import_csv(
     elif fmt == FormatType.OPENSALT:
         col_map = _build_column_map(header)
         parsed_rows = _parse_opensalt_rows(
-            data_rows_indexed, col_map, report.warnings, opensalt_doc_ident,
+            data_rows_indexed,
+            col_map,
+            report.warnings,
+            opensalt_doc_ident,
         )
     else:
         parsed_rows = _parse_simple_rows(data_rows_indexed, report.warnings)
@@ -1368,8 +1405,14 @@ async def import_csv(
     upserted_items: list[CFItem] = []
     for pr in parsed_rows:
         item = await _upsert_item(
-            session, tenant_id, doc, pr, now, report,
-            item_type_cache, license_cache,
+            session,
+            tenant_id,
+            doc,
+            pr,
+            now,
+            report,
+            item_type_cache,
+            license_cache,
         )
         upserted_items.append(item)
 
@@ -1405,7 +1448,12 @@ async def import_csv(
 
     # Generate new isChildOf associations
     new_assocs = _generate_is_child_of(
-        tenant_id, doc, upserted_items, parsed_rows, now, report.warnings,
+        tenant_id,
+        doc,
+        upserted_items,
+        parsed_rows,
+        now,
+        report.warnings,
     )
     for assoc in new_assocs:
         session.add(assoc)
@@ -1423,9 +1471,7 @@ async def import_csv(
     all_doc_assocs = list(result.scalars().all())
 
     # Get ALL items in this document
-    result = await session.execute(
-        select(CFItem).where(CFItem.cf_document_id == doc.id)
-    )
+    result = await session.execute(select(CFItem).where(CFItem.cf_document_id == doc.id))
     all_doc_items = list(result.scalars().all())
 
     _calculate_depths(doc, all_doc_items, all_doc_assocs, report.warnings)

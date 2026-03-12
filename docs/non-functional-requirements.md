@@ -73,7 +73,6 @@
 | NFR-9.2 | テスト DB は Docker PostgreSQL を使用する（SQLite 不使用） | 非同期ドライバの差異回避 |
 | NFR-9.3 | `conftest.py` でテスト用 DB のセットアップ・ロールバックを行う | |
 | NFR-9.4 | CI（GitHub Actions）で `docker-compose up -d db` してからテスト実行する | Phase 2 |
-| NFR-9.5 | 1EdTech Conformance テストに通過する | Phase 2 |
 
 ## NFR-10: 互換性・準拠
 
