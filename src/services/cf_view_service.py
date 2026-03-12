@@ -8,6 +8,7 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_subject import CFSubject
+from src.repositories import cf_rubric_repository
 from src.schemas.cf_association_grouping import CFAssociationGroupingDType
 from src.schemas.cf_concept import CFConceptDType
 from src.schemas.cf_document import CFPckgDocumentDType
@@ -22,6 +23,7 @@ from src.services.case_query_service import (
     _build_license_uri_from_model,
     _build_subject_uri_list,
     association_to_pckg_schema,
+    rubric_to_schema,
 )
 
 
@@ -117,52 +119,96 @@ def _build_definitions(
             groupings_seen[str(assoc.association_grouping.identifier)] = assoc.association_grouping
 
     # Build schema lists (only if non-empty)
-    cf_item_types = sorted(
-        [CFItemTypeDType(
-            identifier=str(it.identifier), uri=it.uri, title=it.title,
-            description=it.description, typeCode=it.type_code,
-            hierarchyCode=it.hierarchy_code,
-            lastChangeDateTime=it.last_change_date_time,
-        ) for it in item_types_seen.values()],
-        key=lambda x: x.identifier,
-    ) or None
+    cf_item_types = (
+        sorted(
+            [
+                CFItemTypeDType(
+                    identifier=str(it.identifier),
+                    uri=it.uri,
+                    title=it.title,
+                    description=it.description,
+                    typeCode=it.type_code,
+                    hierarchyCode=it.hierarchy_code,
+                    lastChangeDateTime=it.last_change_date_time,
+                )
+                for it in item_types_seen.values()
+            ],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
 
-    cf_concepts = sorted(
-        [CFConceptDType(
-            identifier=str(c.identifier), uri=c.uri, title=c.title,
-            description=c.description, keywords=c.keywords,
-            hierarchyCode=c.hierarchy_code,
-            lastChangeDateTime=c.last_change_date_time,
-        ) for c in concepts_seen.values()],
-        key=lambda x: x.identifier,
-    ) or None
+    cf_concepts = (
+        sorted(
+            [
+                CFConceptDType(
+                    identifier=str(c.identifier),
+                    uri=c.uri,
+                    title=c.title,
+                    description=c.description,
+                    keywords=c.keywords,
+                    hierarchyCode=c.hierarchy_code,
+                    lastChangeDateTime=c.last_change_date_time,
+                )
+                for c in concepts_seen.values()
+            ],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
 
-    cf_licenses = sorted(
-        [CFLicenseDType(
-            identifier=str(lic.identifier), uri=lic.uri, title=lic.title,
-            description=lic.description, licenseText=lic.license_text,
-            lastChangeDateTime=lic.last_change_date_time,
-        ) for lic in licenses_seen.values()],
-        key=lambda x: x.identifier,
-    ) or None
+    cf_licenses = (
+        sorted(
+            [
+                CFLicenseDType(
+                    identifier=str(lic.identifier),
+                    uri=lic.uri,
+                    title=lic.title,
+                    description=lic.description,
+                    licenseText=lic.license_text,
+                    lastChangeDateTime=lic.last_change_date_time,
+                )
+                for lic in licenses_seen.values()
+            ],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
 
-    cf_subjects = sorted(
-        [CFSubjectDType(
-            identifier=str(s.identifier), uri=s.uri, title=s.title,
-            description=s.description, hierarchyCode=s.hierarchy_code,
-            lastChangeDateTime=s.last_change_date_time,
-        ) for s in subjects],
-        key=lambda x: x.identifier,
-    ) or None
+    cf_subjects = (
+        sorted(
+            [
+                CFSubjectDType(
+                    identifier=str(s.identifier),
+                    uri=s.uri,
+                    title=s.title,
+                    description=s.description,
+                    hierarchyCode=s.hierarchy_code,
+                    lastChangeDateTime=s.last_change_date_time,
+                )
+                for s in subjects
+            ],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
 
-    cf_association_groupings = sorted(
-        [CFAssociationGroupingDType(
-            identifier=str(g.identifier), uri=g.uri, title=g.title,
-            description=g.description,
-            lastChangeDateTime=g.last_change_date_time,
-        ) for g in groupings_seen.values()],
-        key=lambda x: x.identifier,
-    ) or None
+    cf_association_groupings = (
+        sorted(
+            [
+                CFAssociationGroupingDType(
+                    identifier=str(g.identifier),
+                    uri=g.uri,
+                    title=g.title,
+                    description=g.description,
+                    lastChangeDateTime=g.last_change_date_time,
+                )
+                for g in groupings_seen.values()
+            ],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
 
     defs = CFDefinitionsDType(
         CFItemTypes=cf_item_types,
@@ -236,10 +282,14 @@ async def get_cf_package(
             )
             subjects = list(subj_result.scalars().all())
 
-    # 5. Build package
+    # 5. Get rubrics for this document
+    rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
+
+    # 6. Build package
     return CFPackageDType(
         CFDocument=_pckg_document_to_schema(doc),
         CFItems=[_pckg_item_to_schema(item) for item in items],
         CFAssociations=[association_to_pckg_schema(a) for a in assocs],
         CFDefinitions=_build_definitions(doc, items, assocs, subjects),
+        CFRubrics=[rubric_to_schema(r) for r in rubrics],
     )

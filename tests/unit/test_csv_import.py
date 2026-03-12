@@ -2,6 +2,7 @@
 
 Tests the pure parsing/detection functions and integration with DB via fixtures.
 """
+
 import uuid
 from datetime import date, datetime, timezone
 
@@ -13,12 +14,9 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
-from src.models.cf_license import CFLicense
-from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 from src.services.csv_import_service import (
     FormatType,
-    ImportReport,
     _build_column_map,
     _detect_format,
     _is_valid_uuid,
@@ -29,7 +27,6 @@ from src.services.csv_import_service import (
     _simple_depth_from_indent,
     import_csv,
 )
-
 
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
@@ -46,14 +43,17 @@ class TestFormatDetection:
     def test_custom_format_case_insensitive(self):
         assert _detect_format(["identifier", "FULLSTATEMENT", "other"]) == FormatType.CUSTOM
 
-    def test_opensalt_format_by_case_item_identifier(self):
-        assert _detect_format(["CASE Item Identifier", "Full Statement"]) == FormatType.OPENSALT
+    def test_opensalt_format_by_is_child_of(self):
+        assert _detect_format(["Identifier", "Full Statement", "Is Child Of"]) == FormatType.OPENSALT
+
+    def test_opensalt_format_by_is_part_of(self):
+        assert _detect_format(["Identifier", "Full Statement", "Is Part Of"]) == FormatType.OPENSALT
 
     def test_opensalt_format_by_full_statement(self):
         assert _detect_format(["Something", "Full Statement", "Other"]) == FormatType.OPENSALT
 
     def test_opensalt_case_insensitive(self):
-        assert _detect_format(["case item identifier", "full statement"]) == FormatType.OPENSALT
+        assert _detect_format(["identifier", "full statement", "is child of"]) == FormatType.OPENSALT
 
     def test_simple_format_fallback(self):
         assert _detect_format(["name", "code"]) == FormatType.SIMPLE
@@ -203,12 +203,17 @@ class TestImportCustomFormat:
 
         # Verify items in DB
         result = await db_session.execute(
-            select(CFItem).where(CFItem.cf_document_id == (
-                select(CFDocument.id).where(
-                    CFDocument.tenant_id == tenant.id,
-                    CFDocument.title == "Test Doc",
-                ).scalar_subquery()
-            ))
+            select(CFItem).where(
+                CFItem.cf_document_id
+                == (
+                    select(CFDocument.id)
+                    .where(
+                        CFDocument.tenant_id == tenant.id,
+                        CFDocument.title == "Test Doc",
+                    )
+                    .scalar_subquery()
+                )
+            )
         )
         items = list(result.scalars().all())
         assert len(items) == 2
@@ -229,14 +234,11 @@ class TestImportCustomFormat:
         assert report.associations_created == 2
 
         # Check isChildOf
-        result = await db_session.execute(
+        await db_session.execute(
             select(CFAssociation).where(
                 CFAssociation.association_type == "isChildOf",
-                CFAssociation.origin_node_identifier == str(
-                    select(CFItem.identifier)
-                    .where(CFItem.full_statement == "Child Item")
-                    .scalar_subquery()
-                ),
+                CFAssociation.origin_node_identifier
+                == str(select(CFItem.identifier).where(CFItem.full_statement == "Child Item").scalar_subquery()),
             )
         )
 
@@ -254,12 +256,14 @@ class TestImportCustomFormat:
         doc_ident = uuid.UUID(report1.document_identifier)
 
         csv2 = (
-            "Identifier,fullStatement,humanCodingScheme\n"
-            "bbbb1111-1111-1111-1111-111111111111,Updated Statement,H-1\n"
+            "Identifier,fullStatement,humanCodingScheme\nbbbb1111-1111-1111-1111-111111111111,Updated Statement,H-1\n"
         ).encode("utf-8")
 
         report2 = await import_csv(
-            db_session, tenant.id, csv2, doc_identifier=doc_ident,
+            db_session,
+            tenant.id,
+            csv2,
+            doc_identifier=doc_ident,
         )
         await db_session.flush()
         assert report2.items_updated == 1
@@ -267,31 +271,25 @@ class TestImportCustomFormat:
 
         # Verify updated value
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb1111-1111-1111-1111-111111111111")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb1111-1111-1111-1111-111111111111"))
         )
         item = result.scalar_one()
         assert item.full_statement == "Updated Statement"
 
     async def test_upsert_by_human_coding_scheme(self, db_session: AsyncSession, tenant: Tenant):
-        csv1 = (
-            "#title,HCS Upsert Test\n"
-            "Identifier,fullStatement,humanCodingScheme\n"
-            ",Original,H-1\n"
-        ).encode("utf-8")
+        csv1 = ("#title,HCS Upsert Test\nIdentifier,fullStatement,humanCodingScheme\n,Original,H-1\n").encode("utf-8")
 
         report1 = await import_csv(db_session, tenant.id, csv1)
         await db_session.flush()
         doc_ident = uuid.UUID(report1.document_identifier)
 
-        csv2 = (
-            "Identifier,fullStatement,humanCodingScheme\n"
-            ",Updated by HCS,H-1\n"
-        ).encode("utf-8")
+        csv2 = ("Identifier,fullStatement,humanCodingScheme\n,Updated by HCS,H-1\n").encode("utf-8")
 
         report2 = await import_csv(
-            db_session, tenant.id, csv2, doc_identifier=doc_ident,
+            db_session,
+            tenant.id,
+            csv2,
+            doc_identifier=doc_ident,
         )
         await db_session.flush()
         assert report2.items_updated == 1
@@ -314,15 +312,16 @@ class TestImportCustomFormat:
             "cccc1111-1111-1111-1111-111111111111,Statement v2,H-1,\n"
         ).encode("utf-8")
 
-        report2 = await import_csv(
-            db_session, tenant.id, csv2, doc_identifier=doc_ident,
+        await import_csv(
+            db_session,
+            tenant.id,
+            csv2,
+            doc_identifier=doc_ident,
         )
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("cccc1111-1111-1111-1111-111111111111")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("cccc1111-1111-1111-1111-111111111111"))
         )
         item = result.scalar_one()
         assert item.full_statement == "Statement v2"
@@ -337,18 +336,14 @@ class TestImportCustomFormat:
             ",Third,,,\n"
         ).encode("utf-8")
 
-        report = await import_csv(db_session, tenant.id, csv)
+        await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
 
         # Check sequence numbers on isChildOf associations
-        doc_id = (await db_session.execute(
-            select(CFDocument.id).where(CFDocument.title == "Seq Test")
-        )).scalar_one()
+        doc_id = (await db_session.execute(select(CFDocument.id).where(CFDocument.title == "Seq Test"))).scalar_one()
 
         result = await db_session.execute(
-            select(CFAssociation)
-            .where(CFAssociation.cf_document_id == doc_id)
-            .order_by(CFAssociation.sequence_number)
+            select(CFAssociation).where(CFAssociation.cf_document_id == doc_id).order_by(CFAssociation.sequence_number)
         )
         assocs = list(result.scalars().all())
         assert [a.sequence_number for a in assocs] == [10, 20, 30]
@@ -375,12 +370,7 @@ class TestImportCustomFormat:
         # (already counted above via the two rows)
 
     async def test_invalid_identifier_skipped(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Invalid ID\n"
-            "Identifier,fullStatement\n"
-            "not-a-uuid,Bad Item\n"
-            ",Good Item\n"
-        ).encode("utf-8")
+        csv = ("#title,Invalid ID\nIdentifier,fullStatement\nnot-a-uuid,Bad Item\n,Good Item\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -404,12 +394,7 @@ class TestImportCustomFormat:
         assert any("Invalid sequenceNumber" in w for w in report.warnings)
 
     async def test_empty_fullstatement_skipped(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Empty FS\n"
-            "Identifier,fullStatement\n"
-            ",\n"
-            ",Valid Item\n"
-        ).encode("utf-8")
+        csv = ("#title,Empty FS\nIdentifier,fullStatement\n,\n,Valid Item\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -421,24 +406,22 @@ class TestImportCustomFormat:
         fake_doc = uuid.uuid4()
         with pytest.raises(ValueError, match="Document not found"):
             await import_csv(
-                db_session, tenant.id, csv, doc_identifier=fake_doc,
+                db_session,
+                tenant.id,
+                csv,
+                doc_identifier=fake_doc,
             )
 
     async def test_title_required_error(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "Identifier,fullStatement\n"
-            ",Item\n"
-        ).encode("utf-8")
+        csv = ("Identifier,fullStatement\n,Item\n").encode("utf-8")
 
         with pytest.raises(ValueError, match="Document title is required"):
             await import_csv(db_session, tenant.id, csv)
 
     async def test_bom_support(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,BOM Test\n"
-            "Identifier,fullStatement\n"
-            ",Item 1\n"
-        ).encode("utf-8-sig")  # utf-8-sig adds BOM automatically
+        csv = ("#title,BOM Test\nIdentifier,fullStatement\n,Item 1\n").encode(
+            "utf-8-sig"
+        )  # utf-8-sig adds BOM automatically
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -449,10 +432,7 @@ class TestImportCustomFormat:
     async def test_duplicate_identifier_keeps_last(self, db_session: AsyncSession, tenant: Tenant):
         ident = "dddd1111-1111-1111-1111-111111111111"
         csv = (
-            f"#title,Dup Test\n"
-            f"Identifier,fullStatement\n"
-            f"{ident},First occurrence\n"
-            f"{ident},Second occurrence\n"
+            f"#title,Dup Test\nIdentifier,fullStatement\n{ident},First occurrence\n{ident},Second occurrence\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -461,9 +441,7 @@ class TestImportCustomFormat:
         assert report.items_created == 1
         assert any("Duplicate Identifier" in w for w in report.warnings)
 
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.identifier == uuid.UUID(ident))
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(ident)))
         item = result.scalar_one()
         assert item.full_statement == "Second occurrence"
 
@@ -472,7 +450,7 @@ class TestImportOpenSALTFormat:
     async def test_basic_opensalt(self, db_session: AsyncSession, tenant: Tenant):
         csv = (
             "#title,OpenSALT Test\n"
-            "CASE Item Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,"
+            "Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,"
             "Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of\n"
             "aaaa2222-1111-1111-1111-111111111111,国語,,,,,教科,ja,,,,\n"
             "bbbb2222-1111-1111-1111-111111111111,現代の国語,,,,,科目,ja,,aaaa2222-1111-1111-1111-111111111111,10,\n"
@@ -486,30 +464,18 @@ class TestImportOpenSALTFormat:
 
     async def test_opensalt_is_part_of_creates_doc(self, db_session: AsyncSession, tenant: Tenant):
         doc_ident = "eeee2222-1111-1111-1111-111111111111"
-        csv = (
-            "#title,IPO Doc\n"
-            "CASE Item Identifier,Full Statement,Is Part Of\n"
-            f",Item 1,{doc_ident}\n"
-        ).encode("utf-8")
+        csv = (f"#title,IPO Doc\nIdentifier,Full Statement,Is Part Of\n,Item 1,{doc_ident}\n").encode("utf-8")
 
-        report = await import_csv(db_session, tenant.id, csv)
+        await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
 
         # Document should have the Is Part Of identifier
-        result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID(doc_ident)
-            )
-        )
+        result = await db_session.execute(select(CFDocument).where(CFDocument.identifier == uuid.UUID(doc_ident)))
         doc = result.scalar_one()
         assert doc.title == "IPO Doc"
 
     async def test_opensalt_is_part_of_invalid_uuid(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Bad IPO\n"
-            "CASE Item Identifier,Full Statement,Is Part Of\n"
-            ",Item 1,not-a-uuid\n"
-        ).encode("utf-8")
+        csv = ("#title,Bad IPO\nIdentifier,Full Statement,Is Part Of\n,Item 1,not-a-uuid\n").encode("utf-8")
 
         with pytest.raises(ValueError, match="Is Part Of value is not a valid UUID"):
             await import_csv(db_session, tenant.id, csv)
@@ -517,14 +483,7 @@ class TestImportOpenSALTFormat:
 
 class TestImportSimpleFormat:
     async def test_basic_simple(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Simple Test\n"
-            "国語\n"
-            "  現代の国語\n"
-            "    言葉の特徴\n"
-            "  言語文化\n"
-            "地理歴史\n"
-        ).encode("utf-8")
+        csv = ("#title,Simple Test\n国語\n  現代の国語\n    言葉の特徴\n  言語文化\n地理歴史\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -535,11 +494,10 @@ class TestImportSimpleFormat:
         # Verify depths
         result = await db_session.execute(
             select(CFItem)
-            .where(CFItem.cf_document_id == (
-                select(CFDocument.id)
-                .where(CFDocument.title == "Simple Test")
-                .scalar_subquery()
-            ))
+            .where(
+                CFItem.cf_document_id
+                == (select(CFDocument.id).where(CFDocument.title == "Simple Test").scalar_subquery())
+            )
             .order_by(CFItem.depth)
         )
         items = list(result.scalars().all())
@@ -547,11 +505,7 @@ class TestImportSimpleFormat:
         assert depths == [0, 0, 1, 1, 2]
 
     async def test_simple_with_hcs_and_type(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Simple HCS\n"
-            "国語,K-1,教科\n"
-            "  現代の国語,K-1-1,科目\n"
-        ).encode("utf-8")
+        csv = ("#title,Simple HCS\n国語,K-1,教科\n  現代の国語,K-1-1,科目\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -560,21 +514,14 @@ class TestImportSimpleFormat:
         assert report.item_types_created == 2
 
     async def test_simple_tab_indent(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Tab Test\n"
-            "Root\n"
-            "\tChild 1\n"
-            "\t\tGrandchild\n"
-        ).encode("utf-8")
+        csv = ("#title,Tab Test\nRoot\n\tChild 1\n\t\tGrandchild\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
 
         assert report.items_created == 3
 
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.full_statement == "Grandchild")
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.full_statement == "Grandchild"))
         gc = result.scalar_one()
         assert gc.depth == 2
 
@@ -595,11 +542,7 @@ class TestImportSimpleFormat:
             await import_csv(db_session, tenant.id, csv)
 
     async def test_simple_depth_jump_warning(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Jump Test\n"
-            "Root\n"
-            "      Deep Child\n"
-        ).encode("utf-8")
+        csv = ("#title,Jump Test\nRoot\n      Deep Child\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -620,21 +563,17 @@ class TestDepthCalculation:
             f"{gc_id},Grandchild,{c_id}\n"
         ).encode("utf-8")
 
-        report = await import_csv(db_session, tenant.id, csv)
+        await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
 
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.identifier == uuid.UUID(gc_id))
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(gc_id)))
         gc = result.scalar_one()
         assert gc.depth == 2
 
     async def test_self_reference_treated_as_root(self, db_session: AsyncSession, tenant: Tenant):
         self_id = "aaaa4444-1111-1111-1111-111111111111"
         csv = (
-            "#title,Self Ref\n"
-            "Identifier,fullStatement,parentIdentifier\n"
-            f"{self_id},Self Ref Item,{self_id}\n"
+            f"#title,Self Ref\nIdentifier,fullStatement,parentIdentifier\n{self_id},Self Ref Item,{self_id}\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -642,9 +581,7 @@ class TestDepthCalculation:
 
         assert any("parentIdentifier references self" in w for w in report.warnings)
 
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.identifier == uuid.UUID(self_id))
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(self_id)))
         item = result.scalar_one()
         assert item.depth == 0
 
@@ -665,13 +602,13 @@ class TestIsChildOfDeletion:
         assert report1.associations_created == 2
 
         # Re-import with only 1 item
-        csv2 = (
-            "Identifier,fullStatement\n"
-            "aaaa5555-1111-1111-1111-111111111111,Item A updated\n"
-        ).encode("utf-8")
+        csv2 = ("Identifier,fullStatement\naaaa5555-1111-1111-1111-111111111111,Item A updated\n").encode("utf-8")
 
         report2 = await import_csv(
-            db_session, tenant.id, csv2, doc_identifier=doc_ident,
+            db_session,
+            tenant.id,
+            csv2,
+            doc_identifier=doc_ident,
         )
         await db_session.flush()
 
@@ -702,9 +639,7 @@ class TestMetadataDocumentFields:
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID(report.document_identifier)
-            )
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID(report.document_identifier))
         )
         doc = result.scalar_one()
         assert doc.title == "Full Meta"
@@ -722,26 +657,20 @@ class TestMetadataDocumentFields:
         assert len(doc.subject_uri) == 2
 
     async def test_cli_title_overrides_metadata(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Meta Title\n"
-            "Identifier,fullStatement\n"
-            ",Item\n"
-        ).encode("utf-8")
+        csv = ("#title,Meta Title\nIdentifier,fullStatement\n,Item\n").encode("utf-8")
 
         report = await import_csv(
-            db_session, tenant.id, csv, doc_title="CLI Title",
+            db_session,
+            tenant.id,
+            csv,
+            doc_title="CLI Title",
         )
         await db_session.flush()
 
         assert report.document_title == "CLI Title"
 
     async def test_invalid_status_date_warning(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,Bad Date\n"
-            "#status_start_date,not-a-date\n"
-            "Identifier,fullStatement\n"
-            ",Item\n"
-        ).encode("utf-8")
+        csv = ("#title,Bad Date\n#status_start_date,not-a-date\nIdentifier,fullStatement\n,Item\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -749,19 +678,14 @@ class TestMetadataDocumentFields:
         assert any("#status_start_date" in w for w in report.warnings)
 
         result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID(report.document_identifier)
-            )
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID(report.document_identifier))
         )
         doc = result.scalar_one()
         assert doc.status_start_date is None
 
     async def test_language_exceeds_limit(self, db_session: AsyncSession, tenant: Tenant):
         csv = (
-            "#title,Lang Test\n"
-            "#language,this-is-way-too-long-for-language\n"
-            "Identifier,fullStatement\n"
-            ",Item\n"
+            "#title,Lang Test\n#language,this-is-way-too-long-for-language\nIdentifier,fullStatement\n,Item\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -770,9 +694,7 @@ class TestMetadataDocumentFields:
         assert any("#language" in w for w in report.warnings)
 
         result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID(report.document_identifier)
-            )
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID(report.document_identifier))
         )
         doc = result.scalar_one()
         assert doc.language is None
@@ -781,11 +703,7 @@ class TestMetadataDocumentFields:
 class TestLookupReuse:
     async def test_item_type_reused_across_rows(self, db_session: AsyncSession, tenant: Tenant):
         csv = (
-            "#title,Reuse Test\n"
-            "Identifier,fullStatement,CFItemType\n"
-            ",Item 1,知識\n"
-            ",Item 2,知識\n"
-            ",Item 3,技能\n"
+            "#title,Reuse Test\nIdentifier,fullStatement,CFItemType\n,Item 1,知識\n,Item 2,知識\n,Item 3,技能\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -794,12 +712,7 @@ class TestLookupReuse:
         assert report.item_types_created == 2  # 知識, 技能
 
     async def test_license_shared_between_doc_and_item(self, db_session: AsyncSession, tenant: Tenant):
-        csv = (
-            "#title,License Share\n"
-            "#license,MIT\n"
-            "Identifier,fullStatement,license\n"
-            ",Item 1,MIT\n"
-        ).encode("utf-8")
+        csv = ("#title,License Share\n#license,MIT\nIdentifier,fullStatement,license\n,Item 1,MIT\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -809,14 +722,10 @@ class TestLookupReuse:
 
         # Verify both doc and item point to same license
         result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID(report.document_identifier)
-            )
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID(report.document_identifier))
         )
         doc = result.scalar_one()
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.full_statement == "Item 1")
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.full_statement == "Item 1"))
         item = result.scalar_one()
         assert doc.cf_license_id == item.cf_license_id
 
@@ -833,11 +742,7 @@ class TestLookupReuse:
         db_session.add(pre)
         await db_session.flush()
 
-        csv = (
-            "#title,Pre Existing\n"
-            "Identifier,fullStatement,CFItemType\n"
-            ",Item 1,既存タイプ\n"
-        ).encode("utf-8")
+        csv = ("#title,Pre Existing\nIdentifier,fullStatement,CFItemType\n,Item 1,既存タイプ\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -846,8 +751,6 @@ class TestLookupReuse:
         assert report.item_types_existing == 1
 
         # Verify FK points to pre-existing record
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.full_statement == "Item 1")
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.full_statement == "Item 1"))
         item = result.scalar_one()
         assert item.cf_item_type_id == pre.id

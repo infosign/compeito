@@ -2,10 +2,16 @@
 
 See docs/import-logic.md "外部CASEソースインポート" section for the full specification.
 """
+
 from __future__ import annotations
 
 import math
 import uuid
+
+# ---------------------------------------------------------------------------
+# Import report
+# ---------------------------------------------------------------------------
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
 import httpx
@@ -19,15 +25,11 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
+from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 from src.services.csv_import_service import _calculate_depths
-
-
-# ---------------------------------------------------------------------------
-# Import report
-# ---------------------------------------------------------------------------
-
-from dataclasses import dataclass, field
 
 
 @dataclass
@@ -60,6 +62,9 @@ class CaseImportReport:
     groupings_updated: int = 0
     groupings_existing: int = 0
     groupings_skipped: int = 0
+    rubrics_created: int = 0
+    rubrics_updated: int = 0
+    rubrics_skipped: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -68,9 +73,16 @@ class CaseImportReport:
 # ---------------------------------------------------------------------------
 
 VALID_ASSOCIATION_TYPES = {
-    "isChildOf", "isPeerOf", "isPartOf", "exactMatchOf",
-    "precedes", "isRelatedTo", "replacedBy", "exemplar",
-    "hasSkillLevel", "isTranslationOf",
+    "isChildOf",
+    "isPeerOf",
+    "isPartOf",
+    "exactMatchOf",
+    "precedes",
+    "isRelatedTo",
+    "replacedBy",
+    "exemplar",
+    "hasSkillLevel",
+    "isTranslationOf",
 }
 
 HTTP_TIMEOUT = 30.0
@@ -80,6 +92,7 @@ MAX_REDIRECTS = 5
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _is_valid_uuid(s: str) -> bool:
     try:
@@ -107,7 +120,10 @@ def _parse_datetime(val: str | None, now: datetime) -> datetime:
 
 
 def _parse_datetime_with_warning(
-    val: str | None, now: datetime, context: str, warnings: list[str],
+    val: str | None,
+    now: datetime,
+    context: str,
+    warnings: list[str],
 ) -> datetime:
     if not val:
         return now
@@ -131,7 +147,10 @@ def _parse_date(val: str | None) -> date | None:
 
 
 def _parse_date_with_warning(
-    val: str | None, field_name: str, context: str, warnings: list[str],
+    val: str | None,
+    field_name: str,
+    context: str,
+    warnings: list[str],
 ) -> date | None:
     if not val:
         return None
@@ -142,7 +161,9 @@ def _parse_date_with_warning(
 
 
 def _parse_sequence_number(
-    val, context: str, warnings: list[str],
+    val,
+    context: str,
+    warnings: list[str],
 ) -> int | None:
     """Parse sequence number from external data (may be int, float, or string)."""
     if val is None:
@@ -168,7 +189,9 @@ def _parse_sequence_number(
 
 
 def _validate_language(
-    val: str | None, context: str, warnings: list[str],
+    val: str | None,
+    context: str,
+    warnings: list[str],
 ) -> str | None:
     if not val:
         return val
@@ -181,6 +204,7 @@ def _validate_language(
 # ---------------------------------------------------------------------------
 # HTTP fetch
 # ---------------------------------------------------------------------------
+
 
 async def _fetch_json(client: httpx.AsyncClient, url: str) -> dict:
     """Fetch JSON from URL with error handling per spec."""
@@ -239,8 +263,7 @@ async def fetch_cf_package(url: str) -> tuple[dict, list[str]]:
             if len(doc_list) > 1:
                 first_ident = doc_list[0].get("identifier", "unknown")
                 warnings.append(
-                    f"Remote server has {len(doc_list)} documents. "
-                    f"Importing first document '{first_ident}'"
+                    f"Remote server has {len(doc_list)} documents. Importing first document '{first_ident}'"
                 )
 
             doc_ident = doc_list[0].get("identifier")
@@ -254,8 +277,60 @@ async def fetch_cf_package(url: str) -> tuple[dict, list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# v1.0 → v1.1 normalization
+# ---------------------------------------------------------------------------
+
+
+def _is_v1p0(data: dict, url: str) -> bool:
+    """Detect whether the CFPackage data is from a CASE v1.0 source."""
+    if "v1p0" in url:
+        return True
+    # v1.0 has CFDocument at root without CFPackage wrapper, and no caseVersion
+    if "CFDocument" in data and "CFPackage" not in data:
+        cf_doc = data.get("CFDocument")
+        if isinstance(cf_doc, dict) and not cf_doc.get("caseVersion"):
+            return True
+    return False
+
+
+def _normalize_v1p0_package(data: dict, url: str, warnings: list[str]) -> dict:
+    """Normalize a CASE v1.0 CFPackage response to v1.1-compatible format.
+
+    Structural difference (no CFPackage wrapper) is handled by _validate_cf_package.
+    This function handles field-level differences:
+    - conceptKeywordsURI: array → single object (some v1.0 implementations)
+    """
+    if not _is_v1p0(data, url):
+        return data
+
+    warnings.append("Detected CASE v1.0 response, normalizing to v1.1 format")
+
+    # Normalize CFItems
+    pkg = data.get("CFPackage", data)
+    items = pkg.get("CFItems", []) or []
+    for item in items:
+        _normalize_concept_keywords_uri(item, warnings)
+
+    return data
+
+
+def _normalize_concept_keywords_uri(item: dict, warnings: list[str]) -> None:
+    """Convert conceptKeywordsURI from array to single object if needed."""
+    val = item.get("conceptKeywordsURI")
+    if isinstance(val, list):
+        if len(val) == 0:
+            item["conceptKeywordsURI"] = None
+        else:
+            if len(val) > 1:
+                ident = item.get("identifier", "unknown")
+                warnings.append(f"CFItem '{ident}': conceptKeywordsURI has {len(val)} elements, using first")
+            item["conceptKeywordsURI"] = val[0]
+
+
+# ---------------------------------------------------------------------------
 # CFPackage validation
 # ---------------------------------------------------------------------------
+
 
 def _validate_cf_package(data: dict) -> dict:
     """Validate CFPackage structure. Returns the CFPackage dict.
@@ -275,15 +350,11 @@ def _validate_cf_package(data: dict) -> dict:
 
     ident = cf_doc.get("identifier")
     if not ident or not _is_valid_uuid(str(ident)):
-        raise ValueError(
-            f"Invalid CFPackage response: CFDocument.identifier is missing or not a valid UUID"
-        )
+        raise ValueError("Invalid CFPackage response: CFDocument.identifier is missing or not a valid UUID")
 
     title = cf_doc.get("title", "")
     if not isinstance(title, str) or not title.strip():
-        raise ValueError(
-            "Invalid CFPackage response: CFDocument.title is missing or empty"
-        )
+        raise ValueError("Invalid CFPackage response: CFDocument.title is missing or empty")
 
     return pkg
 
@@ -291,6 +362,7 @@ def _validate_cf_package(data: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Definition upsert helpers
 # ---------------------------------------------------------------------------
+
 
 def _has_changes(existing, field_map: dict) -> bool:
     """Check if any field in field_map differs from existing ORM object."""
@@ -318,27 +390,23 @@ async def _upsert_definition(
     if not ident_str:
         getattr(report, f"{_def_counter_prefix(resource_type)}_skipped", None)
         _inc_skipped(report, resource_type)
-        report.warnings.append(
-            f"Skipped {resource_type}: missing identifier. identifier='None'"
-        )
+        report.warnings.append(f"Skipped {resource_type}: missing identifier. identifier='None'")
         return
     if not _is_valid_uuid(str(ident_str)):
         _inc_skipped(report, resource_type)
-        report.warnings.append(
-            f"Skipped {resource_type}: identifier is not a valid UUID. identifier='{ident_str}'"
-        )
+        report.warnings.append(f"Skipped {resource_type}: identifier is not a valid UUID. identifier='{ident_str}'")
         return
     if not title:
         _inc_skipped(report, resource_type)
-        report.warnings.append(
-            f"Skipped {resource_type}: missing title. identifier='{ident_str}'"
-        )
+        report.warnings.append(f"Skipped {resource_type}: missing title. identifier='{ident_str}'")
         return
 
     ident_uuid = uuid.UUID(str(ident_str))
     ldt = _parse_datetime_with_warning(
-        data.get("lastChangeDateTime"), now,
-        f"{resource_type} '{ident_str}'", report.warnings,
+        data.get("lastChangeDateTime"),
+        now,
+        f"{resource_type} '{ident_str}'",
+        report.warnings,
     )
 
     # Common fields
@@ -443,6 +511,7 @@ def _inc_skipped(report: CaseImportReport, rt: str):
 # FK resolution helpers
 # ---------------------------------------------------------------------------
 
+
 async def _resolve_fk_by_identifier(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -469,6 +538,7 @@ async def _resolve_fk_by_identifier(
 # Main import function
 # ---------------------------------------------------------------------------
 
+
 async def import_case_package(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -494,6 +564,9 @@ async def import_case_package(
     data, fetch_warnings = await fetch_cf_package(url)
     report.warnings.extend(fetch_warnings)
 
+    # Step 1.5: Normalize v1.0 → v1.1
+    data = _normalize_v1p0_package(data, url, report.warnings)
+
     # Step 2: Validate
     pkg = _validate_cf_package(data)
     cf_doc_data = pkg["CFDocument"]
@@ -505,10 +578,12 @@ async def import_case_package(
     if doc_identifier is not None:
         # --doc specified
         result = await session.execute(
-            select(CFDocument).where(
+            select(CFDocument)
+            .where(
                 CFDocument.tenant_id == tenant_id,
                 CFDocument.identifier == doc_identifier,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         doc = result.scalar_one_or_none()
         if doc is None:
@@ -517,10 +592,12 @@ async def import_case_package(
     else:
         # Search by external identifier
         result = await session.execute(
-            select(CFDocument).where(
+            select(CFDocument)
+            .where(
                 CFDocument.tenant_id == tenant_id,
                 CFDocument.identifier == ext_ident,
-            ).with_for_update()
+            )
+            .with_for_update()
         )
         doc = result.scalar_one_or_none()
         if doc is not None:
@@ -542,9 +619,7 @@ async def import_case_package(
             if fk is not None:
                 doc.cf_license_id = fk
             else:
-                report.warnings.append(
-                    f"CFDocument '{ext_ident}': CFLicense '{lic_ident}' not found, set to null"
-                )
+                report.warnings.append(f"CFDocument '{ext_ident}': CFLicense '{lic_ident}' not found, set to null")
                 if not is_update:
                     doc.cf_license_id = None
 
@@ -574,6 +649,11 @@ async def import_case_package(
     await _import_associations(session, tenant_id, doc, cf_assocs, now, report)
     await session.flush()
 
+    # Step 6.5: CFRubrics
+    cf_rubrics = pkg.get("CFRubrics", []) or []
+    await _import_rubrics(session, tenant_id, doc, cf_rubrics, now, report)
+    await session.flush()
+
     # Step 7: Depth calculation
     result = await session.execute(
         select(CFAssociation).where(
@@ -583,9 +663,7 @@ async def import_case_package(
     )
     all_assocs = list(result.scalars().all())
 
-    result = await session.execute(
-        select(CFItem).where(CFItem.cf_document_id == doc.id)
-    )
+    result = await session.execute(select(CFItem).where(CFItem.cf_document_id == doc.id))
     all_items = list(result.scalars().all())
 
     _calculate_depths(doc, all_items, all_assocs, report.warnings)
@@ -598,21 +676,34 @@ async def import_case_package(
 # CFDocument create/update
 # ---------------------------------------------------------------------------
 
+
 def _create_document(
-    tenant_id: uuid.UUID, data: dict, now: datetime, report: CaseImportReport,
+    tenant_id: uuid.UUID,
+    data: dict,
+    now: datetime,
+    report: CaseImportReport,
 ) -> CFDocument:
     ident = uuid.UUID(str(data["identifier"]))
     warnings = report.warnings
 
     lang = _validate_language(data.get("language"), "CFDocument", warnings)
     ssd = _parse_date_with_warning(
-        data.get("statusStartDate"), "statusStartDate", "CFDocument", warnings,
+        data.get("statusStartDate"),
+        "statusStartDate",
+        "CFDocument",
+        warnings,
     )
     sed = _parse_date_with_warning(
-        data.get("statusEndDate"), "statusEndDate", "CFDocument", warnings,
+        data.get("statusEndDate"),
+        "statusEndDate",
+        "CFDocument",
+        warnings,
     )
     ldt = _parse_datetime_with_warning(
-        data.get("lastChangeDateTime"), now, "CFDocument", warnings,
+        data.get("lastChangeDateTime"),
+        now,
+        "CFDocument",
+        warnings,
     )
 
     return CFDocument(
@@ -639,7 +730,10 @@ def _create_document(
 
 
 def _update_document(
-    doc: CFDocument, data: dict, now: datetime, report: CaseImportReport,
+    doc: CFDocument,
+    data: dict,
+    now: datetime,
+    report: CaseImportReport,
 ) -> None:
     warnings = report.warnings
 
@@ -668,11 +762,17 @@ def _update_document(
 
     if data.get("statusStartDate") is not None:
         doc.status_start_date = _parse_date_with_warning(
-            data["statusStartDate"], "statusStartDate", "CFDocument", warnings,
+            data["statusStartDate"],
+            "statusStartDate",
+            "CFDocument",
+            warnings,
         )
     if data.get("statusEndDate") is not None:
         doc.status_end_date = _parse_date_with_warning(
-            data["statusEndDate"], "statusEndDate", "CFDocument", warnings,
+            data["statusEndDate"],
+            "statusEndDate",
+            "CFDocument",
+            warnings,
         )
 
     if data.get("officialSourceURL") is not None:
@@ -683,7 +783,10 @@ def _update_document(
         doc.subject_uri = data["subjectURI"]
 
     ldt = _parse_datetime_with_warning(
-        data.get("lastChangeDateTime"), now, "CFDocument", warnings,
+        data.get("lastChangeDateTime"),
+        now,
+        "CFDocument",
+        warnings,
     )
     doc.last_change_date_time = ldt
 
@@ -691,6 +794,7 @@ def _update_document(
 # ---------------------------------------------------------------------------
 # CFDefinitions import
 # ---------------------------------------------------------------------------
+
 
 async def _import_definitions(
     session: AsyncSession,
@@ -700,9 +804,15 @@ async def _import_definitions(
     report: CaseImportReport,
 ) -> None:
     # CFItemTypes
-    for item in (cf_defs.get("CFItemTypes") or []):
+    for item in cf_defs.get("CFItemTypes") or []:
         await _upsert_definition(
-            session, tenant_id, CFItemType, "CFItemType", item, now, report,
+            session,
+            tenant_id,
+            CFItemType,
+            "CFItemType",
+            item,
+            now,
+            report,
             extra_fields={
                 "type_code": item.get("typeCode"),
                 "hierarchy_code": item.get("hierarchyCode"),
@@ -710,16 +820,28 @@ async def _import_definitions(
         )
 
     # CFSubjects
-    for item in (cf_defs.get("CFSubjects") or []):
+    for item in cf_defs.get("CFSubjects") or []:
         await _upsert_definition(
-            session, tenant_id, CFSubject, "CFSubject", item, now, report,
+            session,
+            tenant_id,
+            CFSubject,
+            "CFSubject",
+            item,
+            now,
+            report,
             extra_fields={"hierarchy_code": item.get("hierarchyCode")},
         )
 
     # CFConcepts
-    for item in (cf_defs.get("CFConcepts") or []):
+    for item in cf_defs.get("CFConcepts") or []:
         await _upsert_definition(
-            session, tenant_id, CFConcept, "CFConcept", item, now, report,
+            session,
+            tenant_id,
+            CFConcept,
+            "CFConcept",
+            item,
+            now,
+            report,
             extra_fields={
                 "keywords": item.get("keywords"),
                 "hierarchy_code": item.get("hierarchyCode"),
@@ -727,23 +849,35 @@ async def _import_definitions(
         )
 
     # CFLicenses
-    for item in (cf_defs.get("CFLicenses") or []):
+    for item in cf_defs.get("CFLicenses") or []:
         await _upsert_definition(
-            session, tenant_id, CFLicense, "CFLicense", item, now, report,
+            session,
+            tenant_id,
+            CFLicense,
+            "CFLicense",
+            item,
+            now,
+            report,
             extra_fields={"license_text": item.get("licenseText")},
         )
 
     # CFAssociationGroupings
-    for item in (cf_defs.get("CFAssociationGroupings") or []):
+    for item in cf_defs.get("CFAssociationGroupings") or []:
         await _upsert_definition(
-            session, tenant_id, CFAssociationGrouping, "CFAssociationGrouping",
-            item, now, report,
+            session,
+            tenant_id,
+            CFAssociationGrouping,
+            "CFAssociationGrouping",
+            item,
+            now,
+            report,
         )
 
 
 # ---------------------------------------------------------------------------
 # CFItems import
 # ---------------------------------------------------------------------------
+
 
 async def _import_items(
     session: AsyncSession,
@@ -760,23 +894,17 @@ async def _import_items(
         # Validation
         if not ident_str:
             report.items_skipped += 1
-            report.warnings.append(
-                f"Skipped CFItem: missing identifier. identifier='None'"
-            )
+            report.warnings.append("Skipped CFItem: missing identifier. identifier='None'")
             continue
         if not _is_valid_uuid(str(ident_str)):
             report.items_skipped += 1
-            report.warnings.append(
-                f"Skipped CFItem: identifier is not a valid UUID. identifier='{ident_str}'"
-            )
+            report.warnings.append(f"Skipped CFItem: identifier is not a valid UUID. identifier='{ident_str}'")
             continue
 
         fs = str(fs_raw).strip() if fs_raw else ""
         if not fs:
             report.items_skipped += 1
-            report.warnings.append(
-                f"Skipped CFItem: fullStatement is empty. identifier='{ident_str}'"
-            )
+            report.warnings.append(f"Skipped CFItem: fullStatement is empty. identifier='{ident_str}'")
             continue
 
         ident_uuid = uuid.UUID(str(ident_str))
@@ -799,12 +927,13 @@ async def _import_items(
             type_ident = item_type_uri.get("identifier")
             if type_ident:
                 item_type_id = await _resolve_fk_by_identifier(
-                    session, tenant_id, CFItemType, type_ident,
+                    session,
+                    tenant_id,
+                    CFItemType,
+                    type_ident,
                 )
                 if item_type_id is None:
-                    report.warnings.append(
-                        f"{ctx}: CFItemType '{type_ident}' not found, set to null"
-                    )
+                    report.warnings.append(f"{ctx}: CFItemType '{type_ident}' not found, set to null")
 
         # CFConcept
         concept_id: uuid.UUID | None = None
@@ -813,12 +942,13 @@ async def _import_items(
             concept_ident = concept_uri.get("identifier")
             if concept_ident:
                 concept_id = await _resolve_fk_by_identifier(
-                    session, tenant_id, CFConcept, concept_ident,
+                    session,
+                    tenant_id,
+                    CFConcept,
+                    concept_ident,
                 )
                 if concept_id is None:
-                    report.warnings.append(
-                        f"{ctx}: CFConcept '{concept_ident}' not found, set to null"
-                    )
+                    report.warnings.append(f"{ctx}: CFConcept '{concept_ident}' not found, set to null")
 
         # CFLicense
         license_id: uuid.UUID | None = None
@@ -827,22 +957,32 @@ async def _import_items(
             lic_ident = license_uri.get("identifier")
             if lic_ident:
                 license_id = await _resolve_fk_by_identifier(
-                    session, tenant_id, CFLicense, lic_ident,
+                    session,
+                    tenant_id,
+                    CFLicense,
+                    lic_ident,
                 )
                 if license_id is None:
-                    report.warnings.append(
-                        f"{ctx}: CFLicense '{lic_ident}' not found, set to null"
-                    )
+                    report.warnings.append(f"{ctx}: CFLicense '{lic_ident}' not found, set to null")
 
         lang = _validate_language(item_data.get("language"), ctx, report.warnings)
         ssd = _parse_date_with_warning(
-            item_data.get("statusStartDate"), "statusStartDate", ctx, report.warnings,
+            item_data.get("statusStartDate"),
+            "statusStartDate",
+            ctx,
+            report.warnings,
         )
         sed = _parse_date_with_warning(
-            item_data.get("statusEndDate"), "statusEndDate", ctx, report.warnings,
+            item_data.get("statusEndDate"),
+            "statusEndDate",
+            ctx,
+            report.warnings,
         )
         ldt = _parse_datetime_with_warning(
-            item_data.get("lastChangeDateTime"), now, ctx, report.warnings,
+            item_data.get("lastChangeDateTime"),
+            now,
+            ctx,
+            report.warnings,
         )
 
         if existing is not None:
@@ -850,9 +990,7 @@ async def _import_items(
             if existing.cf_document_id != doc.id:
                 old_doc = await session.get(CFDocument, existing.cf_document_id)
                 old_ident = str(old_doc.identifier) if old_doc else "unknown"
-                report.warnings.append(
-                    f"Item '{ident_str}' moved from document '{old_ident}' to current document"
-                )
+                report.warnings.append(f"Item '{ident_str}' moved from document '{old_ident}' to current document")
             existing.cf_document_id = doc.id
             # uri preserved
             if fs:
@@ -920,6 +1058,7 @@ async def _import_items(
 # CFAssociations import
 # ---------------------------------------------------------------------------
 
+
 async def _import_associations(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -935,9 +1074,7 @@ async def _import_associations(
         skip_reason = _validate_association(assoc_data)
         if skip_reason:
             report.associations_skipped += 1
-            report.warnings.append(
-                f"Skipped CFAssociation: {skip_reason}. identifier='{ident_str or 'None'}'"
-            )
+            report.warnings.append(f"Skipped CFAssociation: {skip_reason}. identifier='{ident_str or 'None'}'")
             continue
 
         ident_uuid = uuid.UUID(str(ident_str))
@@ -947,10 +1084,15 @@ async def _import_associations(
         dest = assoc_data["destinationNodeURI"]
 
         seq = _parse_sequence_number(
-            assoc_data.get("sequenceNumber"), ctx, report.warnings,
+            assoc_data.get("sequenceNumber"),
+            ctx,
+            report.warnings,
         )
         ldt = _parse_datetime_with_warning(
-            assoc_data.get("lastChangeDateTime"), now, ctx, report.warnings,
+            assoc_data.get("lastChangeDateTime"),
+            now,
+            ctx,
+            report.warnings,
         )
 
         # Resolve CFAssociationGrouping FK
@@ -960,12 +1102,13 @@ async def _import_associations(
             grp_ident = grouping_uri.get("identifier")
             if grp_ident:
                 grouping_id = await _resolve_fk_by_identifier(
-                    session, tenant_id, CFAssociationGrouping, grp_ident,
+                    session,
+                    tenant_id,
+                    CFAssociationGrouping,
+                    grp_ident,
                 )
                 if grouping_id is None:
-                    report.warnings.append(
-                        f"{ctx}: CFAssociationGrouping '{grp_ident}' not found, set to null"
-                    )
+                    report.warnings.append(f"{ctx}: CFAssociationGrouping '{grp_ident}' not found, set to null")
 
         # Check existing
         result = await session.execute(
@@ -1056,3 +1199,246 @@ def _validate_association(data: dict) -> str | None:
         return "missing destinationNodeURI.uri"
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# CFRubrics import
+# ---------------------------------------------------------------------------
+
+
+async def _import_rubrics(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc: CFDocument,
+    rubrics_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for rubric_data in rubrics_data:
+        ident_str = rubric_data.get("identifier")
+
+        # Validation
+        if not ident_str:
+            report.rubrics_skipped += 1
+            report.warnings.append("Skipped CFRubric: missing identifier. identifier='None'")
+            continue
+        if not _is_valid_uuid(str(ident_str)):
+            report.rubrics_skipped += 1
+            report.warnings.append(f"Skipped CFRubric: identifier is not a valid UUID. identifier='{ident_str}'")
+            continue
+
+        ident_uuid = uuid.UUID(str(ident_str))
+        ctx = f"CFRubric '{ident_str}'"
+
+        ldt = _parse_datetime_with_warning(
+            rubric_data.get("lastChangeDateTime"),
+            now,
+            ctx,
+            report.warnings,
+        )
+
+        # Check existing rubric (tenant-wide by identifier)
+        result = await session.execute(
+            select(CFRubric).where(
+                CFRubric.tenant_id == tenant_id,
+                CFRubric.identifier == ident_uuid,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing is not None:
+            existing.cf_document_id = doc.id
+            if rubric_data.get("title") is not None:
+                existing.title = rubric_data["title"]
+            if rubric_data.get("description") is not None:
+                existing.description = rubric_data["description"]
+            existing.last_change_date_time = ldt
+            rubric = existing
+            report.rubrics_updated += 1
+        else:
+            rubric = CFRubric(
+                id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                cf_document_id=doc.id,
+                identifier=ident_uuid,
+                uri=rubric_data.get("uri", f"urn:missing:{ident_uuid}"),
+                title=rubric_data.get("title"),
+                description=rubric_data.get("description"),
+                last_change_date_time=ldt,
+            )
+            session.add(rubric)
+            report.rubrics_created += 1
+
+        await session.flush()
+
+        # Import criteria
+        criteria_data = rubric_data.get("CFRubricCriteria", []) or []
+        await _import_rubric_criteria(session, tenant_id, rubric, criteria_data, now, report)
+
+
+async def _import_rubric_criteria(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    rubric: CFRubric,
+    criteria_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for crit_data in criteria_data:
+        crit_ident_str = crit_data.get("identifier")
+
+        if not crit_ident_str:
+            report.warnings.append(f"Skipped CFRubricCriterion: missing identifier (rubric '{rubric.identifier}')")
+            continue
+        if not _is_valid_uuid(str(crit_ident_str)):
+            report.warnings.append(
+                f"Skipped CFRubricCriterion: identifier is not a valid UUID. identifier='{crit_ident_str}'"
+            )
+            continue
+
+        crit_ident_uuid = uuid.UUID(str(crit_ident_str))
+
+        crit_ldt = _parse_datetime_with_warning(
+            crit_data.get("lastChangeDateTime"),
+            now,
+            f"CFRubricCriterion '{crit_ident_str}'",
+            report.warnings,
+        )
+
+        # Resolve CFItemURI FK
+        cf_item_id: uuid.UUID | None = None
+        cf_item_uri = crit_data.get("CFItemURI")
+        if cf_item_uri and isinstance(cf_item_uri, dict):
+            item_ident = cf_item_uri.get("identifier")
+            if item_ident:
+                cf_item_id = await _resolve_fk_by_identifier(session, tenant_id, CFItem, item_ident)
+                if cf_item_id is None:
+                    report.warnings.append(
+                        f"CFRubricCriterion '{crit_ident_str}': CFItem '{item_ident}' not found, set to null"
+                    )
+
+        # Parse rubricId
+        rubric_id_str = crit_data.get("rubricId")
+        rubric_id_val = uuid.UUID(str(rubric_id_str)) if rubric_id_str and _is_valid_uuid(str(rubric_id_str)) else None
+
+        # Check existing criterion
+        result = await session.execute(
+            select(CFRubricCriterion).where(
+                CFRubricCriterion.identifier == crit_ident_uuid,
+            )
+        )
+        existing_crit = result.scalar_one_or_none()
+
+        if existing_crit is not None:
+            existing_crit.cf_rubric_id = rubric.id
+            if crit_data.get("category") is not None:
+                existing_crit.category = crit_data["category"]
+            if crit_data.get("description") is not None:
+                existing_crit.description = crit_data["description"]
+            if crit_data.get("weight") is not None:
+                existing_crit.weight = crit_data["weight"]
+            if crit_data.get("position") is not None:
+                existing_crit.position = crit_data["position"]
+            if cf_item_uri:
+                existing_crit.cf_item_id = cf_item_id
+            if rubric_id_val is not None:
+                existing_crit.rubric_id = rubric_id_val
+            existing_crit.last_change_date_time = crit_ldt
+            criterion = existing_crit
+        else:
+            criterion = CFRubricCriterion(
+                id=uuid.uuid4(),
+                cf_rubric_id=rubric.id,
+                identifier=crit_ident_uuid,
+                uri=crit_data.get("uri", f"urn:missing:{crit_ident_uuid}"),
+                cf_item_id=cf_item_id,
+                rubric_id=rubric_id_val,
+                category=crit_data.get("category"),
+                description=crit_data.get("description"),
+                weight=crit_data.get("weight"),
+                position=crit_data.get("position"),
+                last_change_date_time=crit_ldt,
+            )
+            session.add(criterion)
+
+        await session.flush()
+
+        # Import levels
+        levels_data = crit_data.get("CFRubricCriterionLevels", []) or []
+        await _import_rubric_criterion_levels(session, criterion, levels_data, now, report)
+
+
+async def _import_rubric_criterion_levels(
+    session: AsyncSession,
+    criterion: CFRubricCriterion,
+    levels_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for level_data in levels_data:
+        level_ident_str = level_data.get("identifier")
+
+        if not level_ident_str:
+            report.warnings.append(
+                f"Skipped CFRubricCriterionLevel: missing identifier (criterion '{criterion.identifier}')"
+            )
+            continue
+        if not _is_valid_uuid(str(level_ident_str)):
+            report.warnings.append(
+                f"Skipped CFRubricCriterionLevel: identifier is not a valid UUID. identifier='{level_ident_str}'"
+            )
+            continue
+
+        level_ident_uuid = uuid.UUID(str(level_ident_str))
+
+        level_ldt = _parse_datetime_with_warning(
+            level_data.get("lastChangeDateTime"),
+            now,
+            f"CFRubricCriterionLevel '{level_ident_str}'",
+            report.warnings,
+        )
+
+        # Parse rubricCriterionId
+        rc_id_str = level_data.get("rubricCriterionId")
+        rc_id_val = uuid.UUID(str(rc_id_str)) if rc_id_str and _is_valid_uuid(str(rc_id_str)) else None
+
+        # Check existing level
+        result = await session.execute(
+            select(CFRubricCriterionLevel).where(
+                CFRubricCriterionLevel.identifier == level_ident_uuid,
+            )
+        )
+        existing_level = result.scalar_one_or_none()
+
+        if existing_level is not None:
+            existing_level.cf_rubric_criterion_id = criterion.id
+            if level_data.get("description") is not None:
+                existing_level.description = level_data["description"]
+            if level_data.get("quality") is not None:
+                existing_level.quality = level_data["quality"]
+            if level_data.get("score") is not None:
+                existing_level.score = level_data["score"]
+            if level_data.get("feedback") is not None:
+                existing_level.feedback = level_data["feedback"]
+            if level_data.get("position") is not None:
+                existing_level.position = level_data["position"]
+            if rc_id_val is not None:
+                existing_level.rubric_criterion_id = rc_id_val
+            existing_level.last_change_date_time = level_ldt
+        else:
+            level = CFRubricCriterionLevel(
+                id=uuid.uuid4(),
+                cf_rubric_criterion_id=criterion.id,
+                rubric_criterion_id=rc_id_val,
+                identifier=level_ident_uuid,
+                uri=level_data.get("uri", f"urn:missing:{level_ident_uuid}"),
+                description=level_data.get("description"),
+                quality=level_data.get("quality"),
+                score=level_data.get("score"),
+                feedback=level_data.get("feedback"),
+                position=level_data.get("position"),
+                last_change_date_time=level_ldt,
+            )
+            session.add(level)
+
+        await session.flush()
