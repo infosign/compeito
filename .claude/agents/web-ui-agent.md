@@ -13,11 +13,11 @@ Web UI（Jinja2 テンプレート + HTMX）の専門エージェント。ツリ
 
 | ファイル | 内容 |
 |---------|------|
-| `docs/web-ui.md` | パス設計・各ページ仕様・表示フィールド・URI生成ルール |
-| `docs/api-spec.md` | LinkURI型・エラー形式 |
-| `docs/architecture.md` | Cache-Control ポリシー |
+| `docs/spec/web-ui.md` | パス設計・各ページ仕様・表示フィールド・URI生成ルール |
+| `docs/spec/api-spec.md` | LinkURI型・エラー形式 |
+| `docs/spec/architecture.md` | Cache-Control ポリシー |
 
-**必ず `docs/web-ui.md` を読んでから実装すること。**
+**必ず `docs/spec/web-ui.md` を読んでから実装すること。**
 
 ## ページ一覧
 
@@ -108,7 +108,7 @@ Web UI（Jinja2 テンプレート + HTMX）の専門エージェント。ツリ
 `/{tenant}/uri/{uuid}` で CFItem, CFDocument, CFAssociation, lookup リソースの詳細を表示。
 Open Badge Factory 等の外部システムからリンクされる公開ページ。
 
-リソース種別を判定して適切な表示を行う（`docs/web-ui.md` の表示フィールド仕様を参照）。
+リソース種別を判定して適切な表示を行う（`docs/spec/web-ui.md` の表示フィールド仕様を参照）。
 
 **CFDocument 表示フィールド**:
 title, creator, publisher, description, subject, subjectURI, language, version,
@@ -232,7 +232,7 @@ class CFViewService:
 
 ## 作業手順
 
-1. `docs/web-ui.md` を読んで仕様を把握する
+1. `docs/spec/web-ui.md` を読んで仕様を把握する
 2. `src/templates/base.html` → 共通レイアウト実装
 3. `src/routers/index.py` + `src/templates/index.html` → テナント一覧
 4. `src/routers/web.py` + `src/templates/tenant.html` → フレームワーク一覧

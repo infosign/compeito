@@ -1,6 +1,6 @@
 """CSV Export Service — exports a CFDocument to custom or OpenSALT format CSV.
 
-See docs/csv-format.md and docs/import-logic.md (ソート順序 / エクスポート)
+See docs/spec/csv-format.md and docs/spec/import-logic.md (ソート順序 / エクスポート)
 for the full specification.
 """
 

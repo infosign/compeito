@@ -81,4 +81,4 @@ OpenSALT のエクスポートはキャメルケース（`fullStatement`）。co
 
 ### インポート時のフォーマット自動判定
 
-compeito のフォーマット自動判定は `Is Child Of` または `Is Part Of` の存在で OpenSALT 形式と判定する（[csv-format.md](../csv-format.md) 参照）。これらの列名は独自形式に存在しないため、`Identifier` 列名が共通でも区別可能。
+compeito のフォーマット自動判定は `Is Child Of` または `Is Part Of` の存在で OpenSALT 形式と判定する（[csv-format.md](../spec/csv-format.md) 参照）。これらの列名は独自形式に存在しないため、`Identifier` 列名が共通でも区別可能。

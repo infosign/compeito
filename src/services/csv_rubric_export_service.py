@@ -1,6 +1,6 @@
 """Rubric CSV Export Service — exports CFRubrics for a document to CSV.
 
-See docs/csv-format.md "Rubric CSV Format" section for the specification.
+See docs/spec/csv-format.md "Rubric CSV Format" section for the specification.
 """
 
 from __future__ import annotations

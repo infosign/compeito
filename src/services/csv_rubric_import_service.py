@@ -1,6 +1,6 @@
 """Rubric CSV Import Service — imports CFRubrics from CSV into DB.
 
-See docs/csv-format.md "Rubric CSV Format" and docs/import-logic.md for specs.
+See docs/spec/csv-format.md "Rubric CSV Format" and docs/spec/import-logic.md for specs.
 """
 
 from __future__ import annotations
