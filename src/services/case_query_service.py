@@ -14,6 +14,7 @@ from src.repositories import (
     cf_item_repository,
     cf_item_type_repository,
     cf_license_repository,
+    cf_rubric_repository,
     cf_subject_repository,
 )
 from src.schemas.cf_association import CFAssociationDType, CFPckgAssociationDType
@@ -23,6 +24,7 @@ from src.schemas.cf_document import CFDocumentDType
 from src.schemas.cf_item import CFItemDType
 from src.schemas.cf_item_type import CFItemTypeDType
 from src.schemas.cf_license import CFLicenseDType
+from src.schemas.cf_rubric import CFRubricCriterionDType, CFRubricCriterionLevelDType, CFRubricDType
 from src.schemas.cf_subject import CFSubjectDType
 from src.schemas.common import LinkGenURIDType, LinkURIType
 
@@ -395,6 +397,84 @@ async def list_cf_licenses(
 ) -> list[CFLicenseDType]:
     objs = await cf_license_repository.list_all(session, tenant_id, limit, offset)
     return [_license_to_schema(o) for o in objs]
+
+
+# --- CFRubric ---
+
+
+def _rubric_criterion_level_to_schema(level) -> CFRubricCriterionLevelDType:
+    return CFRubricCriterionLevelDType(
+        identifier=str(level.identifier),
+        uri=level.uri,
+        description=level.description,
+        quality=level.quality,
+        score=level.score,
+        feedback=level.feedback,
+        position=level.position,
+        rubricCriterionId=str(level.rubric_criterion_id) if level.rubric_criterion_id else None,
+        lastChangeDateTime=level.last_change_date_time,
+    )
+
+
+def _rubric_criterion_to_schema(criterion) -> CFRubricCriterionDType:
+    cf_item_uri = None
+    if criterion.cf_item is not None:
+        cf_item_uri = LinkURIType(
+            title=criterion.cf_item.full_statement,
+            identifier=str(criterion.cf_item.identifier),
+            uri=criterion.cf_item.uri,
+        )
+
+    levels = criterion.levels
+    cf_levels = (
+        sorted(
+            [_rubric_criterion_level_to_schema(lv) for lv in levels],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
+
+    return CFRubricCriterionDType(
+        identifier=str(criterion.identifier),
+        uri=criterion.uri,
+        category=criterion.category,
+        description=criterion.description,
+        CFItemURI=cf_item_uri,
+        weight=criterion.weight,
+        position=criterion.position,
+        rubricId=str(criterion.rubric_id) if criterion.rubric_id else None,
+        lastChangeDateTime=criterion.last_change_date_time,
+        CFRubricCriterionLevels=cf_levels,
+    )
+
+
+def rubric_to_schema(rubric) -> CFRubricDType:
+    criteria = rubric.criteria
+    cf_criteria = (
+        sorted(
+            [_rubric_criterion_to_schema(c) for c in criteria],
+            key=lambda x: x.identifier,
+        )
+        or None
+    )
+
+    return CFRubricDType(
+        identifier=str(rubric.identifier),
+        uri=rubric.uri,
+        title=rubric.title,
+        description=rubric.description,
+        lastChangeDateTime=rubric.last_change_date_time,
+        CFRubricCriteria=cf_criteria,
+    )
+
+
+async def get_cf_rubric(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
+) -> CFRubricDType | None:
+    obj = await cf_rubric_repository.get_by_identifier(session, tenant_id, identifier)
+    return rubric_to_schema(obj) if obj else None
 
 
 # --- CFAssociationGrouping ---
