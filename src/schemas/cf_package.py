@@ -9,6 +9,7 @@ from src.schemas.cf_document import CFPckgDocumentDType
 from src.schemas.cf_item import CFPckgItemDType
 from src.schemas.cf_item_type import CFItemTypeDType
 from src.schemas.cf_license import CFLicenseDType
+from src.schemas.cf_rubric import CFRubricDType
 from src.schemas.cf_subject import CFSubjectDType
 from src.schemas.common import CASEBaseSchema
 
@@ -49,6 +50,7 @@ class CFPackageDType(CASEBaseSchema):
     cf_items: list[CFPckgItemDType] = Field(alias="CFItems")
     cf_associations: list[CFPckgAssociationDType] = Field(alias="CFAssociations")
     cf_definitions: CFDefinitionsDType | None = Field(default=None, alias="CFDefinitions")
+    cf_rubrics: list[CFRubricDType] = Field(default_factory=list, alias="CFRubrics")
 
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
@@ -61,4 +63,5 @@ class CFPackageDType(CASEBaseSchema):
             definitions = self.cf_definitions.model_dump(by_alias=True)
             if definitions:
                 result["CFDefinitions"] = definitions
+        result["CFRubrics"] = [r.model_dump(by_alias=True) for r in self.cf_rubrics]
         return result
