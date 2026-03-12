@@ -9,59 +9,59 @@ CLIは `DATABASE_URL` 環境変数で PostgreSQL に直接接続する。
 
 ```bash
 # テナント管理
-python cli.py tenant create --name "Company Name" [--private]
-python cli.py tenant list
+uv run python cli.py tenant create --name "Company Name" [--private]
+uv run python cli.py tenant list
 # UUID                                  NAME        VISIBILITY  CREATED
 # 550e8400-...                          大学A        public      2025-01-01
 # 6ba7b810-...                          企業B        private     2025-02-15
 
-python cli.py tenant list --with-docs
+uv run python cli.py tenant list --with-docs
 # 550e8400-...  大学A  public
 #   ├─ d86774f2-...  高等学校学習指導要領  (1557 items)
 #   └─ a3f9c201-...  工学部コンピテンシー  (42 items)
 
 # フレームワーク(CFDocument)管理
-python cli.py doc list --tenant {tenant-uuid}
+uv run python cli.py doc list --tenant {tenant-uuid}
 # UUID                                  TITLE                     ITEMS  UPDATED
 # d86774f2-...                          高等学校学習指導要領        1557   2025-10-08
 
 # テナント更新
 # --private / --public は相互排他（同時指定はエラー終了）
-python cli.py tenant update --tenant {tenant-uuid} --name "New Name"
-python cli.py tenant update --tenant {tenant-uuid} --private
-python cli.py tenant update --tenant {tenant-uuid} --public
+uv run python cli.py tenant update --tenant {tenant-uuid} --name "New Name"
+uv run python cli.py tenant update --tenant {tenant-uuid} --private
+uv run python cli.py tenant update --tenant {tenant-uuid} --public
 
 # 削除（確認プロンプトあり、--force でスキップ）
-python cli.py tenant delete --tenant {tenant-uuid} [--force]
-python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force]
+uv run python cli.py tenant delete --tenant {tenant-uuid} [--force]
+uv run python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force]
 
 # CSVインポート (新規: --doc省略、更新: --doc指定でupsert)
 # --doc-title: CFDocumentタイトル。新規作成時はCSVの#title行があれば省略可、なければ必須。更新時は省略可（既存値を保持）
 # --doc-version: バージョン（任意、省略時は既存値を保持。新規作成時のデフォルトは NULL）
-python cli.py import csv --tenant {uuid} --file framework.csv
-python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "名称" --doc-version "1.0"
-python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
+uv run python cli.py import csv --tenant {uuid} --file framework.csv
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "名称" --doc-version "1.0"
+uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
 
 # 外部CASEソースインポート (v1.1対応、v1.0はPhase 2、upsert)
 # --url: CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
-python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
-python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
+uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
+uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）
-python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
-python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
 # --format: "custom"（デフォルト）/ "opensalt"
 #           不正な値 → エラー終了（「Invalid format: '{value}'. Valid values: custom, opensalt」）
 
 # ルーブリックCSVインポート (--doc で対象ドキュメントを指定、upsert)
-python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # ルーブリックCSVエクスポート
-python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # DBマイグレーション
-python cli.py db migrate
+uv run python cli.py db migrate
 ```
 
 ## コマンド出力形式
@@ -70,20 +70,20 @@ python cli.py db migrate
 
 ```bash
 # tenant create → 作成されたテナント情報を表示
-python cli.py tenant create --name "大学A"
+uv run python cli.py tenant create --name "大学A"
 # Created tenant: 550e8400-... (大学A, public)
 
 # tenant update → 更新後のテナント情報を表示
-python cli.py tenant update --tenant {uuid} --name "New Name"
+uv run python cli.py tenant update --tenant {uuid} --name "New Name"
 # Updated tenant: 550e8400-... (New Name, public)
 
 # tenant delete → 削除確認プロンプト → 成功メッセージ
-python cli.py tenant delete --tenant {uuid}
+uv run python cli.py tenant delete --tenant {uuid}
 # Delete tenant '大学A' (550e8400-...)? This will delete all documents and items. [y/N]: y
 # Deleted tenant: 550e8400-... (大学A)
 
 # doc delete → 削除確認プロンプト → 成功メッセージ
-python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
+uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 # Delete document '高等学校学習指導要領' (d86774f2-..., 1557 items)? [y/N]: y
 # Deleted document: d86774f2-... (高等学校学習指導要領)
 ```
