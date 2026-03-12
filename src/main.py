@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
-from mangum import Mangum
 
 from src.errors import InvalidUUIDError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
@@ -76,8 +75,3 @@ async def health() -> JSONResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# Mangum handler (AWS Lambda)
-# ---------------------------------------------------------------------------
-
-handler = Mangum(app)
