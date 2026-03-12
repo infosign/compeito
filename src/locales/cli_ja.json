@@ -64,6 +64,7 @@
     "msg_items_summary": "  アイテム: {created} 作成, {updated} 更新, {skipped} スキップ",
     "msg_assoc_summary": "  アソシエーション: {created} 作成, {updated} 更新, {skipped} スキップ",
     "msg_assoc_summary_short": "  アソシエーション: {created} 作成",
+    "msg_rubrics_summary": "  ルーブリック: {created} 作成, {updated} 更新, {skipped} スキップ",
 
     "prompt_delete_tenant": "テナント '{name}' ({id}) を削除しますか？全ドキュメントとアイテムが削除されます。[y/N]",
     "prompt_delete_document": "ドキュメント '{title}' ({id}, {count} アイテム) を削除しますか？[y/N]",

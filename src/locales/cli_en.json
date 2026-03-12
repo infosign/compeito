@@ -64,6 +64,7 @@
     "msg_items_summary": "  Items: {created} created, {updated} updated, {skipped} skipped",
     "msg_assoc_summary": "  Associations: {created} created, {updated} updated, {skipped} skipped",
     "msg_assoc_summary_short": "  Associations: {created} created",
+    "msg_rubrics_summary": "  Rubrics: {created} created, {updated} updated, {skipped} skipped",
 
     "prompt_delete_tenant": "Delete tenant '{name}' ({id})? This will delete all documents and items. [y/N]",
     "prompt_delete_document": "Delete document '{title}' ({id}, {count} items)? [y/N]",

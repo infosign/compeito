@@ -25,6 +25,9 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
+from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 from src.services.csv_import_service import _calculate_depths
 
@@ -59,6 +62,9 @@ class CaseImportReport:
     groupings_updated: int = 0
     groupings_existing: int = 0
     groupings_skipped: int = 0
+    rubrics_created: int = 0
+    rubrics_updated: int = 0
+    rubrics_skipped: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -643,6 +649,11 @@ async def import_case_package(
     await _import_associations(session, tenant_id, doc, cf_assocs, now, report)
     await session.flush()
 
+    # Step 6.5: CFRubrics
+    cf_rubrics = pkg.get("CFRubrics", []) or []
+    await _import_rubrics(session, tenant_id, doc, cf_rubrics, now, report)
+    await session.flush()
+
     # Step 7: Depth calculation
     result = await session.execute(
         select(CFAssociation).where(
@@ -1188,3 +1199,246 @@ def _validate_association(data: dict) -> str | None:
         return "missing destinationNodeURI.uri"
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# CFRubrics import
+# ---------------------------------------------------------------------------
+
+
+async def _import_rubrics(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc: CFDocument,
+    rubrics_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for rubric_data in rubrics_data:
+        ident_str = rubric_data.get("identifier")
+
+        # Validation
+        if not ident_str:
+            report.rubrics_skipped += 1
+            report.warnings.append("Skipped CFRubric: missing identifier. identifier='None'")
+            continue
+        if not _is_valid_uuid(str(ident_str)):
+            report.rubrics_skipped += 1
+            report.warnings.append(f"Skipped CFRubric: identifier is not a valid UUID. identifier='{ident_str}'")
+            continue
+
+        ident_uuid = uuid.UUID(str(ident_str))
+        ctx = f"CFRubric '{ident_str}'"
+
+        ldt = _parse_datetime_with_warning(
+            rubric_data.get("lastChangeDateTime"),
+            now,
+            ctx,
+            report.warnings,
+        )
+
+        # Check existing rubric (tenant-wide by identifier)
+        result = await session.execute(
+            select(CFRubric).where(
+                CFRubric.tenant_id == tenant_id,
+                CFRubric.identifier == ident_uuid,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing is not None:
+            existing.cf_document_id = doc.id
+            if rubric_data.get("title") is not None:
+                existing.title = rubric_data["title"]
+            if rubric_data.get("description") is not None:
+                existing.description = rubric_data["description"]
+            existing.last_change_date_time = ldt
+            rubric = existing
+            report.rubrics_updated += 1
+        else:
+            rubric = CFRubric(
+                id=uuid.uuid4(),
+                tenant_id=tenant_id,
+                cf_document_id=doc.id,
+                identifier=ident_uuid,
+                uri=rubric_data.get("uri", f"urn:missing:{ident_uuid}"),
+                title=rubric_data.get("title"),
+                description=rubric_data.get("description"),
+                last_change_date_time=ldt,
+            )
+            session.add(rubric)
+            report.rubrics_created += 1
+
+        await session.flush()
+
+        # Import criteria
+        criteria_data = rubric_data.get("CFRubricCriteria", []) or []
+        await _import_rubric_criteria(session, tenant_id, rubric, criteria_data, now, report)
+
+
+async def _import_rubric_criteria(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    rubric: CFRubric,
+    criteria_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for crit_data in criteria_data:
+        crit_ident_str = crit_data.get("identifier")
+
+        if not crit_ident_str:
+            report.warnings.append(f"Skipped CFRubricCriterion: missing identifier (rubric '{rubric.identifier}')")
+            continue
+        if not _is_valid_uuid(str(crit_ident_str)):
+            report.warnings.append(
+                f"Skipped CFRubricCriterion: identifier is not a valid UUID. identifier='{crit_ident_str}'"
+            )
+            continue
+
+        crit_ident_uuid = uuid.UUID(str(crit_ident_str))
+
+        crit_ldt = _parse_datetime_with_warning(
+            crit_data.get("lastChangeDateTime"),
+            now,
+            f"CFRubricCriterion '{crit_ident_str}'",
+            report.warnings,
+        )
+
+        # Resolve CFItemURI FK
+        cf_item_id: uuid.UUID | None = None
+        cf_item_uri = crit_data.get("CFItemURI")
+        if cf_item_uri and isinstance(cf_item_uri, dict):
+            item_ident = cf_item_uri.get("identifier")
+            if item_ident:
+                cf_item_id = await _resolve_fk_by_identifier(session, tenant_id, CFItem, item_ident)
+                if cf_item_id is None:
+                    report.warnings.append(
+                        f"CFRubricCriterion '{crit_ident_str}': CFItem '{item_ident}' not found, set to null"
+                    )
+
+        # Parse rubricId
+        rubric_id_str = crit_data.get("rubricId")
+        rubric_id_val = uuid.UUID(str(rubric_id_str)) if rubric_id_str and _is_valid_uuid(str(rubric_id_str)) else None
+
+        # Check existing criterion
+        result = await session.execute(
+            select(CFRubricCriterion).where(
+                CFRubricCriterion.identifier == crit_ident_uuid,
+            )
+        )
+        existing_crit = result.scalar_one_or_none()
+
+        if existing_crit is not None:
+            existing_crit.cf_rubric_id = rubric.id
+            if crit_data.get("category") is not None:
+                existing_crit.category = crit_data["category"]
+            if crit_data.get("description") is not None:
+                existing_crit.description = crit_data["description"]
+            if crit_data.get("weight") is not None:
+                existing_crit.weight = crit_data["weight"]
+            if crit_data.get("position") is not None:
+                existing_crit.position = crit_data["position"]
+            if cf_item_uri:
+                existing_crit.cf_item_id = cf_item_id
+            if rubric_id_val is not None:
+                existing_crit.rubric_id = rubric_id_val
+            existing_crit.last_change_date_time = crit_ldt
+            criterion = existing_crit
+        else:
+            criterion = CFRubricCriterion(
+                id=uuid.uuid4(),
+                cf_rubric_id=rubric.id,
+                identifier=crit_ident_uuid,
+                uri=crit_data.get("uri", f"urn:missing:{crit_ident_uuid}"),
+                cf_item_id=cf_item_id,
+                rubric_id=rubric_id_val,
+                category=crit_data.get("category"),
+                description=crit_data.get("description"),
+                weight=crit_data.get("weight"),
+                position=crit_data.get("position"),
+                last_change_date_time=crit_ldt,
+            )
+            session.add(criterion)
+
+        await session.flush()
+
+        # Import levels
+        levels_data = crit_data.get("CFRubricCriterionLevels", []) or []
+        await _import_rubric_criterion_levels(session, criterion, levels_data, now, report)
+
+
+async def _import_rubric_criterion_levels(
+    session: AsyncSession,
+    criterion: CFRubricCriterion,
+    levels_data: list[dict],
+    now: datetime,
+    report: CaseImportReport,
+) -> None:
+    for level_data in levels_data:
+        level_ident_str = level_data.get("identifier")
+
+        if not level_ident_str:
+            report.warnings.append(
+                f"Skipped CFRubricCriterionLevel: missing identifier (criterion '{criterion.identifier}')"
+            )
+            continue
+        if not _is_valid_uuid(str(level_ident_str)):
+            report.warnings.append(
+                f"Skipped CFRubricCriterionLevel: identifier is not a valid UUID. identifier='{level_ident_str}'"
+            )
+            continue
+
+        level_ident_uuid = uuid.UUID(str(level_ident_str))
+
+        level_ldt = _parse_datetime_with_warning(
+            level_data.get("lastChangeDateTime"),
+            now,
+            f"CFRubricCriterionLevel '{level_ident_str}'",
+            report.warnings,
+        )
+
+        # Parse rubricCriterionId
+        rc_id_str = level_data.get("rubricCriterionId")
+        rc_id_val = uuid.UUID(str(rc_id_str)) if rc_id_str and _is_valid_uuid(str(rc_id_str)) else None
+
+        # Check existing level
+        result = await session.execute(
+            select(CFRubricCriterionLevel).where(
+                CFRubricCriterionLevel.identifier == level_ident_uuid,
+            )
+        )
+        existing_level = result.scalar_one_or_none()
+
+        if existing_level is not None:
+            existing_level.cf_rubric_criterion_id = criterion.id
+            if level_data.get("description") is not None:
+                existing_level.description = level_data["description"]
+            if level_data.get("quality") is not None:
+                existing_level.quality = level_data["quality"]
+            if level_data.get("score") is not None:
+                existing_level.score = level_data["score"]
+            if level_data.get("feedback") is not None:
+                existing_level.feedback = level_data["feedback"]
+            if level_data.get("position") is not None:
+                existing_level.position = level_data["position"]
+            if rc_id_val is not None:
+                existing_level.rubric_criterion_id = rc_id_val
+            existing_level.last_change_date_time = level_ldt
+        else:
+            level = CFRubricCriterionLevel(
+                id=uuid.uuid4(),
+                cf_rubric_criterion_id=criterion.id,
+                rubric_criterion_id=rc_id_val,
+                identifier=level_ident_uuid,
+                uri=level_data.get("uri", f"urn:missing:{level_ident_uuid}"),
+                description=level_data.get("description"),
+                quality=level_data.get("quality"),
+                score=level_data.get("score"),
+                feedback=level_data.get("feedback"),
+                position=level_data.get("position"),
+                last_change_date_time=level_ldt,
+            )
+            session.add(level)
+
+        await session.flush()

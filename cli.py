@@ -649,6 +649,15 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                     skipped=str(report.associations_skipped),
                 ),
             )
+            if report.rubrics_created or report.rubrics_updated or report.rubrics_skipped:
+                console.print(
+                    t(
+                        "msg_rubrics_summary",
+                        created=str(report.rubrics_created),
+                        updated=str(report.rubrics_updated),
+                        skipped=str(report.rubrics_skipped),
+                    ),
+                )
             if report.warnings:
                 for w in report.warnings:
                     console.print(f"  [yellow]Warning: {w}[/yellow]")
