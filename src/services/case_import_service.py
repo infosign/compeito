@@ -271,6 +271,57 @@ async def fetch_cf_package(url: str) -> tuple[dict, list[str]]:
 
 
 # ---------------------------------------------------------------------------
+# v1.0 → v1.1 normalization
+# ---------------------------------------------------------------------------
+
+
+def _is_v1p0(data: dict, url: str) -> bool:
+    """Detect whether the CFPackage data is from a CASE v1.0 source."""
+    if "v1p0" in url:
+        return True
+    # v1.0 has CFDocument at root without CFPackage wrapper, and no caseVersion
+    if "CFDocument" in data and "CFPackage" not in data:
+        cf_doc = data.get("CFDocument")
+        if isinstance(cf_doc, dict) and not cf_doc.get("caseVersion"):
+            return True
+    return False
+
+
+def _normalize_v1p0_package(data: dict, url: str, warnings: list[str]) -> dict:
+    """Normalize a CASE v1.0 CFPackage response to v1.1-compatible format.
+
+    Structural difference (no CFPackage wrapper) is handled by _validate_cf_package.
+    This function handles field-level differences:
+    - conceptKeywordsURI: array → single object (some v1.0 implementations)
+    """
+    if not _is_v1p0(data, url):
+        return data
+
+    warnings.append("Detected CASE v1.0 response, normalizing to v1.1 format")
+
+    # Normalize CFItems
+    pkg = data.get("CFPackage", data)
+    items = pkg.get("CFItems", []) or []
+    for item in items:
+        _normalize_concept_keywords_uri(item, warnings)
+
+    return data
+
+
+def _normalize_concept_keywords_uri(item: dict, warnings: list[str]) -> None:
+    """Convert conceptKeywordsURI from array to single object if needed."""
+    val = item.get("conceptKeywordsURI")
+    if isinstance(val, list):
+        if len(val) == 0:
+            item["conceptKeywordsURI"] = None
+        else:
+            if len(val) > 1:
+                ident = item.get("identifier", "unknown")
+                warnings.append(f"CFItem '{ident}': conceptKeywordsURI has {len(val)} elements, using first")
+            item["conceptKeywordsURI"] = val[0]
+
+
+# ---------------------------------------------------------------------------
 # CFPackage validation
 # ---------------------------------------------------------------------------
 
@@ -506,6 +557,9 @@ async def import_case_package(
     # Step 1: Fetch CFPackage
     data, fetch_warnings = await fetch_cf_package(url)
     report.warnings.extend(fetch_warnings)
+
+    # Step 1.5: Normalize v1.0 → v1.1
+    data = _normalize_v1p0_package(data, url, report.warnings)
 
     # Step 2: Validate
     pkg = _validate_cf_package(data)
