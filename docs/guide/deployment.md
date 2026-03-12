@@ -128,7 +128,7 @@ docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml exec app alembic upgrade head
 
 # テナント作成
-docker compose -f docker-compose.prod.yml exec app python cli.py tenant create --name "大学A"
+docker compose -f docker-compose.prod.yml exec app uv run python cli.py tenant create --name "大学A"
 ```
 
 ## 5. データの永続性

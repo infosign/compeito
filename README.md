@@ -45,17 +45,17 @@ docker compose exec app alembic upgrade head
 
 ```bash
 # Tenant management
-docker compose exec app python cli.py tenant create --name "University A"
-docker compose exec app python cli.py tenant list --with-docs
+docker compose exec app uv run python cli.py tenant create --name "University A"
+docker compose exec app uv run python cli.py tenant list --with-docs
 
 # Import a framework from CSV
-docker compose exec app python cli.py import csv --tenant {uuid} --file framework.csv
+docker compose exec app uv run python cli.py import csv --tenant {uuid} --file framework.csv
 
 # Import from an external CASE server (e.g., OpenSALT)
-docker compose exec app python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app uv run python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # Export for editing
-docker compose exec app python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 ```
 
 ## API Endpoints
@@ -150,17 +150,17 @@ docker compose exec app alembic upgrade head
 
 ```bash
 # テナント管理
-docker compose exec app python cli.py tenant create --name "大学A"
-docker compose exec app python cli.py tenant list --with-docs
+docker compose exec app uv run python cli.py tenant create --name "大学A"
+docker compose exec app uv run python cli.py tenant list --with-docs
 
 # CSV からフレームワークをインポート
-docker compose exec app python cli.py import csv --tenant {uuid} --file framework.csv
+docker compose exec app uv run python cli.py import csv --tenant {uuid} --file framework.csv
 
 # 外部 CASE サーバー（OpenSALT 等）からインポート
-docker compose exec app python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app uv run python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # 編集用にエクスポート
-docker compose exec app python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 ```
 
 ## API エンドポイント
