@@ -23,5 +23,7 @@ class Tenant(Base):
     cf_subjects = relationship("CFSubject", back_populates="tenant", cascade="all, delete-orphan")
     cf_concepts = relationship("CFConcept", back_populates="tenant", cascade="all, delete-orphan")
     cf_licenses = relationship("CFLicense", back_populates="tenant", cascade="all, delete-orphan")
-    cf_association_groupings = relationship("CFAssociationGrouping", back_populates="tenant", cascade="all, delete-orphan")
+    cf_association_groupings = relationship(
+        "CFAssociationGrouping", back_populates="tenant", cascade="all, delete-orphan"
+    )
     cf_rubrics = relationship("CFRubric", back_populates="tenant", cascade="all, delete-orphan")

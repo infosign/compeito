@@ -1,8 +1,8 @@
 """COMPEITO CLI — tenant/doc management, import/export, db migrate."""
+
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from pathlib import Path
 
@@ -23,36 +23,20 @@ t = get_translator(detect_lang_from_env(), cli=True)
 # Environment detection
 # ---------------------------------------------------------------------------
 
-def _detect_mode() -> str:
-    """Detect execution mode from environment variables.
 
-    Returns "docker" or raises SystemExit on misconfiguration.
-    AWS mode is Phase 2 — currently only Docker mode is supported.
-    """
-    has_db = bool(os.environ.get("DATABASE_URL"))
-    has_admin_url = bool(os.environ.get("CASE_ADMIN_URL"))
-    has_admin_key = bool(os.environ.get("CASE_ADMIN_KEY"))
+def _check_db():
+    """Verify DATABASE_URL is set or exit."""
+    import os
 
-    if has_db:
-        if has_admin_url or has_admin_key:
-            console.print(f"[yellow]{t('warn_both_env')}[/yellow]")
-        return "docker"
-
-    if has_admin_url and has_admin_key:
-        err_console.print(t("err_aws_not_supported"))
+    if not os.environ.get("DATABASE_URL"):
+        err_console.print(t("err_env_required"))
         raise SystemExit(1)
-
-    if has_admin_url or has_admin_key:
-        err_console.print(t("err_admin_both_required"))
-        raise SystemExit(1)
-
-    err_console.print(t("err_env_required"))
-    raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
 # Async helpers
 # ---------------------------------------------------------------------------
+
 
 def _run(coro):
     """Run an async coroutine synchronously."""
@@ -80,6 +64,7 @@ async def _get_session():
 # UUID validation helper
 # ---------------------------------------------------------------------------
 
+
 def _parse_uuid(value: str, label: str = "UUID") -> uuid.UUID:
     """Parse a UUID string or exit with error."""
     try:
@@ -97,6 +82,7 @@ def _visibility(is_private: bool) -> str:
 # ---------------------------------------------------------------------------
 # Click groups
 # ---------------------------------------------------------------------------
+
 
 @click.group()
 def cli():
@@ -152,25 +138,17 @@ def db():
 db.help = t("db_group")
 
 
-@cli.group()
-def cache():
-    """Cache commands."""
-    pass
-
-
-cache.help = t("cache_group")
-
-
 # ---------------------------------------------------------------------------
 # tenant create
 # ---------------------------------------------------------------------------
+
 
 @tenant.command("create", help=t("cmd_tenant_create"))
 @click.option("--name", required=True, help=t("help_tenant_name"))
 @click.option("--private", "is_private", is_flag=True, default=False, help=t("help_make_private"))
 def tenant_create(name: str, is_private: bool):
     """Create a new tenant."""
-    _detect_mode()
+    _check_db()
 
     async def _run_create():
         from src.models.tenant import Tenant
@@ -180,9 +158,12 @@ def tenant_create(name: str, is_private: bool):
             session.add(tenant_obj)
             await session.flush()
             console.print(
-                t("msg_created_tenant",
-                  id=str(tenant_obj.id), name=tenant_obj.name,
-                  visibility=_visibility(tenant_obj.is_private)),
+                t(
+                    "msg_created_tenant",
+                    id=str(tenant_obj.id),
+                    name=tenant_obj.name,
+                    visibility=_visibility(tenant_obj.is_private),
+                ),
             )
             await session.commit()
 
@@ -193,11 +174,12 @@ def tenant_create(name: str, is_private: bool):
 # tenant list
 # ---------------------------------------------------------------------------
 
+
 @tenant.command("list", help=t("cmd_tenant_list"))
 @click.option("--with-docs", is_flag=True, default=False, help=t("help_show_docs"))
 def tenant_list(with_docs: bool):
     """List all tenants."""
-    _detect_mode()
+    _check_db()
 
     async def _run_list():
         from sqlalchemy import func, select
@@ -252,8 +234,7 @@ def tenant_list(with_docs: bool):
                     for i, (doc_ident, doc_title, item_count) in enumerate(docs):
                         prefix = "└─" if i == len(docs) - 1 else "├─"
                         console.print(
-                            f"  {prefix} {doc_ident}  {doc_title}  "
-                            f"({item_count} {t('items_suffix')})",
+                            f"  {prefix} {doc_ident}  {doc_title}  ({item_count} {t('items_suffix')})",
                         )
 
     _run(_run_list())
@@ -263,6 +244,7 @@ def tenant_list(with_docs: bool):
 # tenant update
 # ---------------------------------------------------------------------------
 
+
 @tenant.command("update", help=t("cmd_tenant_update"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--name", default=None, help=t("help_new_name"))
@@ -270,7 +252,7 @@ def tenant_list(with_docs: bool):
 @click.option("--public", "set_public", is_flag=True, default=False, help=t("help_set_public"))
 def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_public: bool):
     """Update a tenant."""
-    _detect_mode()
+    _check_db()
 
     if set_private and set_public:
         err_console.print(t("err_private_public_exclusive"))
@@ -305,9 +287,12 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
 
             await session.flush()
             console.print(
-                t("msg_updated_tenant",
-                  id=str(tenant_obj.id), name=tenant_obj.name,
-                  visibility=_visibility(tenant_obj.is_private)),
+                t(
+                    "msg_updated_tenant",
+                    id=str(tenant_obj.id),
+                    name=tenant_obj.name,
+                    visibility=_visibility(tenant_obj.is_private),
+                ),
             )
             await session.commit()
 
@@ -318,12 +303,13 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
 # tenant delete
 # ---------------------------------------------------------------------------
 
+
 @tenant.command("delete", help=t("cmd_tenant_delete"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def tenant_delete(tenant_id: str, force: bool):
     """Delete a tenant and all its data."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
 
     async def _run_delete():
@@ -342,8 +328,7 @@ def tenant_delete(tenant_id: str, force: bool):
 
             if not force:
                 answer = click.prompt(
-                    t("prompt_delete_tenant",
-                      name=tenant_obj.name, id=str(tenant_obj.id)),
+                    t("prompt_delete_tenant", name=tenant_obj.name, id=str(tenant_obj.id)),
                     default="N",
                     show_default=False,
                 )
@@ -364,11 +349,12 @@ def tenant_delete(tenant_id: str, force: bool):
 # doc list
 # ---------------------------------------------------------------------------
 
+
 @doc.command("list", help=t("cmd_doc_list"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 def doc_list(tenant_id: str):
     """List documents in a tenant."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
 
     async def _run_list():
@@ -427,13 +413,14 @@ def doc_list(tenant_id: str):
 # doc delete
 # ---------------------------------------------------------------------------
 
+
 @doc.command("delete", help=t("cmd_doc_delete"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
 def doc_delete(tenant_id: str, doc_id: str, force: bool):
     """Delete a document and its items/associations."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id)
 
@@ -473,9 +460,7 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 
             if not force:
                 answer = click.prompt(
-                    t("prompt_delete_document",
-                      title=doc.title, id=str(doc.identifier),
-                      count=str(item_count)),
+                    t("prompt_delete_document", title=doc.title, id=str(doc.identifier), count=str(item_count)),
                     default="N",
                     show_default=False,
                 )
@@ -496,6 +481,7 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 # import csv
 # ---------------------------------------------------------------------------
 
+
 @import_group.command("csv", help=t("cmd_import_csv"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_csv_file"))
@@ -503,11 +489,14 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 @click.option("--doc-title", default=None, help=t("help_doc_title"))
 @click.option("--doc-version", default=None, help=t("help_doc_version"))
 def import_csv_cmd(
-    tenant_id: str, file_path: str, doc_id: str | None,
-    doc_title: str | None, doc_version: str | None,
+    tenant_id: str,
+    file_path: str,
+    doc_id: str | None,
+    doc_title: str | None,
+    doc_version: str | None,
 ):
     """Import items from a CSV file."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id) if doc_id else None
 
@@ -559,7 +548,9 @@ def import_csv_cmd(
 
             with console.status(t("msg_importing_csv")):
                 report = await import_csv(
-                    session, tid, csv_data,
+                    session,
+                    tid,
+                    csv_data,
                     doc_identifier=did,
                     doc_title=doc_title,
                     doc_version=doc_version,
@@ -567,19 +558,18 @@ def import_csv_cmd(
                 await session.commit()
 
             console.print(
-                t("msg_imported_into",
-                  title=report.document_title,
-                  id=str(report.document_identifier)),
+                t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),
             )
             console.print(
-                t("msg_items_summary",
-                  created=str(report.items_created),
-                  updated=str(report.items_updated),
-                  skipped=str(report.items_skipped)),
+                t(
+                    "msg_items_summary",
+                    created=str(report.items_created),
+                    updated=str(report.items_updated),
+                    skipped=str(report.items_skipped),
+                ),
             )
             console.print(
-                t("msg_assoc_summary_short",
-                  created=str(report.associations_created)),
+                t("msg_assoc_summary_short", created=str(report.associations_created)),
             )
             if report.warnings:
                 for w in report.warnings:
@@ -592,13 +582,14 @@ def import_csv_cmd(
 # import case-url
 # ---------------------------------------------------------------------------
 
+
 @import_group.command("case-url", help=t("cmd_import_case_url"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--url", required=True, help=t("help_case_url"))
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
 def import_case_url(tenant_id: str, url: str, doc_id: str | None):
     """Import from an external CASE source."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id) if doc_id else None
 
@@ -632,28 +623,41 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
 
             with console.status(t("msg_importing_case")):
                 report = await import_case_package(
-                    session, tid, url,
+                    session,
+                    tid,
+                    url,
                     doc_identifier=did,
                 )
                 await session.commit()
 
             console.print(
-                t("msg_imported",
-                  title=report.document_title,
-                  id=str(report.document_identifier)),
+                t("msg_imported", title=report.document_title, id=str(report.document_identifier)),
             )
             console.print(
-                t("msg_items_summary",
-                  created=str(report.items_created),
-                  updated=str(report.items_updated),
-                  skipped=str(report.items_skipped)),
+                t(
+                    "msg_items_summary",
+                    created=str(report.items_created),
+                    updated=str(report.items_updated),
+                    skipped=str(report.items_skipped),
+                ),
             )
             console.print(
-                t("msg_assoc_summary",
-                  created=str(report.associations_created),
-                  updated=str(report.associations_updated),
-                  skipped=str(report.associations_skipped)),
+                t(
+                    "msg_assoc_summary",
+                    created=str(report.associations_created),
+                    updated=str(report.associations_updated),
+                    skipped=str(report.associations_skipped),
+                ),
             )
+            if report.rubrics_created or report.rubrics_updated or report.rubrics_skipped:
+                console.print(
+                    t(
+                        "msg_rubrics_summary",
+                        created=str(report.rubrics_created),
+                        updated=str(report.rubrics_updated),
+                        skipped=str(report.rubrics_skipped),
+                    ),
+                )
             if report.warnings:
                 for w in report.warnings:
                     console.print(f"  [yellow]Warning: {w}[/yellow]")
@@ -665,27 +669,26 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
 # export csv
 # ---------------------------------------------------------------------------
 
+
 @export_group.command("csv", help=t("cmd_export_csv"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
 @click.option(
-    "--format", "fmt", default="custom",
+    "--format",
+    "fmt",
+    default="custom",
     help=t("help_export_format"),
 )
 def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
     """Export a document to CSV."""
-    _detect_mode()
+    _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id)
 
     # Validate format
     if fmt not in ("custom", "opensalt"):
         err_console.print(t("err_invalid_format", value=fmt))
-        raise SystemExit(1)
-
-    if fmt == "opensalt":
-        err_console.print(t("err_opensalt_not_supported"))
         raise SystemExit(1)
 
     # Check output path is writable
@@ -704,7 +707,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 
         from src.models.cf_document import CFDocument
         from src.models.tenant import Tenant
-        from src.services.csv_export_service import export_csv
+        from src.services.csv_export_service import export_csv, export_opensalt_csv
 
         async for session in _get_session():
             # Check tenant
@@ -727,14 +730,16 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
                 raise SystemExit(1)
 
             with console.status(t("msg_exporting_csv")):
-                csv_str = await export_csv(session, tid, did)
+                if fmt == "opensalt":
+                    csv_str = await export_opensalt_csv(session, tid, did)
+                else:
+                    csv_str = await export_csv(session, tid, did)
 
             out.write_text(csv_str, encoding="utf-8")
-            # Count actual data rows (exclude meta lines starting with #)
+            # Count actual data rows (exclude meta lines starting with #, and header rows)
             lines = csv_str.strip().split("\n")
             data_lines = [
-                l for l in lines
-                if l and not l.startswith("#") and not l.startswith("Identifier,")
+                line for line in lines if line and not line.startswith("#") and not line.startswith("Identifier,")
             ]
             console.print(
                 t("msg_exported", count=str(len(data_lines)), path=file_path),
@@ -747,10 +752,11 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 # db migrate
 # ---------------------------------------------------------------------------
 
+
 @db.command("migrate", help=t("cmd_db_migrate"))
 def db_migrate():
     """Run database migrations (alembic upgrade head)."""
-    _detect_mode()
+    _check_db()
 
     import subprocess
 
@@ -766,25 +772,6 @@ def db_migrate():
     if result.returncode != 0:
         raise SystemExit(1)
     console.print(f"[green]{t('msg_migration_complete')}[/green]")
-
-
-# ---------------------------------------------------------------------------
-# cache invalidate
-# ---------------------------------------------------------------------------
-
-@cache.command("invalidate", help=t("cmd_cache_invalidate"))
-@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
-@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_optional"))
-def cache_invalidate(tenant_id: str, doc_id: str | None):
-    """Invalidate CloudFront cache (AWS only)."""
-    mode = _detect_mode()
-    _parse_uuid(tenant_id)
-    if doc_id:
-        _parse_uuid(doc_id)
-
-    if mode == "docker":
-        err_console.print(t("err_aws_required"))
-        raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
