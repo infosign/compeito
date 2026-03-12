@@ -21,6 +21,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | [docs/csv-format.md](docs/csv-format.md) | CSVフォーマット仕様（独自形式・OpenSALT形式・簡易形式） |
 | [docs/import-logic.md](docs/import-logic.md) | インポート/エクスポートのビジネスロジック・upsertルール |
 | [docs/cli.md](docs/cli.md) | CLIコマンド仕様 |
+| [docs/guide/initial-setup.md](docs/guide/initial-setup.md) | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで） |
 | [docs/phases.md](docs/phases.md) | フェーズ定義・ロードマップ |
 | [docs/functional-requirements.md](docs/functional-requirements.md) | 機能要件一覧（FR-1〜FR-12） |
 | [docs/non-functional-requirements.md](docs/non-functional-requirements.md) | 非機能要件一覧（NFR-1〜NFR-11） |
