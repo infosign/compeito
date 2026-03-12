@@ -10,7 +10,7 @@ CASE v1.1 リソースの全レイヤー（model → schema → repository → s
 
 ### 0. 仕様確認
 
-まず `docs/reference/imscasev1p1_openapi3_v1p0.json` と `docs/db-schema.md` でリソースのフィールド定義を確認する。
+まず `docs/reference/imscasev1p1_openapi3_v1p0.json` と `docs/spec/db-schema.md` でリソースのフィールド定義を確認する。
 
 - 必須/任意フィールド
 - データ型（string, UUID, datetime, array 等）
@@ -42,7 +42,7 @@ class CF{Resource}(Base):
 
 - `id` は内部PK、`identifier` は CASE v1.1 の公開識別子（UUID v4）
 - `tenant_id` は全リソースに必須（マルチテナント）
-- FK の ondelete は `docs/db-schema.md` に従う
+- FK の ondelete は `docs/spec/db-schema.md` に従う
 
 ### 2. Pydantic スキーマ (`src/schemas/{resource}.py`)
 
@@ -156,7 +156,7 @@ async def get_{resource}s(
 - ルートキーは DType 名（`docs/reference/case-v1p1-rest-binding.md` で確認）
 - `exclude_none=False` で null フィールドを含める（FR-2.10）
 - Set型エンドポイント（CFConcepts, CFSubjects, CFItemTypes の `/{id}`）は配列で返す
-- エラーは imsx_StatusInfo 形式（`docs/api-spec.md` 参照）
+- エラーは imsx_StatusInfo 形式（`docs/spec/api-spec.md` 参照）
 
 ### 6. main.py にルーター登録
 

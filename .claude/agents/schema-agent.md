@@ -18,8 +18,8 @@ CASE v1.1 仕様の専門エージェント。Pydantic スキーマと SQLAlchem
 | `docs/reference/case-v1p1-info-model.md` | データモデル定義（全フィールド・型・必須/任意） |
 | `docs/reference/case-v1p1-rest-binding.md` | REST API定義（Standalone vs Package型の差異） |
 | `docs/reference/imscasev1p1_openapi3_v1p0.json` | 公式 OpenAPI 3 スキーマ（権威的ソース） |
-| `docs/api-spec.md` | Phase 1 の意図的差異・独自拡張 |
-| `docs/db-schema.md` | DBスキーマ・テーブル定義 |
+| `docs/spec/api-spec.md` | Phase 1 の意図的差異・独自拡張 |
+| `docs/spec/db-schema.md` | DBスキーマ・テーブル定義 |
 
 **重要**: 外部URLではなく、必ずローカルの `docs/reference/` を参照して型・必須/任意を確認すること。
 
