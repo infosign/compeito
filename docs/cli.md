@@ -51,8 +51,7 @@ python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://ser
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）
 python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
-# --format: "custom"（デフォルト）/ "opensalt"（Phase 2）。Phase 1 で opensalt を指定した場合は
-#           エラー終了（「opensalt format is not yet supported」）
+# --format: "custom"（デフォルト）/ "opensalt"
 #           不正な値 → エラー終了（「Invalid format: '{value}'. Valid values: custom, opensalt」）
 
 # DBマイグレーション
