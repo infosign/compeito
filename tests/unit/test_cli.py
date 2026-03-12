@@ -75,7 +75,7 @@ def runner():
 @pytest.fixture
 def env_docker(monkeypatch):
     """Set DATABASE_URL environment variable for Docker mode."""
-    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://case:case@db:5432/case")
+    monkeypatch.setenv("DATABASE_URL", settings.database_url)
 
 
 @pytest.fixture
