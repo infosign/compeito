@@ -18,8 +18,12 @@ class CFAssociation(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    cf_document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_documents.id", ondelete="CASCADE"), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    cf_document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_documents.id", ondelete="CASCADE"), nullable=False
+    )
     identifier: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     uri: Mapped[str] = mapped_column(String, nullable=False)
     association_type: Mapped[str] = mapped_column(String, nullable=False)
@@ -32,7 +36,9 @@ class CFAssociation(Base):
     destination_node_title: Mapped[str | None] = mapped_column(String)
     destination_node_target_type: Mapped[str | None] = mapped_column(String)
     sequence_number: Mapped[int | None] = mapped_column(Integer)
-    cf_association_grouping_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_association_groupings.id", ondelete="SET NULL"))
+    cf_association_grouping_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_association_groupings.id", ondelete="SET NULL")
+    )
     last_change_date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     tenant = relationship("Tenant", back_populates="cf_associations")

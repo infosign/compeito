@@ -48,9 +48,7 @@ async def get_cf_item_associations(
     limit = min(limit, 500)
     offset = min(offset, 100000)
 
-    assocs = await case_query_service.list_item_associations(
-        session, tenant_obj.id, str(item_uuid), limit, offset
-    )
+    assocs = await case_query_service.list_item_associations(session, tenant_obj.id, str(item_uuid), limit, offset)
     content = {
         "CFItem": item.model_dump(by_alias=True),
         "CFAssociations": [a.model_dump(by_alias=True) for a in assocs],

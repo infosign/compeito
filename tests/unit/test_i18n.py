@@ -1,4 +1,5 @@
 """Tests for i18n module."""
+
 from src.i18n import detect_lang_from_env, get_translator, parse_accept_language
 
 
@@ -54,11 +55,23 @@ class TestGetTranslator:
         t_ja = get_translator("ja")
         t_en = get_translator("en")
         keys = [
-            "tenant_list", "no_public_tenants", "title", "last_updated",
-            "item_count", "no_frameworks", "document_details", "no_items",
-            "show_in_tree", "return_to_top", "details",
-            "error_bad_request", "error_not_found", "error_tenant_not_found",
-            "error_document_not_found", "error_item_not_found", "error_server",
+            "tenant_list",
+            "no_public_tenants",
+            "title",
+            "last_updated",
+            "item_count",
+            "no_frameworks",
+            "document_details",
+            "no_items",
+            "show_in_tree",
+            "return_to_top",
+            "details",
+            "error_bad_request",
+            "error_not_found",
+            "error_tenant_not_found",
+            "error_document_not_found",
+            "error_item_not_found",
+            "error_server",
             "error_invalid_uuid",
         ]
         for key in keys:
@@ -111,15 +124,30 @@ class TestCliTranslator:
         t_en = get_translator("en", cli=True)
         t_ja = get_translator("ja", cli=True)
         keys = [
-            "cli_description", "tenant_group", "doc_group",
-            "import_group", "export_group", "db_group", "cache_group",
-            "cmd_tenant_create", "cmd_tenant_list", "cmd_tenant_update",
-            "cmd_tenant_delete", "cmd_doc_list", "cmd_doc_delete",
-            "cmd_import_csv", "cmd_import_case_url", "cmd_export_csv",
-            "cmd_db_migrate", "cmd_cache_invalidate",
-            "err_invalid_uuid", "err_tenant_not_found", "err_doc_not_found",
-            "msg_created_tenant", "msg_deleted_tenant", "msg_no_tenants",
-            "visibility_public", "visibility_private",
+            "cli_description",
+            "tenant_group",
+            "doc_group",
+            "import_group",
+            "export_group",
+            "db_group",
+            "cmd_tenant_create",
+            "cmd_tenant_list",
+            "cmd_tenant_update",
+            "cmd_tenant_delete",
+            "cmd_doc_list",
+            "cmd_doc_delete",
+            "cmd_import_csv",
+            "cmd_import_case_url",
+            "cmd_export_csv",
+            "cmd_db_migrate",
+            "err_invalid_uuid",
+            "err_tenant_not_found",
+            "err_doc_not_found",
+            "msg_created_tenant",
+            "msg_deleted_tenant",
+            "msg_no_tenants",
+            "visibility_public",
+            "visibility_private",
         ]
         for key in keys:
             assert t_en(key) != key, f"Missing cli_en translation for '{key}'"

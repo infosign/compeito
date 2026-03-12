@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
-from mangum import Mangum
 
 from src.errors import InvalidUUIDError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
@@ -25,6 +24,7 @@ app.include_router(web_router)
 # Middleware
 # ---------------------------------------------------------------------------
 
+
 @app.middleware("http")
 async def redirect_v1p0(request: Request, call_next):
     if "/ims/case/v1p0/" in request.url.path:
@@ -37,9 +37,7 @@ async def redirect_v1p0(request: Request, call_next):
 @app.middleware("http")
 async def method_not_allowed(request: Request, call_next):
     if "/ims/case/v1p1/" in request.url.path and request.method != "GET":
-        response = imsx_error_response(
-            405, "Method not allowed", "invalid_selection_field"
-        )
+        response = imsx_error_response(405, "Method not allowed", "invalid_selection_field")
         response.headers["Allow"] = "GET"
         return response
     return await call_next(request)
@@ -48,6 +46,7 @@ async def method_not_allowed(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Exception handlers
 # ---------------------------------------------------------------------------
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -68,16 +67,10 @@ async def resource_not_found_handler(request: Request, exc: ResourceNotFoundErro
 # Health endpoint
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health() -> JSONResponse:
     return JSONResponse(
         content={"status": "ok"},
         headers={"Cache-Control": "no-store"},
     )
-
-
-# ---------------------------------------------------------------------------
-# Mangum handler (AWS Lambda)
-# ---------------------------------------------------------------------------
-
-handler = Mangum(app)

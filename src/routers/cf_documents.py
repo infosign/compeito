@@ -28,9 +28,7 @@ async def list_cf_documents(
     limit = min(limit, 500)
     offset = min(offset, 100000)
 
-    docs = await case_query_service.list_cf_documents(
-        session, tenant_obj.id, limit, offset
-    )
+    docs = await case_query_service.list_cf_documents(session, tenant_obj.id, limit, offset)
     content = {"CFDocuments": [doc.model_dump(by_alias=True) for doc in docs]}
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
 

@@ -17,11 +17,21 @@ class CFItem(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    cf_document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_documents.id", ondelete="CASCADE"), nullable=False)
-    cf_item_type_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_item_types.id", ondelete="SET NULL"))
-    cf_license_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_licenses.id", ondelete="SET NULL"))
-    cf_concept_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_concepts.id", ondelete="SET NULL"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    cf_document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    cf_item_type_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_item_types.id", ondelete="SET NULL")
+    )
+    cf_license_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_licenses.id", ondelete="SET NULL")
+    )
+    cf_concept_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_concepts.id", ondelete="SET NULL")
+    )
     identifier: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     uri: Mapped[str] = mapped_column(String, nullable=False)
     full_statement: Mapped[str] = mapped_column(Text, nullable=False)
