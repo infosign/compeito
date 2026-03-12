@@ -15,7 +15,7 @@
 ヘッダー行（1行目、または `#` メタデータ行の直後の非空行）の列名で判定する。メタデータ行とヘッダー行の間に空行がある場合は共通ルールの空行スキップが適用される。**列名の大文字小文字は区別しない**（全フォーマット共通）:
 
 1. **独自形式**: ヘッダーに `Identifier` と `fullStatement` の両方が存在
-2. **OpenSALT形式**: ヘッダーに `CASE Item Identifier` または `Full Statement` が存在（OpenSALTのCSV出力ヘッダー）
+2. **OpenSALT形式**: ヘッダーに `Is Child Of` または `Is Part Of` が存在、もしくは `Full Statement` が存在（OpenSALT互換ヘッダー）
 3. **簡易形式**: 上記に該当しない場合。先頭列を `fullStatement` として扱う
 
 **注意**: ルール3は全ての残りケースをキャッチするため、独自形式の列名を一部のみ含むCSV（例: `fullStatement` はあるが `Identifier` がない）も簡易形式にフォールバックする。簡易形式はポジションベースのため、名前ベースの列マッピングは行われない。意図しないフォーマット判定を避けるため、独自形式では `Identifier` 列を必ず含めること（全行空でもよい）。
@@ -99,7 +99,7 @@ OpenSALTのCSVインポートとの相互運用を意図した形式。ただし
 
 | 列名 | 対応する内部フィールド |
 |------|---------------------|
-| CASE Item Identifier | Identifier |
+| Identifier | Identifier |
 | Full Statement | fullStatement |
 | Human Coding Scheme | humanCodingScheme |
 | Abbreviated Statement | abbreviatedStatement |
@@ -115,7 +115,7 @@ OpenSALTのCSVインポートとの相互運用を意図した形式。ただし
 ### 例
 
 ```csv
-CASE Item Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of
+Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of
 d86774f2-...,国語,,,,,教科,ja,,,,a1b2c3d4-...
 e97885g3-...,現代の国語,,,,,科目,ja,,d86774f2-...,10,a1b2c3d4-...
 ```
