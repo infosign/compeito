@@ -10,7 +10,6 @@ from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_document import CFDocument
 from src.models.tenant import Tenant
 
-
 TENANT_ID = "11111111-1111-1111-1111-111111111111"
 DOC_IDENTIFIER = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 ASSOC_IDENTIFIER = "cccccccc-cccc-cccc-cccc-cccccccccccc"
@@ -19,7 +18,8 @@ CASE_PATH = f"/{TENANT_ID}/ims/case/v1p1"
 
 @pytest.fixture
 async def sample_association(
-    db_session: AsyncSession, sample_document: CFDocument,
+    db_session: AsyncSession,
+    sample_document: CFDocument,
 ) -> CFAssociation:
     """Create a sample CFAssociation for testing."""
     assoc = CFAssociation(
@@ -47,7 +47,10 @@ async def sample_association(
 
 class TestGetCFAssociation:
     async def test_get_existing_association(
-        self, db_client: AsyncClient, tenant: Tenant, sample_association: CFAssociation,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_association: CFAssociation,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFAssociations/{ASSOC_IDENTIFIER}")
         assert response.status_code == 200
@@ -78,7 +81,9 @@ class TestGetCFAssociation:
         assert response.headers["cache-control"] == "public, max-age=3600"
 
     async def test_get_nonexistent_association_returns_404(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         fake_id = str(uuid.uuid4())
         response = await db_client.get(f"{CASE_PATH}/CFAssociations/{fake_id}")
@@ -88,7 +93,9 @@ class TestGetCFAssociation:
         assert "unknownobject" in str(body["imsx_codeMinor"])
 
     async def test_get_invalid_uuid_returns_400(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFAssociations/not-a-uuid")
         assert response.status_code == 400
@@ -120,9 +127,7 @@ class TestGetCFAssociation:
         db_session.add(assoc)
         await db_session.flush()
 
-        response = await db_client.get(
-            f"{CASE_PATH}/CFAssociations/dddddddd-dddd-dddd-dddd-dddddddddddd"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFAssociations/dddddddd-dddd-dddd-dddd-dddddddddddd")
         assert response.status_code == 200
         assert response.json()["CFAssociation"]["associationType"] == "ext:customRelation"
 
@@ -164,9 +169,7 @@ class TestGetCFAssociation:
         db_session.add(assoc)
         await db_session.flush()
 
-        response = await db_client.get(
-            f"{CASE_PATH}/CFAssociations/88888888-8888-8888-8888-888888888888"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFAssociations/88888888-8888-8888-8888-888888888888")
         assert response.status_code == 200
         grouping_uri = response.json()["CFAssociation"]["CFAssociationGroupingURI"]
         assert grouping_uri is not None
@@ -174,7 +177,10 @@ class TestGetCFAssociation:
         assert grouping_uri["identifier"] == "99999999-9999-9999-9999-999999999999"
 
     async def test_null_fields_included(
-        self, db_client: AsyncClient, tenant: Tenant, sample_association: CFAssociation,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_association: CFAssociation,
     ) -> None:
         """Null fields should be present in response (exclude_none=False)."""
         response = await db_client.get(f"{CASE_PATH}/CFAssociations/{ASSOC_IDENTIFIER}")
@@ -191,7 +197,5 @@ class TestTenantIsolation:
         sample_association: CFAssociation,
     ) -> None:
         other_tenant_id = str(uuid.uuid4())
-        response = await db_client.get(
-            f"/{other_tenant_id}/ims/case/v1p1/CFAssociations/{ASSOC_IDENTIFIER}"
-        )
+        response = await db_client.get(f"/{other_tenant_id}/ims/case/v1p1/CFAssociations/{ASSOC_IDENTIFIER}")
         assert response.status_code == 404

@@ -3,7 +3,6 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-
 CASE_PATH = "/ims/case/v1p1"
 VALID_UUID = str(uuid.uuid4())
 INVALID_UUID = "not-a-uuid"

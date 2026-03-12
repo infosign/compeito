@@ -2,7 +2,7 @@
 
 Uses httpx mock for HTTP calls and real DB for persistence tests.
 """
-import json
+
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
@@ -13,18 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_association import CFAssociation
-from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_concept import CFConcept
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
-from src.models.cf_license import CFLicense
-from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 from src.services.case_import_service import (
-    CaseImportReport,
     VALID_ASSOCIATION_TYPES,
-    _is_valid_uuid,
     _parse_sequence_number,
     _validate_association,
     _validate_cf_package,
@@ -32,13 +27,13 @@ from src.services.case_import_service import (
     import_case_package,
 )
 
-
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_cf_package(
     doc_identifier: str = "aaaa0000-0000-0000-0000-000000000001",
@@ -246,9 +241,7 @@ class TestFetchCFPackage:
         assert warnings == []
 
     async def test_base_url_discovers_document(self):
-        docs_data = {
-            "CFDocuments": [{"identifier": "aaaa0000-0000-0000-0000-000000000001"}]
-        }
+        docs_data = {"CFDocuments": [{"identifier": "aaaa0000-0000-0000-0000-000000000001"}]}
         pkg_data = _make_cf_package()
 
         mock_docs_resp = _make_mock_response(docs_data)
@@ -261,9 +254,7 @@ class TestFetchCFPackage:
             mock_client.__aexit__ = AsyncMock(return_value=None)
             mock_cls.return_value = mock_client
 
-            data, warnings = await fetch_cf_package(
-                "https://example.com/ims/case/v1p1"
-            )
+            data, warnings = await fetch_cf_package("https://example.com/ims/case/v1p1")
 
         assert "CFPackage" in data
 
@@ -286,9 +277,7 @@ class TestFetchCFPackage:
             mock_client.__aexit__ = AsyncMock(return_value=None)
             mock_cls.return_value = mock_client
 
-            data, warnings = await fetch_cf_package(
-                "https://example.com/ims/case/v1p1"
-            )
+            data, warnings = await fetch_cf_package("https://example.com/ims/case/v1p1")
 
         assert any("Remote server has 2 documents" in w for w in warnings)
 
@@ -320,9 +309,7 @@ class TestFetchCFPackage:
             mock_cls.return_value = mock_client
 
             with pytest.raises(ValueError, match="HTTP 404"):
-                await fetch_cf_package(
-                    "https://example.com/ims/case/v1p1/CFPackages/xxx"
-                )
+                await fetch_cf_package("https://example.com/ims/case/v1p1/CFPackages/xxx")
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +327,9 @@ class TestImportBasic:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -350,9 +339,7 @@ class TestImportBasic:
 
         # Verify document
         result = await db_session.execute(
-            select(CFDocument).where(
-                CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001")
-            )
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
         )
         doc = result.scalar_one()
         assert doc.title == "Test Document"
@@ -365,7 +352,9 @@ class TestImportBasic:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report1 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -379,7 +368,9 @@ class TestImportBasic:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg2, [])
             report2 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -387,9 +378,7 @@ class TestImportBasic:
         assert report2.items_created == 0
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
         assert item.full_statement == "Updated Statement"
@@ -412,7 +401,9 @@ class TestImportBasic:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
                 doc_identifier=uuid.UUID("dddd0000-0000-0000-0000-000000000001"),
             )
 
@@ -427,7 +418,9 @@ class TestImportBasic:
             mock_fetch.return_value = (pkg, [])
             with pytest.raises(ValueError, match="Document not found"):
                 await import_case_package(
-                    db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                    db_session,
+                    tenant.id,
+                    "https://example.com/CFPackages/xxx",
                     doc_identifier=uuid.uuid4(),
                 )
 
@@ -435,47 +428,59 @@ class TestImportBasic:
 class TestDefinitionsImport:
     async def test_import_all_definition_types(self, db_session: AsyncSession, tenant: Tenant):
         defs = {
-            "CFItemTypes": [{
-                "identifier": "1111aaaa-0000-0000-0000-000000000001",
-                "uri": "https://example.com/type/1",
-                "title": "Knowledge",
-                "typeCode": "K",
-                "hierarchyCode": "1",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
-            "CFSubjects": [{
-                "identifier": "2222aaaa-0000-0000-0000-000000000001",
-                "uri": "https://example.com/subject/1",
-                "title": "Mathematics",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
-            "CFConcepts": [{
-                "identifier": "3333aaaa-0000-0000-0000-000000000001",
-                "uri": "https://example.com/concept/1",
-                "title": "Algebra",
-                "keywords": "equations|variables",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
-            "CFLicenses": [{
-                "identifier": "4444aaaa-0000-0000-0000-000000000001",
-                "uri": "https://example.com/license/1",
-                "title": "CC BY 4.0",
-                "licenseText": "Creative Commons",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
-            "CFAssociationGroupings": [{
-                "identifier": "5555aaaa-0000-0000-0000-000000000001",
-                "uri": "https://example.com/grouping/1",
-                "title": "Cross-Subject",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFItemTypes": [
+                {
+                    "identifier": "1111aaaa-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/type/1",
+                    "title": "Knowledge",
+                    "typeCode": "K",
+                    "hierarchyCode": "1",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFSubjects": [
+                {
+                    "identifier": "2222aaaa-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/subject/1",
+                    "title": "Mathematics",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFConcepts": [
+                {
+                    "identifier": "3333aaaa-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/concept/1",
+                    "title": "Algebra",
+                    "keywords": "equations|variables",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFLicenses": [
+                {
+                    "identifier": "4444aaaa-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/license/1",
+                    "title": "CC BY 4.0",
+                    "licenseText": "Creative Commons",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFAssociationGroupings": [
+                {
+                    "identifier": "5555aaaa-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/grouping/1",
+                    "title": "Cross-Subject",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
         pkg = _make_cf_package(definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -487,9 +492,7 @@ class TestDefinitionsImport:
 
         # Verify specific fields
         result = await db_session.execute(
-            select(CFItemType).where(
-                CFItemType.identifier == uuid.UUID("1111aaaa-0000-0000-0000-000000000001")
-            )
+            select(CFItemType).where(CFItemType.identifier == uuid.UUID("1111aaaa-0000-0000-0000-000000000001"))
         )
         it = result.scalar_one()
         assert it.title == "Knowledge"
@@ -497,9 +500,7 @@ class TestDefinitionsImport:
         assert it.hierarchy_code == "1"
 
         result = await db_session.execute(
-            select(CFConcept).where(
-                CFConcept.identifier == uuid.UUID("3333aaaa-0000-0000-0000-000000000001")
-            )
+            select(CFConcept).where(CFConcept.identifier == uuid.UUID("3333aaaa-0000-0000-0000-000000000001"))
         )
         concept = result.scalar_one()
         assert concept.keywords == "equations|variables"
@@ -507,19 +508,23 @@ class TestDefinitionsImport:
     async def test_definition_upsert_update(self, db_session: AsyncSession, tenant: Tenant):
         """Re-import should update existing definitions."""
         defs = {
-            "CFItemTypes": [{
-                "identifier": "1111bbbb-0000-0000-0000-000000000001",
-                "uri": "https://example.com/type/1",
-                "title": "Original",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFItemTypes": [
+                {
+                    "identifier": "1111bbbb-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/type/1",
+                    "title": "Original",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
         pkg = _make_cf_package(definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report1 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -527,19 +532,23 @@ class TestDefinitionsImport:
 
         # Re-import with changed title
         defs2 = {
-            "CFItemTypes": [{
-                "identifier": "1111bbbb-0000-0000-0000-000000000001",
-                "uri": "https://example.com/type/1",
-                "title": "Updated",
-                "lastChangeDateTime": "2025-06-01T00:00:00Z",
-            }],
+            "CFItemTypes": [
+                {
+                    "identifier": "1111bbbb-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/type/1",
+                    "title": "Updated",
+                    "lastChangeDateTime": "2025-06-01T00:00:00Z",
+                }
+            ],
         }
         pkg2 = _make_cf_package(definitions=defs2)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg2, [])
             report2 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -549,19 +558,23 @@ class TestDefinitionsImport:
     async def test_definition_no_change(self, db_session: AsyncSession, tenant: Tenant):
         """Re-import with identical data should count as existing."""
         defs = {
-            "CFItemTypes": [{
-                "identifier": "1111cccc-0000-0000-0000-000000000001",
-                "uri": "https://example.com/type/1",
-                "title": "Stable",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFItemTypes": [
+                {
+                    "identifier": "1111cccc-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/type/1",
+                    "title": "Stable",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
         pkg = _make_cf_package(definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -570,7 +583,9 @@ class TestDefinitionsImport:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report2 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -590,7 +605,9 @@ class TestDefinitionsImport:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -601,44 +618,52 @@ class TestItemFKResolution:
     async def test_item_type_fk_resolved(self, db_session: AsyncSession, tenant: Tenant):
         type_ident = "1111eeee-0000-0000-0000-000000000001"
         defs = {
-            "CFItemTypes": [{
-                "identifier": type_ident,
-                "uri": "https://example.com/type/1",
-                "title": "Knowledge",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFItemTypes": [
+                {
+                    "identifier": type_ident,
+                    "uri": "https://example.com/type/1",
+                    "title": "Knowledge",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
-        items = [_make_item(
-            CFItemTypeURI={"identifier": type_ident, "uri": "https://example.com/type/1", "title": "Knowledge"},
-        )]
+        items = [
+            _make_item(
+                CFItemTypeURI={"identifier": type_ident, "uri": "https://example.com/type/1", "title": "Knowledge"},
+            )
+        ]
         pkg = _make_cf_package(items=items, definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
-            report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
         assert item.cf_item_type_id is not None
 
     async def test_item_type_not_found_warning(self, db_session: AsyncSession, tenant: Tenant):
-        items = [_make_item(
-            CFItemTypeURI={"identifier": "ffff0000-0000-0000-0000-000000000001", "uri": "x", "title": "Missing"},
-        )]
+        items = [
+            _make_item(
+                CFItemTypeURI={"identifier": "ffff0000-0000-0000-0000-000000000001", "uri": "x", "title": "Missing"},
+            )
+        ]
         pkg = _make_cf_package(items=items)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -647,30 +672,34 @@ class TestItemFKResolution:
     async def test_concept_fk_resolved(self, db_session: AsyncSession, tenant: Tenant):
         concept_ident = "3333ffff-0000-0000-0000-000000000001"
         defs = {
-            "CFConcepts": [{
-                "identifier": concept_ident,
-                "uri": "https://example.com/concept/1",
-                "title": "Algebra",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFConcepts": [
+                {
+                    "identifier": concept_ident,
+                    "uri": "https://example.com/concept/1",
+                    "title": "Algebra",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
-        items = [_make_item(
-            conceptKeywordsURI={"identifier": concept_ident, "uri": "x", "title": "Algebra"},
-        )]
+        items = [
+            _make_item(
+                conceptKeywordsURI={"identifier": concept_ident, "uri": "x", "title": "Algebra"},
+            )
+        ]
         pkg = _make_cf_package(items=items, definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
-            report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
         assert item.cf_concept_id is not None
@@ -680,33 +709,39 @@ class TestAssociationImport:
     async def test_association_grouping_fk(self, db_session: AsyncSession, tenant: Tenant):
         grp_ident = "5555ffff-0000-0000-0000-000000000001"
         defs = {
-            "CFAssociationGroupings": [{
-                "identifier": grp_ident,
-                "uri": "https://example.com/grouping/1",
-                "title": "Test Group",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            }],
+            "CFAssociationGroupings": [
+                {
+                    "identifier": grp_ident,
+                    "uri": "https://example.com/grouping/1",
+                    "title": "Test Group",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
         }
-        assocs = [_make_association(
-            assoc_type="isPeerOf",
-        )]
+        assocs = [
+            _make_association(
+                assoc_type="isPeerOf",
+            )
+        ]
         assocs[0]["CFAssociationGroupingURI"] = {
-            "identifier": grp_ident, "uri": "x", "title": "Test Group",
+            "identifier": grp_ident,
+            "uri": "x",
+            "title": "Test Group",
         }
         pkg = _make_cf_package(associations=assocs, definitions=defs)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
-            report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFAssociation).where(
-                CFAssociation.identifier == uuid.UUID("cccc0000-0000-0000-0000-000000000001")
-            )
+            select(CFAssociation).where(CFAssociation.identifier == uuid.UUID("cccc0000-0000-0000-0000-000000000001"))
         )
         assoc = result.scalar_one()
         assert assoc.cf_association_grouping_id is not None
@@ -721,7 +756,9 @@ class TestAssociationImport:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -734,7 +771,9 @@ class TestAssociationImport:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report1 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -744,7 +783,9 @@ class TestAssociationImport:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report2 = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -760,7 +801,9 @@ class TestItemSkipping:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         assert report.items_skipped == 1
@@ -773,7 +816,9 @@ class TestItemSkipping:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         assert report.items_skipped == 1
@@ -785,7 +830,9 @@ class TestItemSkipping:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         assert report.items_skipped == 1
@@ -817,15 +864,15 @@ class TestDepthCalculation:
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
-            report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
-        result = await db_session.execute(
-            select(CFItem).where(CFItem.identifier == uuid.UUID(child_ident))
-        )
+        result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(child_ident)))
         child = result.scalar_one()
         assert child.depth == 1
 
@@ -839,15 +886,15 @@ class TestURIPreservation:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
         assert item.uri == "https://example.com/uri/bbbb0000-0000-0000-0000-000000000001"
@@ -859,7 +906,9 @@ class TestURIPreservation:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg, [])
             await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -872,15 +921,15 @@ class TestURIPreservation:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg2, [])
             await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
 
         result = await db_session.execute(
-            select(CFItem).where(
-                CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001")
-            )
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
         # URI should be the original, not the new one
@@ -898,7 +947,9 @@ class TestItemMovement:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg1, [])
             await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
@@ -911,7 +962,9 @@ class TestItemMovement:
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg2, [])
             report = await import_case_package(
-                db_session, tenant.id, "https://example.com/CFPackages/xxx",
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
             )
 
         await db_session.flush()
