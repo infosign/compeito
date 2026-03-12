@@ -90,7 +90,7 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 ## Roadmap
 
 - **Phase 1** (Done) — Docker development, all CASE v1.1 API endpoints, CSV/CASE import & export, Web UI, CLI, i18n
-- **Phase 2** — OpenSALT CSV export format, CASE v1.0 import support, CFRubric API, 1EdTech Conformance, CI
+- **Phase 2** (Done) — OpenSALT CSV export format, CASE v1.0 import support, CFRubric API, CI
 - **Phase 3** — Non-tree association management, OAuth 2.0, semantic search, cross-framework mapping
 
 ## License
@@ -195,7 +195,7 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 ## ロードマップ
 
 - **Phase 1**（完了）— Docker によるローカル開発、CASE v1.1 API 全エンドポイント、CSV/CASE インポート＆エクスポート、Web UI、CLI、i18n
-- **Phase 2** — OpenSALT CSV エクスポート形式、CASE v1.0 インポート対応、CFRubric API、1EdTech 適合性試験、CI
+- **Phase 2**（完了）— OpenSALT CSV エクスポート形式、CASE v1.0 インポート対応、CFRubric API、CI
 - **Phase 3** — ツリー外アソシエーション管理、OAuth 2.0、セマンティック検索、フレームワーク間マッピング
 
 ## ライセンス
