@@ -18,11 +18,14 @@
 
 ## Phase 2
 - CSVエクスポートのOpenSALT互換形式 (`--format opensalt`)
-- CFRubric API エンドポイント + CSVインポート/エクスポート
+- CFRubric API エンドポイント + CFPackage 統合
+- CFRubric CSV インポート/エクスポート
+- CASE API インポートでのルーブリック取り込み
 - CASE v1.0 インポートの v1.1 正規化（フィールドレベル）
 - GitHub Actions CI
 
 ## Phase 3（将来）
+- OpenSALT 形式の互換性改善（smartLevel/notes 対応、列順調整等。詳細は [reference/opensalt-csv-format.md](reference/opensalt-csv-format.md)）
 - isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応（isPeerOf, exactMatchOf 等）
 - OAuth 2.0 Bearer Token 認証（オプション）
 - コンピテンシーの意味検索（ベクトル埋め込み）
