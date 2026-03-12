@@ -63,7 +63,7 @@
 
 | ID | 要件 | 備考 |
 |----|------|------|
-| NFR-8.1 | Docker + docker-compose で開発・実行環境を構築する | |
+| NFR-8.1 | Docker + Docker Compose で開発・実行環境を構築する | |
 
 ## NFR-9: テスト
 
@@ -72,7 +72,7 @@
 | NFR-9.1 | pytest + pytest-asyncio で unit/integration テストを実装する | |
 | NFR-9.2 | テスト DB は Docker PostgreSQL を使用する（SQLite 不使用） | 非同期ドライバの差異回避 |
 | NFR-9.3 | `conftest.py` でテスト用 DB のセットアップ・ロールバックを行う | |
-| NFR-9.4 | CI（GitHub Actions）で `docker-compose up -d db` してからテスト実行する | Phase 2 |
+| NFR-9.4 | CI（GitHub Actions）で `docker compose up -d db` してからテスト実行する | Phase 2 |
 
 ## NFR-10: 互換性・準拠
 
