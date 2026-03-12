@@ -18,6 +18,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.models.cf_association import CFAssociation
 from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_concept import CFConcept
@@ -28,7 +29,6 @@ from src.models.cf_license import CFLicense
 from src.models.cf_rubric import CFRubric
 from src.models.cf_rubric_criterion import CFRubricCriterion
 from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
-from src.config import settings
 from src.models.cf_subject import CFSubject
 from src.services.csv_import_service import _calculate_depths
 
