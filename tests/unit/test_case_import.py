@@ -518,7 +518,7 @@ class TestImportBasic:
         )
         doc = result.scalar_one()
         assert doc.title == "Test Document"
-        assert doc.uri == "https://example.com/uri/aaaa0000-0000-0000-0000-000000000001"
+        assert doc.uri == f"http://localhost:8000/{tenant.id}/uri/aaaa0000-0000-0000-0000-000000000001"
 
     async def test_update_existing_document(self, db_session: AsyncSession, tenant: Tenant):
         """Re-import with same identifier should update."""
@@ -1053,8 +1053,8 @@ class TestDepthCalculation:
 
 
 class TestURIPreservation:
-    async def test_external_uri_preserved(self, db_session: AsyncSession, tenant: Tenant):
-        """External URIs should be kept, not replaced with local URIs."""
+    async def test_uri_rewritten_to_local(self, db_session: AsyncSession, tenant: Tenant):
+        """External URIs should be rewritten to local BASE_URL."""
         items = [_make_item()]
         pkg = _make_cf_package(items=items)
 
@@ -1072,9 +1072,9 @@ class TestURIPreservation:
             select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
-        assert item.uri == "https://example.com/uri/bbbb0000-0000-0000-0000-000000000001"
+        assert item.uri == f"http://localhost:8000/{tenant.id}/uri/bbbb0000-0000-0000-0000-000000000001"
 
-    async def test_uri_preserved_on_update(self, db_session: AsyncSession, tenant: Tenant):
+    async def test_uri_rewritten_on_update(self, db_session: AsyncSession, tenant: Tenant):
         items = [_make_item()]
         pkg = _make_cf_package(items=items)
 
@@ -1088,7 +1088,7 @@ class TestURIPreservation:
 
         await db_session.flush()
 
-        # Re-import with different URI
+        # Re-import with different URI — should still use local BASE_URL
         items2 = [_make_item()]
         items2[0]["uri"] = "https://new-server.com/different-uri"
         pkg2 = _make_cf_package(items=items2)
@@ -1107,8 +1107,7 @@ class TestURIPreservation:
             select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
-        # URI should be the original, not the new one
-        assert item.uri == "https://example.com/uri/bbbb0000-0000-0000-0000-000000000001"
+        assert item.uri == f"http://localhost:8000/{tenant.id}/uri/bbbb0000-0000-0000-0000-000000000001"
 
 
 class TestItemMovement:
