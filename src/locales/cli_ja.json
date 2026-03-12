@@ -66,6 +66,15 @@
     "msg_assoc_summary_short": "  アソシエーション: {created} 作成",
     "msg_rubrics_summary": "  ルーブリック: {created} 作成, {updated} 更新, {skipped} スキップ",
 
+    "cmd_import_csv_rubric": "ルーブリックCSVをインポートします。",
+    "cmd_export_csv_rubric": "ルーブリックをCSVにエクスポートします。",
+    "msg_importing_rubric_csv": "ルーブリックCSVをインポート中...",
+    "msg_exporting_rubric_csv": "ルーブリックCSVをエクスポート中...",
+    "msg_exported_rubrics": "{rubrics} ルーブリック ({criteria} クライテリア, {levels} レベル) を {path} にエクスポートしました",
+    "msg_rubric_import_rubrics": "  ルーブリック: {created} 作成, {updated} 更新, {skipped} スキップ",
+    "msg_rubric_import_criteria": "  クライテリア: {created} 作成, {updated} 更新, {skipped} スキップ",
+    "msg_rubric_import_levels": "  レベル: {created} 作成, {updated} 更新, {skipped} スキップ",
+
     "prompt_delete_tenant": "テナント '{name}' ({id}) を削除しますか？全ドキュメントとアイテムが削除されます。[y/N]",
     "prompt_delete_document": "ドキュメント '{title}' ({id}, {count} アイテム) を削除しますか？[y/N]",
 
