@@ -1,15 +1,14 @@
 """Tests for Web UI: tenant list and framework list (Issue #36)."""
+
 import uuid
 from datetime import datetime, timezone
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.tenant import Tenant
 from src.services import tenant_service
-
 
 # ---------------------------------------------------------------------------
 # Service tests
@@ -61,14 +60,17 @@ class TestGetTenant:
 
     async def test_returns_none_for_missing(self, db_session: AsyncSession):
         result = await tenant_service.get_tenant(
-            db_session, uuid.UUID("99999999-9999-9999-9999-999999999999"),
+            db_session,
+            uuid.UUID("99999999-9999-9999-9999-999999999999"),
         )
         assert result is None
 
 
 class TestListDocumentsWithItemCount:
     async def test_returns_documents_with_count(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         doc = CFDocument(
             tenant_id=tenant.id,
@@ -94,7 +96,8 @@ class TestListDocumentsWithItemCount:
         await db_session.flush()
 
         result = await tenant_service.list_documents_with_item_count(
-            db_session, tenant.id,
+            db_session,
+            tenant.id,
         )
         assert len(result) == 1
         assert result[0]["doc"].title == "Doc A"
@@ -113,37 +116,47 @@ class TestListDocumentsWithItemCount:
         await db_session.flush()
 
         result = await tenant_service.list_documents_with_item_count(
-            db_session, tenant.id,
+            db_session,
+            tenant.id,
         )
         assert len(result) == 1
         assert result[0]["item_count"] == 0
 
     async def test_sorted_by_title_then_identifier(
-        self, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ):
         id1 = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
         id2 = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
         id3 = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
         doc1 = CFDocument(
-            tenant_id=tenant.id, identifier=id1,
-            uri="u1", title="Zebra",
+            tenant_id=tenant.id,
+            identifier=id1,
+            uri="u1",
+            title="Zebra",
             last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
         )
         doc2 = CFDocument(
-            tenant_id=tenant.id, identifier=id2,
-            uri="u2", title="Alpha",
+            tenant_id=tenant.id,
+            identifier=id2,
+            uri="u2",
+            title="Alpha",
             last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
         )
         doc3 = CFDocument(
-            tenant_id=tenant.id, identifier=id3,
-            uri="u3", title="Alpha",
+            tenant_id=tenant.id,
+            identifier=id3,
+            uri="u3",
+            title="Alpha",
             last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
         )
         db_session.add_all([doc1, doc2, doc3])
         await db_session.flush()
 
         result = await tenant_service.list_documents_with_item_count(
-            db_session, tenant.id,
+            db_session,
+            tenant.id,
         )
         titles_ids = [(r["doc"].title, str(r["doc"].identifier)) for r in result]
         assert titles_ids[0] == ("Alpha", str(id2))
@@ -152,7 +165,8 @@ class TestListDocumentsWithItemCount:
 
     async def test_empty(self, db_session: AsyncSession, tenant: Tenant):
         result = await tenant_service.list_documents_with_item_count(
-            db_session, tenant.id,
+            db_session,
+            tenant.id,
         )
         assert result == []
 

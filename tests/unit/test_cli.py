@@ -1,4 +1,5 @@
 """Tests for CLI commands (Issue #39)."""
+
 import asyncio
 import uuid
 from datetime import datetime, timezone
@@ -13,16 +14,23 @@ from src.config import settings
 from src.models.cf_document import CFDocument
 from src.models.tenant import Tenant
 
-
 NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 DOC_IDENT = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
 _CLEANUP_TABLES = [
-    "cf_rubric_criterion_levels", "cf_rubric_criteria", "cf_rubrics",
-    "cf_associations", "cf_items", "cf_documents",
-    "cf_association_groupings", "cf_concepts", "cf_subjects",
-    "cf_item_types", "cf_licenses", "tenants",
+    "cf_rubric_criterion_levels",
+    "cf_rubric_criteria",
+    "cf_rubrics",
+    "cf_associations",
+    "cf_items",
+    "cf_documents",
+    "cf_association_groupings",
+    "cf_concepts",
+    "cf_subjects",
+    "cf_item_types",
+    "cf_licenses",
+    "tenants",
 ]
 
 
@@ -81,6 +89,7 @@ def clean_db():
 @pytest.fixture
 def test_tenant(clean_db):
     """Create a test tenant committed to DB."""
+
     async def _create(session):
         session.add(Tenant(id=TENANT_ID, name="Test Tenant", is_private=False))
 
@@ -91,16 +100,19 @@ def test_tenant(clean_db):
 @pytest.fixture
 def test_document(test_tenant):
     """Create a test document committed to DB."""
+
     async def _create(session):
-        session.add(CFDocument(
-            tenant_id=TENANT_ID,
-            identifier=DOC_IDENT,
-            uri=f"https://example.com/uri/{DOC_IDENT}",
-            title="Test Document",
-            creator="Test Creator",
-            language="ja",
-            last_change_date_time=NOW,
-        ))
+        session.add(
+            CFDocument(
+                tenant_id=TENANT_ID,
+                identifier=DOC_IDENT,
+                uri=f"https://example.com/uri/{DOC_IDENT}",
+                title="Test Document",
+                creator="Test Creator",
+                language="ja",
+                last_change_date_time=NOW,
+            )
+        )
 
     asyncio.run(_db_exec(_create))
     return DOC_IDENT
@@ -115,6 +127,7 @@ class TestEnvironmentDetection:
     def test_no_database_url(self, runner, monkeypatch):
         monkeypatch.delenv("DATABASE_URL", raising=False)
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "list"])
         assert result.exit_code == 1
         assert "DATABASE_URL" in result.output
@@ -128,6 +141,7 @@ class TestEnvironmentDetection:
 class TestTenantCreate:
     def test_create_public(self, runner, env_docker, clean_db):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "create", "--name", "Test Create"])
         assert result.exit_code == 0
         assert "Created tenant:" in result.output
@@ -136,12 +150,14 @@ class TestTenantCreate:
 
     def test_create_private(self, runner, env_docker, clean_db):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "create", "--name", "Private", "--private"])
         assert result.exit_code == 0
         assert "private" in result.output
 
     def test_create_missing_name(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "create"])
         assert result.exit_code != 0
 
@@ -149,18 +165,21 @@ class TestTenantCreate:
 class TestTenantList:
     def test_list_empty(self, runner, env_docker, clean_db):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "list"])
         assert result.exit_code == 0
         assert "No tenants found" in result.output
 
     def test_list_with_tenants(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "list"])
         assert result.exit_code == 0
         assert "Test Tenant" in result.output
 
     def test_list_with_docs(self, runner, env_docker, test_document):
         from cli import cli
+
         result = runner.invoke(cli, ["tenant", "list", "--with-docs"])
         assert result.exit_code == 0
         assert "Test Tenant" in result.output
@@ -170,8 +189,10 @@ class TestTenantList:
 class TestTenantUpdate:
     def test_update_name(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--name", "New Name"],
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--name", "New Name"],
         )
         assert result.exit_code == 0
         assert "Updated tenant:" in result.output
@@ -179,34 +200,42 @@ class TestTenantUpdate:
 
     def test_update_private(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--private"],
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--private"],
         )
         assert result.exit_code == 0
         assert "private" in result.output
 
     def test_update_public(self, runner, env_docker, test_tenant):
         from cli import cli
+
         # First make private
         runner.invoke(
-            cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--private"],
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--private"],
         )
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--public"],
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--public"],
         )
         assert result.exit_code == 0
         assert "public" in result.output
 
     def test_update_no_options(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", str(TENANT_ID)],
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID)],
         )
         assert result.exit_code == 1
         assert "At least one of" in result.output
 
     def test_update_private_public_conflict(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
             cli,
             ["tenant", "update", "--tenant", str(TENANT_ID), "--private", "--public"],
@@ -216,17 +245,21 @@ class TestTenantUpdate:
 
     def test_update_not_found(self, runner, env_docker, clean_db):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", fake_uuid, "--name", "X"],
+            cli,
+            ["tenant", "update", "--tenant", fake_uuid, "--name", "X"],
         )
         assert result.exit_code == 1
         assert "Tenant not found" in result.output
 
     def test_update_invalid_uuid(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", "bad-uuid", "--name", "X"],
+            cli,
+            ["tenant", "update", "--tenant", "bad-uuid", "--name", "X"],
         )
         assert result.exit_code == 1
         assert "Invalid UUID format" in result.output
@@ -235,8 +268,10 @@ class TestTenantUpdate:
 class TestTenantDelete:
     def test_delete_with_force(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "delete", "--tenant", str(TENANT_ID), "--force"],
+            cli,
+            ["tenant", "delete", "--tenant", str(TENANT_ID), "--force"],
         )
         assert result.exit_code == 0
         assert "Deleted tenant:" in result.output
@@ -244,8 +279,10 @@ class TestTenantDelete:
 
     def test_delete_confirm_yes(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "delete", "--tenant", str(TENANT_ID)],
+            cli,
+            ["tenant", "delete", "--tenant", str(TENANT_ID)],
             input="y\n",
         )
         assert result.exit_code == 0
@@ -253,8 +290,10 @@ class TestTenantDelete:
 
     def test_delete_confirm_no(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "delete", "--tenant", str(TENANT_ID)],
+            cli,
+            ["tenant", "delete", "--tenant", str(TENANT_ID)],
             input="N\n",
         )
         assert result.exit_code == 2
@@ -262,9 +301,11 @@ class TestTenantDelete:
 
     def test_delete_not_found(self, runner, env_docker, clean_db):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
-            cli, ["tenant", "delete", "--tenant", fake_uuid, "--force"],
+            cli,
+            ["tenant", "delete", "--tenant", fake_uuid, "--force"],
         )
         assert result.exit_code == 1
         assert "Tenant not found" in result.output
@@ -278,22 +319,27 @@ class TestTenantDelete:
 class TestDocList:
     def test_list_docs(self, runner, env_docker, test_document):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["doc", "list", "--tenant", str(TENANT_ID)],
+            cli,
+            ["doc", "list", "--tenant", str(TENANT_ID)],
         )
         assert result.exit_code == 0
         assert "Test Document" in result.output
 
     def test_list_empty(self, runner, env_docker, test_tenant):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["doc", "list", "--tenant", str(TENANT_ID)],
+            cli,
+            ["doc", "list", "--tenant", str(TENANT_ID)],
         )
         assert result.exit_code == 0
         assert "No documents found" in result.output
 
     def test_list_tenant_not_found(self, runner, env_docker, clean_db):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(cli, ["doc", "list", "--tenant", fake_uuid])
         assert result.exit_code == 1
@@ -303,12 +349,16 @@ class TestDocList:
 class TestDocDelete:
     def test_delete_with_force(self, runner, env_docker, test_document):
         from cli import cli
+
         result = runner.invoke(
             cli,
             [
-                "doc", "delete",
-                "--tenant", str(TENANT_ID),
-                "--doc", str(DOC_IDENT),
+                "doc",
+                "delete",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
                 "--force",
             ],
         )
@@ -318,12 +368,16 @@ class TestDocDelete:
 
     def test_delete_confirm_cancel(self, runner, env_docker, test_document):
         from cli import cli
+
         result = runner.invoke(
             cli,
             [
-                "doc", "delete",
-                "--tenant", str(TENANT_ID),
-                "--doc", str(DOC_IDENT),
+                "doc",
+                "delete",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
             ],
             input="N\n",
         )
@@ -332,13 +386,17 @@ class TestDocDelete:
 
     def test_delete_doc_not_found(self, runner, env_docker, test_tenant):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
             cli,
             [
-                "doc", "delete",
-                "--tenant", str(TENANT_ID),
-                "--doc", fake_uuid,
+                "doc",
+                "delete",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                fake_uuid,
                 "--force",
             ],
         )
@@ -354,24 +412,29 @@ class TestDocDelete:
 class TestImportCsv:
     def test_file_not_found(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["import", "csv", "--tenant", str(TENANT_ID), "--file", "/nonexistent.csv"],
+            cli,
+            ["import", "csv", "--tenant", str(TENANT_ID), "--file", "/nonexistent.csv"],
         )
         assert result.exit_code == 1
         assert "File not found" in result.output
 
     def test_invalid_utf8(self, runner, env_docker, tmp_path):
         from cli import cli
+
         bad_file = tmp_path / "bad.csv"
         bad_file.write_bytes(b"\xff\xfe invalid")
         result = runner.invoke(
-            cli, ["import", "csv", "--tenant", str(TENANT_ID), "--file", str(bad_file)],
+            cli,
+            ["import", "csv", "--tenant", str(TENANT_ID), "--file", str(bad_file)],
         )
         assert result.exit_code == 1
         assert "CSV file is not valid UTF-8" in result.output
 
     def test_import_success(self, runner, env_docker, test_tenant, tmp_path):
         from cli import cli
+
         csv_file = tmp_path / "test.csv"
         csv_file.write_text(
             "#title,Test Framework\n"
@@ -380,34 +443,42 @@ class TestImportCsv:
             encoding="utf-8",
         )
         result = runner.invoke(
-            cli, ["import", "csv", "--tenant", str(TENANT_ID), "--file", str(csv_file)],
+            cli,
+            ["import", "csv", "--tenant", str(TENANT_ID), "--file", str(csv_file)],
         )
         assert result.exit_code == 0
         assert "Imported into" in result.output
 
     def test_import_tenant_not_found(self, runner, env_docker, clean_db, tmp_path):
         from cli import cli
+
         csv_file = tmp_path / "test.csv"
         csv_file.write_text("Identifier,Full Statement\n", encoding="utf-8")
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
-            cli, ["import", "csv", "--tenant", fake_uuid, "--file", str(csv_file)],
+            cli,
+            ["import", "csv", "--tenant", fake_uuid, "--file", str(csv_file)],
         )
         assert result.exit_code == 1
         assert "Tenant not found" in result.output
 
     def test_import_doc_not_found(self, runner, env_docker, test_tenant, tmp_path):
         from cli import cli
+
         csv_file = tmp_path / "test.csv"
         csv_file.write_text("Identifier,Full Statement\n", encoding="utf-8")
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
             cli,
             [
-                "import", "csv",
-                "--tenant", str(TENANT_ID),
-                "--doc", fake_uuid,
-                "--file", str(csv_file),
+                "import",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                fake_uuid,
+                "--file",
+                str(csv_file),
             ],
         )
         assert result.exit_code == 1
@@ -422,14 +493,19 @@ class TestImportCsv:
 class TestExportCsv:
     def test_export_success(self, runner, env_docker, test_document, tmp_path):
         from cli import cli
+
         out_file = tmp_path / "out.csv"
         result = runner.invoke(
             cli,
             [
-                "export", "csv",
-                "--tenant", str(TENANT_ID),
-                "--doc", str(DOC_IDENT),
-                "--file", str(out_file),
+                "export",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
+                "--file",
+                str(out_file),
             ],
         )
         assert result.exit_code == 0
@@ -438,14 +514,20 @@ class TestExportCsv:
 
     def test_export_opensalt_not_supported(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
             cli,
             [
-                "export", "csv",
-                "--tenant", str(TENANT_ID),
-                "--doc", str(DOC_IDENT),
-                "--file", "/tmp/out.csv",
-                "--format", "opensalt",
+                "export",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
+                "--file",
+                "/tmp/out.csv",
+                "--format",
+                "opensalt",
             ],
         )
         assert result.exit_code == 1
@@ -453,14 +535,20 @@ class TestExportCsv:
 
     def test_export_invalid_format(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
             cli,
             [
-                "export", "csv",
-                "--tenant", str(TENANT_ID),
-                "--doc", str(DOC_IDENT),
-                "--file", "/tmp/out.csv",
-                "--format", "xml",
+                "export",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
+                "--file",
+                "/tmp/out.csv",
+                "--format",
+                "xml",
             ],
         )
         assert result.exit_code == 1
@@ -468,14 +556,19 @@ class TestExportCsv:
 
     def test_export_tenant_not_found(self, runner, env_docker, clean_db, tmp_path):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
             cli,
             [
-                "export", "csv",
-                "--tenant", fake_uuid,
-                "--doc", str(DOC_IDENT),
-                "--file", str(tmp_path / "out.csv"),
+                "export",
+                "csv",
+                "--tenant",
+                fake_uuid,
+                "--doc",
+                str(DOC_IDENT),
+                "--file",
+                str(tmp_path / "out.csv"),
             ],
         )
         assert result.exit_code == 1
@@ -483,14 +576,19 @@ class TestExportCsv:
 
     def test_export_doc_not_found(self, runner, env_docker, test_tenant, tmp_path):
         from cli import cli
+
         fake_uuid = "99999999-9999-9999-9999-999999999999"
         result = runner.invoke(
             cli,
             [
-                "export", "csv",
-                "--tenant", str(TENANT_ID),
-                "--doc", fake_uuid,
-                "--file", str(tmp_path / "out.csv"),
+                "export",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                fake_uuid,
+                "--file",
+                str(tmp_path / "out.csv"),
             ],
         )
         assert result.exit_code == 1
@@ -505,6 +603,7 @@ class TestExportCsv:
 class TestDbMigrate:
     def test_migrate_runs_alembic(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(cli, ["db", "migrate"])
         assert result.exit_code == 0
         assert "Migration complete" in result.output
@@ -523,20 +622,26 @@ class TestDbMigrate:
 class TestUuidValidation:
     def test_invalid_tenant_uuid_on_update(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
-            cli, ["tenant", "update", "--tenant", "not-a-uuid", "--name", "X"],
+            cli,
+            ["tenant", "update", "--tenant", "not-a-uuid", "--name", "X"],
         )
         assert result.exit_code == 1
         assert "Invalid UUID format" in result.output
 
     def test_invalid_doc_uuid_on_delete(self, runner, env_docker):
         from cli import cli
+
         result = runner.invoke(
             cli,
             [
-                "doc", "delete",
-                "--tenant", str(TENANT_ID),
-                "--doc", "bad-uuid",
+                "doc",
+                "delete",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                "bad-uuid",
                 "--force",
             ],
         )
