@@ -10,7 +10,6 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.tenant import Tenant
 
-
 TENANT_ID = "11111111-1111-1111-1111-111111111111"
 DOC_IDENTIFIER = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 ITEM_IDENTIFIER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
@@ -38,7 +37,9 @@ async def sample_item(db_session: AsyncSession, sample_document: CFDocument) -> 
 
 @pytest.fixture
 async def sample_associations(
-    db_session: AsyncSession, sample_document: CFDocument, sample_item: CFItem,
+    db_session: AsyncSession,
+    sample_document: CFDocument,
+    sample_item: CFItem,
 ) -> list[CFAssociation]:
     """Create sample CFAssociations for testing."""
     assocs = []
@@ -66,7 +67,10 @@ async def sample_associations(
 
 class TestGetCFItem:
     async def test_get_existing_item(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item: CFItem,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item: CFItem,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFItems/{ITEM_IDENTIFIER}")
         assert response.status_code == 200
@@ -90,7 +94,9 @@ class TestGetCFItem:
         assert response.headers["cache-control"] == "public, max-age=3600"
 
     async def test_get_nonexistent_item_returns_404(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         fake_id = str(uuid.uuid4())
         response = await db_client.get(f"{CASE_PATH}/CFItems/{fake_id}")
@@ -100,7 +106,9 @@ class TestGetCFItem:
         assert "unknownobject" in str(body["imsx_codeMinor"])
 
     async def test_get_invalid_uuid_returns_400(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFItems/not-a-uuid")
         assert response.status_code == 400
@@ -137,7 +145,10 @@ class TestGetCFItemAssociations:
         assert response.headers["cache-control"] == "public, max-age=3600"
 
     async def test_returns_empty_associations_array(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item: CFItem,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item: CFItem,
     ) -> None:
         """Item exists but has no associations → empty array, not 404."""
         response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}")
@@ -147,7 +158,9 @@ class TestGetCFItemAssociations:
         assert body["CFAssociations"] == []
 
     async def test_nonexistent_item_returns_404(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         """Item does not exist → 404, not empty array (FR-3.6)."""
         fake_id = str(uuid.uuid4())
@@ -158,7 +171,9 @@ class TestGetCFItemAssociations:
         assert "unknownobject" in str(body["imsx_codeMinor"])
 
     async def test_invalid_uuid_returns_400(
-        self, db_client: AsyncClient, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/not-a-uuid")
         assert response.status_code == 400
@@ -171,9 +186,7 @@ class TestGetCFItemAssociations:
         sample_item: CFItem,
         sample_associations: list[CFAssociation],
     ) -> None:
-        response = await db_client.get(
-            f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=2"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=2")
         assert response.status_code == 200
         assert len(response.json()["CFAssociations"]) == 2
 
@@ -184,9 +197,7 @@ class TestGetCFItemAssociations:
         sample_item: CFItem,
         sample_associations: list[CFAssociation],
     ) -> None:
-        response = await db_client.get(
-            f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?offset=2"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?offset=2")
         assert response.status_code == 200
         assert len(response.json()["CFAssociations"]) == 1
 
@@ -197,27 +208,27 @@ class TestGetCFItemAssociations:
         sample_item: CFItem,
         sample_associations: list[CFAssociation],
     ) -> None:
-        response = await db_client.get(
-            f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=0"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=0")
         assert response.status_code == 200
         assert response.json()["CFAssociations"] == []
 
     async def test_pagination_negative_limit_returns_400(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item: CFItem,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item: CFItem,
     ) -> None:
-        response = await db_client.get(
-            f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=-1"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?limit=-1")
         assert response.status_code == 400
         assert "invalid_selection_field" in str(response.json()["imsx_codeMinor"])
 
     async def test_pagination_negative_offset_returns_400(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item: CFItem,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item: CFItem,
     ) -> None:
-        response = await db_client.get(
-            f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?offset=-1"
-        )
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}?offset=-1")
         assert response.status_code == 400
         assert "invalid_selection_field" in str(response.json()["imsx_codeMinor"])
 
@@ -304,9 +315,7 @@ class TestTenantIsolation:
         sample_item: CFItem,
     ) -> None:
         other_tenant_id = str(uuid.uuid4())
-        response = await db_client.get(
-            f"/{other_tenant_id}/ims/case/v1p1/CFItems/{ITEM_IDENTIFIER}"
-        )
+        response = await db_client.get(f"/{other_tenant_id}/ims/case/v1p1/CFItems/{ITEM_IDENTIFIER}")
         assert response.status_code == 404
 
     async def test_item_associations_not_visible_across_tenants(
@@ -318,7 +327,5 @@ class TestTenantIsolation:
         sample_associations: list[CFAssociation],
     ) -> None:
         other_tenant_id = str(uuid.uuid4())
-        response = await db_client.get(
-            f"/{other_tenant_id}/ims/case/v1p1/CFItemAssociations/{ITEM_IDENTIFIER}"
-        )
+        response = await db_client.get(f"/{other_tenant_id}/ims/case/v1p1/CFItemAssociations/{ITEM_IDENTIFIER}")
         assert response.status_code == 404

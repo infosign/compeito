@@ -3,6 +3,7 @@
 See docs/csv-format.md and docs/import-logic.md (ソート順序 / 独自形式エクスポート)
 for the full specification.
 """
+
 from __future__ import annotations
 
 import csv
@@ -19,19 +20,29 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 
-
 # ---------------------------------------------------------------------------
 # Data structures for export
 # ---------------------------------------------------------------------------
 
+
 class _ExportItem:
     """Internal representation of an item to export."""
+
     __slots__ = (
-        "identifier", "full_statement", "human_coding_scheme",
-        "parent_identifier", "sequence_number", "cf_item_type_title",
-        "education_level", "concept_keywords", "abbreviated_statement",
-        "language", "list_enumeration", "license_title",
-        "status_start_date", "status_end_date",
+        "identifier",
+        "full_statement",
+        "human_coding_scheme",
+        "parent_identifier",
+        "sequence_number",
+        "cf_item_type_title",
+        "education_level",
+        "concept_keywords",
+        "abbreviated_statement",
+        "language",
+        "list_enumeration",
+        "license_title",
+        "status_start_date",
+        "status_end_date",
     )
 
     def __init__(self, item: CFItem, parent_ident: str | None, seq: int | None):
@@ -62,6 +73,7 @@ def _jsonb_list_to_csv(val: list | None) -> str:
 # Sort key for natsort
 # ---------------------------------------------------------------------------
 
+
 def _sort_key(hcs: str | None, identifier: str) -> tuple:
     """Build a sort key: (has_hcs, natsort_key(hcs), identifier).
 
@@ -76,6 +88,7 @@ def _sort_key(hcs: str | None, identifier: str) -> tuple:
 # Tree sort (depth-first)
 # ---------------------------------------------------------------------------
 
+
 def _build_tree_order(
     items: list[CFItem],
     assocs: list[CFAssociation],
@@ -85,8 +98,6 @@ def _build_tree_order(
 
     Returns list of (item, parent_identifier_str_or_None, sequence_number).
     """
-    item_by_ident: dict[str, CFItem] = {str(i.identifier): i for i in items}
-
     # Build parent info from isChildOf associations
     # item_ident -> list of (parent_ident, sequence_number, assoc for tiebreaking)
     child_to_parents: dict[str, list[tuple[str, int | None, str]]] = defaultdict(list)
@@ -94,19 +105,19 @@ def _build_tree_order(
         if a.association_type == "isChildOf":
             child_ident = a.origin_node_identifier
             parent_ident = a.destination_node_identifier
-            child_to_parents[child_ident].append(
-                (parent_ident, a.sequence_number, a.destination_node_identifier)
-            )
+            child_to_parents[child_ident].append((parent_ident, a.sequence_number, a.destination_node_identifier))
 
     # For each child, pick the primary parent (min sequence_number, then dest_ident)
     primary_parent: dict[str, tuple[str, int | None]] = {}
     for child_ident, parents in child_to_parents.items():
         # Sort: non-NULL seq first, then seq ascending, then dest_ident
-        parents.sort(key=lambda p: (
-            0 if p[1] is not None else 1,  # NULL last
-            p[1] if p[1] is not None else 0,
-            p[2],
-        ))
+        parents.sort(
+            key=lambda p: (
+                0 if p[1] is not None else 1,  # NULL last
+                p[1] if p[1] is not None else 0,
+                p[2],
+            )
+        )
         best = parents[0]
         primary_parent[child_ident] = (best[0], best[1])
 
@@ -124,11 +135,14 @@ def _build_tree_order(
 
     # Sort children of each parent
     def sort_children(child_list: list[tuple[CFItem, int | None]]) -> list[tuple[CFItem, int | None]]:
-        return sorted(child_list, key=lambda c: (
-            0 if c[1] is not None else 1,  # NULL seq last
-            c[1] if c[1] is not None else 0,
-            *_sort_key(c[0].human_coding_scheme, str(c[0].identifier)),
-        ))
+        return sorted(
+            child_list,
+            key=lambda c: (
+                0 if c[1] is not None else 1,  # NULL seq last
+                c[1] if c[1] is not None else 0,
+                *_sort_key(c[0].human_coding_scheme, str(c[0].identifier)),
+            ),
+        )
 
     # DFS traversal
     result: list[tuple[CFItem, str | None, int | None]] = []
@@ -145,9 +159,13 @@ def _build_tree_order(
     dfs(doc_identifier)
 
     # Append orphans (no isChildOf)
-    orphans_sorted = sorted(orphans, key=lambda i: _sort_key(
-        i.human_coding_scheme, str(i.identifier),
-    ))
+    orphans_sorted = sorted(
+        orphans,
+        key=lambda i: _sort_key(
+            i.human_coding_scheme,
+            str(i.identifier),
+        ),
+    )
     for item in orphans_sorted:
         ident = str(item.identifier)
         if not any(r[0] is item for r in result):
@@ -161,10 +179,20 @@ def _build_tree_order(
 # ---------------------------------------------------------------------------
 
 HEADER = [
-    "Identifier", "fullStatement", "humanCodingScheme", "parentIdentifier",
-    "sequenceNumber", "CFItemType", "educationLevel", "conceptKeywords",
-    "abbreviatedStatement", "language", "listEnumeration", "license",
-    "statusStartDate", "statusEndDate",
+    "Identifier",
+    "fullStatement",
+    "humanCodingScheme",
+    "parentIdentifier",
+    "sequenceNumber",
+    "CFItemType",
+    "educationLevel",
+    "conceptKeywords",
+    "abbreviatedStatement",
+    "language",
+    "listEnumeration",
+    "license",
+    "statusStartDate",
+    "statusEndDate",
 ]
 
 
@@ -236,22 +264,24 @@ async def export_csv(
     # Data rows
     for item, parent_ident, seq in ordered:
         ei = _ExportItem(item, parent_ident, seq)
-        writer.writerow([
-            ei.identifier,
-            ei.full_statement,
-            ei.human_coding_scheme,
-            ei.parent_identifier,
-            ei.sequence_number,
-            ei.cf_item_type_title,
-            ei.education_level,
-            ei.concept_keywords,
-            ei.abbreviated_statement,
-            ei.language,
-            ei.list_enumeration,
-            ei.license_title,
-            ei.status_start_date,
-            ei.status_end_date,
-        ])
+        writer.writerow(
+            [
+                ei.identifier,
+                ei.full_statement,
+                ei.human_coding_scheme,
+                ei.parent_identifier,
+                ei.sequence_number,
+                ei.cf_item_type_title,
+                ei.education_level,
+                ei.concept_keywords,
+                ei.abbreviated_statement,
+                ei.language,
+                ei.list_enumeration,
+                ei.license_title,
+                ei.status_start_date,
+                ei.status_end_date,
+            ]
+        )
 
     return output.getvalue()
 

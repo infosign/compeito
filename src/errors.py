@@ -15,9 +15,7 @@ def imsx_error_response(
         imsx_severity="error",
         imsx_description=description,
         imsx_codeMinor=ImsxCodeMinor(
-            imsx_codeMinorField=[
-                ImsxCodeMinorField(imsx_codeMinorFieldValue=code_minor_value)
-            ]
+            imsx_codeMinorField=[ImsxCodeMinorField(imsx_codeMinorFieldValue=code_minor_value)]
         ),
     )
     return JSONResponse(
