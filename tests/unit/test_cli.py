@@ -512,9 +512,10 @@ class TestExportCsv:
         assert "Exported" in result.output
         assert out_file.exists()
 
-    def test_export_opensalt_not_supported(self, runner, env_docker):
+    def test_export_opensalt_format(self, runner, env_docker, test_document, tmp_path):
         from cli import cli
 
+        out_file = tmp_path / "opensalt.csv"
         result = runner.invoke(
             cli,
             [
@@ -525,13 +526,16 @@ class TestExportCsv:
                 "--doc",
                 str(DOC_IDENT),
                 "--file",
-                "/tmp/out.csv",
+                str(out_file),
                 "--format",
                 "opensalt",
             ],
         )
-        assert result.exit_code == 1
-        assert "opensalt format is not yet supported" in result.output
+        assert result.exit_code == 0
+        assert "Exported" in result.output
+        assert out_file.exists()
+        content = out_file.read_text()
+        assert "CASE Item Identifier" in content
 
     def test_export_invalid_format(self, runner, env_docker):
         from cli import cli

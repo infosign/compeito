@@ -12,7 +12,7 @@ from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
 from src.models.tenant import Tenant
-from src.services.csv_export_service import export_csv
+from src.services.csv_export_service import export_csv, export_opensalt_csv
 from src.services.csv_import_service import import_csv
 
 TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -513,3 +513,197 @@ class TestDocumentNotFound:
     async def test_not_found_raises(self, db_session: AsyncSession, tenant: Tenant):
         with pytest.raises(ValueError, match="Document not found"):
             await export_csv(db_session, tenant.id, uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
+# OpenSALT format export tests
+# ---------------------------------------------------------------------------
+
+
+class TestOpenSALTExport:
+    async def test_opensalt_header(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        doc = doc_with_items
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+        lines = csv_str.strip().split("\n")
+        # Find header line (first non-metadata line)
+        header_line = next(line for line in lines if not line.startswith("#"))
+        assert header_line.startswith("CASE Item Identifier,")
+        assert "Is Part Of" in header_line
+        assert "Is Child Of" in header_line
+
+    async def test_opensalt_is_part_of(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        """Every data row should have document identifier in Is Part Of column."""
+        doc = doc_with_items
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+        lines = csv_str.strip().split("\n")
+        data_lines = [
+            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
+        ]
+        doc_ident = str(doc.identifier)
+        for line in data_lines:
+            assert line.endswith(doc_ident)
+
+    async def test_opensalt_is_child_of(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        """Child items have parent identifier; root items have empty Is Child Of."""
+        doc = doc_with_items
+        # Item identifiers from the fixture
+        item1_ident = "bbbbbbbb-0000-0000-0000-000000000001"
+        item2_ident = "bbbbbbbb-0000-0000-0000-000000000002"
+        item3_ident = "bbbbbbbb-0000-0000-0000-000000000003"
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+
+        import csv as csv_mod
+        import io
+
+        reader = csv_mod.reader(io.StringIO(csv_str))
+        rows = [row for row in reader if not row[0].startswith("#")]
+        header = rows[0]
+        is_child_of_idx = header.index("Is Child Of")
+
+        data_rows = {row[0]: row for row in rows[1:]}
+        # item1 is root -> empty Is Child Of
+        assert data_rows[item1_ident][is_child_of_idx] == ""
+        # item2 is child of item1
+        assert data_rows[item2_ident][is_child_of_idx] == item1_ident
+        # item3 is root -> empty Is Child Of
+        assert data_rows[item3_ident][is_child_of_idx] == ""
+
+    async def test_opensalt_license_column_empty(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        """License column should always be empty in OpenSALT format."""
+        doc = doc_with_items
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+
+        import csv as csv_mod
+        import io
+
+        reader = csv_mod.reader(io.StringIO(csv_str))
+        rows = [row for row in reader if not row[0].startswith("#")]
+        header = rows[0]
+        license_idx = header.index("License")
+        for row in rows[1:]:
+            assert row[license_idx] == ""
+
+    async def test_opensalt_metadata_rows(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        doc = doc_with_items
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+        lines = csv_str.strip().split("\n")
+        assert any("#title,Export Test Doc" in line for line in lines)
+        assert any("#language,ja" in line for line in lines)
+
+    async def test_opensalt_depth_first_order(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
+        """Items should be in depth-first order: R-1, R-1-1, R-2."""
+        doc = doc_with_items
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+        lines = csv_str.strip().split("\n")
+        data_lines = [
+            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
+        ]
+        statements = [line.split(",")[1] for line in data_lines]
+        assert statements == ["Root Item 1", "Child Item 1", "Root Item 2"]
+
+    async def test_opensalt_empty_document(self, db_session: AsyncSession, tenant: Tenant):
+        """Document with no items should produce metadata + header only."""
+        doc = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/doc/empty",
+            title="Empty Doc",
+            last_change_date_time=LCT,
+        )
+        db_session.add(doc)
+        await db_session.flush()
+
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+        lines = csv_str.strip().split("\n")
+        data_lines = [
+            line for line in lines if not line.startswith("#") and not line.startswith("CASE Item Identifier")
+        ]
+        assert len(data_lines) == 0
+
+    async def test_opensalt_column_mapping(self, db_session: AsyncSession, tenant: Tenant):
+        """Verify specific fields map to correct OpenSALT columns."""
+        item_type = CFItemType(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/type/1",
+            title="教科",
+            last_change_date_time=LCT,
+        )
+        doc = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.UUID("dddddddd-0000-0000-0000-000000000001"),
+            uri="https://example.com/doc/map",
+            title="Mapping Test",
+            language="ja",
+            last_change_date_time=LCT,
+        )
+        db_session.add_all([item_type, doc])
+        await db_session.flush()
+
+        item = CFItem(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            cf_document_id=doc.id,
+            identifier=uuid.UUID("eeeeeeee-0000-0000-0000-000000000001"),
+            uri="https://example.com/item/map",
+            full_statement="国語",
+            abbreviated_statement="Kokugo",
+            language="ja",
+            cf_item_type_id=item_type.id,
+            depth=0,
+            last_change_date_time=LCT,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
+
+        import csv as csv_mod
+        import io
+
+        reader = csv_mod.reader(io.StringIO(csv_str))
+        rows = [row for row in reader if not row[0].startswith("#")]
+        header = rows[0]
+        data = dict(zip(header, rows[1]))
+
+        assert data["CASE Item Identifier"] == str(item.identifier)
+        assert data["Full Statement"] == "国語"
+        assert data["Abbreviated Statement"] == "Kokugo"
+        assert data["CF Item Type"] == "教科"
+        assert data["Language"] == "ja"
+        assert data["Is Part Of"] == str(doc.identifier)
+
+
+class TestOpenSALTRoundTrip:
+    async def test_opensalt_export_reimport(self, db_session: AsyncSession, tenant: Tenant):
+        """Export in OpenSALT format, reimport, verify data preserved."""
+        # Create via custom CSV import
+        csv_input = (
+            "#title,OpenSALT RT\n"
+            "#language,ja\n"
+            "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType\n"
+            "11110000-0000-0000-0000-000000000001,国語,K-1,,10,\n"
+            "11110000-0000-0000-0000-000000000002,現代の国語,K-1-1,11110000-0000-0000-0000-000000000001,10,\n"
+        ).encode("utf-8")
+
+        report1 = await import_csv(db_session, tenant.id, csv_input)
+        await db_session.flush()
+        doc_ident = uuid.UUID(report1.document_identifier)
+
+        # Export in OpenSALT format
+        csv_output = await export_opensalt_csv(db_session, tenant.id, doc_ident)
+
+        # Verify structure
+        lines = csv_output.strip().split("\n")
+        assert any("#title,OpenSALT RT" in line for line in lines)
+        header_line = next(line for line in lines if line.startswith("CASE Item Identifier"))
+        assert "Is Part Of" in header_line
+
+        # Reimport the OpenSALT CSV
+        report2 = await import_csv(db_session, tenant.id, csv_output.encode("utf-8"))
+        await db_session.flush()
+        assert report2.items_updated == 2
+        assert report2.items_created == 0
