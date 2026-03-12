@@ -16,7 +16,7 @@
 - docker-compose.yml, Dockerfile
 - pyproject.toml, README.md
 
-## Phase 2
+## Phase 2 — 完了
 - CSVエクスポートのOpenSALT互換形式 (`--format opensalt`)
 - CFRubric API エンドポイント + CFPackage 統合
 - CFRubric CSV インポート/エクスポート

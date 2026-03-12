@@ -66,6 +66,15 @@
     "msg_assoc_summary_short": "  Associations: {created} created",
     "msg_rubrics_summary": "  Rubrics: {created} created, {updated} updated, {skipped} skipped",
 
+    "cmd_import_csv_rubric": "Import rubrics from a CSV file.",
+    "cmd_export_csv_rubric": "Export rubrics to CSV.",
+    "msg_importing_rubric_csv": "Importing rubric CSV...",
+    "msg_exporting_rubric_csv": "Exporting rubric CSV...",
+    "msg_exported_rubrics": "Exported {rubrics} rubrics ({criteria} criteria, {levels} levels) to {path}",
+    "msg_rubric_import_rubrics": "  Rubrics: {created} created, {updated} updated, {skipped} skipped",
+    "msg_rubric_import_criteria": "  Criteria: {created} created, {updated} updated, {skipped} skipped",
+    "msg_rubric_import_levels": "  Levels: {created} created, {updated} updated, {skipped} skipped",
+
     "prompt_delete_tenant": "Delete tenant '{name}' ({id})? This will delete all documents and items. [y/N]",
     "prompt_delete_document": "Delete document '{title}' ({id}, {count} items)? [y/N]",
 
