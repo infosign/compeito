@@ -54,6 +54,12 @@ python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --fo
 # --format: "custom"（デフォルト）/ "opensalt"
 #           不正な値 → エラー終了（「Invalid format: '{value}'. Valid values: custom, opensalt」）
 
+# ルーブリックCSVインポート (--doc で対象ドキュメントを指定、upsert)
+python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+
+# ルーブリックCSVエクスポート
+python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+
 # DBマイグレーション
 python cli.py db migrate
 ```
