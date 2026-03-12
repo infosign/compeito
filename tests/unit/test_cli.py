@@ -535,7 +535,7 @@ class TestExportCsv:
         assert "Exported" in result.output
         assert out_file.exists()
         content = out_file.read_text()
-        assert "CASE Item Identifier" in content
+        assert "Is Child Of" in content
 
     def test_export_invalid_format(self, runner, env_docker):
         from cli import cli

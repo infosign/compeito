@@ -309,7 +309,7 @@ async def export_csv(
 # ---------------------------------------------------------------------------
 
 OPENSALT_HEADER = [
-    "CASE Item Identifier",
+    "Identifier",
     "Full Statement",
     "Human Coding Scheme",
     "Abbreviated Statement",
