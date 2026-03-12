@@ -35,27 +35,27 @@ git clone https://github.com/kentalow/compeito.git
 cd compeito
 
 # Start with Docker
-docker-compose up -d
+docker compose up -d
 
 # Run database migrations
-docker-compose exec app alembic upgrade head
+docker compose exec app alembic upgrade head
 ```
 
 ## CLI Usage
 
 ```bash
 # Tenant management
-python cli.py tenant create --name "University A"
-python cli.py tenant list --with-docs
+docker compose exec app python cli.py tenant create --name "University A"
+docker compose exec app python cli.py tenant list --with-docs
 
 # Import a framework from CSV
-python cli.py import csv --tenant {uuid} --file framework.csv
+docker compose exec app python cli.py import csv --tenant {uuid} --file framework.csv
 
 # Import from an external CASE server (e.g., OpenSALT)
-python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # Export for editing
-python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+docker compose exec app python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 ```
 
 ## API Endpoints
@@ -140,27 +140,27 @@ git clone https://github.com/kentalow/compeito.git
 cd compeito
 
 # Docker で起動
-docker-compose up -d
+docker compose up -d
 
 # データベースマイグレーションを実行
-docker-compose exec app alembic upgrade head
+docker compose exec app alembic upgrade head
 ```
 
 ## CLI の使い方
 
 ```bash
 # テナント管理
-python cli.py tenant create --name "大学A"
-python cli.py tenant list --with-docs
+docker compose exec app python cli.py tenant create --name "大学A"
+docker compose exec app python cli.py tenant list --with-docs
 
 # CSV からフレームワークをインポート
-python cli.py import csv --tenant {uuid} --file framework.csv
+docker compose exec app python cli.py import csv --tenant {uuid} --file framework.csv
 
 # 外部 CASE サーバー（OpenSALT 等）からインポート
-python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # 編集用にエクスポート
-python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+docker compose exec app python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 ```
 
 ## API エンドポイント
