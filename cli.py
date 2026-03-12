@@ -649,6 +649,15 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                     skipped=str(report.associations_skipped),
                 ),
             )
+            if report.rubrics_created or report.rubrics_updated or report.rubrics_skipped:
+                console.print(
+                    t(
+                        "msg_rubrics_summary",
+                        created=str(report.rubrics_created),
+                        updated=str(report.rubrics_updated),
+                        skipped=str(report.rubrics_skipped),
+                    ),
+                )
             if report.warnings:
                 for w in report.warnings:
                     console.print(f"  [yellow]Warning: {w}[/yellow]")
@@ -734,6 +743,151 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
             ]
             console.print(
                 t("msg_exported", count=str(len(data_lines)), path=file_path),
+            )
+
+    _run(_run_export())
+
+
+# ---------------------------------------------------------------------------
+# import csv-rubric
+# ---------------------------------------------------------------------------
+
+
+@import_group.command("csv-rubric", help=t("cmd_import_csv_rubric"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(exists=True), help=t("help_csv_file"))
+def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
+    """Import rubrics from a CSV file."""
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id)
+    csv_data = Path(file_path).read_bytes()
+
+    async def _run_import():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+        from src.services.csv_rubric_import_service import import_rubric_csv
+
+        async for session in _get_session():
+            result = await session.execute(
+                select(Tenant).where(Tenant.id == tid),
+            )
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            result = await session.execute(
+                select(CFDocument).where(
+                    CFDocument.tenant_id == tid,
+                    CFDocument.identifier == did,
+                ),
+            )
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_doc_not_found", value=str(did)))
+                raise SystemExit(1)
+
+            with console.status(t("msg_importing_rubric_csv")):
+                report = await import_rubric_csv(session, tid, did, csv_data)
+                await session.commit()
+
+            console.print(
+                t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),
+            )
+            console.print(
+                t(
+                    "msg_rubric_import_rubrics",
+                    created=str(report.rubrics_created),
+                    updated=str(report.rubrics_updated),
+                    skipped=str(report.rubrics_skipped),
+                ),
+            )
+            console.print(
+                t(
+                    "msg_rubric_import_criteria",
+                    created=str(report.criteria_created),
+                    updated=str(report.criteria_updated),
+                    skipped=str(report.criteria_skipped),
+                ),
+            )
+            console.print(
+                t(
+                    "msg_rubric_import_levels",
+                    created=str(report.levels_created),
+                    updated=str(report.levels_updated),
+                    skipped=str(report.levels_skipped),
+                ),
+            )
+            if report.warnings:
+                for w in report.warnings:
+                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+
+    _run(_run_import())
+
+
+# ---------------------------------------------------------------------------
+# export csv-rubric
+# ---------------------------------------------------------------------------
+
+
+@export_group.command("csv-rubric", help=t("cmd_export_csv_rubric"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
+def export_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
+    """Export rubrics to CSV."""
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id)
+
+    out = Path(file_path)
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.touch()
+        out.unlink()
+    except (PermissionError, OSError):
+        err_console.print(t("err_file_unwritable", value=file_path))
+        raise SystemExit(1)
+
+    async def _run_export():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+        from src.services.csv_rubric_export_service import export_rubric_csv
+
+        async for session in _get_session():
+            result = await session.execute(
+                select(Tenant).where(Tenant.id == tid),
+            )
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            result = await session.execute(
+                select(CFDocument).where(
+                    CFDocument.tenant_id == tid,
+                    CFDocument.identifier == did,
+                ),
+            )
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_doc_not_found", value=str(did)))
+                raise SystemExit(1)
+
+            with console.status(t("msg_exporting_rubric_csv")):
+                csv_str, r_count, c_count, l_count = await export_rubric_csv(session, tid, did)
+
+            out.write_text(csv_str, encoding="utf-8")
+            console.print(
+                t(
+                    "msg_exported_rubrics",
+                    rubrics=str(r_count),
+                    criteria=str(c_count),
+                    levels=str(l_count),
+                    path=file_path,
+                ),
             )
 
     _run(_run_export())
