@@ -1,4 +1,5 @@
 """Web UI router — tenant list, framework list, tree view."""
+
 from __future__ import annotations
 
 import uuid
@@ -11,9 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
-from src.services import tenant_service
-from src.services import tree_service
-from src.services import uri_service
+from src.services import tenant_service, tree_service, uri_service
 
 router = APIRouter()
 
@@ -38,7 +37,10 @@ def _parse_uuid(value: str) -> uuid.UUID | None:
 
 
 def _error_response(
-    request: Request, status_code: int, message: str, detail: str = "",
+    request: Request,
+    status_code: int,
+    message: str,
+    detail: str = "",
 ) -> HTMLResponse:
     """Render an error page."""
     lang = _get_lang(request)
@@ -69,6 +71,7 @@ def _error_fragment(status_code: int, message: str) -> HTMLResponse:
 # Page routes
 # ---------------------------------------------------------------------------
 
+
 @router.get("/", response_class=HTMLResponse)
 async def index(
     request: Request,
@@ -79,7 +82,9 @@ async def index(
     t = get_translator(lang)
     tenants = await tenant_service.list_public_tenants(session)
     response = templates.TemplateResponse(
-        request, "index.html", {"tenants": tenants, "t": t, "lang": lang},
+        request,
+        "index.html",
+        {"tenants": tenants, "t": t, "lang": lang},
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
@@ -97,7 +102,9 @@ async def tenant_page(
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, t("error_bad_request"),
+            request,
+            400,
+            t("error_bad_request"),
             t("error_invalid_uuid", value=tenant),
         )
 
@@ -106,10 +113,12 @@ async def tenant_page(
         return _error_response(request, 404, t("error_not_found"))
 
     documents = await tenant_service.list_documents_with_item_count(
-        session, tenant_obj.id,
+        session,
+        tenant_obj.id,
     )
     response = templates.TemplateResponse(
-        request, "tenant.html",
+        request,
+        "tenant.html",
         {"tenant": tenant_obj, "documents": documents, "t": t, "lang": lang},
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
@@ -131,7 +140,9 @@ async def tree_view(
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, t("error_bad_request"),
+            request,
+            400,
+            t("error_bad_request"),
             t("error_invalid_uuid", value=tenant),
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
@@ -142,7 +153,9 @@ async def tree_view(
     doc_uuid = _parse_uuid(doc_id)
     if doc_uuid is None:
         return _error_response(
-            request, 400, t("error_bad_request"),
+            request,
+            400,
+            t("error_bad_request"),
             t("error_invalid_uuid", value=doc_id),
         )
     doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
@@ -153,11 +166,14 @@ async def tree_view(
     selected_ident = _parse_uuid(item) if item else None
 
     root_nodes, orphan_nodes, selected_item = await tree_service.build_ssr_tree(
-        session, doc, selected_ident,
+        session,
+        doc,
+        selected_ident,
     )
 
     response = templates.TemplateResponse(
-        request, "cftree.html",
+        request,
+        "cftree.html",
         {
             "tenant": tenant_obj,
             "doc": doc,
@@ -187,7 +203,9 @@ async def uri_detail(
     tenant_uuid = _parse_uuid(tenant)
     if tenant_uuid is None:
         return _error_response(
-            request, 400, t("error_bad_request"),
+            request,
+            400,
+            t("error_bad_request"),
             t("error_invalid_uuid", value=tenant),
         )
     tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
@@ -198,12 +216,16 @@ async def uri_detail(
     res_uuid = _parse_uuid(resource_id)
     if res_uuid is None:
         return _error_response(
-            request, 400, t("error_bad_request"),
+            request,
+            400,
+            t("error_bad_request"),
             t("error_invalid_uuid", value=resource_id),
         )
 
     result = await uri_service.find_resource_by_identifier(
-        session, tenant_obj.id, res_uuid,
+        session,
+        tenant_obj.id,
+        res_uuid,
     )
     if result is None:
         return _error_response(request, 404, t("error_not_found"))
@@ -218,7 +240,8 @@ async def uri_detail(
         page_title = getattr(result.resource, "title", None) or str(result.resource.identifier)
 
     response = templates.TemplateResponse(
-        request, "uri.html",
+        request,
+        "uri.html",
         {
             "tenant": tenant_obj,
             "resource_type": result.resource_type,
@@ -236,6 +259,7 @@ async def uri_detail(
 # ---------------------------------------------------------------------------
 # HTMX fragment routes
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/{tenant}/cftree/doc/{doc_id}/children/{item_id}",
@@ -275,7 +299,8 @@ async def children_fragment(
     # Get children (empty if item doesn't exist or belongs to another doc)
     nodes = await tree_service.get_children(session, doc.id, str(item_uuid))
     response = templates.TemplateResponse(
-        request, "fragments/children.html",
+        request,
+        "fragments/children.html",
         {
             "nodes": nodes,
             "tenant_id": str(tenant_obj.id),
@@ -326,7 +351,8 @@ async def detail_fragment(
         return _error_fragment(404, t("error_item_not_found"))
 
     response = templates.TemplateResponse(
-        request, "fragments/detail.html",
+        request,
+        "fragments/detail.html",
         {
             "selected_item": selected_item,
             "tenant_id": str(tenant_obj.id),

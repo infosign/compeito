@@ -24,9 +24,7 @@ async def require_tenant(
 ) -> Tenant:
     """FastAPI dependency that validates tenant UUID and existence."""
     tenant_uuid = validate_uuid(tenant)
-    result = await session.execute(
-        select(Tenant).where(Tenant.id == tenant_uuid)
-    )
+    result = await session.execute(select(Tenant).where(Tenant.id == tenant_uuid))
     tenant_obj = result.scalar_one_or_none()
     if tenant_obj is None:
         raise ResourceNotFoundError(f"Tenant not found: '{tenant}'")

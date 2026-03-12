@@ -1,4 +1,5 @@
 """Internationalization (i18n) support for Web UI and CLI."""
+
 from __future__ import annotations
 
 import json

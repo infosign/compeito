@@ -5,7 +5,6 @@
     "import_group": "インポートコマンド。",
     "export_group": "エクスポートコマンド。",
     "db_group": "データベースコマンド。",
-    "cache_group": "キャッシュコマンド。",
 
     "cmd_tenant_create": "新しいテナントを作成する。",
     "cmd_tenant_list": "全テナントを一覧表示する。",
@@ -17,7 +16,6 @@
     "cmd_import_case_url": "外部CASEソースからインポートする。",
     "cmd_export_csv": "ドキュメントをCSVにエクスポートする。",
     "cmd_db_migrate": "データベースマイグレーションを実行する (alembic upgrade head)。",
-    "cmd_cache_invalidate": "CloudFrontキャッシュを無効化する（AWS環境のみ）。",
 
     "help_tenant_name": "テナント名",
     "help_make_private": "テナントを非公開にする",
@@ -35,12 +33,7 @@
     "help_case_url": "CASE API URLまたはCFPackage URL",
     "help_output_file": "出力ファイルパス",
     "help_export_format": "エクスポート形式: custom（デフォルト）またはopensalt",
-    "help_doc_uuid_optional": "ドキュメントUUID（省略可）",
-
-    "warn_both_env": "警告: DATABASE_URLとCASE_ADMIN_URL/KEYの両方が設定されています。DATABASE_URL（Dockerモード）を使用します",
-    "err_aws_not_supported": "AWSモードはPhase 1ではサポートされていません",
-    "err_admin_both_required": "CASE_ADMIN_URLとCASE_ADMIN_KEYの両方を設定してください",
-    "err_env_required": "DATABASE_URLまたはCASE_ADMIN_URL+CASE_ADMIN_KEYを設定してください",
+    "err_env_required": "DATABASE_URLを設定してください",
     "err_invalid_uuid": "不正なUUID形式: '{value}'",
     "err_private_public_exclusive": "--privateと--publicは同時に指定できません",
     "err_update_requires_option": "--name、--private、--publicのいずれかを指定してください",
@@ -52,7 +45,6 @@
     "err_invalid_format": "不正な形式: '{value}'。有効な値: custom, opensalt",
     "err_opensalt_not_supported": "opensalt形式はまだサポートされていません",
     "err_file_unwritable": "ファイルに書き込めません: '{value}'",
-    "err_aws_required": "このコマンドはAWS環境が必要です",
 
     "msg_created_tenant": "テナントを作成しました: {id} ({name}, {visibility})",
     "msg_updated_tenant": "テナントを更新しました: {id} ({name}, {visibility})",
@@ -72,6 +64,7 @@
     "msg_items_summary": "  アイテム: {created} 作成, {updated} 更新, {skipped} スキップ",
     "msg_assoc_summary": "  アソシエーション: {created} 作成, {updated} 更新, {skipped} スキップ",
     "msg_assoc_summary_short": "  アソシエーション: {created} 作成",
+    "msg_rubrics_summary": "  ルーブリック: {created} 作成, {updated} 更新, {skipped} スキップ",
 
     "prompt_delete_tenant": "テナント '{name}' ({id}) を削除しますか？全ドキュメントとアイテムが削除されます。[y/N]",
     "prompt_delete_document": "ドキュメント '{title}' ({id}, {count} アイテム) を削除しますか？[y/N]",

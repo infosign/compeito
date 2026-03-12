@@ -12,7 +12,6 @@ from src.models.cf_license import CFLicense
 from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 
-
 TENANT_ID = "11111111-1111-1111-1111-111111111111"
 CASE_PATH = f"/{TENANT_ID}/ims/case/v1p1"
 LCT = datetime(2025, 10, 8, 12, 0, 0, tzinfo=timezone.utc)
@@ -20,13 +19,17 @@ LCT = datetime(2025, 10, 8, 12, 0, 0, tzinfo=timezone.utc)
 
 # ---- Fixtures ----
 
+
 @pytest.fixture
 async def sample_item_type(db_session: AsyncSession, tenant: Tenant) -> CFItemType:
     obj = CFItemType(
-        id=uuid.uuid4(), tenant_id=tenant.id,
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
         identifier=uuid.UUID("aaaaaaaa-1111-1111-1111-111111111111"),
         uri="https://example.com/uri/item-type",
-        title="Knowledge", type_code="K", hierarchy_code="1",
+        title="Knowledge",
+        type_code="K",
+        hierarchy_code="1",
         last_change_date_time=LCT,
     )
     db_session.add(obj)
@@ -37,10 +40,12 @@ async def sample_item_type(db_session: AsyncSession, tenant: Tenant) -> CFItemTy
 @pytest.fixture
 async def sample_concept(db_session: AsyncSession, tenant: Tenant) -> CFConcept:
     obj = CFConcept(
-        id=uuid.uuid4(), tenant_id=tenant.id,
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
         identifier=uuid.UUID("bbbbbbbb-1111-1111-1111-111111111111"),
         uri="https://example.com/uri/concept",
-        title="Language", keywords="words|expression",
+        title="Language",
+        keywords="words|expression",
         last_change_date_time=LCT,
     )
     db_session.add(obj)
@@ -51,7 +56,8 @@ async def sample_concept(db_session: AsyncSession, tenant: Tenant) -> CFConcept:
 @pytest.fixture
 async def sample_subject(db_session: AsyncSession, tenant: Tenant) -> CFSubject:
     obj = CFSubject(
-        id=uuid.uuid4(), tenant_id=tenant.id,
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
         identifier=uuid.UUID("cccccccc-1111-1111-1111-111111111111"),
         uri="https://example.com/uri/subject",
         title="Japanese",
@@ -65,10 +71,12 @@ async def sample_subject(db_session: AsyncSession, tenant: Tenant) -> CFSubject:
 @pytest.fixture
 async def sample_license(db_session: AsyncSession, tenant: Tenant) -> CFLicense:
     obj = CFLicense(
-        id=uuid.uuid4(), tenant_id=tenant.id,
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
         identifier=uuid.UUID("dddddddd-1111-1111-1111-111111111111"),
         uri="https://example.com/uri/license",
-        title="CC BY 4.0", description="Creative Commons",
+        title="CC BY 4.0",
+        description="Creative Commons",
         last_change_date_time=LCT,
     )
     db_session.add(obj)
@@ -79,7 +87,8 @@ async def sample_license(db_session: AsyncSession, tenant: Tenant) -> CFLicense:
 @pytest.fixture
 async def sample_grouping(db_session: AsyncSession, tenant: Tenant) -> CFAssociationGrouping:
     obj = CFAssociationGrouping(
-        id=uuid.uuid4(), tenant_id=tenant.id,
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
         identifier=uuid.UUID("eeeeeeee-1111-1111-1111-111111111111"),
         uri="https://example.com/uri/grouping",
         title="Cross-Subject",
@@ -92,6 +101,7 @@ async def sample_grouping(db_session: AsyncSession, tenant: Tenant) -> CFAssocia
 
 # ---- CFItemTypes (Set type) ----
 
+
 class TestCFItemTypes:
     async def test_list_empty(self, db_client: AsyncClient, tenant: Tenant) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFItemTypes")
@@ -99,7 +109,10 @@ class TestCFItemTypes:
         assert response.json() == {"CFItemTypes": []}
 
     async def test_list_returns_items(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item_type: CFItemType,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item_type: CFItemType,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFItemTypes")
         assert response.status_code == 200
@@ -111,7 +124,10 @@ class TestCFItemTypes:
         assert response.headers["cache-control"] == "public, max-age=3600"
 
     async def test_get_single_returns_array(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item_type: CFItemType,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item_type: CFItemType,
     ) -> None:
         """Set type: single GET returns array with 1 item."""
         ident = "aaaaaaaa-1111-1111-1111-111111111111"
@@ -131,15 +147,22 @@ class TestCFItemTypes:
         assert response.status_code == 400
 
     async def test_pagination(
-        self, db_client: AsyncClient, db_session: AsyncSession, tenant: Tenant,
+        self,
+        db_client: AsyncClient,
+        db_session: AsyncSession,
+        tenant: Tenant,
     ) -> None:
         for i in range(3):
-            db_session.add(CFItemType(
-                id=uuid.uuid4(), tenant_id=tenant.id,
-                identifier=uuid.UUID(f"aaaaaaaa-2222-2222-2222-22222222{i:04d}"),
-                uri=f"https://example.com/it-{i}", title=f"Type {i}",
-                last_change_date_time=LCT,
-            ))
+            db_session.add(
+                CFItemType(
+                    id=uuid.uuid4(),
+                    tenant_id=tenant.id,
+                    identifier=uuid.UUID(f"aaaaaaaa-2222-2222-2222-22222222{i:04d}"),
+                    uri=f"https://example.com/it-{i}",
+                    title=f"Type {i}",
+                    last_change_date_time=LCT,
+                )
+            )
         await db_session.flush()
         response = await db_client.get(f"{CASE_PATH}/CFItemTypes?limit=2")
         assert len(response.json()["CFItemTypes"]) == 2
@@ -151,9 +174,13 @@ class TestCFItemTypes:
 
 # ---- CFConcepts (Set type) ----
 
+
 class TestCFConcepts:
     async def test_list_returns_items(
-        self, db_client: AsyncClient, tenant: Tenant, sample_concept: CFConcept,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_concept: CFConcept,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFConcepts")
         assert response.status_code == 200
@@ -163,7 +190,10 @@ class TestCFConcepts:
         assert items[0]["keywords"] == "words|expression"
 
     async def test_get_single_returns_array(
-        self, db_client: AsyncClient, tenant: Tenant, sample_concept: CFConcept,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_concept: CFConcept,
     ) -> None:
         ident = "bbbbbbbb-1111-1111-1111-111111111111"
         response = await db_client.get(f"{CASE_PATH}/CFConcepts/{ident}")
@@ -178,9 +208,13 @@ class TestCFConcepts:
 
 # ---- CFSubjects (Set type) ----
 
+
 class TestCFSubjects:
     async def test_list_returns_items(
-        self, db_client: AsyncClient, tenant: Tenant, sample_subject: CFSubject,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_subject: CFSubject,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFSubjects")
         assert response.status_code == 200
@@ -189,7 +223,10 @@ class TestCFSubjects:
         assert items[0]["title"] == "Japanese"
 
     async def test_get_single_returns_array(
-        self, db_client: AsyncClient, tenant: Tenant, sample_subject: CFSubject,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_subject: CFSubject,
     ) -> None:
         ident = "cccccccc-1111-1111-1111-111111111111"
         response = await db_client.get(f"{CASE_PATH}/CFSubjects/{ident}")
@@ -204,9 +241,13 @@ class TestCFSubjects:
 
 # ---- CFLicenses (single object type) ----
 
+
 class TestCFLicenses:
     async def test_list_returns_items(
-        self, db_client: AsyncClient, tenant: Tenant, sample_license: CFLicense,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_license: CFLicense,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFLicenses")
         assert response.status_code == 200
@@ -216,7 +257,10 @@ class TestCFLicenses:
         assert items[0]["description"] == "Creative Commons"
 
     async def test_get_single_returns_object(
-        self, db_client: AsyncClient, tenant: Tenant, sample_license: CFLicense,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_license: CFLicense,
     ) -> None:
         """Single object type: returns {"CFLicense": {...}}, not array."""
         ident = "dddddddd-1111-1111-1111-111111111111"
@@ -234,9 +278,13 @@ class TestCFLicenses:
 
 # ---- CFAssociationGroupings (single object type) ----
 
+
 class TestCFAssociationGroupings:
     async def test_list_returns_items(
-        self, db_client: AsyncClient, tenant: Tenant, sample_grouping: CFAssociationGrouping,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_grouping: CFAssociationGrouping,
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFAssociationGroupings")
         assert response.status_code == 200
@@ -245,7 +293,10 @@ class TestCFAssociationGroupings:
         assert items[0]["title"] == "Cross-Subject"
 
     async def test_get_single_returns_object(
-        self, db_client: AsyncClient, tenant: Tenant, sample_grouping: CFAssociationGrouping,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_grouping: CFAssociationGrouping,
     ) -> None:
         """Single object type: returns {"CFAssociationGrouping": {...}}, not array."""
         ident = "eeeeeeee-1111-1111-1111-111111111111"
@@ -263,16 +314,23 @@ class TestCFAssociationGroupings:
 
 # ---- Tenant isolation (shared) ----
 
+
 class TestLookupTenantIsolation:
     async def test_item_type_not_visible(
-        self, db_client: AsyncClient, tenant: Tenant, sample_item_type: CFItemType,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_item_type: CFItemType,
     ) -> None:
         other = str(uuid.uuid4())
         response = await db_client.get(f"/{other}/ims/case/v1p1/CFItemTypes")
         assert response.status_code == 404
 
     async def test_license_not_visible(
-        self, db_client: AsyncClient, tenant: Tenant, sample_license: CFLicense,
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_license: CFLicense,
     ) -> None:
         other = str(uuid.uuid4())
         ident = "dddddddd-1111-1111-1111-111111111111"
