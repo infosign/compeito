@@ -13,26 +13,16 @@ A modern [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) compatibl
 - **Tree view UI** — Browse competency frameworks with an interactive HTMX-powered tree view
 - **CSV import/export** — Import from custom CSV or OpenSALT-compatible formats; export for editing and re-import with UUID-based upsert
 - **External CASE import** — Import frameworks directly from OpenSALT or any CASE-compatible server
-- **Serverless-ready** — Runs on AWS Lambda + Aurora Serverless v2 via API Gateway and CloudFront, or locally with Docker
-
-## Architecture
-
-```
-Public:  CloudFront -> API Gateway -> Lambda (FastAPI + Mangum) -> Aurora Serverless v2
-Admin:   CLI -> Lambda Function URL -> Lambda -> Aurora
-Local:   Docker (FastAPI + uvicorn) -> PostgreSQL
-```
+- **Docker-ready** — Run locally or deploy anywhere with Docker and PostgreSQL
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| API | Python 3.12, FastAPI, Mangum |
+| API | Python 3.12, FastAPI |
 | ORM | SQLAlchemy 2.x (async) |
 | Migration | Alembic |
-| Database | PostgreSQL (Aurora Serverless v2 / Docker) |
-| Cache | CloudFront (HTTP Cache-Control) |
-| Infrastructure | AWS CDK (Python) |
+| Database | PostgreSQL |
 | Web UI | Jinja2, HTMX, Tailwind CSS |
 | CLI | Click, Rich |
 | Package Manager | uv |
@@ -99,13 +89,13 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 
 ## Roadmap
 
-- **Phase 1** — Local development with Docker, all CASE v1.1 API endpoints, CSV/CASE import & export, Web UI, CLI
-- **Phase 2** — AWS CDK infrastructure, OpenSALT CSV export format, CASE v1.0 import support, CFRubric API, 1EdTech Conformance
+- **Phase 1** (Done) — Docker development, all CASE v1.1 API endpoints, CSV/CASE import & export, Web UI, CLI, i18n
+- **Phase 2** — OpenSALT CSV export format, CASE v1.0 import support, CFRubric API, 1EdTech Conformance, CI
 - **Phase 3** — Non-tree association management, OAuth 2.0, semantic search, cross-framework mapping
 
 ## License
 
-[Elastic License 2.0 (ELv2)](LICENSE)
+[Apache License 2.0](LICENSE)
 
 ## Developed by
 
@@ -128,26 +118,16 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 - **ツリービュー UI** — HTMX によるインタラクティブなツリービューでコンピテンシーフレームワークを閲覧
 - **CSV インポート/エクスポート** — 独自CSV・OpenSALT互換形式に対応。エクスポートして編集後、UUID ベースの upsert で再インポート可能
 - **外部 CASE インポート** — OpenSALT 等の CASE 対応サーバーからフレームワークを直接インポート
-- **サーバーレス対応** — AWS Lambda + Aurora Serverless v2（API Gateway + CloudFront 経由）、またはローカルの Docker で動作
-
-## アーキテクチャ
-
-```
-公開:  CloudFront -> API Gateway -> Lambda (FastAPI + Mangum) -> Aurora Serverless v2
-管理:  CLI -> Lambda Function URL -> Lambda -> Aurora
-ローカル: Docker (FastAPI + uvicorn) -> PostgreSQL
-```
+- **Docker 対応** — Docker と PostgreSQL でローカル実行、またはどこにでもデプロイ可能
 
 ## 技術スタック
 
 | レイヤー | 技術 |
 |---------|------|
-| API | Python 3.12, FastAPI, Mangum |
+| API | Python 3.12, FastAPI |
 | ORM | SQLAlchemy 2.x (async) |
 | マイグレーション | Alembic |
-| データベース | PostgreSQL (Aurora Serverless v2 / Docker) |
-| キャッシュ | CloudFront (HTTP Cache-Control) |
-| インフラ | AWS CDK (Python) |
+| データベース | PostgreSQL |
 | Web UI | Jinja2, HTMX, Tailwind CSS |
 | CLI | Click, Rich |
 | パッケージマネージャ | uv |
@@ -214,13 +194,13 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 ## ロードマップ
 
-- **Phase 1** — Docker によるローカル開発、CASE v1.1 API 全エンドポイント、CSV/CASE インポート＆エクスポート、Web UI、CLI
-- **Phase 2** — AWS CDK インフラ、OpenSALT CSV エクスポート形式、CASE v1.0 インポート対応、CFRubric API、1EdTech 適合性試験
+- **Phase 1**（完了）— Docker によるローカル開発、CASE v1.1 API 全エンドポイント、CSV/CASE インポート＆エクスポート、Web UI、CLI、i18n
+- **Phase 2** — OpenSALT CSV エクスポート形式、CASE v1.0 インポート対応、CFRubric API、1EdTech 適合性試験、CI
 - **Phase 3** — ツリー外アソシエーション管理、OAuth 2.0、セマンティック検索、フレームワーク間マッピング
 
 ## ライセンス
 
-[Elastic License 2.0 (ELv2)](LICENSE)
+[Apache License 2.0](LICENSE)
 
 ## 開発
 

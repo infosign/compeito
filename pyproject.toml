@@ -2,7 +2,7 @@
 name = "compeito"
 version = "0.1.0"
 description = "1EdTech CASE v1.1 compatible web service"
-license = "Elastic-2.0"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -11,7 +11,6 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "pydantic-settings>=2.7",
-    "mangum>=0.19",
     "click>=8.1",
     "rich>=13.9",
     "httpx>=0.28",

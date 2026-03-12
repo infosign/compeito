@@ -112,11 +112,11 @@ class TestCliTranslator:
         t_ja = get_translator("ja", cli=True)
         keys = [
             "cli_description", "tenant_group", "doc_group",
-            "import_group", "export_group", "db_group", "cache_group",
+            "import_group", "export_group", "db_group",
             "cmd_tenant_create", "cmd_tenant_list", "cmd_tenant_update",
             "cmd_tenant_delete", "cmd_doc_list", "cmd_doc_delete",
             "cmd_import_csv", "cmd_import_case_url", "cmd_export_csv",
-            "cmd_db_migrate", "cmd_cache_invalidate",
+            "cmd_db_migrate",
             "err_invalid_uuid", "err_tenant_not_found", "err_doc_not_found",
             "msg_created_tenant", "msg_deleted_tenant", "msg_no_tenants",
             "visibility_public", "visibility_private",

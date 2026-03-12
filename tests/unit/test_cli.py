@@ -112,49 +112,12 @@ def test_document(test_tenant):
 
 
 class TestEnvironmentDetection:
-    def test_no_env_vars(self, runner, monkeypatch):
+    def test_no_database_url(self, runner, monkeypatch):
         monkeypatch.delenv("DATABASE_URL", raising=False)
-        monkeypatch.delenv("CASE_ADMIN_URL", raising=False)
-        monkeypatch.delenv("CASE_ADMIN_KEY", raising=False)
         from cli import cli
         result = runner.invoke(cli, ["tenant", "list"])
         assert result.exit_code == 1
-        assert "DATABASE_URL or CASE_ADMIN_URL+CASE_ADMIN_KEY must be set" in result.output
-
-    def test_admin_url_only(self, runner, monkeypatch):
-        monkeypatch.delenv("DATABASE_URL", raising=False)
-        monkeypatch.setenv("CASE_ADMIN_URL", "https://example.com")
-        monkeypatch.delenv("CASE_ADMIN_KEY", raising=False)
-        from cli import cli
-        result = runner.invoke(cli, ["tenant", "list"])
-        assert result.exit_code == 1
-        assert "CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set" in result.output
-
-    def test_admin_key_only(self, runner, monkeypatch):
-        monkeypatch.delenv("DATABASE_URL", raising=False)
-        monkeypatch.delenv("CASE_ADMIN_URL", raising=False)
-        monkeypatch.setenv("CASE_ADMIN_KEY", "secret")
-        from cli import cli
-        result = runner.invoke(cli, ["tenant", "list"])
-        assert result.exit_code == 1
-        assert "CASE_ADMIN_URL and CASE_ADMIN_KEY must both be set" in result.output
-
-    def test_aws_mode_phase1_error(self, runner, monkeypatch):
-        monkeypatch.delenv("DATABASE_URL", raising=False)
-        monkeypatch.setenv("CASE_ADMIN_URL", "https://example.com")
-        monkeypatch.setenv("CASE_ADMIN_KEY", "secret")
-        from cli import cli
-        result = runner.invoke(cli, ["tenant", "list"])
-        assert result.exit_code == 1
-        assert "AWS mode is not yet supported" in result.output
-
-    def test_both_set_uses_docker(self, runner, monkeypatch):
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://case:case@db:5432/case")
-        monkeypatch.setenv("CASE_ADMIN_URL", "https://example.com")
-        monkeypatch.setenv("CASE_ADMIN_KEY", "secret")
-        from cli import _detect_mode
-        mode = _detect_mode()
-        assert mode == "docker"
+        assert "DATABASE_URL" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -550,20 +513,6 @@ class TestDbMigrate:
 # ---------------------------------------------------------------------------
 # Cache invalidate
 # ---------------------------------------------------------------------------
-
-
-class TestCacheInvalidate:
-    def test_docker_mode_error(self, runner, env_docker):
-        from cli import cli
-        result = runner.invoke(cli, ["cache", "invalidate", "--tenant", str(TENANT_ID)])
-        assert result.exit_code == 1
-        assert "This command requires AWS environment" in result.output
-
-    def test_invalid_tenant_uuid(self, runner, env_docker):
-        from cli import cli
-        result = runner.invoke(cli, ["cache", "invalidate", "--tenant", "bad"])
-        assert result.exit_code == 1
-        assert "Invalid UUID format" in result.output
 
 
 # ---------------------------------------------------------------------------
