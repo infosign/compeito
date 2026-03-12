@@ -20,7 +20,6 @@
 - CSVエクスポートのOpenSALT互換形式 (`--format opensalt`)
 - CFRubric API エンドポイント + CSVインポート/エクスポート
 - CASE v1.0 インポートの v1.1 正規化（フィールドレベル）
-- 1EdTech Conformance テスト通過（lookup リソースの required フィールド null 対応含む）
 - GitHub Actions CI
 
 ## Phase 3（将来）
