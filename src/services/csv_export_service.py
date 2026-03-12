@@ -1,6 +1,6 @@
-"""CSV Export Service — exports a CFDocument to custom format CSV.
+"""CSV Export Service — exports a CFDocument to custom or OpenSALT format CSV.
 
-See docs/csv-format.md and docs/import-logic.md (ソート順序 / 独自形式エクスポート)
+See docs/csv-format.md and docs/import-logic.md (ソート順序 / エクスポート)
 for the full specification.
 """
 
@@ -175,41 +175,19 @@ def _build_tree_order(
 
 
 # ---------------------------------------------------------------------------
-# Main export function
+# Shared data loading
 # ---------------------------------------------------------------------------
 
-HEADER = [
-    "Identifier",
-    "fullStatement",
-    "humanCodingScheme",
-    "parentIdentifier",
-    "sequenceNumber",
-    "CFItemType",
-    "educationLevel",
-    "conceptKeywords",
-    "abbreviatedStatement",
-    "language",
-    "listEnumeration",
-    "license",
-    "statusStartDate",
-    "statusEndDate",
-]
 
-
-async def export_csv(
+async def _load_document_tree(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     doc_identifier: uuid.UUID,
-) -> str:
-    """Export a document to custom format CSV.
-
-    Args:
-        session: Async database session.
-        tenant_id: Tenant UUID.
-        doc_identifier: CFDocument identifier to export.
+) -> tuple[CFDocument, list[tuple[CFItem, str | None, int | None]]]:
+    """Load document, items, associations and return tree-ordered items.
 
     Returns:
-        CSV string (UTF-8, LF line endings, no BOM).
+        (doc, ordered_items) where ordered_items is list of (item, parent_ident, seq).
 
     Raises:
         ValueError: If document not found.
@@ -251,6 +229,46 @@ async def export_csv(
     doc_ident_str = str(doc.identifier)
     ordered = _build_tree_order(items, assocs, doc_ident_str)
 
+    return doc, ordered
+
+
+# ---------------------------------------------------------------------------
+# Custom format export
+# ---------------------------------------------------------------------------
+
+HEADER = [
+    "Identifier",
+    "fullStatement",
+    "humanCodingScheme",
+    "parentIdentifier",
+    "sequenceNumber",
+    "CFItemType",
+    "educationLevel",
+    "conceptKeywords",
+    "abbreviatedStatement",
+    "language",
+    "listEnumeration",
+    "license",
+    "statusStartDate",
+    "statusEndDate",
+]
+
+
+async def export_csv(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc_identifier: uuid.UUID,
+) -> str:
+    """Export a document to custom format CSV.
+
+    Returns:
+        CSV string (UTF-8, LF line endings, no BOM).
+
+    Raises:
+        ValueError: If document not found.
+    """
+    doc, ordered = await _load_document_tree(session, tenant_id, doc_identifier)
+
     # Generate CSV
     output = io.StringIO()
     writer = csv.writer(output, lineterminator="\n")
@@ -284,6 +302,80 @@ async def export_csv(
         )
 
     return output.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# OpenSALT format export
+# ---------------------------------------------------------------------------
+
+OPENSALT_HEADER = [
+    "CASE Item Identifier",
+    "Full Statement",
+    "Human Coding Scheme",
+    "Abbreviated Statement",
+    "Concept Keywords",
+    "Education Level",
+    "CF Item Type",
+    "Language",
+    "License",
+    "Is Child Of",
+    "Sequence Number",
+    "Is Part Of",
+]
+
+
+async def export_opensalt_csv(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc_identifier: uuid.UUID,
+) -> str:
+    """Export a document to OpenSALT format CSV.
+
+    Returns:
+        CSV string (UTF-8, LF line endings, no BOM).
+
+    Raises:
+        ValueError: If document not found.
+    """
+    doc, ordered = await _load_document_tree(session, tenant_id, doc_identifier)
+    doc_ident_str = str(doc.identifier)
+
+    # Generate CSV
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+
+    # Metadata rows
+    _write_metadata(writer, doc)
+
+    # Header
+    writer.writerow(OPENSALT_HEADER)
+
+    # Data rows
+    for item, parent_ident, seq in ordered:
+        ei = _ExportItem(item, parent_ident, seq)
+        writer.writerow(
+            [
+                ei.identifier,
+                ei.full_statement,
+                ei.human_coding_scheme,
+                ei.abbreviated_statement,
+                ei.concept_keywords,
+                ei.education_level,
+                ei.cf_item_type_title,
+                ei.language,
+                "",  # License (empty — managed at document level)
+                ei.parent_identifier,
+                ei.sequence_number,
+                doc_ident_str,
+            ]
+        )
+
+    return output.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Metadata rows
+# ---------------------------------------------------------------------------
 
 
 def _write_metadata(writer: csv.writer, doc: CFDocument) -> None:
