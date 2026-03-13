@@ -10,6 +10,7 @@
     "show_in_tree": "Show in Tree",
     "return_to_top": "Return to Top",
     "details": "Details",
+    "details_view": "View Details",
     "error_bad_request": "Bad Request",
     "error_not_found": "Page Not Found",
     "error_tenant_not_found": "Tenant not found",
@@ -22,5 +23,6 @@
     "rubric_levels": "Levels",
     "rubric_no_criteria": "No criteria",
     "rubric_parent": "Parent Rubric",
-    "rubric_parent_criterion": "Parent Criterion"
+    "rubric_parent_criterion": "Parent Criterion",
+    "api_endpoint": "API Endpoint"
 }

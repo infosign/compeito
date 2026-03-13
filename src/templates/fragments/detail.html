@@ -1,30 +1,36 @@
+{% macro copy_btn(text) %}
+<button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-300 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+</button>
+{% endmacro %}
+
 <h2 class="text-lg font-bold text-gray-800 mb-4">
     {% if selected_item.human_coding_scheme %}{{ selected_item.human_coding_scheme }} {% endif %}{{ selected_item.full_statement[:200] }}
 </h2>
 <dl class="space-y-3">
     <div>
-        <dt class="text-xs font-medium text-violet-400 uppercase">fullStatement</dt>
+        <dt class="text-xs font-medium text-violet-400 uppercase">Full Statement</dt>
         <dd class="text-gray-800">{{ selected_item.full_statement }}</dd>
     </div>
     {% if selected_item.human_coding_scheme %}
     <div>
-        <dt class="text-xs font-medium text-violet-400 uppercase">humanCodingScheme</dt>
+        <dt class="text-xs font-medium text-violet-400 uppercase">Human Coding Scheme</dt>
         <dd class="text-gray-800">{{ selected_item.human_coding_scheme }}</dd>
     </div>
     {% endif %}
     <div>
         <dt class="text-xs font-medium text-violet-400 uppercase">identifier</dt>
-        <dd class="text-gray-800 font-mono text-sm">{{ selected_item.identifier }}</dd>
+        <dd class="text-gray-800">{{ copy_btn(selected_item.identifier) }}<code class="text-sm">{{ selected_item.identifier }}</code></dd>
     </div>
     {% if selected_item.item_type %}
     <div>
-        <dt class="text-xs font-medium text-violet-400 uppercase">CFItemType</dt>
+        <dt class="text-xs font-medium text-violet-400 uppercase">CFItem Type</dt>
         <dd class="text-gray-800">{{ selected_item.item_type.title }}</dd>
     </div>
     {% endif %}
     {% if selected_item.education_level %}
     <div>
-        <dt class="text-xs font-medium text-violet-400 uppercase">educationLevel</dt>
+        <dt class="text-xs font-medium text-violet-400 uppercase">Education Level</dt>
         <dd class="text-gray-800">{{ selected_item.education_level | join(', ') }}</dd>
     </div>
     {% endif %}
@@ -36,11 +42,11 @@
     {% endif %}
     {% if selected_item.concept_keywords %}
     <div>
-        <dt class="text-xs font-medium text-violet-400 uppercase">conceptKeywords</dt>
+        <dt class="text-xs font-medium text-violet-400 uppercase">Concept Keywords</dt>
         <dd class="text-gray-800">{{ selected_item.concept_keywords | join(', ') }}</dd>
     </div>
     {% endif %}
 </dl>
 <div class="mt-4">
-    <a href="/{{ tenant_id }}/uri/{{ selected_item.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm font-medium transition-colors">{{ t("details") }} &rarr;</a>
+    <a href="/{{ tenant_id }}/uri/{{ selected_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("details_view") }}</a>
 </div>
