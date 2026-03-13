@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
+from src.errors import ResourceNotFoundError
 from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
@@ -475,6 +476,20 @@ async def get_cf_rubric(
 ) -> CFRubricDType | None:
     obj = await cf_rubric_repository.get_by_identifier(session, tenant_id, identifier)
     return rubric_to_schema(obj) if obj else None
+
+
+async def list_cf_rubrics(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc_identifier: uuid.UUID,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[CFRubricDType]:
+    doc = await cf_document_repository.get_cf_document_by_identifier(session, tenant_id, doc_identifier)
+    if doc is None:
+        raise ResourceNotFoundError(f"CFDocument not found: '{doc_identifier}'")
+    rubrics = await cf_rubric_repository.list_by_document(session, doc.id, limit=limit, offset=offset)
+    return [rubric_to_schema(r) for r in rubrics]
 
 
 # --- CFAssociationGrouping ---
