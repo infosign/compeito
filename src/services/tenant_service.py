@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
+from src.models.cf_rubric import CFRubric
 from src.models.tenant import Tenant
 
 
@@ -30,20 +31,37 @@ async def list_documents_with_item_count(
     session: AsyncSession,
     tenant_id: uuid.UUID,
 ) -> list[dict]:
-    """Return documents with item counts for a tenant.
+    """Return documents with item and rubric counts for a tenant.
 
-    Each dict has keys: doc (CFDocument), item_count (int).
+    Each dict has keys: doc (CFDocument), item_count (int), rubric_count (int).
     Sorted by title ASC, identifier ASC.
     """
+    item_count_sub = (
+        select(
+            CFItem.cf_document_id,
+            func.count(CFItem.id).label("item_count"),
+        )
+        .group_by(CFItem.cf_document_id)
+        .subquery()
+    )
+    rubric_count_sub = (
+        select(
+            CFRubric.cf_document_id,
+            func.count(CFRubric.id).label("rubric_count"),
+        )
+        .group_by(CFRubric.cf_document_id)
+        .subquery()
+    )
     stmt = (
         select(
             CFDocument,
-            func.count(CFItem.id).label("item_count"),
+            func.coalesce(item_count_sub.c.item_count, 0).label("item_count"),
+            func.coalesce(rubric_count_sub.c.rubric_count, 0).label("rubric_count"),
         )
-        .outerjoin(CFItem, CFItem.cf_document_id == CFDocument.id)
+        .outerjoin(item_count_sub, item_count_sub.c.cf_document_id == CFDocument.id)
+        .outerjoin(rubric_count_sub, rubric_count_sub.c.cf_document_id == CFDocument.id)
         .where(CFDocument.tenant_id == tenant_id)
-        .group_by(CFDocument.id)
         .order_by(CFDocument.title.asc(), CFDocument.identifier.asc())
     )
     result = await session.execute(stmt)
-    return [{"doc": row[0], "item_count": row[1]} for row in result.all()]
+    return [{"doc": row[0], "item_count": row[1], "rubric_count": row[2]} for row in result.all()]

@@ -182,6 +182,21 @@
         {{ optional_field("Status Start Date", resource.status_start_date) }}
         {{ optional_field("Status End Date", resource.status_end_date) }}
         {{ optional_field("List Enumeration", resource.list_enumeration) }}
+        {% if referring_criteria %}
+        <div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_criteria") }}</dt>
+            <dd class="text-gray-800">
+                <ul class="ml-4 mt-1 space-y-1">
+                    {% for crit in referring_criteria %}
+                    <li>
+                        <a href="/{{ tenant.id }}/uri/{{ crit.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}</a>
+                        {% if crit.cf_rubric %}<span class="text-stone-400 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </dd>
+        </div>
+        {% endif %}
     </dl>
     <div class="mt-6">
         <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -221,6 +236,20 @@
         {{ optional_field("CASE Version", resource.case_version) }}
         {{ array_field("subject", resource.subject) }}
         {{ subject_uri_list(resource.subject_uri) }}
+        {% if rubrics %}
+        <div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubrics") }}</dt>
+            <dd class="text-gray-800">
+                <ul class="ml-4 mt-1 space-y-1">
+                    {% for rubric in rubrics %}
+                    <li>
+                        <a href="/{{ tenant.id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </dd>
+        </div>
+        {% endif %}
     </dl>
     <div class="mt-6">
         <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
