@@ -3,10 +3,10 @@
 {% block title %}{{ page_title }} - COMPEITO{% endblock %}
 
 {% block breadcrumb %}
-<nav class="text-sm text-gray-500 mb-1">
-    <a href="/" class="hover:text-gray-700">{{ t("tenant_list") }}</a>
-    <span class="mx-1">&gt;</span>
-    <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
+<nav class="text-sm text-stone-500 mb-1">
+    <a href="/" class="hover:text-violet-600 transition-colors">{{ t("tenant_list") }}</a>
+    <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
+    <a href="/{{ tenant.id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
 </nav>
 {% endblock %}
 
@@ -14,15 +14,15 @@
 {{ page_title }}
 {% if resource_type == "CFDocument" and resource.adoption_status %}
 <span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded
-    {% if resource.adoption_status == 'Adopted' %}bg-green-100 text-green-800
-    {% elif resource.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
-    {% elif resource.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
-    {% else %}bg-gray-100 text-gray-800{% endif %}">
+    {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
+    {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
+    {% elif resource.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
+    {% else %}bg-stone-100 text-stone-700{% endif %}">
     {{ resource.adoption_status }}
 </span>
 {% endif %}
 {% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping","CFRubric","CFRubricCriterion","CFRubricCriterionLevel") %}
-<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">{{ resource_type }}</span>
+<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-violet-100 text-violet-700">{{ resource_type }}</span>
 {% endif %}
 {% endblock %}
 
@@ -30,59 +30,59 @@
 {# Define macros first #}
 {% macro field(label, value) %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900">{{ value }}</dd>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endmacro %}
 
 {% macro optional_field(label, value) %}
 {% if value is not none and value != "" %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900">{{ value }}</dd>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro safe_url(url) %}
-{%- if url and (url.startswith("http:") or url.startswith("https:")) %}<a href="{{ url }}" class="text-blue-600 hover:text-blue-800 break-all" rel="noopener">{{ url }}</a>{% else %}{{ url }}{% endif -%}
+{%- if url and (url.startswith("http:") or url.startswith("https:")) %}<a href="{{ url }}" class="text-violet-600 hover:text-violet-800 break-all" rel="noopener">{{ url }}</a>{% else %}{{ url }}{% endif -%}
 {% endmacro %}
 
 {% macro uri_field(label, url) %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900">{{ safe_url(url) }}</dd>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800">{{ safe_url(url) }}</dd>
 </div>
 {% endmacro %}
 
 {% macro optional_uri_field(label, url) %}
 {% if url %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900">{{ safe_url(url) }}</dd>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800">{{ safe_url(url) }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro nested_uri(label, url) %}
-<div><span class="text-xs text-gray-500">{{ label }}:</span> {{ safe_url(url) }}</div>
+<div><span class="text-xs text-stone-400">{{ label }}:</span> {{ safe_url(url) }}</div>
 {% endmacro %}
 
 {% macro array_field(label, arr) %}
 {% if arr and arr|length > 0 %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900">{{ arr | join(", ") }}</dd>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800">{{ arr | join(", ") }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-900 ml-4 mt-1">
-        <div><span class="text-xs text-gray-500">title:</span> {{ title }}</div>
-        <div><span class="text-xs text-gray-500">identifier:</span> {{ ident }}</div>
+    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800 ml-4 mt-1">
+        <div><span class="text-xs text-stone-400">title:</span> {{ title }}</div>
+        <div><span class="text-xs text-stone-400">identifier:</span> {{ ident }}</div>
         {{ nested_uri("uri", uri) }}
     </dd>
 </div>
@@ -91,12 +91,12 @@
 {% macro subject_uri_list(items) %}
 {% if items %}
 <div>
-    <dt class="text-xs font-medium text-gray-500 uppercase">subjectURI</dt>
-    <dd class="text-gray-900 ml-4 mt-1">
+    <dt class="text-xs font-medium text-violet-400 uppercase">subjectURI</dt>
+    <dd class="text-gray-800 ml-4 mt-1">
         {% for su in items %}
         <div class="{% if not loop.first %}mt-2{% endif %}">
-            {% if su.get("title") %}<div><span class="text-xs text-gray-500">title:</span> {{ su.title }}</div>{% endif %}
-            {% if su.get("identifier") %}<div><span class="text-xs text-gray-500">identifier:</span> {{ su.identifier }}</div>{% endif %}
+            {% if su.get("title") %}<div><span class="text-xs text-stone-400">title:</span> {{ su.title }}</div>{% endif %}
+            {% if su.get("identifier") %}<div><span class="text-xs text-stone-400">identifier:</span> {{ su.identifier }}</div>{% endif %}
             {% if su.get("uri") %}{{ nested_uri("uri", su.uri) }}{% endif %}
         </div>
         {% endfor %}
@@ -106,7 +106,7 @@
 {% endmacro %}
 
 {# ========== Main content ========== #}
-<div class="bg-white rounded-lg shadow p-6">
+<div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
     <dl class="space-y-4">
 
     {# ========== CFItem ========== #}
@@ -115,10 +115,10 @@
         {{ uri_field("uri", resource.uri) }}
         {% if doc %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-900 ml-4 mt-1">
-                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-800 ml-4 mt-1">
+                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
                 {{ nested_uri("uri", doc.uri) }}
             </dd>
         </div>
@@ -146,7 +146,7 @@
         {{ optional_field("listEnumeration", resource.list_enumeration) }}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 text-sm transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFDocument ========== #}
@@ -162,12 +162,12 @@
         {{ optional_field("version", resource.version) }}
         {% if resource.adoption_status %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">adoptionStatus</dt>
+            <dt class="text-xs font-medium text-violet-400 uppercase">adoptionStatus</dt>
             <dd><span class="inline-block px-2 py-0.5 text-xs font-medium rounded
-                {% if resource.adoption_status == 'Adopted' %}bg-green-100 text-green-800
-                {% elif resource.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
-                {% elif resource.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
-                {% else %}bg-gray-100 text-gray-800{% endif %}">{{ resource.adoption_status }}</span></dd>
+                {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
+                {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
+                {% elif resource.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
+                {% else %}bg-stone-100 text-stone-700{% endif %}">{{ resource.adoption_status }}</span></dd>
         </div>
         {% endif %}
         {{ optional_field("statusStartDate", resource.status_start_date) }}
@@ -183,7 +183,7 @@
         {{ nested_resource("CFPackageURI", resource.title, resource.identifier, resource.uri) }}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 text-sm transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFAssociation ========== #}
@@ -192,31 +192,31 @@
         {{ uri_field("uri", resource.uri) }}
         {% if doc %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-900 ml-4 mt-1">
-                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-800 ml-4 mt-1">
+                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
                 {{ nested_uri("uri", doc.uri) }}
             </dd>
         </div>
         {% endif %}
         {{ field("associationType", resource.association_type) }}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">originNodeURI</dt>
-            <dd class="text-gray-900 ml-4 mt-1">
-                {% if resource.origin_node_title %}<div><span class="text-xs text-gray-500">title:</span> {{ resource.origin_node_title }}</div>{% endif %}
-                <div><span class="text-xs text-gray-500">identifier:</span> {{ resource.origin_node_identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">originNodeURI</dt>
+            <dd class="text-gray-800 ml-4 mt-1">
+                {% if resource.origin_node_title %}<div><span class="text-xs text-stone-400">title:</span> {{ resource.origin_node_title }}</div>{% endif %}
+                <div><span class="text-xs text-stone-400">identifier:</span> {{ resource.origin_node_identifier }}</div>
                 {{ nested_uri("uri", resource.origin_node_uri) }}
-                {% if resource.origin_node_target_type %}<div><span class="text-xs text-gray-500">targetType:</span> {{ resource.origin_node_target_type }}</div>{% endif %}
+                {% if resource.origin_node_target_type %}<div><span class="text-xs text-stone-400">targetType:</span> {{ resource.origin_node_target_type }}</div>{% endif %}
             </dd>
         </div>
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">destinationNodeURI</dt>
-            <dd class="text-gray-900 ml-4 mt-1">
-                {% if resource.destination_node_title %}<div><span class="text-xs text-gray-500">title:</span> {{ resource.destination_node_title }}</div>{% endif %}
-                <div><span class="text-xs text-gray-500">identifier:</span> {{ resource.destination_node_identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">destinationNodeURI</dt>
+            <dd class="text-gray-800 ml-4 mt-1">
+                {% if resource.destination_node_title %}<div><span class="text-xs text-stone-400">title:</span> {{ resource.destination_node_title }}</div>{% endif %}
+                <div><span class="text-xs text-stone-400">identifier:</span> {{ resource.destination_node_identifier }}</div>
                 {{ nested_uri("uri", resource.destination_node_uri) }}
-                {% if resource.destination_node_target_type %}<div><span class="text-xs text-gray-500">targetType:</span> {{ resource.destination_node_target_type }}</div>{% endif %}
+                {% if resource.destination_node_target_type %}<div><span class="text-xs text-stone-400">targetType:</span> {{ resource.destination_node_target_type }}</div>{% endif %}
             </dd>
         </div>
         {% if resource.sequence_number is not none %}
@@ -234,10 +234,10 @@
         {{ uri_field("uri", resource.uri) }}
         {% if doc %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-900 ml-4 mt-1">
-                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-800 ml-4 mt-1">
+                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
                 {{ nested_uri("uri", doc.uri) }}
             </dd>
         </div>
@@ -267,21 +267,20 @@
         {% if ns.has_position and ns.positions | length > 0 %}
         {# ===== Table format ===== #}
         <div class="mt-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ t("rubric_criteria") }}</h3>
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ t("rubric_criteria") }}</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-full border border-gray-300 text-sm">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full border border-stone-300 text-sm">
+                    <thead class="bg-violet-50/50">
                         <tr>
-                            <th class="border border-gray-300 px-3 py-2 text-left font-medium text-gray-700"></th>
+                            <th class="border border-stone-300 px-3 py-2 text-left font-medium text-stone-700"></th>
                             {% for pos in ns.positions %}
-                            <th class="border border-gray-300 px-3 py-2 text-center font-medium text-gray-700">
+                            <th class="border border-stone-300 px-3 py-2 text-center font-medium text-stone-700">
                                 {# Find first level with this position for header #}
                                 {% for c in criteria %}
                                     {% for lv in c.levels %}
                                         {% if lv.position == pos %}
                                             {% if lv.quality %}{{ lv.quality }}{% else %}{{ pos }}{% endif %}
-                                            {% if lv.score is not none %}<div class="text-xs text-gray-500">score: {{ lv.score }}</div>{% endif %}
-                                            {# Break by using a flag trick since Jinja2 has no break #}
+                                            {% if lv.score is not none %}<div class="text-xs text-stone-400">score: {{ lv.score }}</div>{% endif %}
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
@@ -292,18 +291,18 @@
                     <tbody>
                         {% for c in criteria %}
                         <tr>
-                            <td class="border border-gray-300 px-3 py-2 align-top bg-gray-50 font-medium">
+                            <td class="border border-stone-300 px-3 py-2 align-top bg-violet-50/50 font-medium">
                                 {% if c.category %}<div class="font-semibold">{{ c.category }}</div>{% endif %}
-                                {% if c.description %}<div class="text-gray-600 text-xs">{{ c.description }}</div>{% endif %}
-                                {% if c.weight is not none %}<div class="text-xs text-gray-500">weight: {{ c.weight }}</div>{% endif %}
-                                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-blue-600 hover:text-blue-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+                                {% if c.description %}<div class="text-stone-600 text-xs">{{ c.description }}</div>{% endif %}
+                                {% if c.weight is not none %}<div class="text-xs text-stone-400">weight: {{ c.weight }}</div>{% endif %}
+                                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                             </td>
                             {% for pos in ns.positions %}
-                            <td class="border border-gray-300 px-3 py-2 align-top">
+                            <td class="border border-stone-300 px-3 py-2 align-top">
                                 {% for lv in c.levels %}
                                     {% if lv.position == pos %}
                                         {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                                        {% if lv.feedback %}<div class="text-xs text-gray-500 mt-1 italic">{{ lv.feedback }}</div>{% endif %}
+                                        {% if lv.feedback %}<div class="text-xs text-stone-400 mt-1 italic">{{ lv.feedback }}</div>{% endif %}
                                     {% endif %}
                                 {% endfor %}
                             </td>
@@ -317,21 +316,21 @@
         {% else %}
         {# ===== List fallback ===== #}
         <div class="mt-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ t("rubric_criteria") }}</h3>
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">{{ t("rubric_criteria") }}</h3>
             {% for c in criteria %}
-            <div class="border border-gray-200 rounded p-4 {% if not loop.first %}mt-3{% endif %}">
-                {% if c.category %}<div class="font-semibold text-gray-900">{{ c.category }}</div>{% endif %}
-                {% if c.description %}<div class="text-gray-600 text-sm">{{ c.description }}</div>{% endif %}
-                {% if c.weight is not none %}<div class="text-xs text-gray-500">weight: {{ c.weight }}</div>{% endif %}
-                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-blue-600 hover:text-blue-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+            <div class="border border-stone-200 rounded p-4 {% if not loop.first %}mt-3{% endif %}">
+                {% if c.category %}<div class="font-semibold text-gray-800">{{ c.category }}</div>{% endif %}
+                {% if c.description %}<div class="text-stone-600 text-sm">{{ c.description }}</div>{% endif %}
+                {% if c.weight is not none %}<div class="text-xs text-stone-400">weight: {{ c.weight }}</div>{% endif %}
+                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                 {% if c.levels %}
                 <div class="mt-2 ml-4 space-y-2">
                     {% for lv in c.levels | sort(attribute='position,identifier') %}
-                    <div class="text-sm border-l-2 border-gray-200 pl-3">
+                    <div class="text-sm border-l-2 border-violet-200 pl-3">
                         {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
-                        {% if lv.score is not none %}<span class="text-gray-500">(score: {{ lv.score }})</span>{% endif %}
+                        {% if lv.score is not none %}<span class="text-stone-400">(score: {{ lv.score }})</span>{% endif %}
                         {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                        {% if lv.feedback %}<div class="text-xs text-gray-500 italic">{{ lv.feedback }}</div>{% endif %}
+                        {% if lv.feedback %}<div class="text-xs text-stone-400 italic">{{ lv.feedback }}</div>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -342,7 +341,7 @@
         {% endif %}
     {% endif %}
     <div class="mt-6">
-        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 text-sm transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFRubricCriterion ========== #}
@@ -360,9 +359,9 @@
         {# Parent rubric link #}
         {% if resource.cf_rubric %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">{{ t("rubric_parent") }}</dt>
-            <dd class="text-gray-900">
-                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-blue-600 hover:text-blue-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
+            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_parent") }}</dt>
+            <dd class="text-gray-800">
+                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
             </dd>
         </div>
         {% endif %}
@@ -370,15 +369,15 @@
         {% if resource.levels %}
         </dl>
         <div class="mt-6">
-            <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t("rubric_levels") }}</h3>
+            <h3 class="text-sm font-semibold text-stone-600 mb-2">{{ t("rubric_levels") }}</h3>
             <div class="space-y-2">
                 {% for lv in resource.levels | sort(attribute='position,identifier') %}
-                <div class="text-sm border-l-2 border-gray-200 pl-3">
+                <div class="text-sm border-l-2 border-violet-200 pl-3">
                     {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
-                    {% if lv.score is not none %}<span class="text-gray-500">(score: {{ lv.score }})</span>{% endif %}
+                    {% if lv.score is not none %}<span class="text-stone-400">(score: {{ lv.score }})</span>{% endif %}
                     {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                    {% if lv.feedback %}<div class="text-xs text-gray-500 italic">{{ lv.feedback }}</div>{% endif %}
-                    <div class="text-xs"><a href="/{{ tenant.id }}/uri/{{ lv.identifier }}" class="text-blue-600 hover:text-blue-800">{{ lv.identifier }}</a></div>
+                    {% if lv.feedback %}<div class="text-xs text-stone-400 italic">{{ lv.feedback }}</div>{% endif %}
+                    <div class="text-xs"><a href="/{{ tenant.id }}/uri/{{ lv.identifier }}" class="text-violet-600 hover:text-violet-800">{{ lv.identifier }}</a></div>
                 </div>
                 {% endfor %}
             </div>
@@ -400,9 +399,9 @@
         {# Parent criterion link #}
         {% if resource.cf_rubric_criterion %}
         <div>
-            <dt class="text-xs font-medium text-gray-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
-            <dd class="text-gray-900">
-                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-blue-600 hover:text-blue-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
+            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_parent_criterion") }}</dt>
+            <dd class="text-gray-800">
+                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
             </dd>
         </div>
         {% endif %}

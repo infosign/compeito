@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.errors import InvalidUUIDError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
@@ -10,6 +13,13 @@ app = FastAPI(
     title="COMPEITO",
     description="1EdTech CASE v1.1 compatible web service",
 )
+
+
+# ---------------------------------------------------------------------------
+# Static files
+# ---------------------------------------------------------------------------
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
 # ---------------------------------------------------------------------------
