@@ -10,6 +10,7 @@
     "show_in_tree": "ツリーで表示",
     "return_to_top": "トップページに戻る",
     "details": "詳細",
+    "details_view": "詳細を表示",
     "error_bad_request": "リクエストが不正です",
     "error_not_found": "ページが見つかりません",
     "error_tenant_not_found": "テナントが見つかりません",
@@ -22,5 +23,6 @@
     "rubric_levels": "評価レベル",
     "rubric_no_criteria": "評価基準がありません",
     "rubric_parent": "所属ルーブリック",
-    "rubric_parent_criterion": "所属評価基準"
+    "rubric_parent_criterion": "所属評価基準",
+    "api_endpoint": "APIエンドポイント"
 }
