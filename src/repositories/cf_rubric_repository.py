@@ -45,3 +45,18 @@ async def list_by_document(
         query = query.limit(limit)
     result = await session.execute(query)
     return list(result.scalars().unique().all())
+
+
+async def list_criteria_by_item(
+    session: AsyncSession,
+    item_id: uuid.UUID,
+) -> list[CFRubricCriterion]:
+    """Return rubric criteria that reference a specific CFItem."""
+    query = (
+        select(CFRubricCriterion)
+        .options(joinedload(CFRubricCriterion.cf_rubric))
+        .where(CFRubricCriterion.cf_item_id == item_id)
+        .order_by(CFRubricCriterion.position, CFRubricCriterion.identifier)
+    )
+    result = await session.execute(query)
+    return list(result.scalars().unique().all())
