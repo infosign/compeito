@@ -454,6 +454,14 @@
         {% else %}
         </dl>
         {% endif %}
+        <div class="mt-6 flex flex-wrap gap-2">
+            {% if resource.cf_item %}
+            <a href="/{{ tenant.id }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            {% endif %}
+            {% if doc %}
+            <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            {% endif %}
+        </div>
 
     {# ========== CFRubricCriterionLevel ========== #}
     {% elif resource_type == "CFRubricCriterionLevel" %}
@@ -475,6 +483,14 @@
         </div>
         {% endif %}
     </dl>
+        <div class="mt-6 flex flex-wrap gap-2">
+            {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
+            <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            {% endif %}
+            {% if doc %}
+            <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            {% endif %}
+        </div>
 
     {# ========== Lookup resources ========== #}
     {% else %}
