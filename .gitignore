@@ -37,3 +37,6 @@ htmlcov/
 
 # Sample data
 *.csv
+
+# Seed data (keep seed.sh, ignore CSV)
+seed/*.csv
