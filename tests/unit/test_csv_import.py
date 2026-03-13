@@ -445,6 +445,38 @@ class TestImportCustomFormat:
         item = result.scalar_one()
         assert item.full_statement == "Second occurrence"
 
+    async def test_duplicate_hcs_with_identifier_creates_all(self, db_session: AsyncSession, tenant: Tenant):
+        """When rows have Identifier, duplicate humanCodingScheme should NOT collapse them."""
+        csv = (
+            "#title,HCS Dup Test\n"
+            "Identifier,fullStatement,humanCodingScheme\n"
+            "aaaa0001-0001-0001-0001-000000000001,国語のア,ア\n"
+            "aaaa0001-0001-0001-0001-000000000002,数学のア,ア\n"
+            "aaaa0001-0001-0001-0001-000000000003,理科のア,ア\n"
+        ).encode("utf-8")
+
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        assert report.items_created == 3
+        assert report.items_updated == 0
+
+    async def test_duplicate_hcs_without_identifier_updates(self, db_session: AsyncSession, tenant: Tenant):
+        """When rows have no Identifier, duplicate humanCodingScheme should match existing."""
+        csv = (
+            "#title,HCS NoID Test\n"
+            "Identifier,fullStatement,humanCodingScheme\n"
+            ",First statement,ア\n"
+            ",Second statement,ア\n"
+        ).encode("utf-8")
+
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        # First row creates, second row matches HCS and updates
+        assert report.items_created == 1
+        assert report.items_updated == 1
+
 
 class TestImportOpenSALTFormat:
     async def test_basic_opensalt(self, db_session: AsyncSession, tenant: Tenant):

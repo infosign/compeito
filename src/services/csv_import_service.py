@@ -809,7 +809,8 @@ async def _upsert_item(
         existing = result.scalar_one_or_none()
 
     # Match 2: humanCodingScheme (same tenant + same document)
-    if existing is None and pr.human_coding_scheme is not None:
+    # Only fall back to HCS matching when CSV row has no Identifier
+    if existing is None and pr.identifier is None and pr.human_coding_scheme is not None:
         result = await session.execute(
             select(CFItem)
             .where(
