@@ -129,7 +129,7 @@ CSVの `CFItemType` 列・`license` 列・メタデータ `#subject`・メタデ
 **upsertマッチングキー（優先順）:**
 
 1. **Identifier一致**: 同一テナント内でCSVの `Identifier` が既存CFItemの `identifier` と一致 → 更新。一致したアイテムが別ドキュメントに属する場合は `cf_document_id` を現在のドキュメントに付け替える（**副作用**: 元ドキュメントの isChildOf Association がこのアイテムを参照し続けるが、depth は再計算されない。元ドキュメントの整合性を回復するには、元ドキュメントを再インポートするか、`doc delete` で削除する必要がある。付け替えが発生した場合は警告を出力する: 「Row N: Item '{item_identifier}' moved from document '{old_doc_identifier}' to current document」。`{old_doc_identifier}` は移動元ドキュメントの `identifier`（外部CASEインポートの同等の警告と同一形式）
-2. **humanCodingScheme一致**: 同一テナント・同一ドキュメント内で `human_coding_scheme` が一致 → 更新。ただし NULL 同士はマッチしない（CSVの値が空、かつ既存も NULL の場合は不一致扱い）。一致するアイテムが複数存在する場合は `identifier` の辞書順で最初のアイテムを更新対象とする（決定的な選択を保証する。lookup テーブルの複数マッチルールと同一方針）
+2. **humanCodingScheme一致**（CSVの `Identifier` が空の場合のみ）: 同一テナント・同一ドキュメント内で `human_coding_scheme` が一致 → 更新。CSVの `Identifier` に値がある場合はこのフォールバックを適用しない（Identifier 指定行は Identifier のみでマッチし、不一致なら新規作成）。ただし NULL 同士はマッチしない（CSVの値が空、かつ既存も NULL の場合は不一致扱い）。一致するアイテムが複数存在する場合は `identifier` の辞書順で最初のアイテムを更新対象とする（決定的な選択を保証する。lookup テーブルの複数マッチルールと同一方針）
 3. **いずれも不一致** → 新規作成
 
 **更新時の動作:**
