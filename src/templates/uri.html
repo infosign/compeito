@@ -38,14 +38,14 @@
 
 {% macro field(label, value) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endmacro %}
 
 {% macro datetime_field(label, dt) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800"><time datetime="{{ dt.isoformat() }}">{{ dt.isoformat() }}</time></dd>
 </div>
 {% endmacro %}
@@ -53,7 +53,7 @@
 {% macro optional_field(label, value) %}
 {% if value is not none and value != "" %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endif %}
@@ -61,14 +61,14 @@
 
 {% macro code_field(label, value) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ copy_btn(value) }}<code class="text-sm">{{ value }}</code></dd>
 </div>
 {% endmacro %}
 
 {% macro code_url_field(label, url) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ copy_btn(url) }}<code class="text-sm break-all">{{ url }}</code></dd>
 </div>
 {% endmacro %}
@@ -79,7 +79,7 @@
 
 {% macro uri_field(label, url) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ url_text(url) }}</dd>
 </div>
 {% endmacro %}
@@ -87,7 +87,7 @@
 {% macro optional_uri_field(label, url) %}
 {% if url %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ url_text(url) }}</dd>
 </div>
 {% endif %}
@@ -104,7 +104,7 @@
 {% macro array_field(label, arr) %}
 {% if arr and arr|length > 0 %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ arr | join(", ") }}</dd>
 </div>
 {% endif %}
@@ -112,7 +112,7 @@
 
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
         <div>{{ sub_label(t("f_title")) }}{{ title }}</div>
         <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
@@ -123,7 +123,7 @@
 
 {% macro linked_resource(label, link_url, link_text, ident, uri) %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
         <div>{{ sub_label(t("f_title")) }}<a href="{{ link_url }}" class="text-violet-600 hover:text-violet-800">{{ link_text }}</a></div>
         <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
@@ -135,7 +135,7 @@
 {% macro subject_uri_list(items) %}
 {% if items %}
 <div>
-    <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_subject_uri") }}</dt>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_subject_uri") }}</dt>
     <dd class="text-gray-800 ml-4 mt-1">
         {% for su in items %}
         <div class="{% if not loop.first %}mt-2{% endif %} space-y-0.5">
@@ -186,7 +186,7 @@
         {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
         {% if referring_criteria %}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_criteria") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_criteria") }}</dt>
             <dd class="text-gray-800">
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for crit in referring_criteria %}
@@ -220,7 +220,7 @@
         {{ optional_field(t("f_version"), resource.version) }}
         {% if resource.adoption_status %}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_adoption_status") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_adoption_status") }}</dt>
             <dd><span class="inline-block px-2 py-0.5 text-xs font-medium rounded
                 {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
                 {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
@@ -240,7 +240,7 @@
         {{ subject_uri_list(resource.subject_uri) }}
         {% if rubrics %}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubrics") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubrics") }}</dt>
             <dd class="text-gray-800">
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for rubric in rubrics %}
@@ -266,7 +266,7 @@
         {% endif %}
         {{ field(t("f_association_type"), resource.association_type) }}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_origin_node_uri") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_origin_node_uri") }}</dt>
             <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
                 {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.origin_node_title }}</div>{% endif %}
                 <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
@@ -275,7 +275,7 @@
             </dd>
         </div>
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_destination_node_uri") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_destination_node_uri") }}</dt>
             <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
                 {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.destination_node_title }}</div>{% endif %}
                 <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
@@ -416,7 +416,7 @@
         {# Parent rubric link #}
         {% if resource.cf_rubric %}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_parent") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent") }}</dt>
             <dd class="text-gray-800">
                 <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
             </dd>
@@ -464,7 +464,7 @@
         {# Parent criterion link #}
         {% if resource.cf_rubric_criterion %}
         <div>
-            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_parent_criterion") }}</dt>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
             <dd class="text-gray-800">
                 <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
             </dd>
