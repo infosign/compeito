@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
+from src.repositories import cf_rubric_repository
 from src.services import tenant_service, tree_service, uri_service
 
 router = APIRouter()
@@ -171,6 +172,9 @@ async def tree_view(
         selected_ident,
     )
 
+    # Fetch rubrics for this document (shown in right pane default view)
+    rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
+
     response = templates.TemplateResponse(
         request,
         "cftree.html",
@@ -181,6 +185,7 @@ async def tree_view(
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
             "tenant_id": str(tenant_obj.id),
+            "rubrics": rubrics,
             "t": t,
             "lang": lang,
         },
@@ -236,6 +241,10 @@ async def uri_detail(
         page_title = stmt[:50] if len(stmt) > 50 else stmt
     elif result.resource_type == "CFDocument":
         page_title = result.resource.title
+    elif result.resource_type == "CFRubricCriterion":
+        page_title = result.resource.category or str(result.resource.identifier)
+    elif result.resource_type == "CFRubricCriterionLevel":
+        page_title = result.resource.quality or str(result.resource.identifier)
     else:
         page_title = getattr(result.resource, "title", None) or str(result.resource.identifier)
 

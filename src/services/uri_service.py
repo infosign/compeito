@@ -17,6 +17,9 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
+from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 
 
@@ -24,9 +27,9 @@ from src.models.cf_subject import CFSubject
 class UriResult:
     """Result of a URI lookup."""
 
-    resource_type: str  # "CFItem", "CFDocument", "CFAssociation", or lookup type name
+    resource_type: str  # "CFItem", "CFDocument", "CFAssociation", "CFRubric", etc.
     resource: Any  # The ORM model instance
-    doc: CFDocument | None = None  # Parent document (for CFItem/CFAssociation)
+    doc: CFDocument | None = None  # Parent document (for CFItem/CFAssociation/CFRubric)
 
 
 async def find_resource_by_identifier(
@@ -36,7 +39,8 @@ async def find_resource_by_identifier(
 ) -> UriResult | None:
     """Search for a resource by identifier across all resource types.
 
-    Search order: CFItem -> CFDocument -> CFAssociation -> lookups.
+    Search order: CFItem -> CFDocument -> CFAssociation -> CFRubric ->
+                  CFRubricCriterion -> CFRubricCriterionLevel -> lookups.
     """
     # 1. CFItem
     result = await session.execute(
@@ -76,7 +80,53 @@ async def find_resource_by_identifier(
     if assoc is not None:
         return UriResult("CFAssociation", assoc, doc=assoc.cf_document)
 
-    # 4. Lookup resources
+    # 4. CFRubric
+    result = await session.execute(
+        select(CFRubric)
+        .options(
+            joinedload(CFRubric.criteria).joinedload(CFRubricCriterion.levels),
+            joinedload(CFRubric.criteria).joinedload(CFRubricCriterion.cf_item),
+            joinedload(CFRubric.cf_document),
+        )
+        .where(CFRubric.tenant_id == tenant_id, CFRubric.identifier == identifier)
+    )
+    rubric = result.scalars().unique().one_or_none()
+    if rubric is not None:
+        return UriResult("CFRubric", rubric, doc=rubric.cf_document)
+
+    # 5. CFRubricCriterion
+    result = await session.execute(
+        select(CFRubricCriterion)
+        .options(
+            joinedload(CFRubricCriterion.cf_rubric).joinedload(CFRubric.cf_document),
+            joinedload(CFRubricCriterion.cf_item),
+            joinedload(CFRubricCriterion.levels),
+        )
+        .where(CFRubricCriterion.identifier == identifier)
+    )
+    criterion = result.scalars().unique().one_or_none()
+    if criterion is not None and criterion.cf_rubric.tenant_id == tenant_id:
+        return UriResult("CFRubricCriterion", criterion, doc=criterion.cf_rubric.cf_document)
+
+    # 6. CFRubricCriterionLevel
+    result = await session.execute(
+        select(CFRubricCriterionLevel)
+        .options(
+            joinedload(CFRubricCriterionLevel.cf_rubric_criterion)
+            .joinedload(CFRubricCriterion.cf_rubric)
+            .joinedload(CFRubric.cf_document),
+        )
+        .where(CFRubricCriterionLevel.identifier == identifier)
+    )
+    level = result.scalars().unique().one_or_none()
+    if level is not None and level.cf_rubric_criterion.cf_rubric.tenant_id == tenant_id:
+        return UriResult(
+            "CFRubricCriterionLevel",
+            level,
+            doc=level.cf_rubric_criterion.cf_rubric.cf_document,
+        )
+
+    # 7. Lookup resources
     for model, type_name in [
         (CFItemType, "CFItemType"),
         (CFSubject, "CFSubject"),
