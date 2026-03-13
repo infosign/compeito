@@ -25,29 +25,27 @@
     {{ resource.adoption_status }}
 </span>
 {% endif %}
-{% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping","CFRubric","CFRubricCriterion","CFRubricCriterionLevel") %}
 <span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-violet-100 text-violet-700">{{ resource_type }}</span>
-{% endif %}
 {% endblock %}
 
 {% block content %}
 {# Define macros first #}
 {% macro copy_btn(text) %}
-<button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-300 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
+<button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-400 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
 </button>
 {% endmacro %}
 
 {% macro field(label, value) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endmacro %}
 
 {% macro datetime_field(label, dt) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800"><time datetime="{{ dt.isoformat() }}">{{ dt.isoformat() }}</time></dd>
 </div>
 {% endmacro %}
@@ -55,7 +53,7 @@
 {% macro optional_field(label, value) %}
 {% if value is not none and value != "" %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ value }}</dd>
 </div>
 {% endif %}
@@ -63,14 +61,14 @@
 
 {% macro code_field(label, value) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ copy_btn(value) }}<code class="text-sm">{{ value }}</code></dd>
 </div>
 {% endmacro %}
 
 {% macro code_url_field(label, url) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ copy_btn(url) }}<code class="text-sm break-all">{{ url }}</code></dd>
 </div>
 {% endmacro %}
@@ -81,7 +79,7 @@
 
 {% macro uri_field(label, url) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ url_text(url) }}</dd>
 </div>
 {% endmacro %}
@@ -89,14 +87,14 @@
 {% macro optional_uri_field(label, url) %}
 {% if url %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ url_text(url) }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro sub_label(label) %}
-<span class="text-xs font-medium text-violet-400/70 uppercase inline-block w-16">{{ label }}</span>
+<span class="text-xs font-medium text-stone-500 uppercase inline-block w-16">{{ label }}</span>
 {% endmacro %}
 
 {% macro nested_uri(label, url) %}
@@ -106,7 +104,7 @@
 {% macro array_field(label, arr) %}
 {% if arr and arr|length > 0 %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800">{{ arr | join(", ") }}</dd>
 </div>
 {% endif %}
@@ -114,11 +112,22 @@
 
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-        <div>{{ sub_label("title") }}{{ title }}</div>
-        <div>{{ sub_label("identifier") }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
-        {{ nested_uri("uri", uri) }}
+        <div>{{ sub_label(t("f_title")) }}{{ title }}</div>
+        <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
+        {{ nested_uri(t("f_uri"), uri) }}
+    </dd>
+</div>
+{% endmacro %}
+
+{% macro linked_resource(label, link_url, link_text, ident, uri) %}
+<div>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+        <div>{{ sub_label(t("f_title")) }}<a href="{{ link_url }}" class="text-violet-600 hover:text-violet-800">{{ link_text }}</a></div>
+        <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
+        {{ nested_uri(t("f_uri"), uri) }}
     </dd>
 </div>
 {% endmacro %}
@@ -126,13 +135,13 @@
 {% macro subject_uri_list(items) %}
 {% if items %}
 <div>
-    <dt class="text-xs font-medium text-violet-400 uppercase">Subject URI</dt>
+    <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_subject_uri") }}</dt>
     <dd class="text-gray-800 ml-4 mt-1">
         {% for su in items %}
         <div class="{% if not loop.first %}mt-2{% endif %} space-y-0.5">
-            {% if su.get("title") %}<div>{{ sub_label("title") }}{{ su.title }}</div>{% endif %}
-            {% if su.get("identifier") %}<div>{{ sub_label("identifier") }}{{ copy_btn(su.identifier) }}<code class="text-sm">{{ su.identifier }}</code></div>{% endif %}
-            {% if su.get("uri") %}{{ nested_uri("uri", su.uri) }}{% endif %}
+            {% if su.get("title") %}<div>{{ sub_label(t("f_title")) }}{{ su.title }}</div>{% endif %}
+            {% if su.get("identifier") %}<div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(su.identifier) }}<code class="text-sm">{{ su.identifier }}</code></div>{% endif %}
+            {% if su.get("uri") %}{{ nested_uri(t("f_uri"), su.uri) }}{% endif %}
         </div>
         {% endfor %}
     </dd>
@@ -148,49 +157,42 @@
     {% if resource_type == "CFItem" %}
         {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set item_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFItems/" ~ resource.identifier|string %}
-        {{ code_field("identifier", resource.identifier) }}
-        {{ code_url_field("Permalink", permalink) }}
-        {{ code_url_field("CFItems API", item_api_url) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ code_url_field(t("f_permalink"), permalink) }}
+        {{ code_url_field(t("f_cf_items_api"), item_api_url) }}
         {% if doc %}
-        <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocument URI</dt>
-            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                <div>{{ sub_label("title") }}<a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
-                <div>{{ sub_label("identifier") }}{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></div>
-                {{ nested_uri("uri", doc.uri) }}
-            </dd>
-        </div>
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
-        {{ field("Full Statement", resource.full_statement) }}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
-        {{ optional_field("Human Coding Scheme", resource.human_coding_scheme) }}
-        {{ optional_field("Abbreviated Statement", resource.abbreviated_statement) }}
+        {{ field(t("f_full_statement"), resource.full_statement) }}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+        {{ optional_field(t("f_human_coding_scheme"), resource.human_coding_scheme) }}
+        {{ optional_field(t("f_abbreviated_statement"), resource.abbreviated_statement) }}
         {% if resource.item_type %}
-            {{ nested_resource("CFItem Type", resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
+            {{ nested_resource(t("f_cf_item_type"), resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
         {% endif %}
-        {{ array_field("Education Level", resource.education_level) }}
-        {{ array_field("Concept Keywords", resource.concept_keywords) }}
+        {{ array_field(t("f_education_level"), resource.education_level) }}
+        {{ array_field(t("f_concept_keywords"), resource.concept_keywords) }}
         {% if resource.concept %}
-            {{ nested_resource("Concept Keywords URI", resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
+            {{ nested_resource(t("f_concept_keywords_uri"), resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
         {% endif %}
-        {{ array_field("subject", resource.subject) }}
+        {{ array_field(t("f_subject"), resource.subject) }}
         {{ subject_uri_list(resource.subject_uri) }}
-        {{ optional_field("language", resource.language) }}
+        {{ optional_field(t("f_language"), resource.language) }}
         {% if resource.license %}
-            {{ nested_resource("License URI", resource.license.title, resource.license.identifier, resource.license.uri) }}
+            {{ nested_resource(t("f_license_uri"), resource.license.title, resource.license.identifier, resource.license.uri) }}
         {% endif %}
-        {{ optional_field("Status Start Date", resource.status_start_date) }}
-        {{ optional_field("Status End Date", resource.status_end_date) }}
-        {{ optional_field("List Enumeration", resource.list_enumeration) }}
+        {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
+        {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
+        {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
         {% if referring_criteria %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_criteria") }}</dt>
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_criteria") }}</dt>
             <dd class="text-gray-800">
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for crit in referring_criteria %}
                     <li>
                         <a href="/{{ tenant.id }}/uri/{{ crit.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}</a>
-                        {% if crit.cf_rubric %}<span class="text-stone-400 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
+                        {% if crit.cf_rubric %}<span class="text-stone-500 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -206,19 +208,19 @@
     {% elif resource_type == "CFDocument" %}
         {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set package_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFPackages/" ~ resource.identifier|string %}
-        {{ code_field("identifier", resource.identifier) }}
-        {{ code_url_field("Permalink", permalink) }}
-        {{ code_url_field("CFPackage API", package_api_url) }}
-        {{ field("title", resource.title) }}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
-        {{ optional_field("creator", resource.creator) }}
-        {{ optional_field("publisher", resource.publisher) }}
-        {{ optional_field("description", resource.description) }}
-        {{ optional_field("language", resource.language) }}
-        {{ optional_field("version", resource.version) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ code_url_field(t("f_permalink"), permalink) }}
+        {{ code_url_field(t("f_cf_package_api"), package_api_url) }}
+        {{ field(t("f_title"), resource.title) }}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+        {{ optional_field(t("f_creator"), resource.creator) }}
+        {{ optional_field(t("f_publisher"), resource.publisher) }}
+        {{ optional_field(t("f_description"), resource.description) }}
+        {{ optional_field(t("f_language"), resource.language) }}
+        {{ optional_field(t("f_version"), resource.version) }}
         {% if resource.adoption_status %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">Adoption Status</dt>
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_adoption_status") }}</dt>
             <dd><span class="inline-block px-2 py-0.5 text-xs font-medium rounded
                 {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
                 {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
@@ -226,19 +228,19 @@
                 {% else %}bg-stone-100 text-stone-700{% endif %}">{{ resource.adoption_status }}</span></dd>
         </div>
         {% endif %}
-        {{ optional_field("Status Start Date", resource.status_start_date) }}
-        {{ optional_field("Status End Date", resource.status_end_date) }}
+        {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
+        {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
         {% if resource.license %}
-            {{ nested_resource("License URI", resource.license.title, resource.license.identifier, resource.license.uri) }}
+            {{ nested_resource(t("f_license_uri"), resource.license.title, resource.license.identifier, resource.license.uri) }}
         {% endif %}
-        {{ optional_uri_field("Official Source URL", resource.official_source_url) }}
-        {{ optional_field("Framework Type", resource.framework_type) }}
-        {{ optional_field("CASE Version", resource.case_version) }}
-        {{ array_field("subject", resource.subject) }}
+        {{ optional_uri_field(t("f_official_source_url"), resource.official_source_url) }}
+        {{ optional_field(t("f_framework_type"), resource.framework_type) }}
+        {{ optional_field(t("f_case_version"), resource.case_version) }}
+        {{ array_field(t("f_subject"), resource.subject) }}
         {{ subject_uri_list(resource.subject_uri) }}
         {% if rubrics %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubrics") }}</dt>
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubrics") }}</dt>
             <dd class="text-gray-800">
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for rubric in rubrics %}
@@ -257,63 +259,49 @@
 
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
-        {{ field("identifier", resource.identifier) }}
-        {{ uri_field("uri", resource.uri) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ uri_field(t("f_uri"), resource.uri) }}
         {% if doc %}
-        <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
-                {{ nested_uri("uri", doc.uri) }}
-            </dd>
-        </div>
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
-        {{ field("associationType", resource.association_type) }}
+        {{ field(t("f_association_type"), resource.association_type) }}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">originNodeURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                {% if resource.origin_node_title %}<div><span class="text-xs text-stone-400">title:</span> {{ resource.origin_node_title }}</div>{% endif %}
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ resource.origin_node_identifier }}</div>
-                {{ nested_uri("uri", resource.origin_node_uri) }}
-                {% if resource.origin_node_target_type %}<div><span class="text-xs text-stone-400">targetType:</span> {{ resource.origin_node_target_type }}</div>{% endif %}
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_origin_node_uri") }}</dt>
+            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.origin_node_title }}</div>{% endif %}
+                <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
+                {{ nested_uri(t("f_uri"), resource.origin_node_uri) }}
+                {% if resource.origin_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.origin_node_target_type }}</div>{% endif %}
             </dd>
         </div>
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">destinationNodeURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                {% if resource.destination_node_title %}<div><span class="text-xs text-stone-400">title:</span> {{ resource.destination_node_title }}</div>{% endif %}
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ resource.destination_node_identifier }}</div>
-                {{ nested_uri("uri", resource.destination_node_uri) }}
-                {% if resource.destination_node_target_type %}<div><span class="text-xs text-stone-400">targetType:</span> {{ resource.destination_node_target_type }}</div>{% endif %}
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_destination_node_uri") }}</dt>
+            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.destination_node_title }}</div>{% endif %}
+                <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
+                {{ nested_uri(t("f_uri"), resource.destination_node_uri) }}
+                {% if resource.destination_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.destination_node_target_type }}</div>{% endif %}
             </dd>
         </div>
         {% if resource.sequence_number is not none %}
-            {{ field("sequenceNumber", resource.sequence_number) }}
+            {{ field(t("f_sequence_number"), resource.sequence_number) }}
         {% endif %}
         {% if resource.association_grouping %}
-            {{ nested_resource("CFAssociationGroupingURI", resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
+            {{ nested_resource(t("f_cf_association_grouping_uri"), resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
         {% endif %}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
 
     {# ========== CFRubric ========== #}
     {% elif resource_type == "CFRubric" %}
-        {{ field("identifier", resource.identifier) }}
-        {{ uri_field("uri", resource.uri) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ uri_field(t("f_uri"), resource.uri) }}
         {% if doc %}
-        <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
-                {{ nested_uri("uri", doc.uri) }}
-            </dd>
-        </div>
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
-        {{ optional_field("title", resource.title) }}
-        {{ optional_field("description", resource.description) }}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
+        {{ optional_field(t("f_title"), resource.title) }}
+        {{ optional_field(t("f_description"), resource.description) }}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
 
     {# Rubric table/list display #}
@@ -349,7 +337,7 @@
                                     {% for lv in c.levels %}
                                         {% if lv.position == pos %}
                                             {% if lv.quality %}{{ lv.quality }}{% else %}{{ pos }}{% endif %}
-                                            {% if lv.score is not none %}<div class="text-xs text-stone-400">score: {{ lv.score }}</div>{% endif %}
+                                            {% if lv.score is not none %}<div class="text-xs text-stone-500">{{ t("f_score") }}: {{ lv.score }}</div>{% endif %}
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
@@ -363,7 +351,7 @@
                             <td class="border border-stone-300 px-3 py-2 align-top bg-violet-50/50 font-medium">
                                 {% if c.category %}<div class="font-semibold">{{ c.category }}</div>{% endif %}
                                 {% if c.description %}<div class="text-stone-600 text-xs">{{ c.description }}</div>{% endif %}
-                                {% if c.weight is not none %}<div class="text-xs text-stone-400">weight: {{ c.weight }}</div>{% endif %}
+                                {% if c.weight is not none %}<div class="text-xs text-stone-500">{{ t("f_weight") }}: {{ c.weight }}</div>{% endif %}
                                 {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                             </td>
                             {% for pos in ns.positions %}
@@ -371,7 +359,7 @@
                                 {% for lv in c.levels %}
                                     {% if lv.position == pos %}
                                         {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                                        {% if lv.feedback %}<div class="text-xs text-stone-400 mt-1 italic">{{ lv.feedback }}</div>{% endif %}
+                                        {% if lv.feedback %}<div class="text-xs text-stone-500 mt-1 italic">{{ lv.feedback }}</div>{% endif %}
                                     {% endif %}
                                 {% endfor %}
                             </td>
@@ -390,16 +378,16 @@
             <div class="border border-stone-200 rounded p-4 {% if not loop.first %}mt-3{% endif %}">
                 {% if c.category %}<div class="font-semibold text-gray-800">{{ c.category }}</div>{% endif %}
                 {% if c.description %}<div class="text-stone-600 text-sm">{{ c.description }}</div>{% endif %}
-                {% if c.weight is not none %}<div class="text-xs text-stone-400">weight: {{ c.weight }}</div>{% endif %}
+                {% if c.weight is not none %}<div class="text-xs text-stone-500">{{ t("f_weight") }}: {{ c.weight }}</div>{% endif %}
                 {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                 {% if c.levels %}
                 <div class="mt-2 ml-4 space-y-2">
                     {% for lv in c.levels | sort(attribute='position,identifier') %}
                     <div class="text-sm border-l-2 border-violet-200 pl-3">
                         {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
-                        {% if lv.score is not none %}<span class="text-stone-400">(score: {{ lv.score }})</span>{% endif %}
+                        {% if lv.score is not none %}<span class="text-stone-500">({{ t("f_score") }}: {{ lv.score }})</span>{% endif %}
                         {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                        {% if lv.feedback %}<div class="text-xs text-stone-400 italic">{{ lv.feedback }}</div>{% endif %}
+                        {% if lv.feedback %}<div class="text-xs text-stone-500 italic">{{ lv.feedback }}</div>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -415,20 +403,20 @@
 
     {# ========== CFRubricCriterion ========== #}
     {% elif resource_type == "CFRubricCriterion" %}
-        {{ field("identifier", resource.identifier) }}
-        {{ uri_field("uri", resource.uri) }}
-        {{ optional_field("category", resource.category) }}
-        {{ optional_field("description", resource.description) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ uri_field(t("f_uri"), resource.uri) }}
+        {{ optional_field(t("f_category"), resource.category) }}
+        {{ optional_field(t("f_description"), resource.description) }}
         {% if resource.cf_item %}
-            {{ nested_resource("CFItemURI", resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
+            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant.id ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
         {% endif %}
-        {% if resource.weight is not none %}{{ field("weight", resource.weight) }}{% endif %}
-        {% if resource.position is not none %}{{ field("position", resource.position) }}{% endif %}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
+        {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
+        {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
         {# Parent rubric link #}
         {% if resource.cf_rubric %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_parent") }}</dt>
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_parent") }}</dt>
             <dd class="text-gray-800">
                 <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
             </dd>
@@ -443,9 +431,9 @@
                 {% for lv in resource.levels | sort(attribute='position,identifier') %}
                 <div class="text-sm border-l-2 border-violet-200 pl-3">
                     {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
-                    {% if lv.score is not none %}<span class="text-stone-400">(score: {{ lv.score }})</span>{% endif %}
+                    {% if lv.score is not none %}<span class="text-stone-500">({{ t("f_score") }}: {{ lv.score }})</span>{% endif %}
                     {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
-                    {% if lv.feedback %}<div class="text-xs text-stone-400 italic">{{ lv.feedback }}</div>{% endif %}
+                    {% if lv.feedback %}<div class="text-xs text-stone-500 italic">{{ lv.feedback }}</div>{% endif %}
                     <div class="text-xs"><a href="/{{ tenant.id }}/uri/{{ lv.identifier }}" class="text-violet-600 hover:text-violet-800">{{ lv.identifier }}</a></div>
                 </div>
                 {% endfor %}
@@ -465,18 +453,18 @@
 
     {# ========== CFRubricCriterionLevel ========== #}
     {% elif resource_type == "CFRubricCriterionLevel" %}
-        {{ field("identifier", resource.identifier) }}
-        {{ uri_field("uri", resource.uri) }}
-        {{ optional_field("description", resource.description) }}
-        {{ optional_field("quality", resource.quality) }}
-        {% if resource.score is not none %}{{ field("score", resource.score) }}{% endif %}
-        {{ optional_field("feedback", resource.feedback) }}
-        {% if resource.position is not none %}{{ field("position", resource.position) }}{% endif %}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ uri_field(t("f_uri"), resource.uri) }}
+        {{ optional_field(t("f_description"), resource.description) }}
+        {{ optional_field(t("f_quality"), resource.quality) }}
+        {% if resource.score is not none %}{{ field(t("f_score"), resource.score) }}{% endif %}
+        {{ optional_field(t("f_feedback"), resource.feedback) }}
+        {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
         {# Parent criterion link #}
         {% if resource.cf_rubric_criterion %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("rubric_parent_criterion") }}</dt>
+            <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("rubric_parent_criterion") }}</dt>
             <dd class="text-gray-800">
                 <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
             </dd>
@@ -494,15 +482,15 @@
 
     {# ========== Lookup resources ========== #}
     {% else %}
-        {{ field("identifier", resource.identifier) }}
-        {{ uri_field("uri", resource.uri) }}
-        {{ field("title", resource.title) }}
-        {{ optional_field("description", resource.description) }}
-        {% if resource.type_code is defined %}{{ optional_field("typeCode", resource.type_code) }}{% endif %}
-        {% if resource.hierarchy_code is defined %}{{ optional_field("hierarchyCode", resource.hierarchy_code) }}{% endif %}
-        {% if resource.keywords is defined %}{{ optional_field("keywords", resource.keywords) }}{% endif %}
-        {% if resource.license_text is defined %}{{ optional_field("licenseText", resource.license_text) }}{% endif %}
-        {{ datetime_field("Last Change Date Time", resource.last_change_date_time) }}
+        {{ code_field(t("f_identifier"), resource.identifier) }}
+        {{ uri_field(t("f_uri"), resource.uri) }}
+        {{ field(t("f_title"), resource.title) }}
+        {{ optional_field(t("f_description"), resource.description) }}
+        {% if resource.type_code is defined %}{{ optional_field(t("f_type_code"), resource.type_code) }}{% endif %}
+        {% if resource.hierarchy_code is defined %}{{ optional_field(t("f_hierarchy_code"), resource.hierarchy_code) }}{% endif %}
+        {% if resource.keywords is defined %}{{ optional_field(t("f_keywords"), resource.keywords) }}{% endif %}
+        {% if resource.license_text is defined %}{{ optional_field(t("f_license_text"), resource.license_text) }}{% endif %}
+        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
     {% endif %}
 </div>
