@@ -75,6 +75,18 @@
                 <div><dt class="text-xs font-medium text-gray-500 uppercase">language</dt><dd class="text-gray-900">{{ doc.language }}</dd></div>
                 {% endif %}
             </dl>
+            {% if rubrics %}
+            <div class="mt-6 pt-4 border-t border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t("rubrics") }}</h3>
+                <ul class="space-y-1">
+                    {% for rubric in rubrics %}
+                    <li>
+                        <a href="/{{ tenant.id }}/uri/{{ rubric.identifier }}" class="text-blue-600 hover:text-blue-800 text-sm">{{ rubric.title or rubric.identifier }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         {% endif %}
     </div>
 </div>
