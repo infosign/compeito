@@ -27,8 +27,10 @@ async def get_by_identifier(
 async def list_by_document(
     session: AsyncSession,
     doc_id: uuid.UUID,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[CFRubric]:
-    result = await session.execute(
+    query = (
         select(CFRubric)
         .options(
             joinedload(CFRubric.criteria).joinedload(CFRubricCriterion.levels),
@@ -37,4 +39,9 @@ async def list_by_document(
         .where(CFRubric.cf_document_id == doc_id)
         .order_by(CFRubric.identifier)
     )
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await session.execute(query)
     return list(result.scalars().unique().all())

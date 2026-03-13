@@ -208,6 +208,104 @@ class TestGetCFRubric:
         assert response.headers["cache-control"] == "public, max-age=3600"
 
 
+class TestListCFRubrics:
+    async def test_list_requires_doc_parameter(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+    ) -> None:
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics")
+        assert response.status_code == 400
+
+    async def test_list_invalid_doc_uuid(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+    ) -> None:
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc=not-a-uuid")
+        assert response.status_code == 400
+        body = response.json()
+        assert body["imsx_codeMinor"]["imsx_codeMinorField"][0]["imsx_codeMinorFieldValue"] == "invalid_uuid"
+
+    async def test_list_doc_not_found(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+    ) -> None:
+        fake_doc = str(uuid.uuid4())
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={fake_doc}")
+        assert response.status_code == 404
+
+    async def test_list_empty(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ) -> None:
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}")
+        assert response.status_code == 200
+        assert response.json() == {"CFRubrics": []}
+
+    async def test_list_returns_rubrics(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_rubric: CFRubric,
+    ) -> None:
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}")
+        assert response.status_code == 200
+        rubrics = response.json()["CFRubrics"]
+        assert len(rubrics) == 1
+        assert rubrics[0]["identifier"] == RUBRIC_IDENTIFIER
+        assert rubrics[0]["title"] == "Test Rubric"
+        assert "CFRubricCriteria" in rubrics[0]
+
+    async def test_list_pagination(
+        self,
+        db_client: AsyncClient,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+        sample_rubric: CFRubric,
+    ) -> None:
+        # Add a second rubric
+        rubric2 = CFRubric(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.UUID("aabbcc01-0000-0000-0000-000000000099"),
+            uri="https://example.com/uri/rubric99",
+            title="Second Rubric",
+            last_change_date_time=LCT,
+        )
+        db_session.add(rubric2)
+        await db_session.flush()
+
+        # limit=1 should return only 1
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}&limit=1")
+        assert response.status_code == 200
+        assert len(response.json()["CFRubrics"]) == 1
+
+        # offset=1&limit=1 should return the other
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}&offset=1&limit=1")
+        assert response.status_code == 200
+        assert len(response.json()["CFRubrics"]) == 1
+
+        # No limit should return both
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}")
+        assert response.status_code == 200
+        assert len(response.json()["CFRubrics"]) == 2
+
+    async def test_list_cache_control(
+        self,
+        db_client: AsyncClient,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ) -> None:
+        response = await db_client.get(f"{CASE_PATH}/CFRubrics?doc={DOC_IDENTIFIER}")
+        assert response.headers["cache-control"] == "public, max-age=3600"
+
+
 class TestCFPackageWithRubrics:
     async def test_package_includes_empty_rubrics(
         self,
