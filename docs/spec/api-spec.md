@@ -32,6 +32,9 @@ CASE v1.1 準拠の 12 エンドポイント:
 | GET /{tenant}/ims/case/v1p1/CFConcepts | `{"CFConcepts": [...]}` | コンセプト一覧 |
 | GET /{tenant}/ims/case/v1p1/CFLicenses | `{"CFLicenses": [...]}` | ライセンス一覧 |
 | GET /{tenant}/ims/case/v1p1/CFAssociationGroupings | `{"CFAssociationGroupings": [...]}` | 関連グループ一覧 |
+| GET /{tenant}/ims/case/v1p1/CFRubrics?doc={id} | `{"CFRubrics": [...]}` | ルーブリック一覧（`doc` 必須） |
+
+**CFRubrics 一覧の `doc` パラメータについて:** CFRubric は CFDefinitions 系（CFItemType 等）と異なり、特定の CFDocument に所属する。CASE v1.1 の CFRubricDType には所属 Document を示すフィールドがないため、テナント全体で返すとどの Document のルーブリックか判別できない。そのため `doc` クエリパラメータ（CFDocument の identifier, UUID）を**必須**とする。`doc` 未指定は 400、不正な UUID は 400、Document が存在しない場合は 404 を返す。
 
 **注意**: CASE v1.1 では `/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}` の取得エンドポイントはそれぞれ Set 型（`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`）を返し、要求されたリソースに加えて階層下の子リソースも配列で返す仕様だが、本システムでは階層構造を持たないため、要求されたリソース 1 件のみを配列に含めて返す。`/CFLicenses/{id}` は単一オブジェクト `CFLicenseDType` を返す（Set 型ではない）。
 
