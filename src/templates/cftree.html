@@ -3,12 +3,12 @@
 {% block title %}{{ doc.title }} - {{ tenant.name }} - COMPEITO{% endblock %}
 
 {% block breadcrumb %}
-<nav class="text-sm text-gray-500 mb-1">
-    <a href="/" class="hover:text-gray-700">{{ t("tenant_list") }}</a>
-    <span class="mx-1">&gt;</span>
-    <a href="/{{ tenant.id }}/" class="hover:text-gray-700">{{ tenant.name }}</a>
-    <span class="mx-1">&gt;</span>
-    <span class="text-gray-700">{{ doc.title }}</span>
+<nav class="text-sm text-stone-500 mb-1">
+    <a href="/" class="hover:text-violet-600 transition-colors">{{ t("tenant_list") }}</a>
+    <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
+    <a href="/{{ tenant.id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
+    <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-violet-300 align-middle"></span>
+    <span class="text-stone-700">{{ doc.title }}</span>
 </nav>
 {% endblock %}
 
@@ -16,10 +16,10 @@
 {{ doc.title }}
 {% if doc.adoption_status %}
 <span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded
-    {% if doc.adoption_status == 'Adopted' %}bg-green-100 text-green-800
-    {% elif doc.adoption_status == 'Deprecated' %}bg-red-100 text-red-800
-    {% elif doc.adoption_status == 'Draft' %}bg-yellow-100 text-yellow-800
-    {% else %}bg-gray-100 text-gray-800{% endif %}">
+    {% if doc.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
+    {% elif doc.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
+    {% elif doc.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
+    {% else %}bg-stone-100 text-stone-700{% endif %}">
     {{ doc.adoption_status }}
 </span>
 {% endif %}
@@ -28,10 +28,10 @@
 {% block content %}
 <div class="flex flex-col md:flex-row gap-6">
     {# Left pane: tree #}
-    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow overflow-auto" style="max-height: 80vh;">
-        <div class="p-4 border-b border-gray-200">
-            <div class="font-medium text-gray-900">{{ doc.title }}</div>
-            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-blue-600 hover:text-blue-800">{{ t("document_details") }}</a>
+    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto" style="max-height: 80vh;">
+        <div class="p-4 border-b border-stone-200">
+            <div class="font-medium text-gray-800">{{ doc.title }}</div>
+            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
@@ -39,49 +39,49 @@
                     {% include "fragments/tree_nodes.html" %}
                 {% endwith %}
                 {% if orphan_nodes %}
-                <div class="mt-2 pt-2 border-t border-gray-100">
+                <div class="mt-2 pt-2 border-t border-stone-100">
                     {% with nodes=orphan_nodes, tenant_id=tenant_id, doc_identifier=doc.identifier|string, selected_item=selected_item %}
                         {% include "fragments/tree_nodes.html" %}
                     {% endwith %}
                 </div>
                 {% endif %}
             {% else %}
-            <p class="text-gray-500 p-4">{{ t("no_items") }}</p>
+            <p class="text-stone-500 p-4">{{ t("no_items") }}</p>
             {% endif %}
         </div>
     </div>
 
     {# Right pane: detail (hidden on mobile) #}
-    <div id="detail-pane" class="hidden md:block md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow p-6" style="max-height: 80vh; overflow-y: auto;">
+    <div id="detail-pane" class="hidden md:block md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow-sm border border-stone-200 p-6" style="max-height: 80vh; overflow-y: auto;">
         {% if selected_item %}
             {% with tenant_id=tenant_id %}
                 {% include "fragments/detail.html" %}
             {% endwith %}
         {% else %}
             {# Document info as default #}
-            <h2 class="text-xl font-bold text-gray-900 mb-4">{{ doc.title }}</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ doc.title }}</h2>
             <dl class="space-y-3">
                 {% if doc.description %}
-                <div><dt class="text-xs font-medium text-gray-500 uppercase">description</dt><dd class="text-gray-900">{{ doc.description }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-400 uppercase">description</dt><dd class="text-gray-800">{{ doc.description }}</dd></div>
                 {% endif %}
                 {% if doc.adoption_status %}
-                <div><dt class="text-xs font-medium text-gray-500 uppercase">adoptionStatus</dt><dd class="text-gray-900">{{ doc.adoption_status }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-400 uppercase">adoptionStatus</dt><dd class="text-gray-800">{{ doc.adoption_status }}</dd></div>
                 {% endif %}
-                <div><dt class="text-xs font-medium text-gray-500 uppercase">lastChangeDateTime</dt><dd class="text-gray-900">{{ doc.last_change_date_time.isoformat() }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-400 uppercase">lastChangeDateTime</dt><dd class="text-gray-800">{{ doc.last_change_date_time.isoformat() }}</dd></div>
                 {% if doc.version %}
-                <div><dt class="text-xs font-medium text-gray-500 uppercase">version</dt><dd class="text-gray-900">{{ doc.version }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-400 uppercase">version</dt><dd class="text-gray-800">{{ doc.version }}</dd></div>
                 {% endif %}
                 {% if doc.language %}
-                <div><dt class="text-xs font-medium text-gray-500 uppercase">language</dt><dd class="text-gray-900">{{ doc.language }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-400 uppercase">language</dt><dd class="text-gray-800">{{ doc.language }}</dd></div>
                 {% endif %}
             </dl>
             {% if rubrics %}
-            <div class="mt-6 pt-4 border-t border-gray-200">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t("rubrics") }}</h3>
+            <div class="mt-6 pt-4 border-t border-stone-200">
+                <h3 class="text-sm font-semibold text-stone-600 mb-2">{{ t("rubrics") }}</h3>
                 <ul class="space-y-1">
                     {% for rubric in rubrics %}
                     <li>
-                        <a href="/{{ tenant.id }}/uri/{{ rubric.identifier }}" class="text-blue-600 hover:text-blue-800 text-sm">{{ rubric.title or rubric.identifier }}</a>
+                        <a href="/{{ tenant.id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
                     </li>
                     {% endfor %}
                 </ul>
