@@ -25,9 +25,7 @@
     {{ resource.adoption_status }}
 </span>
 {% endif %}
-{% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping","CFRubric","CFRubricCriterion","CFRubricCriterionLevel") %}
 <span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-violet-100 text-violet-700">{{ resource_type }}</span>
-{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -257,14 +255,14 @@
 
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
-        {{ field("identifier", resource.identifier) }}
+        {{ code_field("identifier", resource.identifier) }}
         {{ uri_field("uri", resource.uri) }}
         {% if doc %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocument URI</dt>
+            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                <div>{{ sub_label("title") }}<a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
+                <div>{{ sub_label("identifier") }}{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></div>
                 {{ nested_uri("uri", doc.uri) }}
             </dd>
         </div>
@@ -299,14 +297,14 @@
 
     {# ========== CFRubric ========== #}
     {% elif resource_type == "CFRubric" %}
-        {{ field("identifier", resource.identifier) }}
+        {{ code_field("identifier", resource.identifier) }}
         {{ uri_field("uri", resource.uri) }}
         {% if doc %}
         <div>
-            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocumentURI</dt>
-            <dd class="text-gray-800 ml-4 mt-1">
-                <div><span class="text-xs text-stone-400">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
-                <div><span class="text-xs text-stone-400">identifier:</span> {{ doc.identifier }}</div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFDocument URI</dt>
+            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                <div>{{ sub_label("title") }}<a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-violet-600 hover:text-violet-800">{{ doc.title }}</a></div>
+                <div>{{ sub_label("identifier") }}{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></div>
                 {{ nested_uri("uri", doc.uri) }}
             </dd>
         </div>
@@ -415,12 +413,19 @@
 
     {# ========== CFRubricCriterion ========== #}
     {% elif resource_type == "CFRubricCriterion" %}
-        {{ field("identifier", resource.identifier) }}
+        {{ code_field("identifier", resource.identifier) }}
         {{ uri_field("uri", resource.uri) }}
         {{ optional_field("category", resource.category) }}
         {{ optional_field("description", resource.description) }}
         {% if resource.cf_item %}
-            {{ nested_resource("CFItemURI", resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
+        <div>
+            <dt class="text-xs font-medium text-violet-400 uppercase">CFItem URI</dt>
+            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                <div>{{ sub_label("title") }}<a href="/{{ tenant.id }}/uri/{{ resource.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_item.full_statement }}</a></div>
+                <div>{{ sub_label("identifier") }}{{ copy_btn(resource.cf_item.identifier) }}<code class="text-sm">{{ resource.cf_item.identifier }}</code></div>
+                {{ nested_uri("uri", resource.cf_item.uri) }}
+            </dd>
+        </div>
         {% endif %}
         {% if resource.weight is not none %}{{ field("weight", resource.weight) }}{% endif %}
         {% if resource.position is not none %}{{ field("position", resource.position) }}{% endif %}
@@ -465,7 +470,7 @@
 
     {# ========== CFRubricCriterionLevel ========== #}
     {% elif resource_type == "CFRubricCriterionLevel" %}
-        {{ field("identifier", resource.identifier) }}
+        {{ code_field("identifier", resource.identifier) }}
         {{ uri_field("uri", resource.uri) }}
         {{ optional_field("description", resource.description) }}
         {{ optional_field("quality", resource.quality) }}
