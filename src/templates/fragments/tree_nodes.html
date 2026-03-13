@@ -7,10 +7,10 @@
         {# Expand/collapse icon #}
         {% if node.has_children %}
             {% if node.is_expanded %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-400 hover:text-violet-600 cursor-pointer"
+            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
                 onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▼</button>
             {% else %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-400 hover:text-violet-600 cursor-pointer"
+            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
                 hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
                 hx-target="#ch-{{ node.item.identifier }}"
                 hx-swap="innerHTML"
@@ -30,7 +30,7 @@
            hx-trigger="click[window.innerWidth>=768]"
            onclick="if(window.innerWidth>=768){document.querySelectorAll('[data-tree-item]').forEach(el => {el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200'); el.classList.add('hover:bg-stone-100')}); this.closest('[data-tree-item]').classList.remove('hover:bg-stone-100'); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');}">
             {% if node.item.item_type %}
-            <span class="inline-block px-1.5 py-0.5 text-xs bg-violet-100 text-violet-600 rounded mr-1">{{ node.item.item_type.title }}</span>
+            <span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>
             {% endif %}
             {% if node.item.human_coding_scheme %}
             <span class="font-medium">{{ node.item.human_coding_scheme }}</span>

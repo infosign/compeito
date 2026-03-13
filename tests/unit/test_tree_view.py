@@ -553,7 +553,7 @@ class TestTreeViewPage:
         resp = await db_client.get(
             f"/{tenant.id}/cftree/doc/{sample_document.identifier}",
         )
-        assert "Last Change Date Time" in resp.text
+        assert str(sample_document.last_change_date_time.isoformat()) in resp.text
 
     async def test_doc_default_right_pane_shows_rubrics(
         self,
