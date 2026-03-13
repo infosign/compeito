@@ -4,8 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}COMPEITO{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        [data-tree-item] { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+        .logo-text {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(to right, #8B5CF6, #EC4899, #F59E0B, #10B981, #0EA5E9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.08em;
+        }
+    </style>
     <script>
     document.addEventListener('htmx:beforeSwap', function(evt) {
         if (evt.detail.xhr.status >= 400) {
@@ -15,11 +30,11 @@
     });
     </script>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <header class="bg-white border-b border-gray-200">
+<body class="bg-stone-50 min-h-screen">
+    <header class="bg-gradient-to-r from-violet-50 via-white to-pink-50 border-b border-violet-100/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             {% block breadcrumb %}{% endblock %}
-            <h1 class="text-2xl font-bold text-gray-900">{% block heading %}{% endblock %}</h1>
+            <h1 class="text-2xl font-bold text-gray-800">{% block heading %}{% endblock %}</h1>
         </div>
     </header>
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
