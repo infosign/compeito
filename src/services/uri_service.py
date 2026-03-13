@@ -65,7 +65,7 @@ async def find_resource_by_identifier(
     )
     doc = result.scalar_one_or_none()
     if doc is not None:
-        return UriResult("CFDocument", doc)
+        return UriResult("CFDocument", doc, doc=doc)
 
     # 3. CFAssociation
     result = await session.execute(
