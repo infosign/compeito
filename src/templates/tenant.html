@@ -19,6 +19,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-violet-600 uppercase tracking-wider">{{ t("title") }}</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-violet-600 uppercase tracking-wider">{{ t("last_updated") }}</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-violet-600 uppercase tracking-wider">{{ t("item_count") }}</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-violet-600 uppercase tracking-wider">{{ t("rubrics") }}</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
@@ -34,6 +35,9 @@
                 </td>
                 <td class="px-6 py-4 text-sm text-stone-500 text-right">
                     {{ item.item_count }}
+                </td>
+                <td class="px-6 py-4 text-sm text-stone-500 text-right">
+                    {{ item.rubric_count }}
                 </td>
             </tr>
             {% endfor %}
