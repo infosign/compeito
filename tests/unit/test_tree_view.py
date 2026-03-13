@@ -9,6 +9,7 @@ from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
+from src.models.cf_rubric import CFRubric
 from src.models.tenant import Tenant
 from src.services import tree_service
 
@@ -553,6 +554,46 @@ class TestTreeViewPage:
             f"/{tenant.id}/cftree/doc/{sample_document.identifier}",
         )
         assert "lastChangeDateTime" in resp.text
+
+    async def test_doc_default_right_pane_shows_rubrics(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Right pane shows rubric list when document has rubrics."""
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="My Rubric",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}",
+        )
+        assert resp.status_code == 200
+        assert "My Rubric" in resp.text
+        assert str(rubric.identifier) in resp.text
+
+    async def test_doc_default_right_pane_hides_rubrics_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Right pane does NOT show rubric section when no rubrics exist."""
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}",
+        )
+        assert resp.status_code == 200
+        assert "ルーブリック" not in resp.text
 
 
 class TestChildrenFragment:
