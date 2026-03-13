@@ -60,38 +60,38 @@
         {% else %}
             {# Document info as default #}
             {% macro copy_btn(text) %}
-            <button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-300 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
+            <button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-400 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             </button>
             {% endmacro %}
             <h2 class="text-xl font-bold text-gray-800 mb-4">{{ doc.title }}</h2>
             <dl class="space-y-3">
                 <div>
-                    <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_identifier") }}</dt>
+                    <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_identifier") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></dd>
                 </div>
                 {% set doc_api_url = request.base_url|string ~ tenant_id ~ "/ims/case/v1p1/CFDocuments/" ~ doc.identifier|string %}
                 <div>
-                    <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_cf_documents_api") }}</dt>
+                    <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_cf_documents_api") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(doc_api_url) }}<code class="text-sm break-all">{{ doc_api_url }}</code></dd>
                 </div>
                 {% set pkg_api_url = request.base_url|string ~ tenant_id ~ "/ims/case/v1p1/CFPackages/" ~ doc.identifier|string %}
                 <div>
-                    <dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_cf_package_api") }}</dt>
+                    <dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_cf_package_api") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(pkg_api_url) }}<code class="text-sm break-all">{{ pkg_api_url }}</code></dd>
                 </div>
                 {% if doc.description %}
-                <div><dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_description") }}</dt><dd class="text-gray-800">{{ doc.description }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_description") }}</dt><dd class="text-gray-800">{{ doc.description }}</dd></div>
                 {% endif %}
                 {% if doc.adoption_status %}
-                <div><dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_adoption_status") }}</dt><dd class="text-gray-800">{{ doc.adoption_status }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_adoption_status") }}</dt><dd class="text-gray-800">{{ doc.adoption_status }}</dd></div>
                 {% endif %}
-                <div><dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_last_change_date_time") }}</dt><dd class="text-gray-800"><time datetime="{{ doc.last_change_date_time.isoformat() }}">{{ doc.last_change_date_time.isoformat() }}</time></dd></div>
+                <div><dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_last_change_date_time") }}</dt><dd class="text-gray-800"><time datetime="{{ doc.last_change_date_time.isoformat() }}">{{ doc.last_change_date_time.isoformat() }}</time></dd></div>
                 {% if doc.version %}
-                <div><dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_version") }}</dt><dd class="text-gray-800">{{ doc.version }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_version") }}</dt><dd class="text-gray-800">{{ doc.version }}</dd></div>
                 {% endif %}
                 {% if doc.language %}
-                <div><dt class="text-xs font-medium text-violet-400 uppercase">{{ t("f_language") }}</dt><dd class="text-gray-800">{{ doc.language }}</dd></div>
+                <div><dt class="text-xs font-medium text-violet-600 uppercase">{{ t("f_language") }}</dt><dd class="text-gray-800">{{ doc.language }}</dd></div>
                 {% endif %}
             </dl>
             {% if rubrics %}

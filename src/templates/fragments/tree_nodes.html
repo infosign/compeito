@@ -7,10 +7,10 @@
         {# Expand/collapse icon #}
         {% if node.has_children %}
             {% if node.is_expanded %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-400 hover:text-violet-600 cursor-pointer"
+            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
                 onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▼</button>
             {% else %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-400 hover:text-violet-600 cursor-pointer"
+            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
                 hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
                 hx-target="#ch-{{ node.item.identifier }}"
                 hx-swap="innerHTML"
