@@ -434,7 +434,7 @@ class TestUriDetailPage:
         assert "isRelatedTo" in resp.text
         assert "Origin Title" in resp.text
         assert "Dest Title" in resp.text
-        assert "targetType" in resp.text
+        assert "CFItem" in resp.text  # targetType value
 
     async def test_lookup_page(
         self,
@@ -755,8 +755,9 @@ class TestUriSecurityUrls:
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
         # URLs should be rendered as <code> text (not clickable links)
-        assert "Permalink" in resp.text
-        assert "CFPackage API" in resp.text
+        # Check that permalink and API URLs are present (labels are i18n'd)
+        assert f"/uri/{sample_document.identifier}" in resp.text
+        assert f"/ims/case/v1p1/CFPackages/{sample_document.identifier}" in resp.text
 
     async def test_javascript_url_not_rendered(
         self,
