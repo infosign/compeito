@@ -8,7 +8,7 @@
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
     <a href="/{{ tenant.id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-violet-300 align-middle"></span>
-    <span class="text-stone-700">{{ doc.title }}</span>
+    <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
 </nav>
 {% endblock %}
 
