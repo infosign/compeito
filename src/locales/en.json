@@ -16,5 +16,11 @@
     "error_document_not_found": "Document not found",
     "error_item_not_found": "Item not found",
     "error_server": "Internal Server Error",
-    "error_invalid_uuid": "Invalid UUID format: '{value}'"
+    "error_invalid_uuid": "Invalid UUID format: '{value}'",
+    "rubrics": "Rubrics",
+    "rubric_criteria": "Criteria",
+    "rubric_levels": "Levels",
+    "rubric_no_criteria": "No criteria",
+    "rubric_parent": "Parent Rubric",
+    "rubric_parent_criterion": "Parent Criterion"
 }
