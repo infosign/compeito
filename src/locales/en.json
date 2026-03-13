@@ -72,5 +72,6 @@
     "f_hierarchy_code": "Hierarchy Code",
     "f_keywords": "Keywords",
     "f_license_text": "License Text",
-    "f_target_type": "Target Type"
+    "f_target_type": "Target Type",
+    "f_cf_documents_api": "CFDocuments API"
 }
