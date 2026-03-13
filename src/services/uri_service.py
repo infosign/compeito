@@ -115,6 +115,7 @@ async def find_resource_by_identifier(
             joinedload(CFRubricCriterionLevel.cf_rubric_criterion)
             .joinedload(CFRubricCriterion.cf_rubric)
             .joinedload(CFRubric.cf_document),
+            joinedload(CFRubricCriterionLevel.cf_rubric_criterion).joinedload(CFRubricCriterion.cf_item),
         )
         .where(CFRubricCriterionLevel.identifier == identifier)
     )
