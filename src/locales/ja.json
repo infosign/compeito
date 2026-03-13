@@ -24,5 +24,6 @@
     "rubric_no_criteria": "評価基準がありません",
     "rubric_parent": "所属ルーブリック",
     "rubric_parent_criterion": "所属評価基準",
-    "api_endpoint": "APIエンドポイント"
+    "api_endpoint": "APIエンドポイント",
+    "show_linked_item": "関連アイテムを表示"
 }
