@@ -12,7 +12,7 @@ from rich.table import Table
 
 from src.i18n import detect_lang_from_env, get_translator
 
-console = Console(stderr=True)
+console = Console(stderr=False)
 err_console = Console(stderr=True, style="bold red")
 
 # Module-level translator for Click decorator help texts (evaluated at import time)
