@@ -485,14 +485,10 @@ async def list_cf_rubrics(
     limit: int = 100,
     offset: int = 0,
 ) -> list[CFRubricDType]:
-    doc = await cf_document_repository.get_cf_document_by_identifier(
-        session, tenant_id, doc_identifier
-    )
+    doc = await cf_document_repository.get_cf_document_by_identifier(session, tenant_id, doc_identifier)
     if doc is None:
         raise ResourceNotFoundError(f"CFDocument not found: '{doc_identifier}'")
-    rubrics = await cf_rubric_repository.list_by_document(
-        session, doc.id, limit=limit, offset=offset
-    )
+    rubrics = await cf_rubric_repository.list_by_document(session, doc.id, limit=limit, offset=offset)
     return [rubric_to_schema(r) for r in rubrics]
 
 

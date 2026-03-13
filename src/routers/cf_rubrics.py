@@ -23,18 +23,12 @@ async def list_cf_rubrics(
 ) -> JSONResponse:
     doc_uuid = validate_uuid(doc)
     if limit < 0:
-        return imsx_error_response(
-            400, "Invalid limit: must be a non-negative integer", "invalid_selection_field"
-        )
+        return imsx_error_response(400, "Invalid limit: must be a non-negative integer", "invalid_selection_field")
     if offset < 0:
-        return imsx_error_response(
-            400, "Invalid offset: must be a non-negative integer", "invalid_selection_field"
-        )
+        return imsx_error_response(400, "Invalid offset: must be a non-negative integer", "invalid_selection_field")
     limit = min(limit, 500)
     offset = min(offset, 100000)
-    rubrics = await case_query_service.list_cf_rubrics(
-        session, tenant_obj.id, doc_uuid, limit, offset
-    )
+    rubrics = await case_query_service.list_cf_rubrics(session, tenant_obj.id, doc_uuid, limit, offset)
     content = {"CFRubrics": [r.model_dump(by_alias=True) for r in rubrics]}
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
 
