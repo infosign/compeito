@@ -28,6 +28,19 @@
             evt.detail.isError = false;
         }
     });
+    function formatLocalDates(root) {
+        (root || document).querySelectorAll('time[datetime]').forEach(function(el) {
+            var d = new Date(el.getAttribute('datetime'));
+            if (!isNaN(d)) {
+                el.textContent = d.toLocaleString(document.documentElement.lang || undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+                });
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', function() { formatLocalDates(); });
+    document.addEventListener('htmx:afterSettle', function(evt) { formatLocalDates(evt.detail.elt); });
     </script>
 </head>
 <body class="bg-stone-50 min-h-screen">
