@@ -72,5 +72,6 @@
     "f_hierarchy_code": "階層コード",
     "f_keywords": "キーワード",
     "f_license_text": "ライセンス文",
-    "f_target_type": "ターゲット種別"
+    "f_target_type": "ターゲット種別",
+    "f_cf_documents_api": "CFDocuments API"
 }
