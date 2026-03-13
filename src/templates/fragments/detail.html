@@ -9,40 +9,40 @@
 </h2>
 <dl class="space-y-3">
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_full_statement") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_full_statement") }}</dt>
         <dd class="text-gray-800">{{ selected_item.full_statement }}</dd>
     </div>
     {% if selected_item.human_coding_scheme %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_human_coding_scheme") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_human_coding_scheme") }}</dt>
         <dd class="text-gray-800">{{ selected_item.human_coding_scheme }}</dd>
     </div>
     {% endif %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_identifier") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_identifier") }}</dt>
         <dd class="text-gray-800">{{ copy_btn(selected_item.identifier) }}<code class="text-sm">{{ selected_item.identifier }}</code></dd>
     </div>
     {% if selected_item.item_type %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_cf_item_type") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_cf_item_type") }}</dt>
         <dd class="text-gray-800">{{ selected_item.item_type.title }}</dd>
     </div>
     {% endif %}
     {% if selected_item.education_level %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_education_level") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_education_level") }}</dt>
         <dd class="text-gray-800">{{ selected_item.education_level | join(', ') }}</dd>
     </div>
     {% endif %}
     {% if selected_item.language %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_language") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_language") }}</dt>
         <dd class="text-gray-800">{{ selected_item.language }}</dd>
     </div>
     {% endif %}
     {% if selected_item.concept_keywords %}
     <div>
-        <dt class="text-xs font-medium text-stone-500 uppercase">{{ t("f_concept_keywords") }}</dt>
+        <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_concept_keywords") }}</dt>
         <dd class="text-gray-800">{{ selected_item.concept_keywords | join(', ') }}</dd>
     </div>
     {% endif %}
