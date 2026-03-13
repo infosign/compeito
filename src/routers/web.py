@@ -235,6 +235,14 @@ async def uri_detail(
     if result is None:
         return _error_response(request, 404, t("error_not_found"))
 
+    # Fetch rubrics for CFDocument, referring criteria for CFItem
+    rubrics = []
+    referring_criteria = []
+    if result.resource_type == "CFDocument":
+        rubrics = await cf_rubric_repository.list_by_document(session, result.resource.id)
+    elif result.resource_type == "CFItem":
+        referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, result.resource.id)
+
     # Build page title per spec
     if result.resource_type == "CFItem":
         stmt = result.resource.full_statement
@@ -257,6 +265,8 @@ async def uri_detail(
             "resource": result.resource,
             "doc": result.doc,
             "page_title": page_title,
+            "rubrics": rubrics,
+            "referring_criteria": referring_criteria,
             "t": t,
             "lang": lang,
         },
