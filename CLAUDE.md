@@ -22,6 +22,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | [docs/spec/import-logic.md](docs/spec/import-logic.md) | インポート/エクスポートのビジネスロジック・upsertルール |
 | [docs/spec/cli.md](docs/spec/cli.md) | CLIコマンド仕様 |
 | [docs/guide/initial-setup.md](docs/guide/initial-setup.md) | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで） |
+| [docs/dev/conventions.md](docs/dev/conventions.md) | コミット・PR・リリースノートの書き方規約 |
 | [docs/requirements/phases.md](docs/requirements/phases.md) | フェーズ定義・ロードマップ |
 | [docs/requirements/functional-requirements.md](docs/requirements/functional-requirements.md) | 機能要件一覧（FR-1〜FR-12） |
 | [docs/requirements/non-functional-requirements.md](docs/requirements/non-functional-requirements.md) | 非機能要件一覧（NFR-1〜NFR-11） |
@@ -138,6 +139,7 @@ compeito/
 
 ## 開発ワークフロー
 
+- **コミット・PR・リリースノートの書き方**: [docs/dev/conventions.md](docs/dev/conventions.md) に従うこと。
 - **コミット前チェック**: コードをコミットする前に、実装内容と docs/ 配下のドキュメント群 (api-spec.md, api-examples.md, db-schema.md 等) および CLAUDE.md に矛盾がないか必ず確認する。矛盾があればドキュメントまたはコードを修正してからコミットする。
 - **mainへの直接push禁止**: 全ての変更はブランチを作成しPR経由でマージする。ドキュメントのみの変更でも直接pushしないこと。
 - **PRマージ前の確認**: PRを作成しCIが通過したら、マージする前に必ずユーザーに確認を取る。自動的にマージしないこと。フローは「ブランチ作成 → PR作成 → CI通過確認 → チェックボックス更新 → ユーザーに確認 → 承認後にマージ」。
