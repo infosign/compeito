@@ -401,7 +401,7 @@ class TestUriDetailPage:
         assert resp.status_code == 200
         assert sample_document.title in resp.text
         assert "ツリーで表示" in resp.text
-        assert "CFPackageURI" in resp.text
+        assert "CFPackage API" in resp.text
 
     async def test_cf_association_page(
         self,
@@ -746,7 +746,7 @@ class TestUriDetailErrors:
 
 
 class TestUriSecurityUrls:
-    async def test_https_url_is_link(
+    async def test_https_url_is_code(
         self,
         db_session: AsyncSession,
         db_client,
@@ -754,17 +754,18 @@ class TestUriSecurityUrls:
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
-        # The uri field should be rendered as a clickable link
-        assert f'href="{sample_document.uri}"' in resp.text
+        # URLs should be rendered as <code> text (not clickable links)
+        assert "Permalink" in resp.text
+        assert "CFPackage API" in resp.text
 
-    async def test_javascript_url_is_text(
+    async def test_javascript_url_not_rendered(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """javascript: URLs should NOT be rendered as links."""
+        """DB uri with javascript: should NOT appear in rendered page (Permalink is constructed from base_url)."""
         item = CFItem(
             tenant_id=tenant.id,
             cf_document_id=sample_document.id,
@@ -779,4 +780,4 @@ class TestUriSecurityUrls:
 
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
         assert 'href="javascript:' not in resp.text
-        assert "javascript:alert(1)" in resp.text  # shown as text
+        assert "javascript:alert(1)" not in resp.text
