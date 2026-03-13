@@ -32,5 +32,8 @@ htmlcov/
 *.jpg
 *.jpeg
 
+# Allow logo assets
+!src/static/*.png
+
 # Sample data
 *.csv
