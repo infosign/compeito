@@ -5,11 +5,11 @@
 {% block heading %}{{ message }}{% endblock %}
 
 {% block content %}
-<div class="bg-white rounded-lg shadow px-6 py-8">
-    <p class="text-6xl font-bold text-gray-300 mb-4">{{ status_code }}</p>
+<div class="bg-white rounded-lg shadow-sm border border-stone-200 px-6 py-8">
+    <p class="text-6xl font-bold text-stone-200 mb-4">{{ status_code }}</p>
     {% if detail %}
-    <p class="text-gray-500 mb-6">{{ detail }}</p>
+    <p class="text-stone-500 mb-6">{{ detail }}</p>
     {% endif %}
-    <a href="/" class="text-blue-600 hover:text-blue-800">{{ t("return_to_top") }}</a>
+    <a href="/" class="text-violet-600 hover:text-violet-800 transition-colors">{{ t("return_to_top") }}</a>
 </div>
 {% endblock %}

@@ -2,20 +2,22 @@
 
 {% block title %}COMPEITO{% endblock %}
 
-{% block heading %}COMPEITO{% endblock %}
+{% block heading %}
+<img src="/static/logo-full.png" alt="COMPEITO" class="h-10">
+{% endblock %}
 
 {% block content %}
 {% if tenants %}
-<ul class="divide-y divide-gray-200 bg-white rounded-lg shadow">
+<ul class="space-y-2">
     {% for tenant in tenants %}
     <li>
-        <a href="/{{ tenant.id }}/" class="block px-6 py-4 hover:bg-gray-50 transition-colors text-blue-600 hover:text-blue-800">
-            {{ tenant.name }}
+        <a href="/{{ tenant.id }}/" class="group block bg-white rounded-lg shadow-sm border border-stone-200 px-6 py-4 hover:shadow-md hover:border-violet-200 transition-all">
+            <span class="text-violet-600 group-hover:text-violet-700 font-medium">{{ tenant.name }}</span>
         </a>
     </li>
     {% endfor %}
 </ul>
 {% else %}
-<p class="text-gray-500">{{ t("no_public_tenants") }}</p>
+<p class="text-stone-500">{{ t("no_public_tenants") }}</p>
 {% endif %}
 {% endblock %}
