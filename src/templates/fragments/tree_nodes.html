@@ -30,7 +30,7 @@
            hx-trigger="click[window.innerWidth>=768]"
            onclick="if(window.innerWidth>=768){document.querySelectorAll('[data-tree-item]').forEach(el => {el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200'); el.classList.add('hover:bg-stone-100')}); this.closest('[data-tree-item]').classList.remove('hover:bg-stone-100'); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');}">
             {% if node.item.item_type %}
-            <span class="inline-block px-1.5 py-0.5 text-xs bg-violet-100 text-violet-600 rounded mr-1">{{ node.item.item_type.title }}</span>
+            <span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>
             {% endif %}
             {% if node.item.human_coding_scheme %}
             <span class="font-medium">{{ node.item.human_coding_scheme }}</span>
