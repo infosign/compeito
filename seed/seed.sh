@@ -38,6 +38,19 @@ fi
 
 # Import CSV
 echo "==> Importing CSV: $CSV_CONTAINER_PATH"
-docker compose exec -T app uv run python cli.py import csv --tenant "$TENANT_UUID" --file "$CSV_CONTAINER_PATH"
+IMPORT_OUTPUT=$(docker compose exec -T app uv run python cli.py import csv --tenant "$TENANT_UUID" --file "$CSV_CONTAINER_PATH")
+IMPORT_OUTPUT="${IMPORT_OUTPUT//$'\r'/}"
+echo "$IMPORT_OUTPUT"
+
+# Extract document UUID from import output "Imported into '...' (uuid)"
+DOC_UUID=$(echo "$IMPORT_OUTPUT" | sed -n "s/.*(\([0-9a-f-]*\)).*/\1/p" | head -1)
+
+# Import rubric CSV if it exists (same base name + "r" suffix)
+RUBRIC_FILE="${CSV_FILE%.csv}r.csv"
+if [ -f "$RUBRIC_FILE" ] && [ -n "$DOC_UUID" ]; then
+    RUBRIC_CONTAINER_PATH="${RUBRIC_FILE#$REPO_ROOT/}"
+    echo "==> Importing rubric CSV: $RUBRIC_CONTAINER_PATH"
+    docker compose exec -T app uv run python cli.py import csv-rubric --tenant "$TENANT_UUID" --doc "$DOC_UUID" --file "$RUBRIC_CONTAINER_PATH"
+fi
 
 echo "==> Done! Tenant: $TENANT_UUID ($TENANT_NAME)"
