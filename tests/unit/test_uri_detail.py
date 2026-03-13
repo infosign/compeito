@@ -12,6 +12,9 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
+from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 from src.services import uri_service
@@ -218,6 +221,105 @@ class TestFindResource:
         )
         assert result.resource_type == "CFAssociationGrouping"
 
+    async def test_finds_cf_rubric(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        ident = uuid.uuid4()
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="u",
+            title="Test Rubric",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        result = await uri_service.find_resource_by_identifier(db_session, tenant.id, ident)
+        assert result is not None
+        assert result.resource_type == "CFRubric"
+        assert result.doc is not None
+
+    async def test_finds_cf_rubric_criterion(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="R",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        crit_ident = uuid.uuid4()
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=crit_ident,
+            uri="u",
+            category="Quality",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        result = await uri_service.find_resource_by_identifier(db_session, tenant.id, crit_ident)
+        assert result is not None
+        assert result.resource_type == "CFRubricCriterion"
+        assert result.doc is not None
+
+    async def test_finds_cf_rubric_criterion_level(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="R",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        level_ident = uuid.uuid4()
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=criterion.id,
+            identifier=level_ident,
+            uri="u",
+            quality="Excellent",
+            score=5.0,
+            last_change_date_time=NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+
+        result = await uri_service.find_resource_by_identifier(db_session, tenant.id, level_ident)
+        assert result is not None
+        assert result.resource_type == "CFRubricCriterionLevel"
+        assert result.doc is not None
+
     async def test_not_found(self, db_session: AsyncSession, tenant: Tenant):
         result = await uri_service.find_resource_by_identifier(
             db_session,
@@ -411,6 +513,194 @@ class TestUriDetailPage:
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
         assert "テナント一覧" in resp.text
         assert tenant.name in resp.text
+
+    async def test_cf_rubric_page_with_table(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """CFRubric page renders table format when levels have position."""
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/rubric",
+            title="Test Rubric",
+            description="A test rubric",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            category="Quality",
+            description="Criterion desc",
+            weight=1.5,
+            position=1,
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=criterion.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            quality="Excellent",
+            score=5.0,
+            description="Outstanding work",
+            feedback="Great job",
+            position=1,
+            last_change_date_time=NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{rubric.identifier}")
+        assert resp.status_code == 200
+        assert "Test Rubric" in resp.text
+        assert "CFRubric" in resp.text  # badge
+        assert "Quality" in resp.text  # criterion category
+        assert "Excellent" in resp.text  # level quality in header
+        assert "Outstanding work" in resp.text  # level description in cell
+        assert "<table" in resp.text  # table format rendered
+
+    async def test_cf_rubric_page_list_fallback(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """CFRubric page renders list format when levels have no position."""
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/rubric",
+            title="Rubric No Position",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            category="Cat",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=criterion.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            quality="Good",
+            position=None,
+            last_change_date_time=NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{rubric.identifier}")
+        assert resp.status_code == 200
+        assert "Cat" in resp.text
+        assert "Good" in resp.text
+        assert "<table" not in resp.text  # list fallback, no table
+
+    async def test_cf_rubric_criterion_page(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="Parent Rubric",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        crit_ident = uuid.uuid4()
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=crit_ident,
+            uri="https://example.com/crit",
+            category="Knowledge",
+            description="Criterion desc",
+            weight=2.0,
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{crit_ident}")
+        assert resp.status_code == 200
+        assert "CFRubricCriterion" in resp.text  # badge
+        assert "Knowledge" in resp.text
+        assert "Parent Rubric" in resp.text  # parent rubric link
+
+    async def test_cf_rubric_criterion_level_page(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="R",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            category="ParentCrit",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        level_ident = uuid.uuid4()
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=criterion.id,
+            identifier=level_ident,
+            uri="https://example.com/level",
+            quality="Excellent",
+            score=5.0,
+            description="Level desc",
+            feedback="Good feedback",
+            last_change_date_time=NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{level_ident}")
+        assert resp.status_code == 200
+        assert "CFRubricCriterionLevel" in resp.text  # badge
+        assert "Excellent" in resp.text
+        assert "5.0" in resp.text
+        assert "ParentCrit" in resp.text  # parent criterion link
 
 
 class TestUriDetailErrors:

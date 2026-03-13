@@ -21,7 +21,7 @@
     {{ resource.adoption_status }}
 </span>
 {% endif %}
-{% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping") %}
+{% if resource_type in ("CFItemType","CFSubject","CFConcept","CFLicense","CFAssociationGrouping","CFRubric","CFRubricCriterion","CFRubricCriterionLevel") %}
 <span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-800">{{ resource_type }}</span>
 {% endif %}
 {% endblock %}
@@ -226,6 +226,186 @@
             {{ nested_resource("CFAssociationGroupingURI", resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
         {% endif %}
         {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+    </dl>
+
+    {# ========== CFRubric ========== #}
+    {% elif resource_type == "CFRubric" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {% if doc %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">CFDocumentURI</dt>
+            <dd class="text-gray-900 ml-4 mt-1">
+                <div><span class="text-xs text-gray-500">title:</span> <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="text-blue-600 hover:text-blue-800">{{ doc.title }}</a></div>
+                <div><span class="text-xs text-gray-500">identifier:</span> {{ doc.identifier }}</div>
+                {{ nested_uri("uri", doc.uri) }}
+            </dd>
+        </div>
+        {% endif %}
+        {{ optional_field("title", resource.title) }}
+        {{ optional_field("description", resource.description) }}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+    </dl>
+
+    {# Rubric table/list display #}
+    {% set criteria = resource.criteria | sort(attribute='position,identifier') if resource.criteria else [] %}
+    {% if criteria %}
+        {# Collect all unique positions from all levels #}
+        {% set ns = namespace(positions=[], has_position=false) %}
+        {% for c in criteria %}
+            {% for lv in c.levels %}
+                {% if lv.position is not none %}
+                    {% set ns.has_position = true %}
+                    {% if lv.position not in ns.positions %}
+                        {% set ns.positions = ns.positions + [lv.position] %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        {% set ns.positions = ns.positions | sort %}
+
+        {% if ns.has_position and ns.positions | length > 0 %}
+        {# ===== Table format ===== #}
+        <div class="mt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ t("rubric_criteria") }}</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full border border-gray-300 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="border border-gray-300 px-3 py-2 text-left font-medium text-gray-700"></th>
+                            {% for pos in ns.positions %}
+                            <th class="border border-gray-300 px-3 py-2 text-center font-medium text-gray-700">
+                                {# Find first level with this position for header #}
+                                {% for c in criteria %}
+                                    {% for lv in c.levels %}
+                                        {% if lv.position == pos %}
+                                            {% if lv.quality %}{{ lv.quality }}{% else %}{{ pos }}{% endif %}
+                                            {% if lv.score is not none %}<div class="text-xs text-gray-500">score: {{ lv.score }}</div>{% endif %}
+                                            {# Break by using a flag trick since Jinja2 has no break #}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in criteria %}
+                        <tr>
+                            <td class="border border-gray-300 px-3 py-2 align-top bg-gray-50 font-medium">
+                                {% if c.category %}<div class="font-semibold">{{ c.category }}</div>{% endif %}
+                                {% if c.description %}<div class="text-gray-600 text-xs">{{ c.description }}</div>{% endif %}
+                                {% if c.weight is not none %}<div class="text-xs text-gray-500">weight: {{ c.weight }}</div>{% endif %}
+                                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-blue-600 hover:text-blue-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+                            </td>
+                            {% for pos in ns.positions %}
+                            <td class="border border-gray-300 px-3 py-2 align-top">
+                                {% for lv in c.levels %}
+                                    {% if lv.position == pos %}
+                                        {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
+                                        {% if lv.feedback %}<div class="text-xs text-gray-500 mt-1 italic">{{ lv.feedback }}</div>{% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        {# ===== List fallback ===== #}
+        <div class="mt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">{{ t("rubric_criteria") }}</h3>
+            {% for c in criteria %}
+            <div class="border border-gray-200 rounded p-4 {% if not loop.first %}mt-3{% endif %}">
+                {% if c.category %}<div class="font-semibold text-gray-900">{{ c.category }}</div>{% endif %}
+                {% if c.description %}<div class="text-gray-600 text-sm">{{ c.description }}</div>{% endif %}
+                {% if c.weight is not none %}<div class="text-xs text-gray-500">weight: {{ c.weight }}</div>{% endif %}
+                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.id }}/uri/{{ c.cf_item.identifier }}" class="text-blue-600 hover:text-blue-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+                {% if c.levels %}
+                <div class="mt-2 ml-4 space-y-2">
+                    {% for lv in c.levels | sort(attribute='position,identifier') %}
+                    <div class="text-sm border-l-2 border-gray-200 pl-3">
+                        {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
+                        {% if lv.score is not none %}<span class="text-gray-500">(score: {{ lv.score }})</span>{% endif %}
+                        {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
+                        {% if lv.feedback %}<div class="text-xs text-gray-500 italic">{{ lv.feedback }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endif %}
+    <div class="mt-6">
+        <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">{{ t("show_in_tree") }}</a>
+    </div>
+
+    {# ========== CFRubricCriterion ========== #}
+    {% elif resource_type == "CFRubricCriterion" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {{ optional_field("category", resource.category) }}
+        {{ optional_field("description", resource.description) }}
+        {% if resource.cf_item %}
+            {{ nested_resource("CFItemURI", resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
+        {% endif %}
+        {% if resource.weight is not none %}{{ field("weight", resource.weight) }}{% endif %}
+        {% if resource.position is not none %}{{ field("position", resource.position) }}{% endif %}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+        {# Parent rubric link #}
+        {% if resource.cf_rubric %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">{{ t("rubric_parent") }}</dt>
+            <dd class="text-gray-900">
+                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-blue-600 hover:text-blue-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
+            </dd>
+        </div>
+        {% endif %}
+        {# Levels list #}
+        {% if resource.levels %}
+        </dl>
+        <div class="mt-6">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ t("rubric_levels") }}</h3>
+            <div class="space-y-2">
+                {% for lv in resource.levels | sort(attribute='position,identifier') %}
+                <div class="text-sm border-l-2 border-gray-200 pl-3">
+                    {% if lv.quality %}<span class="font-medium">{{ lv.quality }}</span>{% endif %}
+                    {% if lv.score is not none %}<span class="text-gray-500">(score: {{ lv.score }})</span>{% endif %}
+                    {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
+                    {% if lv.feedback %}<div class="text-xs text-gray-500 italic">{{ lv.feedback }}</div>{% endif %}
+                    <div class="text-xs"><a href="/{{ tenant.id }}/uri/{{ lv.identifier }}" class="text-blue-600 hover:text-blue-800">{{ lv.identifier }}</a></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        </dl>
+        {% endif %}
+
+    {# ========== CFRubricCriterionLevel ========== #}
+    {% elif resource_type == "CFRubricCriterionLevel" %}
+        {{ field("identifier", resource.identifier) }}
+        {{ uri_field("uri", resource.uri) }}
+        {{ optional_field("description", resource.description) }}
+        {{ optional_field("quality", resource.quality) }}
+        {% if resource.score is not none %}{{ field("score", resource.score) }}{% endif %}
+        {{ optional_field("feedback", resource.feedback) }}
+        {% if resource.position is not none %}{{ field("position", resource.position) }}{% endif %}
+        {{ field("lastChangeDateTime", resource.last_change_date_time.isoformat()) }}
+        {# Parent criterion link #}
+        {% if resource.cf_rubric_criterion %}
+        <div>
+            <dt class="text-xs font-medium text-gray-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
+            <dd class="text-gray-900">
+                <a href="/{{ tenant.id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-blue-600 hover:text-blue-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
+            </dd>
+        </div>
+        {% endif %}
     </dl>
 
     {# ========== Lookup resources ========== #}
