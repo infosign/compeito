@@ -30,7 +30,7 @@
                     </a>
                 </td>
                 <td class="px-6 py-4 text-sm text-stone-500 whitespace-nowrap">
-                    {{ item.doc.last_change_date_time.strftime('%Y-%m-%d %H:%M') }}
+                    <time datetime="{{ item.doc.last_change_date_time.isoformat() }}">{{ item.doc.last_change_date_time.strftime('%Y-%m-%d %H:%M') }}</time>
                 </td>
                 <td class="px-6 py-4 text-sm text-stone-500 text-right">
                     {{ item.item_count }}
