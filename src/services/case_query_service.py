@@ -324,6 +324,24 @@ async def get_cf_item_type(
     return _item_type_to_schema(obj) if obj else None
 
 
+async def get_cf_item_type_set(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
+) -> list[CFItemTypeDType] | None:
+    """CASE v1.1 CFItemTypeSetDType: requested item type first, then descendants by hierarchyCode."""
+    root = await cf_item_type_repository.get_by_identifier(session, tenant_id, identifier)
+    if root is None:
+        return None
+    descendants: list = []
+    if root.hierarchy_code:
+        all_descendants = await cf_item_type_repository.list_descendants_by_hierarchy_code(
+            session, tenant_id, root.hierarchy_code
+        )
+        descendants = [d for d in all_descendants if d.identifier != root.identifier]
+    return [_item_type_to_schema(root)] + [_item_type_to_schema(d) for d in descendants]
+
+
 async def list_cf_item_types(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -346,6 +364,24 @@ async def get_cf_concept(
     return _concept_to_schema(obj) if obj else None
 
 
+async def get_cf_concept_set(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
+) -> list[CFConceptDType] | None:
+    """CASE v1.1 CFConceptSetDType: requested concept first, then descendants by hierarchyCode."""
+    root = await cf_concept_repository.get_by_identifier(session, tenant_id, identifier)
+    if root is None:
+        return None
+    descendants: list = []
+    if root.hierarchy_code:
+        all_descendants = await cf_concept_repository.list_descendants_by_hierarchy_code(
+            session, tenant_id, root.hierarchy_code
+        )
+        descendants = [d for d in all_descendants if d.identifier != root.identifier]
+    return [_concept_to_schema(root)] + [_concept_to_schema(d) for d in descendants]
+
+
 async def list_cf_concepts(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -366,6 +402,24 @@ async def get_cf_subject(
 ) -> CFSubjectDType | None:
     obj = await cf_subject_repository.get_by_identifier(session, tenant_id, identifier)
     return _subject_to_schema(obj) if obj else None
+
+
+async def get_cf_subject_set(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    identifier: uuid.UUID,
+) -> list[CFSubjectDType] | None:
+    """CASE v1.1 CFSubjectSetDType: requested subject first, then descendants by hierarchyCode."""
+    root = await cf_subject_repository.get_by_identifier(session, tenant_id, identifier)
+    if root is None:
+        return None
+    descendants: list = []
+    if root.hierarchy_code:
+        all_descendants = await cf_subject_repository.list_descendants_by_hierarchy_code(
+            session, tenant_id, root.hierarchy_code
+        )
+        descendants = [d for d in all_descendants if d.identifier != root.identifier]
+    return [_subject_to_schema(root)] + [_subject_to_schema(d) for d in descendants]
 
 
 async def list_cf_subjects(
