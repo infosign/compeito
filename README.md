@@ -41,6 +41,8 @@ docker compose up -d
 docker compose exec app alembic upgrade head
 ```
 
+For local development without running the app inside Docker (e.g., DB in Docker + app on the host with `uv`), see [docs/dev/local-setup.md](docs/dev/local-setup.md).
+
 ## CLI Usage
 
 ```bash
@@ -145,6 +147,8 @@ docker compose up -d
 # データベースマイグレーションを実行
 docker compose exec app alembic upgrade head
 ```
+
+アプリ自体を Docker の外（ホスト上で `uv` で直接）走らせるハイブリッド構成については [docs/dev/local-setup.md](docs/dev/local-setup.md) を参照してください。
 
 ## CLI の使い方
 

@@ -4,12 +4,18 @@
 
 ## 前提条件
 
-```bash
-# Docker 環境を起動
-docker compose up -d
+開発環境のセットアップ手順は docs/dev/local-setup.md を参照。ハイブリッド構成（DB だけ Docker、アプリは macOS ネイティブ）と全 Docker 構成の 2 通りがある。
 
-# DBマイグレーションを実行
-docker compose exec app uv run python cli.py db migrate
+以降の例は **全 Docker 構成** を前提にコマンドを記載する（`docker compose exec app uv run python cli.py ...`）。ハイブリッド構成で実行する場合は `docker compose exec app` を省略し、`uv run python cli.py ...`（または `uv run case-cli ...`）に読み替える。
+
+```bash
+# 全 Docker 構成の場合
+docker compose up -d                                       # PostgreSQL + アプリ
+docker compose exec app uv run python cli.py db migrate    # DB マイグレーション
+
+# ハイブリッド構成の場合
+docker compose up -d db                                    # PostgreSQL のみ
+uv run python cli.py db migrate                            # DB マイグレーション
 ```
 
 ## 1. テナントの作成
