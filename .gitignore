@@ -8,6 +8,7 @@ dist/
 # Environment
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/

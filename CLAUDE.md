@@ -23,6 +23,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | docs/spec/cli.md                                 | CLIコマンド仕様                                   |
 | docs/guide/initial-setup.md                      | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで）         |
 | docs/dev/conventions.md                          | コミット・PR・リリースノートの書き方規約                       |
+| docs/dev/local-setup.md                          | ローカル開発セットアップ（ハイブリッド/全 Docker 両構成）             |
 | docs/requirements/phases.md                      | フェーズ定義・ロードマップ                               |
 | docs/requirements/functional-requirements.md     | 機能要件一覧（FR-1〜FR-12）                          |
 | docs/requirements/non-functional-requirements.md | 非機能要件一覧（NFR-1〜NFR-11）                       |
@@ -157,14 +158,27 @@ compeito/
 
 ## ローカル開発
 
+セットアップ手順の詳細は docs/dev/local-setup.md を参照。要点だけ:
+
+**ハイブリッド構成（推奨）** — DB だけ Docker、アプリはネイティブ:
+
 ```bash
-docker compose up -d          # PostgreSQL + アプリ起動
-docker compose exec app alembic upgrade head   # マイグレーション実行
-docker compose exec app pytest                 # テスト実行
+brew install uv                                # uv 未導入時のみ
+uv sync                                        # 依存解決と venv 作成
+cp .env.example .env                           # DATABASE_URL を localhost に向ける
+docker compose up -d db                        # PostgreSQL を起動
+uv run alembic upgrade head                    # マイグレーション
+uv run pytest                                  # テスト
+uv run uvicorn src.main:app --reload           # 開発サーバー
 ```
 
-開発時はアプリもDockerで実行する（Fargate等へのポータビリティ確保）。\
-ホットリロードは docker-compose.yml の volumes マウント + uvicorn `--reload` で対応。
+**全 Docker 構成** — 本番に近い構成で動かしたい場合:
+
+```bash
+docker compose up -d                                  # db + app
+docker compose exec app uv run alembic upgrade head
+docker compose exec app uv run pytest
+```
 
 ### テスト環境
 
