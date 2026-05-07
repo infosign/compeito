@@ -67,6 +67,16 @@ async def _db_cleanup():
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _english_cli_locale(monkeypatch):
+    """Force English CLI output regardless of host LANG.
+
+    Without this, hosts with LANG=ja_JP.UTF-8 (e.g., macOS default) make the CLI
+    emit Japanese messages and break tests that assert on English strings.
+    """
+    monkeypatch.setenv("LANG", "C")
+
+
 @pytest.fixture
 def runner():
     return CliRunner()
