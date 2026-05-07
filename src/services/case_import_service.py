@@ -700,9 +700,7 @@ def _create_document(
     if _is_blank_creator(creator):
         # CASE v1.1 OpenAPI defines creator as required, but our DB allows null
         # to accommodate sources that omit it. Surface the gap as a warning.
-        warnings.append(
-            f"CFDocument '{ident}': creator is missing (CASE v1.1 requires it); stored as null"
-        )
+        warnings.append(f"CFDocument '{ident}': creator is missing (CASE v1.1 requires it); stored as null")
         creator = None
 
     lang = _validate_language(data.get("language"), "CFDocument", warnings)

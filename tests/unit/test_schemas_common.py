@@ -17,9 +17,7 @@ class TestSerializeDatetime:
         assert obj.model_dump()["last_change_date_time"] == "2025-10-08T12:00:00Z"
 
     def test_utc_aware_datetime(self):
-        obj = _DummySchema(
-            last_change_date_time=datetime(2025, 10, 8, 12, 0, 0, tzinfo=timezone.utc)
-        )
+        obj = _DummySchema(last_change_date_time=datetime(2025, 10, 8, 12, 0, 0, tzinfo=timezone.utc))
         assert obj.model_dump()["last_change_date_time"] == "2025-10-08T12:00:00Z"
 
     def test_non_utc_aware_datetime_converted_to_utc(self):
