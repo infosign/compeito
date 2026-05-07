@@ -36,7 +36,7 @@ CASE v1.1 準拠の 12 エンドポイント:
 
 **CFRubrics 一覧の `doc` パラメータについて:** CFRubric は CFDefinitions 系（CFItemType 等）と異なり、特定の CFDocument に所属する。CASE v1.1 の CFRubricDType には所属 Document を示すフィールドがないため、テナント全体で返すとどの Document のルーブリックか判別できない。そのため `doc` クエリパラメータ（CFDocument の identifier, UUID）を**必須**とする。`doc` 未指定は 400、不正な UUID は 400、Document が存在しない場合は 404 を返す。
 
-**注意**: CASE v1.1 では `/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}` の取得エンドポイントはそれぞれ Set 型（`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`）を返し、要求されたリソースに加えて階層下の子リソースも配列で返す仕様だが、本システムでは階層構造を持たないため、要求されたリソース 1 件のみを配列に含めて返す。`/CFLicenses/{id}` は単一オブジェクト `CFLicenseDType` を返す（Set 型ではない）。
+**Set 型エンドポイント（`/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}`）**: CASE v1.1 仕様に従い、それぞれ Set 型（`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`）を返す。配列の先頭は要求されたリソース、後続は `hierarchyCode` の階層下に位置する子孫リソースとなる。子孫の判定は文字列マッチで行い、対象の `hierarchyCode` を `<root>` とすると `<root>.` で始まる `hierarchyCode` を持つレコードを子孫として含める（例: `<root>` が `"1"` の場合、`"1.1"`, `"1.2.3"` 等が該当）。子孫の並び順は `hierarchyCode` の昇順（同値時は `identifier` 昇順）。要求されたリソースの `hierarchyCode` が NULL の場合、または該当する子孫が存在しない場合は、要求されたリソース 1 件のみを返す。`/CFLicenses/{id}` は単一オブジェクト `CFLicenseDType` を返す（Set 型ではない）。
 
 **lookup リソースの必須フィールドに関する準拠性（Phase 2 対応）:**
 CASE v1.1 OpenAPI 仕様では、lookup リソースの一部フィールドが "required"（non-nullable）として定義されている:
@@ -299,7 +299,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 9. **Service Discovery エンドポイント:** CASE v1.1 では `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` が定義されている。Phase 1 では未実装。Phase 2 の Conformance テスト対応で実装を検討する
 10. **405 Method Not Allowed:** CASE v1.1 OpenAPI に定義はないが、GET only の API として合理的なため追加
 11. **401/403 未実装:** CASE v1.1 OpenAPI で全エンドポイントに定義されているが、CASE API は public（認証不要）のため不要
-12. **CFDocument `creator` の nullable 化:** CASE v1.1 OpenAPI では `creator` は required（CFDocumentDType の required リストに含まれる）だが、CSV インポートで未指定のケースに対応するため DB では nullable。API レスポンスで `null` が返る可能性がある。Phase 2 の Conformance テスト対応で空文字列デフォルト化を検討する
+12. **CFDocument `creator` の nullable 化:** CASE v1.1 OpenAPI では `creator` は required（CFDocumentDType の required リストに含まれる）だが、CSV インポートで未指定のケースに対応するため DB では nullable。API レスポンスで `null` が返る可能性がある。外部 CASE CFPackage インポート時の挙動: 新規作成時に `creator` が欠落・null・空白文字列であれば警告を出力した上で `null` で保存する。更新時は欠落・null は既存値を保持（無警告）、空白文字列の場合は警告を出した上で既存値を保持する（既存 creator を空文字に上書きしない）。Phase 2 の Conformance テスト対応で空文字列デフォルト化を検討する
 13. **lookup リソースの required フィールドの nullable 化:** CFItemType の `description`/`hierarchyCode`、CFSubject の `hierarchyCode`、CFConcept の `hierarchyCode`、CFLicense の `licenseText` を nullable として扱う（上記「lookup リソースの必須フィールドに関する準拠性」節参照）
 
 ## コンテントネゴシエーション

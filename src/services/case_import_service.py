@@ -682,6 +682,11 @@ async def import_case_package(
 # ---------------------------------------------------------------------------
 
 
+def _is_blank_creator(value) -> bool:
+    """True when creator is missing per CASE v1.1 (None or whitespace-only string)."""
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
 def _create_document(
     tenant_id: uuid.UUID,
     data: dict,
@@ -690,6 +695,13 @@ def _create_document(
 ) -> CFDocument:
     ident = uuid.UUID(str(data["identifier"]))
     warnings = report.warnings
+
+    creator = data.get("creator")
+    if _is_blank_creator(creator):
+        # CASE v1.1 OpenAPI defines creator as required, but our DB allows null
+        # to accommodate sources that omit it. Surface the gap as a warning.
+        warnings.append(f"CFDocument '{ident}': creator is missing (CASE v1.1 requires it); stored as null")
+        creator = None
 
     lang = _validate_language(data.get("language"), "CFDocument", warnings)
     ssd = _parse_date_with_warning(
@@ -717,7 +729,7 @@ def _create_document(
         identifier=ident,
         uri=_build_uri(tenant_id, ident),
         title=data["title"].strip(),
-        creator=data.get("creator"),
+        creator=creator,
         publisher=data.get("publisher"),
         description=data.get("description"),
         framework_type=data.get("frameworkType"),
@@ -747,8 +759,18 @@ def _update_document(
     doc.uri = _build_uri(tenant_id, doc.identifier)
     if data.get("title"):
         doc.title = data["title"].strip()
-    if data.get("creator") is not None:
-        doc.creator = data["creator"]
+    if "creator" in data:
+        raw_creator = data["creator"]
+        if _is_blank_creator(raw_creator):
+            # Per import-logic.md, missing/null fields keep the existing value on update.
+            # A blank string is a likely source-data issue, so warn but still retain existing value.
+            if raw_creator is not None:
+                warnings.append(
+                    f"CFDocument '{doc.identifier}': creator is missing "
+                    "(CASE v1.1 requires it); existing value retained"
+                )
+        else:
+            doc.creator = raw_creator
     if data.get("publisher") is not None:
         doc.publisher = data["publisher"]
     if data.get("description") is not None:
