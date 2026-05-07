@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -57,6 +57,9 @@ class CASEBaseSchema(BaseModel):
     def serialize_datetime(cls, v: datetime | None) -> str | None:
         if v is None:
             return None
+        # tz-aware datetime is converted to UTC; naive datetime is treated as UTC.
+        if v.tzinfo is not None:
+            v = v.astimezone(timezone.utc)
         return v.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @field_serializer(
