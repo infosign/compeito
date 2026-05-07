@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import click
@@ -43,21 +44,31 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+@asynccontextmanager
 async def _get_session():
-    """Create an async DB session for CLI use."""
+    """Create an async DB session for CLI use.
+
+    Implemented as an async context manager (not a bare async generator) so that
+    the connection/engine teardown happens deterministically inside the same
+    asyncio.run() event loop. With a bare generator, finalization can be deferred
+    until after the loop closes, which produces "non-checked-in connection" /
+    "coroutine ignored GeneratorExit" warnings.
+    """
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
     from sqlalchemy.pool import NullPool
 
     from src.config import settings
 
     engine = create_async_engine(settings.database_url, poolclass=NullPool)
-    async with engine.connect() as conn:
-        session = AsyncSession(bind=conn, expire_on_commit=False)
-        try:
-            yield session
-        finally:
-            await session.close()
-    await engine.dispose()
+    try:
+        async with engine.connect() as conn:
+            session = AsyncSession(bind=conn, expire_on_commit=False)
+            try:
+                yield session
+            finally:
+                await session.close()
+    finally:
+        await engine.dispose()
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +164,7 @@ def tenant_create(name: str, is_private: bool):
     async def _run_create():
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             tenant_obj = Tenant(name=name, is_private=is_private)
             session.add(tenant_obj)
             await session.flush()
@@ -188,7 +199,7 @@ def tenant_list(with_docs: bool):
         from src.models.cf_item import CFItem
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             result = await session.execute(
                 select(Tenant).order_by(Tenant.name.asc(), Tenant.id.asc()),
             )
@@ -269,7 +280,7 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
 
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
@@ -317,7 +328,7 @@ def tenant_delete(tenant_id: str, force: bool):
 
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
@@ -364,7 +375,7 @@ def doc_list(tenant_id: str):
         from src.models.cf_item import CFItem
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             # Check tenant exists
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
@@ -431,7 +442,7 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
         from src.models.cf_item import CFItem
         from src.models.tenant import Tenant
 
-        async for session in _get_session():
+        async with _get_session() as session:
             # Check tenant
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
@@ -525,7 +536,7 @@ def import_csv_cmd(
         from src.models.tenant import Tenant
         from src.services.csv_import_service import import_csv
 
-        async for session in _get_session():
+        async with _get_session() as session:
             # Check tenant
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
@@ -600,7 +611,7 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
         from src.models.tenant import Tenant
         from src.services.case_import_service import import_case_package
 
-        async for session in _get_session():
+        async with _get_session() as session:
             # Check tenant
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
@@ -709,7 +720,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
         from src.models.tenant import Tenant
         from src.services.csv_export_service import export_csv, export_opensalt_csv
 
-        async for session in _get_session():
+        async with _get_session() as session:
             # Check tenant
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
@@ -771,7 +782,7 @@ def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
         from src.models.tenant import Tenant
         from src.services.csv_rubric_import_service import import_rubric_csv
 
-        async for session in _get_session():
+        async with _get_session() as session:
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
@@ -858,7 +869,7 @@ def export_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
         from src.models.tenant import Tenant
         from src.services.csv_rubric_export_service import export_rubric_csv
 
-        async for session in _get_session():
+        async with _get_session() as session:
             result = await session.execute(
                 select(Tenant).where(Tenant.id == tid),
             )
