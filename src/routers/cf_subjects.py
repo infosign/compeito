@@ -38,9 +38,9 @@ async def get_cf_subject(
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     obj_uuid = validate_uuid(id)
-    obj = await case_query_service.get_cf_subject(session, tenant_obj.id, obj_uuid)
-    if obj is None:
+    objs = await case_query_service.get_cf_subject_set(session, tenant_obj.id, obj_uuid)
+    if objs is None:
         raise ResourceNotFoundError(f"CFSubject not found: '{id}'")
-    # Set type: returns array with single item
-    content = {"CFSubjects": [obj.model_dump(by_alias=True)]}
+    # CFSubjectSetDType: requested subject first, descendants by hierarchyCode follow
+    content = {"CFSubjects": [o.model_dump(by_alias=True) for o in objs]}
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

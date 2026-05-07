@@ -280,7 +280,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `identifier` → `identifier`（新規作成時のみ使用。更新時は既存値を保持）
 - `uri` → `uri`（新規作成時のみ使用。更新時は既存値を保持。URI保持ルール参照）
 - `title` → `title`
-- `creator` → `creator`
+- `creator` → `creator`（CASE v1.1 OpenAPI では required だが本システムは nullable で受け入れる。新規作成時に欠落・null・空白文字列のいずれかであれば警告を出力した上で NULL として保存する。更新時はインポート規約「外部 CFPackage に値がない → 既存値を保持」に従い、キー未存在・null は既存値を保持し警告は出さない。空白文字列のみが指定された場合は警告を出した上で既存値を保持する（既存 creator を空文字へ上書きしない）。`null` 値・キー未存在・空文字列・空白のみは「missing」として同一扱い）
 - `publisher` → `publisher`
 - `description` → `description`
 - `frameworkType` → `framework_type`（v1.1 new）

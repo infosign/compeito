@@ -599,6 +599,165 @@ class TestImportBasic:
                     doc_identifier=uuid.uuid4(),
                 )
 
+    async def test_creator_present(self, db_session: AsyncSession, tenant: Tenant):
+        """creator is stored as-is when present."""
+        pkg = _make_cf_package()
+        pkg["CFPackage"]["CFDocument"]["creator"] = "Acme Foundation"
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Acme Foundation"
+        assert not any("creator is missing" in w for w in report.warnings)
+
+    async def test_creator_missing_warns_and_imports_with_null(self, db_session: AsyncSession, tenant: Tenant):
+        """CASE v1.1 OpenAPI lists creator as required, but our DB allows null.
+        Import succeeds with creator=null and a warning is emitted.
+        """
+        pkg = _make_cf_package()  # No creator key
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator is None
+        assert any("creator is missing" in w for w in report.warnings)
+
+    async def test_creator_blank_warns_and_imports_with_null(self, db_session: AsyncSession, tenant: Tenant):
+        """Whitespace-only creator is treated as missing."""
+        pkg = _make_cf_package()
+        pkg["CFPackage"]["CFDocument"]["creator"] = "   "
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator is None
+        assert any("creator is missing" in w for w in report.warnings)
+
+    async def _import_with_creator(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        creator_value,
+        *,
+        omit: bool = False,
+    ):
+        pkg = _make_cf_package()
+        if omit:
+            pkg["CFPackage"]["CFDocument"].pop("creator", None)
+        else:
+            pkg["CFPackage"]["CFDocument"]["creator"] = creator_value
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            return await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+    async def test_update_creator_present_overwrites(self, db_session: AsyncSession, tenant: Tenant):
+        """Re-import with a non-blank creator should overwrite the existing value."""
+        await self._import_with_creator(db_session, tenant, "Original Creator")
+        await db_session.flush()
+
+        report = await self._import_with_creator(db_session, tenant, "Updated Creator")
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Updated Creator"
+        assert not any("creator is missing" in w for w in report.warnings)
+
+    async def test_update_creator_blank_retains_existing_and_warns(self, db_session: AsyncSession, tenant: Tenant):
+        """Blank string on update must NOT overwrite existing creator and must warn."""
+        await self._import_with_creator(db_session, tenant, "Original Creator")
+        await db_session.flush()
+
+        report = await self._import_with_creator(db_session, tenant, "   ")
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Original Creator"  # preserved
+        assert any("existing value retained" in w for w in report.warnings)
+
+    async def test_update_creator_empty_string_retains_existing_and_warns(
+        self, db_session: AsyncSession, tenant: Tenant
+    ):
+        """Empty string on update behaves the same as whitespace-only."""
+        await self._import_with_creator(db_session, tenant, "Original Creator")
+        await db_session.flush()
+
+        report = await self._import_with_creator(db_session, tenant, "")
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Original Creator"
+        assert any("existing value retained" in w for w in report.warnings)
+
+    async def test_update_creator_missing_key_keeps_existing_silently(self, db_session: AsyncSession, tenant: Tenant):
+        """A re-import that omits the creator key should keep the existing value with no warning."""
+        await self._import_with_creator(db_session, tenant, "Original Creator")
+        await db_session.flush()
+
+        report = await self._import_with_creator(db_session, tenant, None, omit=True)
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Original Creator"
+        # Per convention, omitted keys are silent on update.
+        assert not any("creator is missing" in w for w in report.warnings)
+        assert not any("existing value retained" in w for w in report.warnings)
+
+    async def test_update_creator_explicit_null_keeps_existing_silently(self, db_session: AsyncSession, tenant: Tenant):
+        """Explicit JSON null on update follows the same 'no value' convention as a missing key."""
+        await self._import_with_creator(db_session, tenant, "Original Creator")
+        await db_session.flush()
+
+        report = await self._import_with_creator(db_session, tenant, None)
+        await db_session.flush()
+        result = await db_session.execute(
+            select(CFDocument).where(CFDocument.identifier == uuid.UUID("aaaa0000-0000-0000-0000-000000000001"))
+        )
+        doc = result.scalar_one()
+        assert doc.creator == "Original Creator"
+        assert not any("existing value retained" in w for w in report.warnings)
+
 
 class TestDefinitionsImport:
     async def test_import_all_definition_types(self, db_session: AsyncSession, tenant: Tenant):

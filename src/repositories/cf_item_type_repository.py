@@ -31,3 +31,20 @@ async def list_all(
         .offset(offset)
     )
     return list(result.scalars().all())
+
+
+async def list_descendants_by_hierarchy_code(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    hierarchy_code: str,
+) -> list[CFItemType]:
+    prefix = hierarchy_code + "."
+    result = await session.execute(
+        select(CFItemType)
+        .where(
+            CFItemType.tenant_id == tenant_id,
+            CFItemType.hierarchy_code.like(prefix + "%"),
+        )
+        .order_by(CFItemType.hierarchy_code, CFItemType.identifier)
+    )
+    return list(result.scalars().all())
