@@ -42,3 +42,4 @@ htmlcov/
 seed/*.csv
 !seed/001.csv
 !seed/001r.csv
+.collaborator
