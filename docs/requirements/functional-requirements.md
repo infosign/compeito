@@ -1,4 +1,135 @@
-# 機能要件
+# Functional Requirements
+
+## FR-1: Multi-tenant
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-1.1 | Tenants are identified by UUID v4 and isolated under the URL path `/{tenant-uuid}/` | 1 |
+| FR-1.2 | Tenants have an `is_private` flag; private tenants are hidden from the top list (`/`) | 1 |
+| FR-1.3 | Private tenants remain reachable via direct URL (URL secrecy as the control) | 1 |
+| FR-1.4 | Deleting a tenant CASCADE-deletes all owned resources (CFDocument, CFItem, CFAssociation, lookups) | 1 |
+
+## FR-2: CASE v1.1 API
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-2.1 | Provide the 11 CASE v1.1 endpoints (excluding CFRubric) plus 5 custom listing endpoints under `/{tenant}/ims/case/v1p1/` | 1 |
+| FR-2.2 | The CFPackage endpoint returns CFDocument, CFItems, CFAssociations, and CFDefinitions in one response | 1 |
+| FR-2.3 | CFPackage always includes CFItems / CFAssociations as arrays (empty if no data). CFDefinitions is omitted entirely when empty | 1 |
+| FR-2.4 | All listing endpoints support pagination via `limit` (default 100, max 500) and `offset` (default 0, max 100000) | 1 |
+| FR-2.5 | `sort` / `orderBy` / `filter` / `fields` parameters are ignored (no error) | 1 |
+| FR-2.6 | Error responses use the CASE v1.1 `imsx_StatusInfo` shape | 1 |
+| FR-2.7 | LinkURI types (CFPackageURI, CFDocumentURI, etc.) are returned as composite objects `{title, identifier, uri}` | 1 |
+| FR-2.8 | Requests to `/ims/case/v1p0/` are 301-redirected to `/ims/case/v1p1/` | 1 |
+| FR-2.9 | Non-GET requests (POST/PUT/DELETE/PATCH) on CASE API paths return 405 Method Not Allowed | 1 |
+| FR-2.10 | Nullable fields are included in responses as `null` (`exclude_none=False`). CASE v1.1 allows either inclusion or omission; we always include for consistency | 1 |
+| FR-2.11 | Provide CFRubric API endpoints | 2 |
+
+## FR-3: Validation
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-3.1 | `{tenant-uuid}` not in UUID form → 400 (`invalid_uuid`) | 1 |
+| FR-3.2 | UUID form but tenant not found → 404 (`unknownobject`) | 1 |
+| FR-3.3 | `/uri/{uuid}` is searched within the tenant scope; resources of other tenants return 404 | 1 |
+| FR-3.4 | Resource `{id}` (e.g., in `/CFItems/{id}`) not in UUID form → 400 (`invalid_uuid`) | 1 |
+| FR-3.5 | UUID form but the resource is not found → 404 (`unknownobject`) | 1 |
+| FR-3.6 | `GET /CFItemAssociations/{id}` returns 404 (not an empty array) when the item does not exist | 1 |
+
+## FR-4: Health check
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-4.1 | `GET /health` returns `{"status": "ok"}` (no auth, no tenant path) | 1 |
+| FR-4.2 | No DB connection check (prioritize cold-start speed) | 1 |
+
+## FR-6: CSV import
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-6.1 | Auto-detect between custom format, OpenSALT format, and simple format from the header row | 1 |
+| FR-6.2 | Metadata rows starting with `#` populate CFDocument fields | 1 |
+| FR-6.3 | When `--doc` is omitted, create a new CFDocument; when specified, update the existing one | 1 |
+| FR-6.4 | CFItem upsert is performed in this priority: Identifier match → humanCodingScheme match | 1 |
+| FR-6.5 | Lookup tables (CFItemType, CFSubject, CFLicense) are auto-created by exact `title` match within the tenant. CFConcept is created only by the external CASE source import | 1 |
+| FR-6.6 | `isChildOf` CFAssociations are auto-generated from parent–child rows | 1 |
+| FR-6.7 | When updating an existing document (`--doc` specified, or OpenSALT `Is Part Of` matched an existing document), delete all of its existing `isChildOf` associations and regenerate | 1 |
+| FR-6.8 | When `sequenceNumber` is blank, auto-assign 10, 20, 30, … in encounter order within each parent (counter per parent) | 1 |
+| FR-6.9 | Simple format uses indentation (2 spaces or 1 tab = one level) to express hierarchy | 1 |
+| FR-6.10 | URIs for newly created resources are generated as `{BASE_URL}/{tenant_id}/uri/{identifier}` | 1 |
+| FR-6.11 | When an Identifier is duplicated within a single CSV, the later row wins and a warning is emitted | 1 |
+| FR-6.12 | Compute `depth` via BFS over `isChildOf` and detect cycles | 1 |
+| FR-6.13 | Output a report of import results (created/updated/skipped/warnings) | 1 |
+| FR-6.14 | Accept UTF-8 (with or without BOM) and both CR+LF / LF line endings | 1 |
+
+## FR-7: External CASE source import
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-7.1 | Fetch CFPackage JSON from a CASE v1.1 API and persist it | 1 |
+| FR-7.2 | Preserve external URIs and identifiers as-is (do not overwrite with own server URIs) | 1 |
+| FR-7.3 | Also persist CFDefinitions (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping) | 1 |
+| FR-7.4 | Distinguish connection / HTTP / JSON-parse / SSL-certificate errors and exit with the appropriate diagnostic | 1 |
+| FR-7.5 | Invalid resources inside the CFPackage are skipped with a warning; the rest of the import continues | 1 |
+| FR-7.6 | When `--doc` is omitted, look up by the external CFDocument identifier — create if missing, update if present. With `--doc`, overwrite the specified document | 1 |
+| FR-7.7 | Normalize CASE v1.0 responses to v1.1 format on save | 2 |
+
+## FR-8: CSV export
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-8.1 | Export in the custom format (including Identifier, parentIdentifier, sequenceNumber) | 1 |
+| FR-8.2 | Sort rows in tree depth-first order (sequence_number → human_coding_scheme → identifier) | 1 |
+| FR-8.3 | Emit metadata rows (`#title`, `#version`, etc.) | 1 |
+| FR-8.4 | Export in OpenSALT-compatible format (`--format opensalt`) | 2 |
+
+## FR-9: Web UI
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-9.1 | `GET /` lists public tenants (private tenants are hidden) | 1 |
+| FR-9.2 | `GET /{tenant}/` lists frameworks (CFDocument title, lastChangeDateTime, item count) | 1 |
+| FR-9.3 | `GET /{tenant}/cftree/doc/{doc}` renders a two-pane tree view (tree on the left, detail on the right) | 1 |
+| FR-9.4 | The tree view SSR-renders levels 1–2; levels 3+ are lazy-loaded via HTMX | 1 |
+| FR-9.5 | `GET /{tenant}/uri/{uuid}` renders a resource detail page (CFItem, CFDocument, lookup, CFAssociation) | 1 |
+| FR-9.6 | `/uri/{uuid}` pages function as the public destination linked from external systems (e.g., Open Badge Factory) | 1 |
+| FR-9.7 | On mobile, only the tree is shown; tapping an item navigates to `/uri/` | 1 |
+| FR-9.8 | User-friendly error pages (404 / 400 / 500) | 1 |
+| FR-9.9 | The tree view supports deep linking via `?item={uuid}` (returns the expand path from root via SSR) | 1 |
+
+## FR-10: CLI
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-10.1 | Tenant management commands: create, list, update, delete | 1 |
+| FR-10.2 | Framework management commands: list, delete | 1 |
+| FR-10.3 | CSV import command (`import csv`) | 1 |
+| FR-10.4 | External CASE source import command (`import case-url`) | 1 |
+| FR-10.5 | CSV export command (`export csv`) | 1 |
+| FR-10.6 | DB migration command (`db migrate`) | 1 |
+| FR-10.7 | Connect directly to the DB via `DATABASE_URL` env var or `.env` file | 1 |
+| FR-10.9 | Delete commands prompt for confirmation; `--force` skips the prompt | 1 |
+| FR-10.10 | CLI uses the `rich` library for tables, progress bars, and colored output | 1 |
+
+## FR-11: Content negotiation
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-11.1 | No content negotiation (avoids conflicts with CloudFront caching) | 1 |
+| FR-11.2 | Web UI paths (`/`, `/{tenant}/`, `/cftree/`, `/uri/{uuid}`) always return HTML | 1 |
+| FR-11.3 | CASE API paths (`/ims/case/v1p1/`) always return JSON | 1 |
+
+## FR-12: Phase 3 features (future)
+
+| ID | Requirement | Phase |
+|----|-------------|-------|
+| FR-12.1 | CSV import / export for CFAssociation types other than `isChildOf` (`isPeerOf`, `exactMatchOf`, etc.) | 3 |
+| FR-12.2 | Semantic search over competencies using vector embeddings | 3 |
+| FR-12.3 | Automatic cross-framework mapping suggestions | 3 |
+
+---
+
+# 機能要件（日本語）
 
 ## FR-1: マルチテナント
 
