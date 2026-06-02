@@ -1,4 +1,230 @@
-# DBスキーマ設計
+# DB Schema Design
+
+## Design principles
+
+**FK delete policy:**
+Use `ON DELETE CASCADE` for ownership FKs and `ON DELETE SET NULL` for nullable reference FKs.
+
+CASCADE (ownership):
+- `tenant_id` → deleting a tenant cascades to cf_document, cf_item, cf_association, cf_rubric, and every lookup table.
+- `cf_document_id` → deleting a document cascades to its cf_item, cf_association, and cf_rubric. Lookup tables (cf_item_type, cf_subject, cf_concept, cf_license, cf_association_grouping) are owned by the **tenant**, so they survive. Lookup records no longer referenced from any document become orphans inside the tenant (still returned by CASE API listing endpoints; we do not auto-clean them). **Cross-document references**: if another document's CFAssociation references items in the deleted document via `origin_node_identifier` / `destination_node_identifier`, those references become dangling. Those columns are VARCHAR without an FK constraint, so neither CASCADE nor SET NULL fires. The associations remain and continue to be returned by the API (their referenced `/uri/{uuid}` returns 404).
+- `cf_rubric_id` → deleting a rubric cascades to its cf_rubric_criterion rows.
+- `cf_rubric_criterion_id` → deleting a criterion cascades to its cf_rubric_criterion_level rows.
+
+SET NULL (references):
+- `cf_document.cf_license_id` → on CFLicense delete, set the document's license reference to NULL (keep the document).
+- `cf_item.cf_item_type_id` → on CFItemType delete, set the item's type reference to NULL (keep the item).
+- `cf_item.cf_license_id` → on CFLicense delete, set the item's license reference to NULL (keep the item).
+- `cf_item.cf_concept_id` → on CFConcept delete, set the item's concept reference to NULL (keep the item).
+- `cf_association.cf_association_grouping_id` → on CFAssociationGrouping delete, set the association's grouping reference to NULL (keep the association).
+
+**Why `id` and `identifier` are separate:**
+`identifier` is the CASE-spec-level resource identifier (preserved as-is on import from external sources). `id` is the internal PK (used by foreign keys). This separation prevents internal FK relationships from breaking when an external `identifier` changes.
+
+**UNIQUE scope of `identifier`:**
+`identifier` carries a composite uniqueness constraint `UNIQUE(tenant_id, identifier)` (tenant-scoped). CASE specifies UUIDs as globally unique, but in a multi-tenant deployment several tenants may import the same external framework (e.g., a national curriculum standard), so we relax uniqueness to per-tenant. `/uri/{uuid}` lookups are tenant-scoped, so there's no functional impact.
+
+**TIMESTAMP type:**
+All `TIMESTAMP` columns are `TIMESTAMPTZ` (`TIMESTAMP WITH TIME ZONE`). PostgreSQL stores TIMESTAMPTZ internally in UTC. API responses emit ISO 8601 UTC with a trailing `Z`.
+
+## Tables
+
+### tenant
+```
+id: UUID PK  ← the UUID used in the public URL /{tenant-uuid}/
+name: VARCHAR NOT NULL
+is_private: BOOLEAN NOT NULL DEFAULT false
+created_at: TIMESTAMP NOT NULL DEFAULT now()
+```
+
+### cf_document
+```
+id: UUID PK
+tenant_id: UUID FK(tenant.id) NOT NULL
+cf_license_id: UUID FK(cf_license.id) NULLABLE
+identifier: UUID NOT NULL
+uri: VARCHAR NOT NULL
+title: VARCHAR NOT NULL
+creator: VARCHAR                 -- Required in CASE v1.1 but nullable here to accommodate CSV imports that omit it. Phase 2 will consider defaulting to an empty string.
+publisher: VARCHAR
+description: TEXT
+framework_type: VARCHAR      -- v1.1 new. Standard value "CourseCodes" (free-form string per OpenAPI).
+case_version: VARCHAR        -- v1.1 new. OpenAPI enum: ["1.1"]. Only "1.1" is valid.
+language: VARCHAR(10)
+version: VARCHAR
+adoption_status: VARCHAR
+status_start_date: DATE
+status_end_date: DATE
+official_source_url: VARCHAR
+subject: JSONB           -- string array, e.g., ["Math", "Science"]
+subject_uri: JSONB       -- LinkURI object array, e.g., [{"title":"Math","identifier":"uuid","uri":"https://..."}]
+last_change_date_time: TIMESTAMP NOT NULL
+UNIQUE(tenant_id, identifier)
+```
+
+**Note**: `UNIQUE(tenant_id, identifier)` automatically creates a composite B-tree index, so a standalone `INDEX(tenant_id)` is unnecessary (covered by the leading column of the UNIQUE). A standalone `INDEX(identifier)` is also unnecessary (all queries are tenant-scoped and use `UNIQUE(tenant_id, identifier)`). The same applies to the tables below.
+
+### cf_item
+```
+id: UUID PK
+tenant_id: UUID FK(tenant.id) NOT NULL
+cf_document_id: UUID FK(cf_document.id) NOT NULL
+cf_item_type_id: UUID FK(cf_item_type.id) NULLABLE
+cf_license_id: UUID FK(cf_license.id) NULLABLE
+cf_concept_id: UUID FK(cf_concept.id) NULLABLE
+identifier: UUID NOT NULL
+uri: VARCHAR NOT NULL
+full_statement: TEXT NOT NULL
+human_coding_scheme: VARCHAR
+list_enumeration: VARCHAR
+abbreviated_statement: TEXT
+concept_keywords: JSONB    -- string array, e.g., ["analysis", "evaluation"]
+education_level: JSONB     -- string array, e.g., ["09", "10", "11", "12"]
+subject: JSONB             -- string array, e.g., ["Math"]. v1.1 new. Same shape as CFDocument.
+subject_uri: JSONB         -- LinkURI object array. v1.1 new. Same shape as CFDocument.
+language: VARCHAR(10)
+status_start_date: DATE
+status_end_date: DATE
+depth: INTEGER NOT NULL DEFAULT 0  -- Tree depth (0 = directly under the document). Computed by recursively following isChildOf on import.
+                                   -- Orphan nodes (unresolved isChildOf target) get depth=0.
+                                   -- When a cycle is detected, depth=0 is used and an entry is added to the error report (the item itself is still stored).
+last_change_date_time: TIMESTAMP NOT NULL
+UNIQUE(tenant_id, identifier)
+INDEX(tenant_id, cf_document_id, human_coding_scheme)  -- for upsert matching
+INDEX(cf_document_id, depth)  -- for the tree view's level detection (also covers `INDEX(cf_document_id)` alone)
+```
+
+### cf_association
+```
+id: UUID PK
+tenant_id: UUID FK(tenant.id) NOT NULL
+cf_document_id: UUID FK(cf_document.id) NOT NULL
+identifier: UUID NOT NULL
+uri: VARCHAR NOT NULL
+association_type: VARCHAR NOT NULL  -- CASE v1.1 enum: isChildOf, isPeerOf, isPartOf, exactMatchOf, precedes, isRelatedTo, replacedBy, exemplar, hasSkillLevel, isTranslationOf
+origin_node_uri: VARCHAR NOT NULL
+origin_node_identifier: VARCHAR NOT NULL  -- LinkGenURIDType: not restricted to UUID (external refs may not be UUIDs)
+origin_node_title: VARCHAR               -- LinkGenURIDType.title; kept for external refs that can't be resolved via JOIN
+origin_node_target_type: VARCHAR         -- LinkGenURIDType.targetType. v1.1 new. "CASE" or "ext:*"
+destination_node_uri: VARCHAR NOT NULL
+destination_node_identifier: VARCHAR NOT NULL  -- LinkGenURIDType: not restricted to UUID
+destination_node_title: VARCHAR               -- LinkGenURIDType.title; kept for external refs that can't be resolved via JOIN
+destination_node_target_type: VARCHAR         -- LinkGenURIDType.targetType. v1.1 new. "CASE" or "ext:*"
+sequence_number: INTEGER
+cf_association_grouping_id: UUID FK(cf_association_grouping.id) NULLABLE
+last_change_date_time: TIMESTAMP NOT NULL
+UNIQUE(tenant_id, identifier)
+INDEX(origin_node_identifier), INDEX(destination_node_identifier)
+INDEX(cf_document_id, destination_node_identifier)  -- for tree children queries (also covers `INDEX(cf_document_id)` alone)
+```
+
+### Cross-table UUID lookup (`/uri/{uuid}`)
+`identifier` carries a composite UNIQUE `UNIQUE(tenant_id, identifier)` across every table. The `/{tenant}/uri/{uuid}` router searches within the tenant scope, in this order: cf_document → cf_item → cf_association → cf_item_type → cf_subject → cf_concept → cf_license → cf_association_grouping (stops at the first hit).
+
+### Common columns for lookup tables
+
+Every lookup table shares these columns:
+```
+id: UUID PK
+tenant_id: UUID FK(tenant.id) NOT NULL
+identifier: UUID NOT NULL
+uri: VARCHAR NOT NULL
+title: VARCHAR NOT NULL
+description: TEXT
+last_change_date_time: TIMESTAMP NOT NULL
+UNIQUE(tenant_id, identifier)
+INDEX(tenant_id, title)  -- for the CSV import find-or-create pattern
+```
+
+### cf_item_type (additional columns)
+```
+type_code: VARCHAR         -- CASE v1.1 typeCode (e.g., "knowledge-and-skills")
+hierarchy_code: VARCHAR    -- CASE v1.1 hierarchyCode (e.g., "1")
+```
+
+### cf_subject (additional columns)
+```
+hierarchy_code: VARCHAR    -- CASE v1.1 hierarchyCode
+```
+
+### cf_concept (additional columns)
+```
+keywords: VARCHAR          -- CASE v1.1 keywords (pipe-delimited string, e.g., "analysis|evaluation")
+hierarchy_code: VARCHAR    -- CASE v1.1 hierarchyCode
+```
+
+### cf_license (additional columns)
+```
+license_text: TEXT         -- License body text
+```
+
+### cf_association_grouping
+Common columns only (no additional columns).
+
+### Lookup table operation rules
+
+On CSV import, lookups are performed **within the tenant** by exact `title` match; if none, a new record is auto-generated (find-or-create). Title matching is case-sensitive. When a match is found, the record is reused as-is and its fields are not updated.
+Lookups are not shared across tenants. If nothing matches, a new UUID is allocated and the row is created.
+CFSubject is referenced by URI from CFDocument's `subject_uri` JSONB array. CFConcept is referenced by `cf_concept_id` FK from CFItem (CSV import does **not** generate cf_concept rows; only the external CASE source import creates them).
+Lookup-specific columns (typeCode, etc.) are not set by CSV imports; they only receive values from the external CASE source import.
+
+### cf_rubric (Phase 2; schema created in Phase 1)
+```
+id: UUID PK
+tenant_id: UUID FK(tenant.id) NOT NULL
+cf_document_id: UUID FK(cf_document.id) NOT NULL
+identifier: UUID NOT NULL
+uri: VARCHAR NOT NULL
+title: VARCHAR
+description: TEXT
+last_change_date_time: TIMESTAMP NOT NULL
+UNIQUE(tenant_id, identifier)
+INDEX(cf_document_id)  -- for retrieving rubrics under a document in CFPackage responses
+```
+
+### cf_rubric_criterion
+```
+id: UUID PK
+cf_rubric_id: UUID FK(cf_rubric.id) NOT NULL
+identifier: UUID UNIQUE NOT NULL       -- standalone UNIQUE since this table has no tenant_id (Phase 2 will refine)
+                                       -- **Design risk**: a global UNIQUE causes a constraint violation if multiple tenants import the same external source (same UUID). Phase 2 will consider adding tenant_id.
+uri: VARCHAR NOT NULL
+cf_item_id: UUID FK(cf_item.id) NULLABLE  -- CASE v1.1 CFItemURI; FK to the related CFItem
+rubric_id: UUID                          -- CASE v1.1 rubricId; the parent CFRubric's identifier (could also be resolved via JOIN on cf_rubric.identifier)
+category: VARCHAR
+description: TEXT
+weight: FLOAT
+position: INTEGER
+rubric_criterion_text_plain: TEXT   -- Custom column (no corresponding field in CASE v1.1). Display text analogous to cf_item.fullStatement.
+last_change_date_time: TIMESTAMP NOT NULL
+INDEX(cf_rubric_id), INDEX(identifier)
+```
+
+### cf_rubric_criterion_level
+```
+id: UUID PK
+cf_rubric_criterion_id: UUID FK(cf_rubric_criterion.id) NOT NULL
+rubric_criterion_id: UUID                -- CASE v1.1 rubricCriterionId; the parent CFRubricCriterion's identifier
+identifier: UUID UNIQUE NOT NULL       -- standalone UNIQUE since this table has no tenant_id (Phase 2 will refine; same risk as cf_rubric_criterion)
+uri: VARCHAR NOT NULL
+description: TEXT
+quality: VARCHAR
+score: FLOAT
+feedback: TEXT                           -- CASE v1.1 feedback (optional)
+position: INTEGER
+last_change_date_time: TIMESTAMP NOT NULL
+INDEX(cf_rubric_criterion_id), INDEX(identifier)
+```
+
+### CASE v1.1 fields omitted in Phase 1
+The following fields exist in CASE v1.1 but are rarely used in practice; we omit them in Phase 1. Columns may be added in Phase 2 as needed.
+- `notes: TEXT` — common to CFDocument / CFItem / CFAssociation. Free-form notes. (CFAssociation's `notes` is new in v1.1.)
+- `alternativeLabel: VARCHAR` — CFItem only. Alternative label.
+- `extensions` — common to all resources (v1.1 new). Free-form extension data. Values present in external imports are lost in Phase 1.
+
+---
+
+# DBスキーマ設計（日本語）
 
 ## 設計方針
 
