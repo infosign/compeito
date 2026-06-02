@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions / 議論
+    url: https://github.com/infosign/compeito/discussions
+    about: Questions, ideas, or general discussion. / 質問・アイデア・議論はこちら。
+  - name: 🔒 Security vulnerability / セキュリティ脆弱性の報告
+    url: https://github.com/infosign/compeito/security/advisories/new
+    about: Report security issues privately. Do NOT open a public issue. / 公開 Issue ではなく非公開で報告してください。
