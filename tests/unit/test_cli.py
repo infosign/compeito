@@ -134,13 +134,29 @@ def test_document(test_tenant):
 
 
 class TestEnvironmentDetection:
-    def test_no_database_url(self, runner, monkeypatch):
+    def test_no_database_url(self, runner, monkeypatch, tmp_path):
+        """When neither the env var nor a `.env` file is available, CLI must exit 1."""
         monkeypatch.delenv("DATABASE_URL", raising=False)
+        # `_check_db()` falls back to reading `.env` in CWD; run from a tmp dir
+        # so the repo's `.env` (used for hybrid dev) is not picked up here.
+        monkeypatch.chdir(tmp_path)
         from cli import cli
 
         result = runner.invoke(cli, ["tenant", "list"])
         assert result.exit_code == 1
         assert "DATABASE_URL" in result.output
+
+    def test_database_url_from_env_file(self, runner, monkeypatch, tmp_path):
+        """A `.env` file with DATABASE_URL satisfies `_check_db()` even without the env var."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("DATABASE_URL=postgresql+asyncpg://x:y@host/db\n")
+        from cli import cli
+
+        result = runner.invoke(cli, ["tenant", "list"])
+        # The check passes; the actual DB connect fails (we don't care about that here),
+        # so the exit code is non-zero but the "DATABASE_URL is missing" message must not appear.
+        assert "DATABASE_URL" not in result.output or "missing" not in result.output.lower()
 
 
 # ---------------------------------------------------------------------------
