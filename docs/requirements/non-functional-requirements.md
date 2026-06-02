@@ -1,4 +1,103 @@
-# 非機能要件
+# Non-Functional Requirements
+
+## NFR-1: Performance
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-1.1 | A single CASE API resource fetch responds within p95 500ms | |
+| NFR-1.2 | CFPackage fetch responds within p95 3s for 5,000-item frameworks | |
+| NFR-1.3 | Tree view initial render (SSR portion) responds within p95 1s | Levels 1–2 SSR. Access with `?item=` (expand-path computation + additional SSR scope) is out of scope. |
+| NFR-1.4 | HTMX child item fragment fetch responds within p95 300ms | |
+| NFR-1.5 | CSV import processes a 10,000-row CSV within 60s | |
+| NFR-1.6 | External CASE source import uses 30s HTTP timeout per request | No retry. Up to 5 redirects followed. |
+
+## NFR-2: Scalability
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-2.1 | A single tenant can hold 100,000 items | Sum across multiple frameworks |
+
+## NFR-3: Health check
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-3.1 | `GET /health` responds immediately without touching the DB | |
+
+## NFR-4: Security
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-4.1 | CASE API is exposed without authentication | Per CASE v1.1 (read-only) |
+| NFR-4.2 | Private-tenant non-disclosure relies on URL secrecy | UUID unguessability |
+| NFR-4.3 | OAuth 2.0 Bearer Token authentication is offered as an option | Phase 3 |
+
+## NFR-5: Caching
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-5.1 | All CASE API and Web UI (including the top `/`) responses set `Cache-Control: public, max-age=3600` | Public/private tenants alike. Exceptions: error responses (4xx/5xx) have no Cache-Control; v1p0→v1p1 redirects (301) also have none (per HTTP, 301 is cacheable by default; see api-spec.md). |
+| NFR-5.2 | HTMX fragments set `Cache-Control: public, max-age=86400` | `/cftree/doc/*/children/*` and `/cftree/doc/*/detail/*` |
+| NFR-5.3 | Health check sets `Cache-Control: no-store` | Prevent caching |
+
+## NFR-6: Data integrity
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-6.1 | Every CASE resource's `identifier` is UNIQUE within a tenant (`UNIQUE(tenant_id, identifier)`) | Multiple tenants can import the same external framework |
+| NFR-6.2 | FK delete policies use CASCADE for ownership and SET NULL for references | Details in db-schema.md |
+| NFR-6.3 | Internal PK (`id`) and CASE identifier (`identifier`) are separate so external imports don't break FKs | |
+| NFR-6.4 | CSV import detects cycles and reports affected items | During depth calculation |
+| NFR-6.5 | CSV import validation errors skip the offending row and continue with the rest | Skip happens before DB writes. DB-write errors roll back the whole transaction (see import-logic.md) |
+| NFR-6.6 | Concurrent imports against the same document are serialized via `SELECT ... FOR UPDATE` | Prevents the isChildOf delete-all → regenerate race (see import-logic.md) |
+
+## NFR-7: Operations / observability
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-7.1 | Lambda standard logs are emitted to CloudWatch Logs | |
+| NFR-7.2 | Import results (created/updated/skipped/warnings) are logged | CLI: rich tables; API: JSON |
+| NFR-7.3 | CSV import warnings include row numbers | |
+| NFR-7.4 | CLI uses the `rich` library for tables, progress bars, and colored output | UX |
+
+## NFR-8: Deployment / infrastructure
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-8.1 | Development and runtime environments are built with Docker + Docker Compose | |
+
+## NFR-9: Testing
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-9.1 | Unit and integration tests use pytest + pytest-asyncio | |
+| NFR-9.2 | Test DB is Docker PostgreSQL (not SQLite) | Avoids async driver differences |
+| NFR-9.3 | `conftest.py` handles test DB setup and rollback | |
+| NFR-9.4 | CI (GitHub Actions) runs `docker compose up -d db` before tests | Phase 2 |
+
+## NFR-10: Compatibility / compliance
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-10.1 | Complies with CASE v1.1 REST/JSON Binding | Endpoints and response shape |
+| NFR-10.2 | Imports OpenSALT CSV formats | Migration path |
+| NFR-10.3 | Compatible with OpenSALT's `/uri/{uuid}` URL pattern | Preserves external links |
+| NFR-10.4 | Acts as a reference target for Open Badge v3 / QTI v3.0 | Competency framework distribution |
+| NFR-10.5 | Responses are plain JSON (no JSON-LD `@context` / `@type`) | Per CASE v1.1 REST Binding |
+
+## NFR-11: Maintainability
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| NFR-11.1 | Layered architecture: router → service → repository | Separation of concerns |
+| NFR-11.2 | All DB operations are async/await (SQLAlchemy async session) | |
+| NFR-11.3 | CASE field names use camelCase (per spec); internal code uses snake_case | |
+| NFR-11.4 | DB schema is version-controlled via Alembic | Direct asyncpg driver |
+| NFR-11.5 | Python 3.12 | |
+| NFR-11.6 | `uv` is used as the package manager | |
+
+---
+
+# 非機能要件（日本語）
 
 ## NFR-1: パフォーマンス
 

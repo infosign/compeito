@@ -1,4 +1,39 @@
-# フェーズ定義
+# Phases
+
+## Phase 1 (initial release) — complete
+- Local development / execution with Docker
+- DB schema for all CASE resources (including CFRubric)
+- 11 CASE v1.1 compliant API endpoints (excluding CFRubric) + 5 custom listing endpoints + health check
+- v1p0 → v1p1 redirect
+- CSV import (auto-detects custom format / OpenSALT format / simple format)
+- External CASE source import (v1.1 and v1p0 formats)
+- CSV export (custom format only)
+- CLI (tenant/doc management, import/export, db migrate)
+- Web UI: top list, tenant list, tree view, resource detail (`/uri/` — CFDocument / CFItem / CFAssociation / various lookups), error pages
+- Pagination
+- Internationalization (Japanese / English, Web UI + CLI)
+- Unit / integration tests with pytest
+- docker-compose.yml, Dockerfile
+- pyproject.toml, README.md
+
+## Phase 2 — complete
+- OpenSALT-compatible CSV export (`--format opensalt`)
+- CFRubric API endpoints + CFPackage integration
+- CFRubric CSV import / export
+- Rubric ingestion in the CASE API import
+- v1.0 → v1.1 normalization on import (field-level)
+- GitHub Actions CI
+
+## Phase 3 (future)
+- Improved OpenSALT compatibility (smartLevel / notes support, column ordering, etc.; see [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md))
+- CSV import / export for CFAssociation types other than `isChildOf` (`isPeerOf`, `exactMatchOf`, etc.)
+- OAuth 2.0 Bearer Token authentication (optional)
+- Semantic search over competencies (vector embeddings)
+- Automatic cross-framework mapping suggestions
+
+---
+
+# フェーズ定義（日本語）
 
 ## Phase 1（初期リリース）— 完了
 - Docker環境でのローカル開発・実行
