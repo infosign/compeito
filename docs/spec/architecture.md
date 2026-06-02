@@ -35,7 +35,7 @@ docker compose exec app alembic upgrade head
 
 ## CLI実行環境
 
-CLIは `DATABASE_URL` 環境変数で PostgreSQL に直接接続。
+CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreSQL に直接接続。詳細は docs/spec/cli.md を参照。
 
 ## バージョン対応方針
 
