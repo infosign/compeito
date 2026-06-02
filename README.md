@@ -31,7 +31,7 @@ A modern [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) compatibl
 
 ```bash
 # Clone the repository
-git clone https://github.com/kentalow/compeito.git
+git clone https://github.com/infosign/compeito.git
 cd compeito
 
 # Start with Docker
@@ -138,7 +138,7 @@ The current de facto CASE implementation is [OpenSALT](https://github.com/opensa
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/kentalow/compeito.git
+git clone https://github.com/infosign/compeito.git
 cd compeito
 
 # Docker で起動
