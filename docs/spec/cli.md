@@ -2,8 +2,12 @@
 
 ## 実行環境
 
-CLIは `DATABASE_URL` 環境変数で PostgreSQL に直接接続する。
-`DATABASE_URL` が未設定の場合はエラー終了する（終了コード 1）。
+CLI は PostgreSQL に直接接続する。接続先の URL は以下のいずれかで指定する:
+
+1. `DATABASE_URL` 環境変数（Docker 構成ではコンテナの environment、ネイティブ実行では `export DATABASE_URL=...`）
+2. リポジトリ直下の `.env` ファイル内の `DATABASE_URL=...` 行（Pydantic Settings が自動で読み込む）
+
+どちらも指定がない場合はエラー終了する（終了コード 1）。env var と `.env` が両方ある場合は env var が優先される。
 
 ## コマンド一覧
 
