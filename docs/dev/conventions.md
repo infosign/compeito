@@ -1,11 +1,112 @@
-# コミット・PR・リリースノート規約
+# Commit / PR / Release Note Conventions
+
+## Commit messages
+
+### Format
+
+```
+<type>: <summary (Japanese or English)>
+
+<body (optional)>
+```
+
+### Type table
+
+| type | Purpose | Example |
+|------|---------|---------|
+| `feat` | New feature | `feat: CFRubrics一覧エンドポイントを追加` |
+| `fix` | Bug fix | `fix: CSVインポートでアイテムが失われるバグを修正` |
+| `style` | UI / design change (no behavior change) | `style: ラベルの色をstone-500に変更` |
+| `a11y` | Accessibility improvement | `a11y: WCAG AA準拠のカラーコントラスト改善` |
+| `docs` | Documentation only | `docs: デプロイガイドを追加` |
+| `refactor` | Refactoring (no behavior change) | `refactor: repository層のクエリを共通化` |
+| `perf` | Performance improvement | `perf: ツリービューのN+1クエリを解消` |
+| `test` | Adding or fixing tests | `test: CSVインポートのエッジケーステストを追加` |
+| `chore` | Build / CI / dependencies, etc. | `chore: seed スクリプトを追加` |
+
+### Rules
+
+- Keep the summary concise. Japanese is preferred for this project; English is fine when the author works in English.
+- Describe **what changes**, not **what you did** (e.g., "Add X" rather than "Did the work to add X").
+- For non-trivial changes, leave a blank line after the summary and explain **why** in the body.
+- Reference Issues in the body, not the summary.
+
+## Pull request titles
+
+### Format
+
+```
+<type>: <summary>
+```
+
+Use the same `type` prefix as commits. Keep the title under ~70 characters.
+
+### Examples
+
+- `feat: CFRubrics一覧エンドポイントを追加`
+- `fix: CSVインポートのHCS upsertバグを修正`
+- `style: ラベルとリンクの色分けで視覚的区別を改善`
+- `docs: 本番デプロイガイドを追加`
+
+### PR body
+
+```markdown
+## Summary
+- 1〜3 bullet points covering what changes
+
+## Test plan
+- [ ] checklist of what you tested
+```
+
+## Release notes
+
+### Heading rules
+
+Use the following headings **only when relevant**, in **this order**:
+
+| Heading | Types covered | Content |
+|---------|---------------|---------|
+| `## Features` | `feat` | New features |
+| `## Improvements` | `style`, `a11y`, `perf`, `refactor` | UI improvements, accessibility, performance, etc. |
+| `## Bug Fixes` | `fix` | Bug fixes |
+| `## Documentation` | `docs` | Documentation-only changes |
+| `## Maintenance` | `chore`, `test`, `ci` | Build, CI, tests, dependencies, etc. |
+
+### Format
+
+```markdown
+## Features
+
+### Theme or PR (#PR-number)
+
+- Bullet describing the change
+
+## Improvements
+
+### Theme or PR (#PR-number)
+
+- Bullet describing the change
+
+**Full Changelog**: https://github.com/infosign/compeito/compare/vX.Y.Z-1...vX.Y.Z
+```
+
+### Rules
+
+- Within each heading, group by PR or theme using `###`.
+- Reference issues / PRs with `(#number)` next to the `###` heading.
+- Always end the release notes with a `**Full Changelog**` link.
+- The very first release (`v1.0.0`) is exempt from the format.
+
+---
+
+# コミット・PR・リリースノート規約（日本語）
 
 ## コミットメッセージ
 
 ### フォーマット
 
 ```
-<type>: <概要（日本語）>
+<type>: <概要（日本語または英語）>
 
 <本文（任意）>
 ```
@@ -26,7 +127,7 @@
 
 ### ルール
 
-- 概要は日本語で簡潔に書く
+- 概要は簡潔に。本プロジェクトは日本語推奨、英語で作業する貢献者は英語でも可
 - 「何をしたか」ではなく「何が変わるか」を書く
 - 本文が必要な場合は空行を挟んで「なぜ」を説明する
 - Issue に紐づく場合、本文で参照してよいが概要には含めない
@@ -36,7 +137,7 @@
 ### フォーマット
 
 ```
-<type>: <概要（日本語）>
+<type>: <概要>
 ```
 
 コミットメッセージと同じ type prefix を使う。70文字以内を目安にする。
