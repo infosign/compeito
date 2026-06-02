@@ -1,4 +1,292 @@
-# Web UI 仕様
+# Web UI Specification
+
+## Meaning of path parameters
+
+- `{tenant-uuid}`: tenant `id` (the UUID PK used in public URLs).
+- `{doc-uuid}`: CFDocument `identifier` (the CASE identifier), not the internal PK (`id`). Same definition as in the Admin API.
+- `{item-uuid}`: CFItem `identifier` (the CASE identifier), not the internal PK (`id`).
+- `/uri/{uuid}`: the UUID searched across `identifier` columns within the tenant scope.
+
+## Response headers (Cache-Control)
+
+**Standard pages** (`/`, `/{tenant}/`, `/cftree/doc/{doc}`, `/uri/{uuid}`): `Cache-Control: public, max-age=3600`.
+
+**HTMX fragments** (`/cftree/doc/{doc}/children/{item}`, `/cftree/doc/{doc}/detail/{item}`): `Cache-Control: public, max-age=86400`. Tree sub-content changes infrequently, so the TTL is long; CloudFront invalidation refreshes it on import.
+
+**Error responses** (4xx / 5xx): no `Cache-Control` (same policy as CASE API).
+
+## URL design
+
+| Path | Description |
+|------|-------------|
+| GET / | Public tenant list. Tenant names (private tenants hidden). Sort: `name ASC, id ASC`. Each name links to `/{tenant-uuid}/`. If there are no public tenants, show "No public tenants". |
+| GET /{tenant-uuid}/ | Framework list: CFDocument title, lastChangeDateTime, item count (`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`). Sort: `title ASC, identifier ASC`. Each title links to `/{tenant-uuid}/cftree/doc/{doc-uuid}`. If no documents, show "No frameworks". |
+| GET /{tenant-uuid}/cftree/doc/{doc-uuid} | Tree view (Levels 1–2 SSR, Levels 3+ lazy-loaded via HTMX). |
+| GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | HTML fragment of child items (for HTMX). |
+| GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | HTML fragment of an item's detail (for the HTMX right pane). |
+| GET /{tenant-uuid}/uri/{uuid} | Resource detail page (HTML, fixed). |
+
+## Tree view (`/cftree/doc/{doc-uuid}`)
+
+A two-pane layout inspired by OpenSALT's tree view. Visually, use a modern Tailwind CSS default (do not copy OpenSALT's look).
+
+**HTML `<title>`** per page:
+- `GET /`: "COMPEITO" (fixed).
+- `GET /{tenant}/`: "{tenant name} - COMPEITO".
+- `GET /{tenant}/cftree/doc/{doc}`: "{document title} - {tenant name} - COMPEITO".
+- `GET /{tenant}/uri/{uuid}`: depends on the resource type. CFItem → "{first 50 chars of fullStatement} - COMPEITO". CFDocument → "{title} - COMPEITO". Lookup / CFAssociation → "{title or identifier} - COMPEITO".
+- Error pages: "{status code} - COMPEITO".
+
+**HTML `<html lang>`**: `base.html` sets `lang="ja"` as a fixed value (the management UI is in Japanese). Even when a resource on a `/uri/` page has a `language` field, `<html lang>` is not changed (content language is expressed by the resource's `language` field, not by the `lang` attribute).
+
+**Navigation:** every page shows a breadcrumb in the header:
+- `GET /`: no breadcrumb (top page).
+- `GET /{tenant}/`: "[Tenants](/)".
+- `GET /{tenant}/cftree/doc/{doc}`: "[Tenants](/) > [Tenant name](/{tenant}/) > Document title" (the last segment is the current page, no link).
+- `GET /{tenant}/uri/{uuid}`: depends on the resource. CFItem / CFAssociation → "[Tenants](/) > [Tenant name](/{tenant}/)" (the owning document is shown via `CFDocumentURI` inside the page). CFDocument → same. Lookup → same.
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Header: CFDocument title + adoptionStatus badge     │
+├──────────────────────┬──────────────────────────────┤
+│ Left pane (tree)     │ Right pane (detail)          │
+│                      │                              │
+│ ▼ Japanese           │ fullStatement                │
+│   ▼ Modern Japanese  │ humanCodingScheme            │
+│     【Knowledge & ..│ identifier                   │
+│     ● Items on the …│ CFItemType                   │
+│     ● Words have …  │ educationLevel               │
+│   ▶ Language Culture │ "Detail" link → /uri/{uuid}  │
+│ ▶ Geography & Hist.  │                              │
+│ ▶ Civics             │                              │
+└──────────────────────┴──────────────────────────────┘
+```
+
+- **Left pane**: tree structure. Click to expand/collapse (▶/▼). Clicking an item shows its details in the right pane. The display text for each item is `fullStatement` (truncated to 100 chars with "…" when long). When `humanCodingScheme` is non-NULL, it's shown before fullStatement (e.g., `A-1-(1) Items on …`). When `CFItemType` is non-NULL, it's shown as a small badge.
+- **Right pane**: shows the detail of the selected item. A "Detail" link goes to `/uri/{uuid}`. The detail HTML fragment is swapped in via HTMX `hx-get` (fragment endpoint: `GET /{tenant}/cftree/doc/{doc-uuid}/detail/{item-uuid}`, returns an HTML fragment).
+  - **Fields shown for the selected item**: fullStatement, humanCodingScheme (non-NULL), identifier, CFItemType (non-NULL), educationLevel (non-NULL), language (non-NULL), conceptKeywords (non-NULL), and a "Detail" link to `/uri/{uuid}`.
+  - **Initial state** (no item selected): show CFDocument info in the right pane (title, description, adoptionStatus, lastChangeDateTime, version, language). Additionally, if the document has any CFRubric rows, show a rubric list section (each rubric's title links to `/uri/{rubric-uuid}`; if title is null, show identifier; sort by `identifier ASC`; hide the entire section if there are no rubrics). If the document has 0 items, show "No items" in the left pane.
+  - On access with `?item={item-uuid}`, the target item is shown as selected, with its detail rendered inline via SSR (no extra HTMX fetch). If the value isn't a UUID, doesn't exist, or belongs to a different document, the parameter is ignored and the initial state is shown.
+- **Responsive**: on mobile only the tree is shown (`display: none` on the right pane). Tapping an item navigates to `/{tenant}/uri/{item-uuid}` (on desktop, HTMX updates the right pane; on mobile, it functions as an `<a>` link. Toggle with Tailwind's `md:` breakpoint). Above the tree, show the CFDocument's title and a "Document detail" link (`/{tenant}/uri/{doc-uuid}`) so document info is reachable on mobile.
+
+### Level detection and initial expansion
+
+`cf_item.depth` is stored in the column (computed at import time by recursively following `isChildOf`).
+Levels 1–2 = depth 0–1 are returned via SSR; depth 2+ are lazy-loaded via HTMX.
+**SSR item sort order**: every item returned via SSR (depth 0–1 and items along an `?item=` expand path) follows the same order as the `/children/` fragment (`sequence_number` ASC → `human_coding_scheme` natural sort → `identifier` lexicographic; NULL last).
+**Initial expand state**: depth 0 items are shown expanded (▼) with their depth 1 children visible. Depth 1 items are shown collapsed (▶) when they have children, or as leaves (●) otherwise. This makes the first two levels visible on the initial render.
+**Exception**: with `?item={item-uuid}`, all items on the expand path from the root to that item (including depth 2+) are also returned via SSR. The expand path is computed by walking `isChildOf` ancestors within the same document (same scope as the `/children/` endpoint; `isChildOf` in other documents is out of scope). Children of each node on the path are also included in SSR (siblings of items not on the expand path use the normal lazy-load rule). When an item has multiple `isChildOf` parents, the same rule as the "Show in tree" link on the `/uri/` page applies (smallest `sequence_number`, NULL after non-NULL → `destination_node_identifier` lexicographic). **Orphan items** (those without an `isChildOf`) yield an empty expand path, and SSR returns them as part of the root-level orphan list (the normal depth 0–1 expansion plus the expanded orphan list).
+
+### Children retrieval (`/children/{item-uuid}`)
+
+Searches for `isChildOf` associations whose `destination_node_identifier = item-uuid`. The search scope is restricted to the document specified by `{doc-uuid}` (resolve `{doc-uuid}` = CFDocument `identifier` to the internal PK, then filter by `cf_association.cf_document_id`; `isChildOf` in other documents is excluded).
+For each association, fetch the item pointed to by `origin_node_identifier` (the child).
+Sort by `sequence_number` ASC. When `sequence_number` is NULL, place those rows at the end. When `sequence_number` matches, sort by `human_coding_scheme` natural-sort (numeric parts compared numerically; e.g., `"A-2"` < `"A-10"`; defaults from Python `natsort.natsorted()`; NULL after non-NULL). For further ties, use `identifier` lexicographic order (same rule as the export sort).
+
+**Orphan items**: items without any `isChildOf` association (e.g., when associations were skipped during external CASE source import) are not returned via the children query. They are appended at the end of the root level: depth=0 items that are **not** an origin of any `isChildOf` within the **same document** (items that only appear as origins of `isChildOf` in other documents are also treated as orphans in the current document). The sort order is the same as above, with `sequence_number` always treated as NULL.
+
+**Expand icons (▶/▼)**: whether each item has children is decided by whether the same document's `isChildOf` association table contains its `identifier` as a `destination_node_identifier`. Items with children show ▶, leaves show ●. The same check is applied to children returned in a `/children/` fragment (to avoid N+1, the existence of grandchildren is fetched in bulk along with the children).
+
+> Note: `origin isChildOf destination` reads as "origin is a child of destination". To find children, search on the destination side.
+
+Including `{doc-uuid}` in the children path lets CloudFront invalidate `/{tenant}/cftree/doc/{doc-uuid}*` in one go.
+
+## `/uri/{uuid}` detail page
+
+A public page linked from external systems such as Open Badge Factory. Use OpenSALT's `/uri/{uuid}` page as a reference, with a modern Tailwind CSS default look.
+Hide fields with no value (omit the whole row). "No value" means `null`, an empty string `""`, or an empty array `[]`. JSONB array fields (`educationLevel`, `conceptKeywords`, `subject`, etc.) are also hidden for `null` or `[]`.
+
+**Security:** URL fields (`uri`, `officialSourceURL`, the `uri` field in LinkURIDType, etc.) are rendered as clickable links **only** when the scheme is `http:` / `https:`. Other schemes (e.g., `javascript:`, `data:`) are rendered as plain text (to prevent XSS). All text fields are HTML-escaped via Jinja2 autoescaping.
+
+### CFItem
+
+| Field | Required/Optional | Display |
+|-------|-------------------|---------|
+| identifier | required | UUID |
+| uri | required | URL (link) |
+| CFDocumentURI | required | Nested display (title, identifier, uri); title links to the tree view |
+| fullStatement | required | Text |
+| lastChangeDateTime | required | ISO 8601 |
+| humanCodingScheme | optional | Text |
+| abbreviatedStatement | optional | Text |
+| CFItemType | optional | Nested display of CFItemTypeURI (title, identifier, uri) |
+| educationLevel | optional | Array shown comma-separated |
+| conceptKeywords | optional | Array shown comma-separated |
+| conceptKeywordsURI | optional | Nested display (title, identifier, uri); built from `cf_concept_id` FK |
+| subject | optional | Array shown comma-separated (v1.1 new; may be set via external import) |
+| subjectURI | optional | Each element shown as a nested object (title, identifier, uri); array (v1.1 new) |
+| language | optional | Language code |
+| licenseURI | optional | Nested display (title, identifier, uri); same shape as CFItemTypeURI |
+| statusStartDate | optional | Date |
+| statusEndDate | optional | Date |
+| listEnumeration | optional | Text |
+| "Show in tree" link | — | Navigates to `/{tenant}/cftree/doc/{doc-uuid}?item={item-uuid}`. The server computes the expand path from root to this item and SSR-renders the tree expanded through that node. When the item has multiple `isChildOf` parents, the association with the smallest `sequence_number` wins (NULL after non-NULL; tie-broken by `destination_node_identifier` lexicographic — same parent-selection rule as export). |
+
+### CFDocument
+
+| Field | Required/Optional | Display |
+|-------|-------------------|---------|
+| identifier | required | UUID |
+| uri | required | URL (link) |
+| title | required | Text |
+| lastChangeDateTime | required | ISO 8601 |
+| creator | optional (required in CASE v1.1 but DB is nullable) | Text |
+| publisher | optional | Text |
+| description | optional | Text |
+| language | optional | Language code |
+| version | optional | Text |
+| adoptionStatus | optional | Badge (Draft / Private Draft / Adopted / Deprecated) |
+| statusStartDate | optional | Date |
+| statusEndDate | optional | Date |
+| licenseURI | optional | Nested (title, identifier, uri); same as CFItem |
+| officialSourceURL | optional | URL (link) |
+| frameworkType | optional | Text (v1.1 new; may be set via external import) |
+| caseVersion | optional | Text (v1.1 new; valid value is "1.1") |
+| subject | optional | Array shown comma-separated |
+| subjectURI | optional | Each element nested (title, identifier, uri); array |
+| CFPackageURI | required | Nested (title, identifier, uri) |
+| "Show in tree" link | — | Navigates to the tree view's root |
+
+### Lookup resources (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping)
+
+When `/uri/{uuid}` resolves to a lookup, show common + specific fields:
+
+| Field | Display |
+|-------|---------|
+| identifier | UUID |
+| uri | URL (link) |
+| title | Text |
+| description | Text (only when present) |
+| Resource type | Badge (e.g., "CFItemType", "CFSubject") |
+| Specific fields | typeCode, hierarchyCode, licenseText, etc. (only when present) |
+| lastChangeDateTime | ISO 8601 |
+
+### CFRubric
+
+When `/uri/{uuid}` resolves to a CFRubric, show the rubric detail along with Criteria/Levels in a table:
+
+| Field | Required/Optional | Display |
+|-------|-------------------|---------|
+| identifier | required | UUID |
+| uri | required | URL (link) |
+| CFDocumentURI | — | Nested (title, identifier, uri); title links to the tree view |
+| title | optional | Text |
+| description | optional | Text |
+| lastChangeDateTime | required | ISO 8601 |
+| CFRubricCriteria | optional | Table or list (see below) |
+| "Show in tree" link | — | Navigates to the tree view root |
+
+**Rubric tabular display:**
+Rows are CFRubricCriterion; columns are CFRubricCriterionLevel.
+
+- **Columns**: collect the unique `position` values across all criteria's levels. Column headers show `quality` (when available) and `score` (when available). Sort columns by position ASC.
+- **Rows**: each criterion (`position` ASC → `identifier` ASC). Row header shows `category`, `description`, `weight` (when available), `CFItemURI` (when available).
+- **Cells**: the level `description` for that criterion × position. If `feedback` exists, also display it.
+- **When criteria have different level counts**: leave the missing cells empty.
+
+**List fallback**: when the levels cannot be arranged in a table (e.g., all `position` are null), render as a list (each criterion as a card containing its levels).
+
+**Tabular display condition**: use the table when at least one criterion exists and at least one level has a `position` set.
+
+### CFRubricCriterion
+
+When `/uri/{uuid}` resolves to a CFRubricCriterion:
+
+| Field | Display |
+|-------|---------|
+| identifier | UUID |
+| uri | URL (link) |
+| category | Text (only when present) |
+| description | Text (only when present) |
+| CFItemURI | Nested display (only when present) |
+| weight | Number (only when present) |
+| position | Number (only when present) |
+| lastChangeDateTime | ISO 8601 |
+| Owning rubric | Link to the CFRubric `/uri/` page |
+| CFRubricCriterionLevels | List of child levels |
+
+### CFRubricCriterionLevel
+
+When `/uri/{uuid}` resolves to a CFRubricCriterionLevel:
+
+| Field | Display |
+|-------|---------|
+| identifier | UUID |
+| uri | URL (link) |
+| description | Text (only when present) |
+| quality | Text (only when present) |
+| score | Number (only when present) |
+| feedback | Text (only when present) |
+| position | Number (only when present) |
+| lastChangeDateTime | ISO 8601 |
+| Owning criterion | Link to the CFRubricCriterion `/uri/` page |
+
+### CFAssociation
+
+When `/uri/{uuid}` resolves to a CFAssociation, show the minimal fields:
+
+| Field | Display |
+|-------|---------|
+| identifier | UUID |
+| uri | URL (link) |
+| CFDocumentURI | Nested (title, identifier, uri); title links to the tree view |
+| associationType | Text (e.g., isChildOf) |
+| originNodeURI | Nested (title, identifier, uri, targetType); show targetType only when present |
+| destinationNodeURI | Nested (title, identifier, uri, targetType); show targetType only when present |
+| sequenceNumber | Number (only when present) |
+| CFAssociationGroupingURI | Nested (title, identifier, uri) (only when present) |
+| lastChangeDateTime | ISO 8601 |
+
+## Validation
+
+Web UI paths follow the same validation as the CASE API and render the error page:
+- `{tenant-uuid}` is not a UUID → 400 page.
+- Valid UUID but the tenant doesn't exist → 404 page.
+- **Direct access to a private tenant**: a path under `/{tenant-uuid}/` is rendered normally even if the tenant is private (access control is by URL secrecy; see architecture.md). Only `GET /` hides private tenants from the list.
+- `{doc-uuid}` is not a UUID → 400 page.
+- Valid UUID but the document doesn't exist → 404 page.
+- `{uuid}` in `/uri/{uuid}` is not a UUID → 400 page.
+- `/uri/{uuid}` finds no resource within the tenant scope → 404 page.
+- `/children/` and `/detail/` endpoints: `{tenant-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400; not the full error page — return a fragment for HTMX swap).
+- `/children/` and `/detail/` endpoints: valid UUID but tenant doesn't exist → 404 (HTML fragment "テナントが見つかりません" + status 404).
+- `/children/` and `/detail/` endpoints: `{doc-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400).
+- `/children/` and `/detail/` endpoints: valid UUID but document doesn't exist → 404 (HTML fragment "ドキュメントが見つかりません" + status 404).
+- `/children/{item-uuid}` with non-UUID `{item-uuid}` → 400 (empty HTML fragment + status 400).
+- `/children/{item-uuid}` with valid UUID but the item doesn't exist (or exists but isn't in `{doc-uuid}`) → empty HTML fragment (200; same as "no children". The association's `cf_document_id` scope filters naturally).
+- `/detail/{item-uuid}` with non-UUID `{item-uuid}` → 400 (empty HTML fragment + status 400).
+- `/detail/{item-uuid}` with valid UUID but the item doesn't exist → 404 error fragment.
+- `/detail/{item-uuid}` with valid UUID and item exists but belongs to a different document → 404 error fragment (do not show another document's item inside this tree view).
+- The 404 error fragment for `/detail/` is an HTML fragment "アイテムが見つかりません" with status 404.
+- 500 Internal Server Error on `/children/` or `/detail/` → HTML fragment "サーバーエラーが発生しました" + status 500.
+- **HTMX non-2xx response handling**: HTMX does not swap content from non-2xx responses by default. To show 400/404/500 error fragments in the right pane, set `shouldSwap = true` in the `htmx:beforeSwap` event handler (in `base.html`).
+
+## Error pages
+
+Error display for the Web UI. Styled with Tailwind CSS, user-friendly.
+
+| HTTP status | Display |
+|-------------|---------|
+| 404 | "Page not found" + link back to `/` |
+| 400 | "Bad request" + details + link back to `/` |
+| 500 | "Server error" + link back to `/` |
+
+Template: `src/templates/error.html` (a shared error template that receives the status code and message).
+
+## URI generation rule
+
+The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenSALT):
+`https://example.com/{tenant-uuid}/uri/{resource-uuid}`
+
+- `config.py` has a `BASE_URL` setting (e.g., `https://case.example.com`).
+- Docker default: `http://localhost:8000`.
+- Override via the `BASE_URL` env var.
+- On create: `uri = f"{BASE_URL}/{tenant_id}/uri/{identifier}"`.
+- **On external import**: the original `uri` is preserved (not overwritten).
+  Even resources with external URIs are also reachable via our own `/uri/{uuid}` because the `/uri/{uuid}` router searches by `identifier` (independent of the DB `uri` column).
+
+---
+
+# Web UI 仕様（日本語）
 
 ## パスパラメータの意味
 
