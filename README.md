@@ -87,7 +87,9 @@ Legacy `/ims/case/v1p0/` paths are redirected (301) to `/ims/case/v1p1/`.
 
 ## Background
 
-The current de facto CASE implementation is [OpenSALT](https://github.com/opensalt/opensalt) (by PCG Education), but it only supports CASE v1.0. COMPEITO provides a modern CASE v1.1 implementation with the ability to import frameworks from existing OpenSALT instances.
+The current de facto CASE implementation is [OpenSALT](https://github.com/opensalt/opensalt) (by PCG Education). Its latest stable release (3.2.0, September 2023) targets CASE v1.0, with v1.1 work actively underway on the `develop` branch but not yet released as of mid-2026. OpenSALT is a full-featured framework editor.
+
+COMPEITO takes a complementary approach: a lightweight Python / FastAPI **API distribution server** with CASE v1.1 conformance shipping today, multi-tenancy, and bilingual (English / Japanese) UI, CLI, and documentation. It is designed to serve as a competency reference endpoint for systems such as Open Badge Factory and QTI Testing. Importing frameworks published in OpenSALT instances is a first-class capability.
 
 ## Roadmap
 
@@ -194,7 +196,9 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 ## 背景
 
-現在の CASE 実装のデファクトスタンダードは [OpenSALT](https://github.com/opensalt/opensalt)（PCG Education 開発）ですが、CASE v1.0 のみ対応しています。COMPEITO は CASE v1.1 のモダンな実装を提供し、既存の OpenSALT インスタンスからのフレームワークインポートにも対応しています。
+CASE 実装のデファクトスタンダードは [OpenSALT](https://github.com/opensalt/opensalt)（PCG Education 開発）です。現行の安定リリース（3.2.0、2023年9月）は CASE v1.0 対応で、`develop` ブランチで CASE v1.1 対応の作業が進行中（2026 年中盤時点で未リリース）です。OpenSALT はフレームワーク編集機能を備えたフル機能ツールです。
+
+COMPEITO は補完的な位置づけです: 軽量な Python / FastAPI ベースの **API 配信サーバー**として CASE v1.1 を正式リリースで提供し、マルチテナント、英日両対応の UI / CLI / ドキュメントを備えます。Open Badge Factory や QTI Testing 等のコンピテンシー参照先として連携することを目指しています。OpenSALT インスタンスで公開されたフレームワークをインポートできることも重要な価値です。
 
 ## ロードマップ
 
