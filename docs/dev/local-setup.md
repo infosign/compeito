@@ -1,4 +1,71 @@
-# ローカル開発セットアップ
+# Local Development Setup
+
+Two supported setups. Keep all tests passing on both.
+
+## 1. Hybrid (recommended): DB in Docker, app on the host
+
+The editor (and Claude Code) sees source files directly; `uv run pytest` runs fast. This is the recommended day-to-day setup.
+
+### Requirements
+
+- Docker Desktop (for the PostgreSQL container)
+- [`uv`](https://docs.astral.sh/uv/) — `brew install uv` on macOS / Linuxbrew
+- Python 3.12 is fetched automatically by `uv sync`
+
+### Initial setup
+
+```bash
+# 1. Resolve dependencies and create the venv (Python 3.12 included)
+uv sync
+
+# 2. Prepare the env file (points DATABASE_URL at localhost)
+cp .env.example .env
+
+# 3. Start PostgreSQL via Docker
+docker compose up -d db
+
+# 4. Apply migrations
+uv run alembic upgrade head
+```
+
+### Day-to-day commands
+
+```bash
+uv run pytest                                       # tests
+uv run pytest tests/unit/test_xxx.py -v             # focused
+uv run uvicorn src.main:app --reload                # dev server
+uv run case-cli tenant list                         # CLI
+uv run alembic upgrade head                         # migrations
+uv run ruff check src/ tests/ cli.py                # lint
+uv run ruff format src/ tests/ cli.py               # format
+```
+
+### The role of `.env`
+
+`Settings` in `src/config.py` reads `.env` via `pydantic-settings`'s `env_file=".env"` option. Real environment variables (e.g., those provided by `docker compose`) take precedence over `.env`, so when running inside Docker `.env` is effectively ignored. `.env` is gitignored — feel free to edit it for your local setup.
+
+## 2. Full Docker
+
+For when you want a setup closer to production, or you don't want to install anything on the host.
+
+```bash
+docker compose up -d                                  # db + app
+docker compose exec app uv run alembic upgrade head   # migrations
+docker compose exec app uv run pytest                 # tests
+```
+
+The `app` service in `docker-compose.yml` receives `DATABASE_URL=postgresql+asyncpg://case:case@db:5432/case` (using the internal service name `db`) via `environment`. `.env` is ignored.
+
+## Notes
+
+- **PostgreSQL version**: 15. SQLite is not used because of async driver differences.
+- **Test DB**: `conftest.py` `DELETE`s all tables after each test for rollback-like behavior.
+- **CI**: GitHub Actions starts the DB with `docker compose up -d db` before running `uv run pytest`. The same sequence runs locally.
+- **`LANG`**: the CLI switches its display language based on `LANG`. Tests assume English output, so an autouse fixture in `tests/unit/test_cli.py` forces `LANG=C`.
+
+---
+
+# ローカル開発セットアップ（日本語）
 
 開発スタイルは 2 通り。どちらでも 全テスト pass する状態を維持する。
 
