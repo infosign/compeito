@@ -1,4 +1,303 @@
-# 本番デプロイガイド
+# Production Deployment Guide
+
+How to run COMPEITO on a Linux server with Docker and expose it to the internet.
+
+## Prerequisites
+
+- A Linux server (e.g., Ubuntu 22.04 / 24.04)
+- Docker Engine + Docker Compose installed
+- A registered domain name (e.g., `compeito.example.com`)
+- A DNS A record pointing to the server's IP address
+
+## 1. Create the production `docker-compose.yml`
+
+Base it on the dev `docker-compose.yml` and adjust for production:
+
+```yaml
+# docker-compose.prod.yml
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: case
+      POSTGRES_PASSWORD: <change to a strong password>
+      POSTGRES_DB: case
+    # Do NOT publish the port (accessed only from the app container)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U case"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://case:<same password as above>@db:5432/case
+      BASE_URL: https://compeito.example.com
+    depends_on:
+      db:
+        condition: service_healthy
+    # In production: no --reload, no source mount
+
+volumes:
+  pgdata:
+```
+
+### Key differences from dev
+
+| Item | Dev | Production |
+|------|-----|------------|
+| `POSTGRES_PASSWORD` | `case` | a strong password |
+| `BASE_URL` | `http://localhost:8000` | `https://compeito.example.com` |
+| DB port | `5432:5432` (exposed to host) | not exposed |
+| Source mount | `- .:/app` | none (uses the image's baked-in code) |
+| `--reload` | yes | no |
+| `restart` | none | `always` |
+
+## 2. Configure BASE_URL
+
+`BASE_URL` is used to generate the CASE API resource URIs (`identifier` and `uri` fields).
+
+```
+# With BASE_URL=https://compeito.example.com
+{
+  "uri": "https://compeito.example.com/{tenant}/ims/case/v1p1/CFPackages/{id}",
+  ...
+}
+```
+
+**Always set this to your public hostname.** Leaving it at `http://localhost:8000` makes resources unreachable from external systems (e.g., Open Badge Factory).
+
+## 3. Set up a reverse proxy (Nginx)
+
+In production, put Nginx in front to terminate HTTPS and serve static files.
+
+### Install Nginx (Ubuntu)
+
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+### Nginx config
+
+```nginx
+# /etc/nginx/sites-available/compeito
+server {
+    listen 80;
+    server_name compeito.example.com;
+
+    # certbot will automatically add HTTPS redirect
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/compeito /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Obtain an SSL certificate (Let's Encrypt)
+
+```bash
+sudo certbot --nginx -d compeito.example.com
+```
+
+certbot updates the Nginx config to enable HTTPS redirect and auto-renewal.
+
+## 4. Start the stack and run initial setup
+
+```bash
+# Start
+docker compose -f docker-compose.prod.yml up -d
+
+# Migrate
+docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+
+# Create a tenant
+docker compose -f docker-compose.prod.yml exec app uv run python cli.py tenant create --name "University A"
+```
+
+## 5. Data persistence
+
+### Docker volumes
+
+PostgreSQL data is persisted in a Docker **named volume** (`pgdata`).
+
+```bash
+# Inspect the volume
+docker volume ls | grep pgdata
+```
+
+- `docker compose down` → **data persists** (only containers are removed)
+- `docker compose down -v` → **data is deleted** (`-v` also removes volumes)
+- Server reboot → auto-restart via `restart: always`, **data persists**
+
+**Caution:** `docker compose down -v` is for dev resets. **Never use `-v` in production.**
+
+## 6. Database backups
+
+### Manual backup
+
+```bash
+# Take a SQL dump
+docker compose -f docker-compose.prod.yml exec db pg_dump -U case case > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restore (if needed)
+docker compose -f docker-compose.prod.yml exec -T db psql -U case case < backup_20260312_120000.sql
+```
+
+### Automated backup (cron)
+
+Daily 3 AM backup retained for 30 days:
+
+```bash
+# /etc/cron.d/compeito-backup
+0 3 * * * root cd /path/to/compeito && docker compose -f docker-compose.prod.yml exec -T db pg_dump -U case case | gzip > /var/backups/compeito/backup_$(date +\%Y\%m\%d).sql.gz && find /var/backups/compeito -name "*.sql.gz" -mtime +30 -delete
+```
+
+```bash
+# Create the backup directory
+sudo mkdir -p /var/backups/compeito
+```
+
+## 7. Logs
+
+### Application logs
+
+uvicorn's access and error logs are emitted via the Docker log driver.
+
+```bash
+# Tail in real time
+docker compose -f docker-compose.prod.yml logs -f app
+
+# Last 100 lines
+docker compose -f docker-compose.prod.yml logs --tail 100 app
+
+# DB logs
+docker compose -f docker-compose.prod.yml logs -f db
+```
+
+### Log rotation
+
+Docker's default `json-file` driver grows unbounded. Cap it in production:
+
+```yaml
+# Add to each service in docker-compose.prod.yml
+services:
+  app:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+  db:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+```
+
+### Nginx logs
+
+```bash
+# Access log
+sudo tail -f /var/log/nginx/access.log
+
+# Error log
+sudo tail -f /var/log/nginx/error.log
+```
+
+Nginx log rotation is configured automatically by `logrotate` (Ubuntu default).
+
+## 8. Updates
+
+```bash
+cd /path/to/compeito
+
+# Pull the latest code
+git pull
+
+# Rebuild the image and restart
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Run migrations if any
+docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+```
+
+## 9. Server migration (with hostname change)
+
+Restoring a backup carries the data over. If the public hostname changes, you must bulk-replace URIs stored in the DB.
+
+### Procedure
+
+```bash
+# 1. Start and migrate on the new server
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+
+# 2. Restore the backup
+docker compose -f docker-compose.prod.yml exec -T db psql -U case case < backup.sql
+
+# 3. Bulk-replace URIs in the DB
+docker compose -f docker-compose.prod.yml exec db psql -U case case
+```
+
+```sql
+-- Replace old hostname with new hostname
+-- uri columns in every table
+UPDATE cf_documents SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_items SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_associations SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_item_types SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_subjects SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_concepts SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_licenses SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_association_groupings SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_rubrics SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_rubric_criteria SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_rubric_criterion_levels SET uri = REPLACE(uri, 'https://old.example.com', 'https://new.example.com');
+
+-- Reference URIs in cf_associations
+UPDATE cf_associations SET origin_node_uri = REPLACE(origin_node_uri, 'https://old.example.com', 'https://new.example.com');
+UPDATE cf_associations SET destination_node_uri = REPLACE(destination_node_uri, 'https://old.example.com', 'https://new.example.com');
+```
+
+### Caution: external URIs
+
+Data imported via `import case-url` retains the original server's URIs (e.g., `https://opensalt.net/uri/...`). REPLACE only your **own** old hostname. The SQL above does that explicitly, so external URIs are unaffected.
+
+### When the hostname does not change
+
+If only the server IP changes, restoring the backup is enough.
+
+## 10. Security checklist
+
+- [ ] Changed `POSTGRES_PASSWORD` from the default (`case`)
+- [ ] Did NOT expose the DB port (5432) to the host
+- [ ] Set `BASE_URL` to the public hostname (HTTPS)
+- [ ] Configured HTTPS via Nginx (e.g., Let's Encrypt)
+- [ ] Closed unnecessary firewall ports (everything except 80/443)
+- [ ] Set up a cron job for DB backups
+- [ ] Configured Docker log rotation
+
+---
+
+# 本番デプロイガイド（日本語）
 
 Linux マシンで COMPEITO を Docker で動かし、インターネットに公開するための手順と運用方法。
 
