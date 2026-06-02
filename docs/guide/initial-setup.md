@@ -1,10 +1,222 @@
-# 初期データセットアップガイド
+# Initial Data Setup Guide
+
+End-to-end walkthrough from creating a tenant to registering competency frameworks and rubrics.
+
+## Prerequisites
+
+See [docs/dev/local-setup.md](../dev/local-setup.md) for development environment setup. Two configurations are supported: hybrid (DB in Docker, app native) and full Docker.
+
+The examples below assume the **full Docker** configuration (`docker compose exec app uv run python cli.py ...`). For the hybrid configuration, drop the `docker compose exec app` prefix and use `uv run python cli.py ...` (or `uv run case-cli ...`).
+
+```bash
+# Full Docker
+docker compose up -d                                       # PostgreSQL + app
+docker compose exec app uv run python cli.py db migrate    # DB migration
+
+# Hybrid
+docker compose up -d db                                    # PostgreSQL only
+uv run python cli.py db migrate                            # DB migration
+```
+
+## 1. Create a tenant
+
+First, create the tenant that will own the data.
+
+```bash
+docker compose exec app uv run python cli.py tenant create --name "University A"
+# Created tenant: 550e8400-e29b-41d4-a716-446655440000 (University A, public)
+```
+
+Note the tenant UUID (referred to as `{tenant}` below).
+
+To list existing tenants:
+
+```bash
+docker compose exec app uv run python cli.py tenant list
+```
+
+## 2. Import items (competency framework)
+
+Import the document and its items first so rubrics can reference them later.
+
+### 2a. Create a CSV file
+
+The simplest format uses indentation to express hierarchy:
+
+```csv
+#title,Information I Competencies
+#language,en
+Problem-solving in the information society
+  Discovering and solving problems using information technology
+  Laws and regulations related to information
+Communication and information design
+  Characteristics of media and choice of communication means
+  Concepts and methods of information design
+```
+
+The custom UUID-aware format enables update-via-re-import (upsert):
+
+```csv
+#title,Information I Competencies
+#language,en
+Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType
+,Problem-solving in the information society,A,,10,Domain
+,Discovering and solving problems using information technology,A-1,,10,Knowledge & Skills
+,Laws and regulations related to information,A-2,,20,Knowledge & Skills
+```
+
+Format details are in [csv-format.md](../spec/csv-format.md).
+
+### 2b. Run the import
+
+```bash
+# New document (without --doc → creates a new document)
+docker compose exec app uv run python cli.py import csv --tenant {tenant} --file framework.csv
+
+# Sample output:
+# Imported 'Information I Competencies' (d86774f2-...-...)
+#   Items: 5 created, 0 updated, 0 skipped
+#   Associations: 4 created
+```
+
+Note the document UUID (referred to as `{doc}` below).
+
+### 2c. Verify
+
+```bash
+# List documents
+docker compose exec app uv run python cli.py doc list --tenant {tenant}
+```
+
+You can also view the tree structure in the Web UI at `http://localhost:8000/`.
+
+## 3. Create a rubric CSV
+
+A rubric CSV uses the `Type` column to express the three-level hierarchy (Rubric / Criterion / Level).
+
+### Basic structure
+
+```csv
+Type,Identifier,RubricIdentifier,CriterionIdentifier,Title,Description,Category,Weight,Position,Quality,Score,Feedback,CFItemIdentifier
+Rubric,,,,Problem-solving rubric,Evaluates from problem discovery to resolution,,,,,,,
+Criterion,,,,,Appropriateness of information gathering,Information gathering,1.0,1,,,,
+Level,,,,,,,,1,Excellent,5.0,Gathers information from multiple perspectives and verifies reliability,
+Level,,,,,,,,2,Good,4.0,Gathers information from multiple sources,
+Level,,,,,,,,3,Needs Improvement,2.0,Information gathering is limited,
+Criterion,,,,,Logical analysis,Analysis,1.0,2,,,,
+Level,,,,,,,,1,Excellent,5.0,Analyzes data appropriately and reaches well-supported conclusions,
+Level,,,,,,,,2,Good,4.0,Performs basic analysis,
+Level,,,,,,,,3,Needs Improvement,2.0,Analysis is insufficient,
+```
+
+### Column reference
+
+| Column | Rubric | Criterion | Level |
+|--------|--------|-----------|-------|
+| **Type** | `Rubric` | `Criterion` | `Level` |
+| **Identifier** | blank → auto-generated | blank → auto-generated | blank → auto-generated |
+| **RubricIdentifier** | - | the preceding Rubric is used automatically | - |
+| **CriterionIdentifier** | - | - | the preceding Criterion is used automatically |
+| **Title** | rubric name | - | - |
+| **Description** | description | description | description |
+| **Category** | - | category name | - |
+| **Weight** | - | weight (float) | - |
+| **Position** | - | display order | display order |
+| **Quality** | - | - | quality label |
+| **Score** | - | - | score (float) |
+| **Feedback** | - | - | feedback text |
+| **CFItemIdentifier** | - | UUID of the linked item | - |
+
+### Tips
+
+- **A blank Identifier auto-generates a UUID.** To update via re-import, first export the data to obtain a CSV with UUIDs.
+- **Parent references are optional.** A Criterion automatically refers to the preceding Rubric row; a Level automatically refers to the preceding Criterion row.
+- **`CFItemIdentifier`** links a Criterion to an item. Leave it blank when no link is needed.
+
+### Linking to items via CFItemIdentifier
+
+The item UUID is required. Obtain it via export:
+
+```bash
+docker compose exec app uv run python cli.py export csv --tenant {tenant} --doc {doc} --file items.csv
+```
+
+Check the `Identifier` column in the exported `items.csv` and enter the UUID in the `CFItemIdentifier` column of the rubric CSV.
+
+## 4. Import the rubric
+
+```bash
+docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+
+# Sample output:
+# Imported into 'Information I Competencies' (d86774f2-...)
+#   Rubrics:   1 created, 0 updated, 0 skipped
+#   Criteria:  2 created, 0 updated, 0 skipped
+#   Levels:    6 created, 0 updated, 0 skipped
+```
+
+`--doc` is required. Rubrics are attached to an existing document.
+
+## 5. Verify and export
+
+### Export
+
+```bash
+docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
+
+# Sample output:
+# Exported 1 rubrics (2 criteria, 6 levels) to rubric-export.csv
+```
+
+The exported CSV includes UUIDs. Editing it and re-importing updates existing rows by Identifier match (upsert).
+
+### Verify via API
+
+```
+GET http://localhost:8000/{tenant}/ims/case/v1p1/CFRubrics
+GET http://localhost:8000/{tenant}/ims/case/v1p1/CFRubrics/{identifier}
+GET http://localhost:8000/{tenant}/ims/case/v1p1/CFPackages/{doc}
+```
+
+The CFPackage response also includes rubrics.
+
+## 6. Update (re-import)
+
+Editing the exported CSV and re-importing updates rows whose Identifiers match:
+
+```bash
+# Export → edit → re-import
+docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+# Edit rubric.csv (change scores, add levels, etc.)
+docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+
+# Sample output:
+# Imported into 'Information I Competencies' (d86774f2-...)
+#   Rubrics:   0 created, 1 updated, 0 skipped
+#   Criteria:  0 created, 2 updated, 0 skipped
+#   Levels:    1 created, 5 updated, 0 skipped
+```
+
+## Troubleshooting
+
+| Symptom | Cause and remedy |
+|---------|------------------|
+| `Document not found` | The `--doc` UUID is wrong. Verify with `doc list`. |
+| `Criterion has no parent rubric` | A Criterion row appears before any Rubric row. Place the Rubric row first. |
+| `Level has no parent criterion` | A Level row appears before any Criterion row. Check ordering. |
+| `Invalid Rubric Identifier` | The Identifier value is not a UUID. Leave it blank to auto-generate. |
+| `CFItemIdentifier ... not found` | The specified item UUID does not exist. Run `export csv` to obtain the correct UUID. |
+| Scores or weights become null | A non-numeric value was supplied (check the warning messages). |
+
+---
+
+# 初期データセットアップガイド（日本語）
 
 テナント作成からコンピテンシーフレームワーク・ルーブリックの登録までの手順。
 
 ## 前提条件
 
-開発環境のセットアップ手順は docs/dev/local-setup.md を参照。ハイブリッド構成（DB だけ Docker、アプリは macOS ネイティブ）と全 Docker 構成の 2 通りがある。
+開発環境のセットアップ手順は [docs/dev/local-setup.md](../dev/local-setup.md) を参照。ハイブリッド構成（DB だけ Docker、アプリは macOS ネイティブ）と全 Docker 構成の 2 通りがある。
 
 以降の例は **全 Docker 構成** を前提にコマンドを記載する（`docker compose exec app uv run python cli.py ...`）。ハイブリッド構成で実行する場合は `docker compose exec app` を省略し、`uv run python cli.py ...`（または `uv run case-cli ...`）に読み替える。
 
