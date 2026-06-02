@@ -1,4 +1,145 @@
-# CLIコマンド仕様
+# CLI Command Specification
+
+## Runtime environment
+
+The CLI connects directly to PostgreSQL. Specify the connection URL via either of:
+
+1. The `DATABASE_URL` environment variable (the container's `environment` in Docker mode, or `export DATABASE_URL=...` for native execution).
+2. A `DATABASE_URL=...` line in the `.env` file at the repository root (auto-loaded by Pydantic Settings).
+
+If neither is set, the CLI exits with code 1. When both are set, the environment variable wins.
+
+## Command reference
+
+```bash
+# Tenant management
+uv run python cli.py tenant create --name "Company Name" [--private]
+uv run python cli.py tenant list
+# UUID                                  NAME        VISIBILITY  CREATED
+# 550e8400-...                          University A  public      2025-01-01
+# 6ba7b810-...                          Company B     private     2025-02-15
+
+uv run python cli.py tenant list --with-docs
+# 550e8400-...  University A  public
+#   ├─ d86774f2-...  National Curriculum  (1557 items)
+#   └─ a3f9c201-...  Engineering Competencies  (42 items)
+
+# Framework (CFDocument) management
+uv run python cli.py doc list --tenant {tenant-uuid}
+# UUID                                  TITLE                     ITEMS  UPDATED
+# d86774f2-...                          National Curriculum       1557   2025-10-08
+
+# Tenant update
+# --private / --public are mutually exclusive (combining them is an error).
+uv run python cli.py tenant update --tenant {tenant-uuid} --name "New Name"
+uv run python cli.py tenant update --tenant {tenant-uuid} --private
+uv run python cli.py tenant update --tenant {tenant-uuid} --public
+
+# Delete (confirmation prompt; --force skips it)
+uv run python cli.py tenant delete --tenant {tenant-uuid} [--force]
+uv run python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force]
+
+# CSV import (new: omit --doc; update: with --doc → upsert)
+# --doc-title: CFDocument title. On create, can be omitted if the CSV has a #title row, otherwise required. On update, optional (existing value retained).
+# --doc-version: version (optional; on update existing value retained; default is NULL on create).
+uv run python cli.py import csv --tenant {uuid} --file framework.csv
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "Name" --doc-version "1.0"
+uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
+
+# External CASE source import (v1.1 supported; v1.0 Phase 2; upsert)
+# --url: CASE API base path or a direct CFPackage URL (see import-logic.md).
+uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
+uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
+
+# Export (custom format with UUIDs; editing + re-importing upserts)
+# --file: output path. Overwrites without confirmation if the file exists.
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
+# --format: "custom" (default) / "opensalt"
+#           Invalid → error exit ("Invalid format: '{value}'. Valid values: custom, opensalt")
+
+# Rubric CSV import (--doc selects the target document; upsert)
+uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+
+# Rubric CSV export
+uv run python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+
+# DB migration
+uv run python cli.py db migrate
+```
+
+## Command output
+
+### Create / update / delete
+
+```bash
+# tenant create → prints the created tenant
+uv run python cli.py tenant create --name "University A"
+# Created tenant: 550e8400-... (University A, public)
+
+# tenant update → prints the updated tenant
+uv run python cli.py tenant update --tenant {uuid} --name "New Name"
+# Updated tenant: 550e8400-... (New Name, public)
+
+# tenant delete → confirmation prompt → success message
+uv run python cli.py tenant delete --tenant {uuid}
+# Delete tenant 'University A' (550e8400-...)? This will delete all documents and items. [y/N]: y
+# Deleted tenant: 550e8400-... (University A)
+
+# doc delete → confirmation prompt → success message
+uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
+# Delete document 'National Curriculum' (d86774f2-..., 1557 items)? [y/N]: y
+# Deleted document: d86774f2-... (National Curriculum)
+```
+
+### Delete side effects
+
+- **Tenant delete**: every document, item, association, and lookup resource owned by the tenant is CASCADE-deleted.
+- **Document delete**: the document's items and associations are CASCADE-deleted. Lookup resources (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping) are owned by the tenant and survive; records not referenced from any remaining document become orphans inside the tenant (still returned by CASE API listing endpoints). If another document's CFAssociation references items in the deleted document via `originNodeURI` / `destinationNodeURI`, those become dangling references (the association remains, but the referenced `/uri/{uuid}` is 404).
+
+### Delete confirmation prompt
+
+- The prompt describes the operation, the target resource name, UUID, and the impact (see examples above).
+- Input: `y` or `yes` (case-insensitive) to proceed; anything else (including just Enter) cancels. The default is No (`[y/N]`).
+- With `--force`: no prompt; execute immediately.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (also 0 when warnings were emitted) |
+| 1 | Error (validation, connection, file not found, etc.) |
+| 2 | User-cancelled (No at the delete confirmation prompt) |
+
+## Common error cases
+
+- `--tenant` value is not a UUID → exit ("Invalid UUID format: '{value}'", code 1)
+- `--tenant` UUID does not exist → exit ("Tenant not found: '{uuid}'", code 1)
+- `--doc` value is not a UUID → exit ("Invalid UUID format: '{value}'", code 1)
+- `--doc` UUID is not found within the specified tenant → exit ("Document not found: '{uuid}'", code 1)
+- `--file` path does not exist → exit ("File not found: '{filepath}'", code 1)
+- `--file` is not readable (permissions, etc.) → exit ("Cannot read file: '{filepath}'", code 1)
+- `--file` output path is not writable (directory missing, permissions) → exit ("Cannot write file: '{filepath}'", code 1)
+- CSV import: file is not valid UTF-8 → exit ("CSV file is not valid UTF-8", code 1)
+- `tenant update` with none of `--name` / `--private` / `--public` → exit ("At least one of --name, --private, or --public is required", code 1)
+
+## CSV import defaults
+
+- `--doc-title` omitted and no `#title` row in the CSV → on create, exit (required); on update (with `--doc`), keep the existing title.
+- `--doc-version` omitted → on create, NULL (or the `#version` value from the CSV if present); on update, keep the existing value.
+- `Identifier` blank → auto-generate a UUID v4.
+
+## CSV export output
+
+On success, prints:
+```
+Exported 1523 items to output.csv
+```
+The file is written to the path given by `--file`.
+
+---
+
+# CLIコマンド仕様（日本語）
 
 ## 実行環境
 

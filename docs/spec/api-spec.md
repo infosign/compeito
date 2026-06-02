@@ -1,4 +1,316 @@
-# CASE v1.1 API 仕様
+# CASE v1.1 API Specification
+
+API path: `/{tenant}/ims/case/v1p1/` (required for conformance) + `/{tenant}/ims/case/v1p0/` (backward compatibility).
+
+**Meaning of the `{id}` path parameter:** in every endpoint, `{id}` is the CASE identifier (the DB `identifier` column), not the internal PK (`id`).
+
+## Endpoint list
+
+12 CASE v1.1 compliant endpoints:
+
+| Path | Response root key | Description | CASE v1.1 |
+|------|-------------------|-------------|-----------|
+| GET /{tenant}/ims/case/v1p1/CFPackages/{id} | `{"CFPackage": {...}}` | Get a package | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFDocuments | `{"CFDocuments": [...]}` | List documents | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFDocuments/{id} | `{"CFDocument": {...}}` | Get a document | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFItems/{id} | `{"CFItem": {...}}` | Get an item | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFItemAssociations/{id} | `{"CFItem": {...}, "CFAssociations": [...]}` | Item + its associations | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFAssociations/{id} | `{"CFAssociation": {...}}` | Get an association | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFAssociationGroupings/{id} | `{"CFAssociationGrouping": {...}}` | Get an association grouping | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFConcepts/{id} | `{"CFConcepts": [...]}` | Get concept set | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFItemTypes/{id} | `{"CFItemTypes": [...]}` | Get item-type set | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFLicenses/{id} | `{"CFLicense": {...}}` | Get a license | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFSubjects/{id} | `{"CFSubjects": [...]}` | Get subject set | ✓ |
+| GET /{tenant}/ims/case/v1p1/CFRubrics/{id} | `{"CFRubric": {...}}` | Get a rubric | ✓ |
+
+**Custom listing endpoints** (outside the CASE v1.1 spec; provided for convenience to list all resources within a tenant):
+
+| Path | Response root key | Description |
+|------|-------------------|-------------|
+| GET /{tenant}/ims/case/v1p1/CFItemTypes | `{"CFItemTypes": [...]}` | List item types |
+| GET /{tenant}/ims/case/v1p1/CFSubjects | `{"CFSubjects": [...]}` | List subjects |
+| GET /{tenant}/ims/case/v1p1/CFConcepts | `{"CFConcepts": [...]}` | List concepts |
+| GET /{tenant}/ims/case/v1p1/CFLicenses | `{"CFLicenses": [...]}` | List licenses |
+| GET /{tenant}/ims/case/v1p1/CFAssociationGroupings | `{"CFAssociationGroupings": [...]}` | List association groupings |
+| GET /{tenant}/ims/case/v1p1/CFRubrics?doc={id} | `{"CFRubrics": [...]}` | List rubrics (`doc` is required) |
+
+**Why CFRubrics requires `doc`:** unlike CFDefinitions (e.g., CFItemType), a CFRubric belongs to a specific CFDocument. The CASE v1.1 `CFRubricDType` has no field indicating its owning document, so listing across the tenant would not tell you which document each rubric belongs to. The `doc` query parameter (CFDocument identifier, a UUID) is therefore **required**. Missing `doc` → 400; invalid UUID → 400; document not found → 404.
+
+**Set-type endpoints (`/CFConcepts/{id}`, `/CFSubjects/{id}`, `/CFItemTypes/{id}`)**: per CASE v1.1, these return Set types (`CFConceptSetDType`, `CFSubjectSetDType`, `CFItemTypeSetDType`). The first array element is the requested resource; subsequent elements are descendants in the `hierarchyCode` hierarchy. Descendants are determined by string match: if the target's `hierarchyCode` is `<root>`, records whose `hierarchyCode` starts with `<root>.` are included (e.g., for `<root>` = `"1"`: `"1.1"`, `"1.2.3"`, etc.). Descendants are ordered ascending by `hierarchyCode` (ties broken by ascending `identifier`). When the requested resource's `hierarchyCode` is NULL, or it has no descendants, only the requested resource is returned. `/CFLicenses/{id}` returns a single object `CFLicenseDType` (not a Set).
+
+**Compliance note for required lookup fields (Phase 2):**
+CASE v1.1 OpenAPI marks some lookup fields as required (non-nullable):
+- CFItemType: `description`, `hierarchyCode`
+- CFSubject: `hierarchyCode`
+- CFConcept: `hierarchyCode`
+- CFLicense: `licenseText`
+
+In Phase 1 these are stored as nullable; if missing, `null` is returned (auto-generated lookups from CSV imports always leave these NULL). Phase 2 will revisit this for Conformance compliance: either return an empty string `""` or treat the schema as nullable.
+
+## CFPackage response shape
+
+```json
+{
+  "CFPackage": {
+    "CFDocument": {...},
+    "CFItems": [...],
+    "CFAssociations": [...],
+    "CFDefinitions": {
+      "CFItemTypes": [...],
+      "CFSubjects": [...],
+      "CFConcepts": [...],
+      "CFLicenses": [...],
+      "CFAssociationGroupings": [...]
+    },
+    "CFRubrics": [...]
+  }
+}
+```
+- `CFItems` and `CFAssociations` are always included as arrays, empty if no data. (CASE v1.1 OpenAPI lists `CFItems` / `CFAssociations` as optional, but we include them unconditionally for client convenience.) Both are filtered by `cf_document_id` (resources owned by this document only; associations from other documents that reference this document's items are not included).
+- `CFDefinitions` is omitted entirely when empty. Each inner key is also omitted when empty (an exception to the global `exclude_none=False` policy). Empty-array keys inside CFDefinitions are excluded rather than emitted as `null`. Use a Pydantic custom serializer (e.g., `model_serializer`) to drop empty arrays; `exclude_none=True` only drops `None` values, not `[]`.
+- Scope of `CFDefinitions`: only definitions referenced from this document's resources (not all tenant definitions). Specifically: CFItemTypes referenced by `cf_item_type_id` from the document's items; CFSubjects referenced via `subject_uri` from the CFDocument or its items; CFConcepts referenced by `cf_concept_id` from the document's items; CFLicenses referenced by `cf_license_id` from the CFDocument or its items; CFAssociationGroupings referenced by `cf_association_grouping_id` from the document's associations.
+- `CFRubrics` is always included as an array, empty if no data (like `CFItems` / `CFAssociations`; `CFRubrics` is an array type and the CFDefinitions object-type omission rule does not apply).
+- **Sort order within CFPackage**: every array in CFItems / CFAssociations / CFDefinitions is sorted by `identifier ASC` (consistent with the listing endpoints' default; guarantees deterministic output).
+- **CFPckg* schemas inside CFPackage**: CASE v1.1 uses CFPckg-specific schemas inside CFPackage:
+  - `CFPckgDocument`: standalone `CFDocument` minus `CFPackageURI` (redundant since the CFPackage already wraps this document).
+  - `CFPckgItem`: standalone `CFItem` minus `CFDocumentURI` (the document is unambiguous from the CFPackage context).
+  - `CFPckgAssociation`: standalone `CFAssociation` minus `CFDocumentURI` (same rationale).
+  - Each CFDefinitions resource (CFItemType, CFSubject, etc.) uses the same schema as the standalone form.
+  - Define CFPckg-specific derived schemas in Pydantic that exclude `CFPackageURI` / `CFDocumentURI`.
+
+Do **not** add custom wrappers (`{"data": ...}` etc.) to the response.
+**Null fields**: include nullable fields in the response (Pydantic `exclude_none=False`). The policy is consistent across every endpoint for consistency.
+On error, return `{"imsx_codeMajor": "failure", ...}` directly at the root (see the error format section).
+
+## CFItemAssociations response shape
+
+The CASE v1.1 `CFAssociationSetDType`. Returns the target CFItem and every association related to it:
+```json
+{
+  "CFItem": {...},
+  "CFAssociations": [...]
+}
+```
+- `CFItem`: the target item in its standalone shape (identical to `GET /CFItems/{id}`, with `CFDocumentURI`).
+- `CFAssociations`: every association related to the target item. Each association does **not** include `CFDocumentURI` (the CASE v1.1 `CFPckgAssociationDType`; same schema as CFAssociations inside CFPackage).
+- `CFAssociations` is always returned as an array, empty if no data. (CASE v1.1 OpenAPI defines `CFAssociations` as required with `minItems: 1`, but we allow the empty array because an item without associations is operationally normal.)
+
+## Validation (common to all endpoints)
+
+**Tenant UUID:**
+- `{tenant-uuid}` is not a UUID → **400** (`imsx_codeMinorFieldValue: invalid_uuid`). (CASE v1.1 specifies 404 even for invalid UUIDs in some cases, but we split invalid format from "not found" for clarity.)
+- Valid UUID but the tenant does not exist → **404** (`imsx_codeMinorFieldValue: unknownobject`).
+
+**Resource ID:**
+- All resource fetches are tenant-scoped (within the tenant specified by `{tenant-uuid}`).
+- `{id}` (in `/CFItems/{id}`, `/CFDocuments/{id}`, etc.) is not a UUID → **400** (`imsx_codeMinorFieldValue: invalid_uuid`).
+- Valid UUID but the resource is not found inside the tenant → **404** (`imsx_codeMinorFieldValue: unknownobject`).
+- `GET /CFItemAssociations/{id}` when the item does not exist → **404** (`imsx_codeMinorFieldValue: unknownobject`) — not an empty array.
+- `GET /CFItemAssociations/{id}` search scope: returns associations whose `origin_node_identifier = {id}` OR `destination_node_identifier = {id}` across all documents in the tenant (not just the document the item lives in).
+
+**Scope:**
+- `/uri/{uuid}` is tenant-scoped. UUIDs that belong to another tenant return **404**.
+- `/uri/{uuid}` search order: cf_document → cf_item → cf_association → cf_item_type → cf_subject → cf_concept → cf_license → cf_association_grouping (stops at the first match). If the same UUID exists in multiple tables (theoretically possible since there's no cross-table UNIQUE), the first match in this order wins.
+
+## Pagination
+
+CASE v1.1 compliant. All listing endpoints accept `limit` (default 100, max 500) and `offset` (default 0).
+Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects`, `CFConcepts`, `CFLicenses`, `CFAssociationGroupings` (every endpoint that returns an array). CASE v1.1 OpenAPI defines pagination only for `GET /CFDocuments`; we extend it to every listing endpoint for convenience.
+`CFPackages/{id}` is not paginated. Per spec, the CFItems / CFAssociations / CFDefinitions inside CFPackage are returned in full. **Note**: the API Gateway payload limit is 10MB. Large documents (10,000+ items) may exceed it; API Gateway returns 502 in that case. If needed, consider going through the Lambda Function URL (Phase 2+).
+`sort` / `orderBy` / `filter` / `fields` parameters are not implemented in Phase 1 (silently ignored).
+Total count is not included in the response. CASE v1.1 OpenAPI defines `X-Total-Count` and `links` (next, last, first, prev) for `GET /CFDocuments`; we do not implement them in Phase 1 (Phase 2 will revisit).
+Default sort order: every listing endpoint sorts by `identifier ASC` to guarantee deterministic ordering and avoid duplicates / gaps across pages.
+Scope: every listing endpoint returns all tenant rows (no document filtering). `CFDocuments` returns every document in the tenant. `CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` return every lookup in the tenant. `CFItems/{id}/associations` searches all documents in the tenant (see the validation section). CFDefinitions inside CFPackage is narrowed to definitions referenced from the document, but listing endpoints are not narrowed.
+
+**Validation:**
+- `limit` = 0 → return an empty array (treated as a valid request; CASE v1.1 OpenAPI defines `minimum: 1`, but `limit=0` is a sensible "empty result" request).
+- `limit` < 0 → 400 (`invalid_selection_field`).
+- `limit` > 500 → treat as 500 (no error).
+- `limit` is not an integer → 400 (`invalid_selection_field`).
+- `offset` < 0 → 400 (`invalid_selection_field`).
+- `offset` is not an integer → 400 (`invalid_selection_field`).
+- `offset` > 100000 → treat as 100000 (PostgreSQL OFFSET cap, mirroring the `limit` cap).
+- `offset` ≥ total row count → return an empty array (no error).
+
+## Response headers (Cache-Control)
+
+**Successful responses (200):** every CASE API endpoint sets `Cache-Control: public, max-age=3600` (the same for public and private tenants).
+
+**Error responses (4xx / 5xx):** no `Cache-Control`. Falls back to CloudFront's Error Caching Minimum TTL (default 10s). A 404 may be cached briefly right after an import; it expires quickly.
+
+**Exceptions:**
+- Health check (`GET /health`): `Cache-Control: no-store` (see below).
+- v1p0 redirect (301): no `Cache-Control` (301 is cacheable by default per HTTP).
+
+## Health check
+
+```
+GET /health
+```
+Response (200):
+```json
+{"status": "ok"}
+```
+- No auth, no tenant path.
+- `Content-Type: application/json`.
+- `Cache-Control: no-store` (don't let CloudFront cache it).
+- No DB connection check (prioritize Lambda cold-start speed).
+
+## v1p0 backward compatibility
+
+`/ims/case/v1p0/` paths are 301-redirected to `/ims/case/v1p1/`.
+Since the CASE API is GET-only, a 301 is safe (no risk of method change as with POST).
+Don't double-implement routers — `src/main.py` has a single middleware that handles the swap.
+The target replaces `v1p0` with `v1p1` in the path (query parameters are preserved).
+No `Cache-Control` (HTTP defaults make 301 cacheable; CloudFront / browsers cache it. This is permanent so the default behavior is fine).
+
+```python
+# Middleware example in src/main.py
+@app.middleware("http")
+async def redirect_v1p0(request, call_next):
+    if "/ims/case/v1p0/" in request.url.path:
+        new_path = request.url.path.replace("/ims/case/v1p0/", "/ims/case/v1p1/")
+        new_url = str(request.url).replace(request.url.path, new_path)
+        return RedirectResponse(url=new_url, status_code=301)
+    return await call_next(request)
+```
+
+## Date / timestamp formats
+
+- **TIMESTAMP fields** (`lastChangeDateTime`): ISO 8601 UTC with a trailing `Z` (e.g., `"2025-10-08T12:00:00Z"`). No milliseconds. Standardize via Pydantic serialization settings.
+- **DATE fields** (`statusStartDate`, `statusEndDate`): `YYYY-MM-DD` (e.g., `"2018-03-30"`). Per CASE v1.1, `xsd:date`.
+
+## LinkURI types
+
+`CFPackageURI`, `CFDocumentURI`, `CFOriginNodeURI`, `CFDestinationNodeURI`, `CFItemTypeURI`, etc. are composite objects, not strings:
+```json
+{"title": "Document title", "identifier": "uuid", "uri": "https://..."}
+```
+Define a shared `LinkURIType` Pydantic class in `src/schemas/common.py`.
+The DB stores `_uri` (VARCHAR) and `_identifier` (UUID); `title` is resolved via JOIN or in the application layer.
+To accommodate external references that can't be resolved by JOIN, `cf_association.origin_node_uri` / `destination_node_uri` also keep a `_title` column.
+
+**Constructing `CFPackageURI`:**
+`CFPackageURI` is not persisted to the DB; it is constructed when generating the API response:
+- `title` = CFDocument.title
+- `identifier` = CFDocument.identifier
+- `uri` = `{BASE_URL}/{tenant}/ims/case/v1p1/CFPackages/{CFDocument.identifier}`
+
+Even for externally imported documents, `CFPackageURI.uri` points at our own API endpoint (CFDocument.uri keeps the external URI, but CFPackageURI.uri indicates "where to retrieve this package", which must be our own server).
+
+**Constructing `CFDocumentURI` (inside CFItem / CFAssociation):**
+JOIN on `cf_document_id` and use the CFDocument's `{title, identifier, uri}`. CASE v1.1 OpenAPI lists CFDocumentURI as **required** for CFItemDType and **optional** for CFAssociationDType, but since `cf_document_id` is NOT NULL here it's always present — we include `CFDocumentURI` in both cases.
+
+**Constructing `CFItemTypeURI` (inside CFItem):**
+JOIN on `cf_item_type_id` and use the CFItemType's `{title, identifier, uri}`. When `cf_item_type_id` is NULL, `CFItemTypeURI` is null too (included as JSON `null` since `exclude_none=False`). The string field `CFItemType` uses the joined CFItemType's `title`; when `cf_item_type_id` is NULL, `CFItemType` is also null.
+
+**Constructing `licenseURI` (inside CFDocument / CFItem):**
+JOIN on `cf_license_id` and use the CFLicense's `{title, identifier, uri}`. When `cf_license_id` is NULL, `licenseURI` is null (included as JSON `null`). Same FK → JOIN pattern as CFItemTypeURI.
+
+**Constructing `CFAssociationGroupingURI` (inside CFAssociation):**
+JOIN on `cf_association_grouping_id` and use the CFAssociationGrouping's `{title, identifier, uri}`. When `cf_association_grouping_id` is NULL, it's null (included as JSON `null`).
+
+**Constructing `originNodeURI` / `destinationNodeURI` (inside CFAssociation):**
+Built directly from the DB columns `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` (no JOIN). To support external references, the stored values are used as-is. CASE v1.1 uses `LinkGenURIDType`: `identifier` is not restricted to UUID, and `targetType` is a new field. When `targetType` is NULL, we still emit `null` in the response. (CASE v1.1 OpenAPI defines `targetType` as `anyOf` (`"CASE"` enum / `ext:` pattern) and does not permit null, but in practice unset targetType is common, so we include `null`. Strict conformance with `exclude_none` is on the Phase 2 list.)
+
+**Constructing `subject` / `subjectURI` (inside CFDocument / CFItem):**
+The DB columns `subject` (JSONB string array) and `subject_uri` (JSONB LinkURI object array) are emitted as-is. When NULL, the value is null (included as JSON `null`). CASE v1.1 defines both fields on CFDocument and CFItem.
+
+**Constructing `conceptKeywordsURI` (inside CFItem):**
+JOIN on `cf_concept_id` and use the CFConcept's `{title, identifier, uri}`. When `cf_concept_id` is NULL, the value is null (included as JSON `null`). CASE v1.1 defines `conceptKeywordsURI` as a single LinkURIDType (not an array). Same FK → JOIN pattern as CFItemTypeURI.
+
+**Internal fields hidden from API responses:**
+`cf_item.depth` is internal (used to render the tree view) and does not exist in CASE v1.1, so it is excluded from every API response (CFItem standalone and within CFPackage). Exclude it in the Pydantic schemas.
+
+**CASE v1.1 fields omitted in Phase 1:**
+`notes` (CFDocument / CFItem / CFAssociation), `alternativeLabel` (CFItem), and `extensions` (common, v1.1 new) are not persisted (see db-schema.md). These fields are **not** included in the Pydantic schemas (no API output — they are outside the `exclude_none=False` policy). They are optional in CASE v1.1, so omitting them does not affect compliance. Phase 2 will add the columns and the Pydantic fields (returning `null` when empty).
+
+## Error response format
+
+The CASE v1.1 `imsx_StatusInfo` shape. Fields are at the root (no wrapper):
+```json
+{
+  "imsx_codeMajor": "failure",
+  "imsx_severity": "error",
+  "imsx_description": "Not found",
+  "imsx_codeMinor": {
+    "imsx_codeMinorField": [
+      {"imsx_codeMinorFieldName": "sourcedId", "imsx_codeMinorFieldValue": "unknownobject"}
+    ]
+  }
+}
+```
+- Field names start with lowercase (`imsx_codeMajor` ✓, `imsx_CodeMajor` ✗).
+- `imsx_codeMajor`: `success` / `processing` / `failure` / `unsupported`.
+- `imsx_severity`: `status` / `warning` / `error`.
+- `imsx_description`: human-readable message (optional).
+- `imsx_codeMinor`: optional. A nested object (not a string). `imsx_codeMinorFieldName` is always `"sourcedId"` for every error (per CASE v1.1 imsx convention).
+- `imsx_codeMinorFieldValue`: `fullsuccess` / `invalid_sort_field` / `invalid_selection_field` / `forbidden` / `unauthorised_request` / `internal_server_error` / `unknownobject` / `server_busy` / `invalid_uuid`.
+- HTTP status mapping: 400 → `failure/error`; 404 → `failure/error` + `unknownobject`; 405 → `failure/error` + `invalid_selection_field`; 429 → `failure/error` + `server_busy`; 500 → `failure/error` + `internal_server_error`.
+- **429 (Server Busy):** defined for every endpoint in the CASE v1.1 OpenAPI. We do not implement rate limiting in Phase 1 explicitly, but API Gateway / Lambda throttling may yield 429. In that case we return the `server_busy` imsx_StatusInfo shape.
+- We do not use FastAPI's default 422 Validation Error; a custom exception handler converts `RequestValidationError` into a **400** `invalid_selection_field` imsx_StatusInfo response.
+- Requests to undefined sub-paths under `/{tenant}/ims/case/v1p1/...` return **404** (`unknownobject`) in the imsx_StatusInfo shape. FastAPI/Starlette's default 404 isn't in imsx form, so a catch-all route or a custom handler for the CASE API path translates it.
+
+## Unsupported HTTP methods
+
+The CASE API is read-only (GET). POST / PUT / DELETE / PATCH on CASE API paths return **405 Method Not Allowed**:
+```json
+{
+  "imsx_codeMajor": "failure",
+  "imsx_severity": "error",
+  "imsx_description": "Method not allowed",
+  "imsx_codeMinor": {
+    "imsx_codeMinorField": [
+      {"imsx_codeMinorFieldName": "sourcedId", "imsx_codeMinorFieldValue": "invalid_selection_field"}
+    ]
+  }
+}
+```
+The response includes an `Allow: GET` header.
+
+## `associationType` values
+
+Valid values per CASE v1.1:
+- `isChildOf` / `isPeerOf` / `isPartOf` / `exactMatchOf` / `precedes` / `isRelatedTo` / `replacedBy` / `exemplar` / `hasSkillLevel` / `isTranslationOf`.
+- Extension pattern: values prefixed with `ext:` (regex: `(ext:)[a-zA-Z0-9\.\-_]+`) are also valid per CASE v1.1.
+
+When importing from an external CASE source, validate against this enum plus the extension pattern; any value matching neither causes the association to be skipped with a warning. `ext:`-prefixed values are accepted.
+
+## `adoptionStatus` values
+
+Standard values per the CASE v1.1 information model:
+- `Draft` / `Private Draft` / `Adopted` / `Deprecated`.
+
+**Note:** CASE v1.1 OpenAPI types `adoptionStatus` as `string` (no enum constraint), so other values are technically valid. We recommend the standard values, but imports with non-standard values are not rejected (a warning is emitted and the value is stored as-is).
+
+## Intentional differences from CASE v1.1
+
+Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
+
+1. **Response wrapper structure:** strictly per the OpenAPI schema, single-resource fetches (`GET /CFDocuments/{id}`, etc.) return the DType at the root (no wrapper). We wrap with a root key — `{"CFDocument": {...}}` — to match the convention used by OpenSALT and other CASE implementations. CFPackage is also wrapped as `{"CFPackage": {...}}`.
+2. **Empty arrays allowed:** `CFDocumentSetDType` (`minItems: 1`) and `CFAssociationSetDType` (`minItems: 1`) are documented as non-empty in the spec, but we return empty arrays when the result is 0 (see relevant sections).
+3. **Invalid UUID → 400:** CASE v1.1 lumps invalid UUIDs into 404; we split into 400 (see validation section).
+4. **`limit=0` accepted:** OpenAPI says `minimum: 1`, but we accept it and return an empty array (see pagination section).
+5. **Pagination extended:** OpenAPI defines `limit` / `offset` etc. only on `GET /CFDocuments`; we extend them to every listing endpoint.
+6. **`X-Total-Count` / `links` headers omitted:** not implemented in Phase 1 (see pagination section).
+7. **Emitting `targetType: null`:** OpenAPI's anyOf does not permit null, but we include it for practical reasons (see LinkURI section).
+8. **Tenant prefix:** `/{tenant}/ims/case/v1p1/` is an extension to support multi-tenancy (not in the CASE v1.1 spec).
+9. **Service Discovery endpoint:** CASE v1.1 defines `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`. Not implemented in Phase 1; Phase 2 will revisit during Conformance work.
+10. **405 Method Not Allowed:** not defined in CASE v1.1 OpenAPI, but reasonable for a GET-only API; we add it.
+11. **401 / 403 not implemented:** defined for every endpoint in CASE v1.1 OpenAPI, but our CASE API is public (no auth) so they're irrelevant.
+12. **CFDocument `creator` nullable:** required in CASE v1.1 OpenAPI (in the CFDocumentDType required list), but nullable in our DB to accommodate CSV imports that omit it. The API response can return `null`. External CFPackage import behavior: on create, missing / null / blank `creator` emits a warning and stores `null`; on update, missing / null retains the existing value silently, and a blank string emits a warning while still retaining the existing value (the existing `creator` is not overwritten with an empty string). Phase 2 will consider an empty-string default for Conformance.
+13. **Required lookup fields nullable:** `description` / `hierarchyCode` on CFItemType, `hierarchyCode` on CFSubject and CFConcept, and `licenseText` on CFLicense are treated as nullable (see "Compliance note for required lookup fields" above).
+
+## Content negotiation
+
+**No content negotiation.** CloudFront ignores `Accept` for cache lookups, so HTML/JSON could be mixed by accident.
+- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*`, `/{tenant}/uri/{uuid}` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/children/*`, `/detail/*`) are HTML too.
+- CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → always JSON (`Content-Type: application/json`).
+- Admin API: → always JSON (`Content-Type: application/json`).
+
+---
+
+# CASE v1.1 API 仕様（日本語）
 
 APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/v1p0/` (後方互換)
 
