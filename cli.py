@@ -26,12 +26,25 @@ t = get_translator(detect_lang_from_env(), cli=True)
 
 
 def _check_db():
-    """Verify DATABASE_URL is set or exit."""
-    import os
+    """Verify DATABASE_URL is provided (env var or `.env` file) or exit.
 
-    if not os.environ.get("DATABASE_URL"):
-        err_console.print(t("err_env_required"))
-        raise SystemExit(1)
+    Pydantic Settings reads `.env` at import time, so the actual DB connection
+    works even when DATABASE_URL is only in `.env`. This check mirrors that to
+    avoid a misleading "set DATABASE_URL" error in hybrid native dev setups.
+    """
+    import os
+    from pathlib import Path
+
+    if os.environ.get("DATABASE_URL"):
+        return
+    env_file = Path(".env")
+    if env_file.exists():
+        for raw in env_file.read_text().splitlines():
+            line = raw.strip()
+            if line.startswith("DATABASE_URL=") and line.split("=", 1)[1].strip():
+                return
+    err_console.print(t("err_env_required"))
+    raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------
