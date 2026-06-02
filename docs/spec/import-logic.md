@@ -1,4 +1,561 @@
-# インポート/エクスポート ビジネスロジック
+# Import / Export Business Logic
+
+**Language of error / warning messages:** error and warning messages throughout this document are **standardized in English** (matching all other error messages in the CASE API and Admin API). Explanatory text (conditions and behavior) is given in both English and Japanese.
+
+## CSV import flow
+
+```
+1. Read the CSV file; auto-detect the format
+2. Parse metadata rows
+2.5. (OpenSALT only) Pre-scan `Is Part Of`
+3. Create or update the CFDocument
+4. Parse and validate each row
+5. Auto-create lookup tables (CFItemType, CFSubject, CFConcept)
+6. Upsert CFItem
+7. Generate isChildOf CFAssociations
+8. Compute `depth`
+9. Print the result report
+```
+
+**Transaction strategy:**
+Steps 3–8 run in a single transaction. Step 4 validation errors are filtered out before any DB write, so in principle no error occurs inside the transaction. If a DB-level error happens nonetheless, the entire transaction is rolled back and the import fails (no partial commit). NFR-6.5's "skip per row" applies to the validation stage, not the DB-write stage.
+
+**Preventing concurrent imports on the same document:**
+On update (`--doc` etc.), Step 3 acquires `SELECT ... FOR UPDATE` on the target CFDocument row and holds it until the transaction ends. This serializes concurrent imports on the same document and prevents races between the isChildOf delete-all → regenerate sequence (e.g., duplicate associations). On create, no lock is needed (the document doesn't exist yet).
+
+### Step 1: file read and format detection
+
+**Encoding:** the file is read as UTF-8. A BOM (`\xEF\xBB\xBF`) at the start is silently skipped (Python's `utf-8-sig` behavior). If the file can't be decoded as UTF-8, the import fails ("CSV file is not valid UTF-8").
+
+**UUID case sensitivity:** UUID identifiers are compared **case-insensitively** (upsert matching, `parentIdentifier` resolution, `/uri/{uuid}` lookup, etc.). PostgreSQL's UUID type is case-insensitive — `D86774F2-...` equals `d86774f2-...`. On create we normalize to lowercase when storing. UUIDs from external imports are stored as-is, and the case-insensitive rule still applies on comparison.
+
+For format auto-detection rules see [csv-format.md](./csv-format.md).
+
+### Step 2: metadata parsing
+
+Lines starting with `#` are parsed as key/value pairs and mapped to CFDocument fields. CLI flags win over metadata when both are present.
+
+**Empty-string handling (applies to every metadata field):** for every single-valued metadata field (`#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#license`, `#status_start_date`, `#status_end_date`), an empty string (empty after trimming surrounding whitespace) is treated as NULL (unspecified). On create the field becomes NULL; on update the existing value is preserved (same as omitting the key entirely).
+
+### Step 2.5: `Is Part Of` pre-scan (OpenSALT only)
+
+For OpenSALT format, Step 3 needs the `Is Part Of` column to identify the CFDocument. Since `Is Part Of` lives on each data row and is needed before Step 4 (row parsing), we pre-scan the entire `Is Part Of` column. The first non-empty value becomes the CFDocument identifier; rows with a different value are recorded for a Step 4 warning ("Row N: Is Part Of 'xxx' differs from document identifier 'yyy', ignored"). If every row is empty, treat the import as a new document. The pre-scan only reads the `Is Part Of` column; other columns are untouched.
+
+### Step 3: CFDocument create / update
+
+| Condition | Behavior |
+|-----------|----------|
+| `--doc` omitted (custom / simple) | Create a new CFDocument; `identifier` is auto-generated UUID v4 |
+| `--doc` omitted (OpenSALT, non-empty `Is Part Of`) | Use `Is Part Of` as the CFDocument identifier and look up an existing one in the tenant. Update if found; create otherwise (`identifier` = the `Is Part Of` value). If `Is Part Of` is not a valid UUID, the import fails ("Is Part Of value is not a valid UUID: '...'") |
+| `--doc` omitted (OpenSALT, empty `Is Part Of`) | Create a new CFDocument; `identifier` is auto-generated UUID v4 |
+| `--doc {uuid}` specified, exists in the tenant | Update the existing CFDocument (rules below). For OpenSALT, `Is Part Of` is ignored |
+| `--doc {uuid}` specified, not in the tenant | Fail ("Document not found: '{uuid}'") |
+
+**On create:**
+- `identifier` → per the table above; either auto-generated UUID v4 or the OpenSALT `Is Part Of` value.
+- `uri` → `{BASE_URL}/{tenant_id}/uri/{identifier}`.
+- `title` → priority `--doc-title` > `#title`. Empty strings are treated as "unspecified" (empty title is not allowed). If neither is provided, the import fails ("Document title is required").
+- `version` → priority `--doc-version` > `#version`. Empty strings are treated as "unspecified". If neither is provided, NULL.
+- `language` → `#language` value. NULL if unspecified.
+- Other fields → from the corresponding metadata row, NULL otherwise.
+- `last_change_date_time` → the import-time UTC timestamp.
+
+**On update:**
+- Metadata row with a value → overwrite the corresponding CFDocument field.
+- Metadata row without a value (the key itself is missing) → preserve the existing value (no NULL overwrite).
+- `last_change_date_time` → overwrite with the import-time UTC timestamp.
+- `title` → priority `--doc-title` > `#title` > existing value.
+- `version` → priority `--doc-version` > `#version` > existing value.
+
+### Step 4: row parsing and validation
+
+Each row is converted to the internal representation. Errors are collected with row numbers and reported at the end.
+
+**Validation rules:**
+- `fullStatement` is empty or whitespace-only → skip the row (warning "Row N: fullStatement is empty, skipped"). Trim surrounding whitespace first (empty after trimming = empty). The trimmed value is stored (surrounding whitespace is removed). **Simple format**: compute depth from leading whitespace **before** trimming (parse indent → trim → empty check).
+- `Identifier` is empty → auto-generate UUID v4.
+- `Identifier` is not a UUID → error (skip the row; warning "Row N: Invalid Identifier 'xxx', skipped").
+- **Duplicate `Identifier` within the same CSV** → the later row wins (warning "Row N: Duplicate Identifier 'xxx', overwriting Row M").
+- Parse `educationLevel` → split on comma into a string array (trim each value; drop empties after trimming). `"09, 10, 11"` → `["09", "10", "11"]`; `"09,,11"` → `["09", "11"]`.
+- Parse `conceptKeywords` → split on comma into a string array (trim each value; drop empties after trimming). `"分析, 評価"` → `["分析", "評価"]`; `"分析,,評価"` → `["分析", "評価"]`.
+- `parentIdentifier` / `Is Child Of` is non-empty but not a UUID → warning ("Row N: parentIdentifier 'xxx' is not a valid UUID, treated as root"). Treat as root level.
+- `sequenceNumber` → convert to integer. On failure, error (skip the row; warning "Row N: Invalid sequenceNumber 'xxx', skipped"). Values outside the PostgreSQL INTEGER range (-2147483648 .. 2147483647) are treated as conversion failure too.
+- `statusStartDate` → when non-empty, validate `YYYY-MM-DD`. On invalid format or value (e.g., `2025-13-45`), emit a warning ("Row N: Invalid statusStartDate 'xxx', set to null") and treat the field as NULL (don't skip the row).
+- `statusEndDate` → same rule as `statusStartDate` (warning name uses `statusEndDate`).
+- `license` → same lookup pattern as CFItemType. Step 5 find-or-creates `cf_license` and sets the FK on `cf_item.cf_license_id`. Empty cell → NULL on create, keep existing on update.
+- `language` → when non-empty, validate length ≤ 10. If too long, emit a warning ("Row N: language 'xxx' exceeds 10 characters, set to null") and treat as NULL (don't skip the row; prevents the `VARCHAR(10)` constraint from rolling back the whole transaction).
+
+**Metadata validation:**
+- `#adoption_status` → values outside the standard set (`Draft` / `Private Draft` / `Adopted` / `Deprecated`) emit a warning ("Invalid adoption_status 'xxx', storing as-is") and the value is stored as-is (no error). It is also returned as-is in API responses.
+- `#language` → validate length ≤ 10. Too long → warning ("Metadata #language 'xxx' exceeds 10 characters, set to null"); treat as NULL.
+- `#status_start_date` / `#status_end_date` → when non-empty, validate `YYYY-MM-DD`. Invalid format or value → warning ("Invalid #status_start_date 'xxx', set to null"); treat as NULL.
+
+### Step 5: lookup table auto-creation
+
+Auto-create lookup rows (cf_item_type, cf_license, cf_subject) from the CSV's `CFItemType` column, the `license` column, the `#subject` metadata, and the `#license` metadata. `cf_concept` is **not** created by CSV import (only by the external CASE source import via `CFDefinitions.CFConcepts`).
+
+**Pre-processing:** lookup key values (the `CFItemType` cell, the `license` cell, the `#license` value, each element of `#subject`) are trimmed before matching (the trimmed value is stored as `title`). Values that are empty after trimming are treated as "no value" (no lookup is created or matched). `#subject` elements are already trimmed during the csv-format.md parsing step; `CFItemType`, `license`, and `#license` are trimmed again in this step.
+
+**Matching rules (common to every lookup):**
+1. Search the tenant for an **exact** `title` match (case-sensitive).
+2. Exactly one row → use its ID.
+3. **More than one row** (can happen when external CASE imports created multiple lookups with the same title but different identifiers) → pick the row with the lexicographically smallest `identifier` (deterministic selection).
+4. None → create a new row (`identifier` = UUID v4, `uri` = `{BASE_URL}/{tenant_id}/uri/{identifier}`, `last_change_date_time` = the import-time UTC timestamp).
+
+**Target tables and source data:**
+| Lookup table | CSV source | Notes |
+|--------------|-----------|-------|
+| cf_item_type | `CFItemType` column | Empty → on create `cf_item.cf_item_type_id = NULL`, on update keep the existing `cf_item_type_id` (same as Step 6's empty-cell-keeps-existing rule). |
+| cf_license | `license` column (CFItem) / `#license` metadata (CFDocument) | Same title-based find-or-create as CFItemType. Empty `license` column: on create `cf_item.cf_license_id = NULL`, on update keep existing. Empty `#license`: on create `cf_document.cf_license_id = NULL`, on update keep existing. CFItem and CFDocument referring to the same license name share the same cf_license row. |
+| cf_subject | `#subject` metadata | Comma-separated. Stored on the document in `subject` / `subject_uri`. |
+
+**JSONB array construction (same on create and update):**
+- `cf_document.subject`: store the `#subject` values directly as a string array (e.g., `["Japanese", "Geography"]`).
+- `cf_document.subject_uri`: build a LinkURI object array from each `cf_subject` row's `{title, identifier, uri}` (e.g., `[{"title":"Japanese","identifier":"<cf_subject.identifier>","uri":"<cf_subject.uri>"}]`).
+- `cf_item.concept_keywords`: store the parsed `conceptKeywords` as-is as a string array (e.g., `["analysis", "evaluation"]`).
+
+**About `cf_item.cf_concept_id`:** CSV has no column for `conceptKeywordsURI`. CSV import never sets `cf_concept_id` (on create it's NULL; on update the existing value is kept). `cf_concept` rows are created only by the external CASE source import via `CFDefinitions.CFConcepts`.
+
+**Update interactions:**
+- `conceptKeywords` non-empty → overwrite `concept_keywords` (don't touch `cf_concept_id`; keep its existing value).
+- `conceptKeywords` empty cell → preserve `concept_keywords`'s existing value.
+- `#subject` with at least one subject → rebuild both `subject` and `subject_uri` from the new values.
+- `#subject` present but empty (`#subject` alone, or `#subject,` with no value) → clear both `subject` and `subject_uri` to empty arrays `[]`.
+- `#subject` absent (the key is not present at all) → preserve both `subject` and `subject_uri`.
+
+### Step 6: CFItem upsert
+
+**Upsert match keys (priority order):**
+
+1. **Identifier match**: a CFItem in the tenant whose `identifier` equals the CSV `Identifier` → update. If the matched item belongs to a different document, reattach `cf_document_id` to the current document. (**Side effect**: the previous document's isChildOf associations may still reference this item, and `depth` is not recomputed for it there. To restore the previous document's consistency, re-import it or `doc delete` it. When reattaching, emit a warning: "Row N: Item '{item_identifier}' moved from document '{old_doc_identifier}' to current document".) `{old_doc_identifier}` is the source document's `identifier` (same shape as the equivalent external-import warning).
+2. **`humanCodingScheme` match** (only when CSV `Identifier` is empty): a row in the same tenant and document whose `human_coding_scheme` matches → update. If CSV `Identifier` has a value, this fallback is **not** used (Identifier-bearing rows must match by Identifier; if not, create new). Two NULLs do not match (empty CSV value with existing NULL is not a match). If multiple items match, the lexicographically smallest `identifier` wins (deterministic selection — same policy as the lookup multi-match rule).
+3. **No match** → create a new row.
+
+**On update:**
+- Columns with a CSV value → overwrite.
+- Columns without a CSV value (empty cell, or absent from the format definition entirely — e.g., OpenSALT's `listEnumeration`, `license`, `statusStartDate`, `statusEndDate`) → preserve the existing value (no NULL overwrite). **The "empty cell" check uses the raw pre-parse value** (an empty string or a missing cell). Delimiter-only inputs (e.g., `educationLevel` = `","`) are non-empty in the raw value, so they overwrite with the parsed `[]`.
+- `uri` → preserve the existing value (do not regenerate; this preserves external URIs of items imported from CASE sources).
+- `last_change_date_time` → overwrite with the import-time UTC timestamp.
+
+**On create:**
+- `identifier` → CSV value; empty → auto-generated UUID v4.
+- `uri` → `{BASE_URL}/{tenant_id}/uri/{identifier}`.
+- `language` → CSV value; empty → inherit `language` from the CFDocument (NULL if the document is also NULL).
+- `last_change_date_time` → the import-time UTC timestamp.
+
+### Step 7: generating CFAssociation (`isChildOf`)
+
+Persist parent–child relationships as `isChildOf` CFAssociation rows.
+
+**`parentIdentifier` resolution:**
+1. Custom / OpenSALT: resolve the parent by the UUID in `parentIdentifier` / `Is Child Of`. Search scope: same tenant, same document (items upserted in this CSV + items already in the DB). Other documents' items are out of scope. Self-reference (`parentIdentifier` equals the row's own `Identifier`) emits a warning ("Row N: parentIdentifier references self, treated as root") and is treated as root (no self-isChildOf is created).
+2. Simple format: compute depth from indent; the most recent item at a shallower depth is the parent.
+   - If depth jumps by 2+ (e.g., 0 → 3): use the most recent item as the parent and emit a warning ("Row N: depth jumped from 0 to 3, treating previous item as parent"). Intermediate depths are not created.
+3. Parent not found: treat as root (parent is the CFDocument).
+
+**Generation rules:**
+- `tenant_id` = the target tenant's `id`.
+- `cf_document_id` = the target CFDocument's internal PK (`id`).
+- `association_type` = `isChildOf`.
+- `identifier` = UUID v4 (auto-generated).
+- `uri` = `{BASE_URL}/{tenant_id}/uri/{identifier}`.
+- `origin_node_identifier` = the child's `identifier`.
+- `origin_node_uri` = the child's `uri`.
+- `origin_node_title` = the child's `fullStatement`.
+- `origin_node_target_type` = NULL (CSV import never sets `targetType`).
+- `destination_node_identifier` = the parent's `identifier` (CFDocument's `identifier` when the parent is the document).
+- `destination_node_uri` = the parent's `uri` (the document's `uri` when applicable).
+- `destination_node_title` = the parent's `fullStatement` (the document's `title` when applicable).
+- `destination_node_target_type` = NULL.
+- `sequence_number` = CSV `sequenceNumber`. If empty, **per-parent counter** auto-numbers 10, 20, 30, … in encounter order (a parent's counter starts at 10 the first time it appears; the counter continues even when the same parent's children are interleaved with others in the CSV). Explicit values and the auto-numbering are independent; no de-duplication is performed against explicit values.
+- `last_change_date_time` = the import-time UTC timestamp.
+
+**Existing associations on upsert:**
+- Updating an existing document (`--doc` specified, or OpenSALT `Is Part Of` matched an existing document): **delete all** existing `isChildOf` associations of that document, then regenerate. If the CSV has 0 data rows (including all-skipped), existing `isChildOf` rows are still deleted (the tree structure is lost). If the document had at least one existing `isChildOf` and we processed 0 items, emit a warning ("No items processed, but {N} existing isChildOf associations were deleted"). With 0 existing `isChildOf` rows, no warning is emitted (nothing was actually deleted).
+- New document: just generate. With 0 items processed, an empty document is created and a warning is emitted ("No items processed, empty document created").
+
+### Step 8: depth computation
+
+Compute `depth` for every CFItem in the target document using its `isChildOf` associations (other documents' items are out of scope).
+
+**Algorithm:**
+```
+1. Items directly under the CFDocument (parent = CFDocument) get depth=0.
+2. BFS over isChildOf: each child gets parent.depth + 1.
+3. Items not reachable from any parent (orphans) get depth=0 (warning "Orphan item '{identifier}' has no reachable parent, set to depth 0").
+4. If a cycle is detected, set the affected items' depth=0 and add an entry to the error report.
+```
+
+**Cycle detection:**
+Revisiting an already-visited node during BFS (where depth has been assigned) is **not** treated as a cycle; it is treated as **multi-parent** (can occur with external CASE imports), and the revisit is skipped (keep the first-assigned depth; BFS processes level by level, so the shallowest depth wins).
+**True cycles** are detected after BFS: walk every isChildOf origin/destination and find unreachable cycles (groups of nodes that are not directly under the document and were never reached by BFS). Nodes in such a cycle are already orphans (depth=0 from Step 3); we additionally report them as a cycle (warning "Circular reference detected involving items: '{identifier1}', '{identifier2}', ..., set to depth 0").
+**Caveat:** cycles reachable from the root (e.g., A → B → C → A where A is directly under the document) are not detected because BFS assigns depth to every node. The tree view can be expanded infinitely in that case, but HTMX lazy-loading prevents an infinite loop (the user must keep manually expanding).
+
+### Step 9: result report
+
+After import, print a summary (CLI uses a rich table).
+
+```
+Import Result:
+  Document:     High School Curriculum (d86774f2-...)
+  Items:        1523 created, 34 updated, 3 skipped
+  Associations: 2045 created, 0 updated, 0 skipped
+  ItemTypes:    5 created, 0 updated, 2 existing, 0 skipped
+  Subjects:     3 created, 0 updated, 0 existing, 0 skipped
+  Concepts:     0 created, 0 updated, 0 existing, 0 skipped
+  Licenses:     0 created, 0 updated, 0 existing, 0 skipped
+  Groupings:    0 created, 0 updated, 0 existing, 0 skipped
+
+Warnings:
+  Row 45: fullStatement is empty, skipped
+  Row 102: Invalid Identifier 'abc', skipped
+  Row 203: Parent 'f1a2b3c4-...' not found, treated as root
+```
+
+## External CASE source import
+
+Fetch a CFPackage from an external CASE API and persist it to the DB.
+
+**Transaction strategy:**
+Like CSV import, run steps 3–7 in one transaction. On any DB-level error during the run, roll back everything and fail. Individual resource issues (the "invalid individual resource in CFPackage" rows in the error-handling table) are skip-level — not DB errors — so the transaction continues.
+
+**Preventing concurrent imports on the same document:**
+Same as CSV import: on update, Step 3 acquires `SELECT ... FOR UPDATE` on the target CFDocument row and holds it until the transaction ends. On create, no lock is needed.
+
+### `--doc` semantics
+
+| Condition | Behavior |
+|-----------|----------|
+| `--doc` omitted | Look up by the external CFPackage's CFDocument identifier within the tenant. Update if found; create otherwise |
+| `--doc {uuid}` specified, in the tenant | Overwrite the existing CFDocument with the external data |
+| `--doc {uuid}` specified, not in the tenant | Fail ("Document not found: '{uuid}'") |
+
+**Update rules (same for CFDocument / CFItem / CFAssociation / CFDefinitions):**
+- External CFPackage has a value → overwrite.
+- External CFPackage lacks a value (null / missing) → preserve the existing value.
+- `identifier` → preserve the existing value (no overwrite). `identifier` is the upsert match key; changing it would violate UNIQUE constraints and break association / URI references. If `--doc` specifies an external CFDocument with a different identifier, keep the existing document's identifier.
+- `last_change_date_time` → use the external value as-is (fall back to the import-time UTC timestamp if missing).
+- Existing CFItem / CFAssociation are upserted by **tenant-wide** identifier match. When a match belongs to a different document, reattach `cf_document_id` to the current document (no match → create new). When reattaching, emit a warning ("Item '{identifier}' moved from document '{old_doc_identifier}' to current document" — same policy as the equivalent CSV warning).
+- Existing CFDefinitions (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping) are upserted by **tenant-wide** identifier match.
+- **Resources not present in the external source**: CFItem / CFAssociation / CFDefinitions (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping) in the DB but not in the external CFPackage are **not deleted** (additive only). If they were deleted upstream, they remain locally. For a full sync, `doc delete` the existing document first and re-import.
+
+### Flow
+
+**`--url` parameter format:**
+- Provide a CASE API base path (up to the version segment). Examples: `https://opensalt.example.com/ims/case/v1p0`, `https://case.example.com/{tenant}/ims/case/v1p1`.
+- Or a direct CFPackage URL. Example: `https://opensalt.example.com/ims/case/v1p0/CFPackages/{uuid}`.
+- A bare server root (e.g., `https://opensalt.example.com`) is not accepted. The flow below appends `/CFDocuments`, so the URL must contain the CASE API path.
+
+```
+1. Resolve the URL and fetch the CFPackage JSON
+   - If the URL contains `/CFPackages/`: GET it directly
+   - Otherwise (base URL):
+     a. Normalize trailing slashes (with or without works)
+     b. GET {url}/CFDocuments to list documents
+     c. Empty list → fail ("No documents found on remote server: {url}")
+     d. Use the first (or only) document's identifier. If there are 2+, warn ("Remote server has {n} documents. Importing first document '{identifier}'")
+     e. GET {url}/CFPackages/{identifier}
+2. Parse and validate the JSON
+3. Create or update the CFDocument
+4. Persist CFDefinitions (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping) (mapping below)
+5. Bulk persist CFItems
+   - Every CFItem's `cf_document_id` is set to the internal PK of the CFDocument created/updated in Step 3 (including items reattached from other documents)
+   - When `CFItemTypeURI.identifier` is present: look up `cf_item_type` in the same tenant by `identifier` match and set `cf_item.cf_item_type_id` to the internal PK. If no match (i.e., Step 4 didn't persist it), `cf_item_type_id = NULL` with a warning ("CFItem '{item_identifier}': CFItemType '{type_identifier}' not found, set to null")
+   - When `conceptKeywordsURI.identifier` is present: look up `cf_concept` in the same tenant by `identifier` match and set `cf_item.cf_concept_id` to the internal PK. If no match, `cf_concept_id = NULL` with a warning ("CFItem '{item_identifier}': CFConcept '{concept_identifier}' not found, set to null" — same pattern as CFItemType FK resolution)
+   - `educationLevel`, `conceptKeywords` → store the external values as-is as JSONB (no FK resolution)
+6. Bulk persist CFAssociations
+   - Every CFAssociation's `cf_document_id` is set to the internal PK of the CFDocument from Step 3
+   - Keep `originNodeURI.title` / `destinationNodeURI.title` as-is in `origin_node_title` / `destination_node_title`
+   - When `CFAssociationGroupingURI.identifier` is present: look up `cf_association_grouping` in the same tenant by `identifier` match and set `cf_association.cf_association_grouping_id` to the internal PK. If no match, `cf_association_grouping_id = NULL` with a warning ("CFAssociation '{assoc_identifier}': CFAssociationGrouping '{grouping_identifier}' not found, set to null")
+   - When an existing CFAssociation belongs to a different document, reattach `cf_document_id`. Emit a warning when reattaching ("CFAssociation '{identifier}' moved from document '{old_doc_identifier}' to current document" — same policy as the CFItem reattach warning)
+6.5. Persist CFRubrics (upsert the three-level CFRubric → CFRubricCriterion → CFRubricCriterionLevel; see "CFRubrics handling")
+7. Recompute depth for all CFItems in the target document from all isChildOf associations in that document (existing + newly imported). Algorithm = CSV import Step 8
+8. Print the result report (same format as CSV import Step 9; the per-category counters: items/associations/rubrics use the 3-state created/updated/skipped, definitions use the 4-state created/updated/existing/skipped; warnings are also printed. For definitions, "updated" counts identifier-match upserts that changed ≥ 1 field, "existing" counts identifier-match upserts with no field changes, "skipped" counts validation failures (missing identifier/title, etc.). CSV imports always have "updated" and "skipped" = 0 for definitions (find-or-create never updates; CSV values are pre-validated so skips do not occur). External CASE imports can have non-zero "updated" and "skipped" for definitions)
+```
+
+### CFDocument field mapping
+
+Mapping from the external CFPackage's CFDocument object to DB columns:
+- `identifier` → `identifier` (used only on create; on update keep existing).
+- `uri` → `uri` (used only on create; on update keep existing — see URI preservation rule).
+- `title` → `title`.
+- `creator` → `creator` (required in CASE v1.1 OpenAPI but nullable here. On create, missing / null / blank emits a warning and stores NULL. On update, follow the rule "no external value → keep existing": missing / null retains existing silently; a blank string emits a warning and still retains existing (the existing `creator` is not overwritten with an empty string). `null` / key absent / empty string / whitespace-only are all treated as "missing".).
+- `publisher` → `publisher`.
+- `description` → `description`.
+- `frameworkType` → `framework_type` (v1.1 new).
+- `caseVersion` → `case_version` (v1.1 new; only `"1.1"` is valid).
+- `language` → `language` (validate length ≤ 10; too long → NULL with a warning — same rule as CSV import).
+- `version` → `version`.
+- `adoptionStatus` → `adoption_status`.
+- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` string → DATE. Invalid format → NULL with a warning — same rule as CFItem).
+- `statusEndDate` → `status_end_date` (same rule as `statusStartDate`).
+- `licenseURI` → `cf_license_id` (resolve `licenseURI.identifier` against `cf_license` in the same tenant; set the internal PK. No match → `cf_license_id = NULL` with a warning. Same pattern as CFItem's CFItemTypeURI FK resolution).
+- `officialSourceURL` → `official_source_url`.
+- `subject` → `subject` (JSONB string array).
+- `subjectURI` → `subject_uri` (JSONB LinkURI object array).
+- `lastChangeDateTime` → `last_change_date_time` (parse ISO 8601; on invalid format or absence, use the import-time UTC timestamp with a warning — same rule as CFItem).
+- `CFPackageURI`, `notes`, etc. (non-persisted fields) are ignored.
+
+### CFDefinitions field mapping
+
+Map camelCase external CASE fields to snake_case DB columns. The common fields (`identifier`, `uri`, `title`, `description`, `lastChangeDateTime`) are the same for every lookup table. `lastChangeDateTime` is parsed as ISO 8601; on invalid format or absence the import-time UTC timestamp is used (with a warning) — same rule as CFItem. Specific fields:
+- CFItemType: `typeCode` → `type_code`; `hierarchyCode` → `hierarchy_code`.
+- CFSubject: `hierarchyCode` → `hierarchy_code`.
+- CFConcept: `keywords` → `keywords`; `hierarchyCode` → `hierarchy_code`.
+- CFLicense: `licenseText` → `license_text`.
+- CFAssociationGrouping: no specific fields.
+
+### CFItem field mapping
+
+Mapping from the external CFPackage's CFItem object to DB columns:
+- `identifier` → `identifier` (create only; update keeps existing).
+- `uri` → `uri` (create only; update keeps existing — see URI preservation rule).
+- `fullStatement` → `full_statement` (stored after trimming surrounding whitespace; empty → skip).
+- `humanCodingScheme` → `human_coding_scheme`.
+- `abbreviatedStatement` → `abbreviated_statement`.
+- `listEnumeration` → `list_enumeration`.
+- `language` → `language` (validate length ≤ 10; too long → NULL with a warning — same as CSV).
+- `licenseURI` → `cf_license_id` (resolve `licenseURI.identifier` against `cf_license` in the tenant; set the internal PK; no match → NULL with a warning — same pattern as CFDocument's licenseURI).
+- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` → DATE; invalid → NULL with a warning).
+- `statusEndDate` → `status_end_date` (same as `statusStartDate`).
+- `educationLevel` → `education_level` (JSONB; stored as-is).
+- `subject` → `subject` (JSONB string array; stored as-is; v1.1 new).
+- `subjectURI` → `subject_uri` (JSONB LinkURI object array; stored as-is; v1.1 new).
+- `conceptKeywords` → `concept_keywords` (JSONB; stored as-is).
+- `conceptKeywordsURI` → `cf_concept_id` (resolve `conceptKeywordsURI.identifier` against `cf_concept` in the tenant; set the internal PK; no match → NULL with a warning — same pattern as CFItemTypeURI. In CASE v1.1, `conceptKeywordsURI` is a single LinkURIDType).
+- `CFItemTypeURI.identifier` → resolve to `cf_item_type_id` (see Step 5).
+- `lastChangeDateTime` → `last_change_date_time` (parse ISO 8601; invalid / absent → import-time UTC with a warning).
+- `CFDocumentURI`, `notes`, `alternativeLabel`, etc. (non-persisted fields) are ignored.
+
+### CFAssociation field mapping
+
+Mapping from the external CFPackage's CFAssociation object to DB columns:
+- `identifier` → `identifier` (create only; update keeps existing).
+- `uri` → `uri` (create only; update keeps existing — see URI preservation rule).
+- `associationType` → `association_type`.
+- `originNodeURI.identifier` → `origin_node_identifier`.
+- `originNodeURI.uri` → `origin_node_uri`.
+- `originNodeURI.title` → `origin_node_title`.
+- `originNodeURI.targetType` → `origin_node_target_type` (v1.1 new; values `"CASE"` / `"ext:*"`; NULL/absent → NULL).
+- `destinationNodeURI.identifier` → `destination_node_identifier`.
+- `destinationNodeURI.uri` → `destination_node_uri`.
+- `destinationNodeURI.title` → `destination_node_title`.
+- `destinationNodeURI.targetType` → `destination_node_target_type` (v1.1 new; same rule as `origin_node_target_type`).
+- `sequenceNumber` → `sequence_number` (INTEGER; non-numeric → NULL with a warning; floats are truncated to integer; values outside the PostgreSQL INTEGER range → NULL with a warning).
+- `CFAssociationGroupingURI.identifier` → resolve to `cf_association_grouping_id` (see Step 6).
+- `lastChangeDateTime` → `last_change_date_time` (same rule as CFItem).
+- `CFDocumentURI`, `notes`, etc. (non-persisted) are ignored. (`notes` is a CASE v1.1 new optional field; Phase 1 does not persist it — see db-schema.md.)
+
+### Note on CFItemType FK resolution
+
+When CFItem has no `CFItemTypeURI` (e.g., `CFItemTypeURI` is null/absent but the `CFItemType` string is present): `cf_item_type_id = NULL` (identifier-based FK resolution can't be done from a name alone). The `CFItemType` string is **not** stored in the DB (the design derives it from `CFItemType.title` via JOIN). To preserve the type, the external source must provide `CFItemTypeURI`.
+
+### Unsupported fields / resources
+
+External CFPackage fields without a DB column are silently ignored (no error):
+- `notes` (CFDocument / CFItem / CFAssociation): optional in CASE v1.1, not in our DB schema. The value is lost on external import.
+- `alternativeLabel` (CFItem): same as above.
+- `extensions` (common to all resources, v1.1 new): an optional extension field; not in our DB schema. The value is lost on external import.
+- `CFPackageURI` (CFDocument): dynamically generated by the API response — not persisted.
+- Other unknown fields: silently ignored to accommodate future CASE v1.1 extensions and server-specific fields.
+
+**CFRubrics handling:**
+When the external CFPackage contains a `CFRubrics` array, Step 6.5 (after CFAssociations, before depth) upserts CFRubric / CFRubricCriterion / CFRubricCriterionLevel. If `CFRubrics` is absent, it is silently skipped (no error).
+
+CFRubric upsert rules mirror CFItem / CFAssociation:
+- Tenant-wide `identifier` match.
+- If matched, update (overwrite only non-null fields).
+- If not matched, create.
+- CFRubricCriterion / CFRubricCriterionLevel are also upserted by `identifier` match.
+- CFRubricCriterion's `CFItemURI.identifier` → resolve to the FK against `cf_item` in the same tenant (same pattern as CFItem FK resolution).
+- `rubricId` / `rubricCriterionId` are kept as-is as reference UUIDs (no FK resolution).
+
+Validation:
+- CFRubric: missing `identifier` or not a UUID → skip (warning).
+- CFRubricCriterion: same.
+- CFRubricCriterionLevel: same.
+
+Report counters: `rubrics_created`, `rubrics_updated`, `rubrics_skipped` (CFRubric level. Criterion/Level skips go into warnings; no counters).
+
+### URI preservation rule
+
+External imports keep the original URI as-is:
+- `cf_document.uri` → external server's URI (not overwritten; on update, the existing `uri` is also kept).
+- `cf_item.uri` → external server's URI (same).
+- `cf_association.uri` → external server's URI (same).
+- `identifier` → use the external identifier as-is.
+- **Lookup resources (CFItemType, CFSubject, etc.) URI**: follow the general update rule (overwrite when a value is present). Re-imports from the same external source usually have the same value (so no practical change), but importing the same `identifier` lookup from a different external source will update the `uri`.
+
+The `/uri/{uuid}` route on our own server searches by `identifier`, so external-URI resources are reachable through our own server too.
+
+### Error handling
+
+| Error | Behavior |
+|-------|----------|
+| Cannot connect to the external URL (including timeouts) | Fail. Timeout is 30s per HTTP request (for base URLs, both the CFDocuments fetch and the CFPackage fetch get 30s each). HTTP redirects (301 / 302 / 307 / 308) are followed up to 5 times. No retry |
+| Non-2xx HTTP status | Fail ("Remote server returned HTTP {status}: {url}") |
+| Response is not JSON | Fail ("Response is not valid JSON") |
+| CFDocuments list response is malformed (no `CFDocuments` key, not an array, etc.) | Fail ("Invalid CFDocuments response: {url}") |
+| JSON parses but isn't a CFPackage (see below) | Fail ("Invalid CFPackage response: {detail}") |
+| An individual resource inside CFPackage is invalid (see below) | Skip the resource and add a warning. Other resources continue |
+| SSL certificate error | Fail ("SSL certificate verification failed") |
+
+**CFPackage structure validation (fail conditions):**
+Any of the following yields "Invalid CFPackage response: {detail}":
+- The root has no `CFPackage` key (for direct URL), or the expected structure is missing inside the `CFDocuments` array (for base-URL flow).
+- `CFPackage.CFDocument` is missing or not an object.
+- `CFPackage.CFDocument.identifier` is missing or not a UUID.
+- `CFPackage.CFDocument.title` is missing, empty, or whitespace-only (empty after trim). The structure validation does not distinguish create vs. update, so this is checked uniformly (would violate the NOT NULL constraint on create).
+
+**Individual resource invalidity (skip conditions):**
+The following are skipped with a warning:
+- CFItem: missing `identifier` or `fullStatement`, or `fullStatement` is empty or whitespace-only (empty after trim), or `identifier` is not a UUID. (Warning "Skipped CFItem: {reason}. identifier='{identifier}'".)
+- CFAssociation: missing `identifier`, `associationType`, `originNodeURI`, or `destinationNodeURI`. Or `associationType` is not in the CASE v1.1 enum or extension pattern (`ext:` is valid; see api-spec.md). Or `originNodeURI` / `destinationNodeURI`'s required subfields (`identifier`, `uri`) are missing (prevents NOT NULL violations). Or `identifier` is not a UUID (prevents UUID-column insertion failure). `originNodeURI.identifier` / `destinationNodeURI.identifier` are not restricted to UUID (LinkGenURIDType supports non-UUID external references; the columns are VARCHAR). (Warning "Skipped CFAssociation: {reason}. identifier='{identifier}'".)
+- Resource inside CFDefinitions: missing `identifier` or `title`, or `identifier` is not a UUID. (Warning "Skipped {resource_type}: {reason}. identifier='{identifier}'".)
+
+### v1.0 → v1.1 normalization
+
+For CASE v1.0 CFPackage responses, normalize to v1.1 form after fetch and before validation.
+
+**Version detection:**
+- URL contains `v1p0` → v1.0.
+- If the URL doesn't contain it, but the root has no `CFPackage` wrapper and `CFDocument.caseVersion` is absent → also v1.0.
+
+**Normalization rules:**
+- `conceptKeywordsURI`: some v1.0 implementations (e.g., OpenSALT) return an array. If it's an array, use the first element; warn if there are multiple.
+- v1.1-added fields (`frameworkType`, `caseVersion`, `subject` / `subjectURI`, `targetType`, `notes`, `extensions`) are absent from v1.0 responses, but existing import logic uses `.get()` with `None` as default — no extra normalization needed.
+- Structural differences (missing `CFPackage` wrapper) are already handled by `_validate_cf_package`.
+
+**Output:**
+- When v1.0 is detected, emit a warning ("Detected CASE v1.0 response, normalizing to v1.1 format").
+
+## Rubric CSV import flow
+
+```
+1. Read the CSV file (UTF-8; BOM auto-skipped)
+2. Parse and validate the header row (verify the `Type` column exists)
+3. Acquire the target document (`--doc` required; `SELECT ... FOR UPDATE`)
+4. Per-row parse / upsert (resolve Rubric → Criterion → Level positional context)
+5. Print the result report
+```
+
+**Transaction strategy:**
+Run all steps in a single transaction. On error, roll back. Per-row validation errors are treated as skips.
+
+### Step 4: parse / upsert
+
+**Behavior per Type:**
+
+- **Rubric**: look up an existing CFRubric in the tenant by `identifier` and upsert. Overwrite only non-null fields (title, description). On create, set `uri` to `{BASE_URL}/{tenant_id}/uri/{identifier}`.
+- **Criterion**: resolve the parent Rubric via `RubricIdentifier` or positional context (the most recent Rubric row). Look up an existing CFRubricCriterion by `identifier` and upsert. When `CFItemIdentifier` is set, resolve the FK against `cf_item` in the same tenant (no match → NULL with a warning).
+- **Level**: resolve the parent Criterion via `CriterionIdentifier` or positional context (the most recent Criterion row). Look up an existing CFRubricCriterionLevel by `identifier` and upsert.
+
+**Validation:**
+- `Identifier` empty → auto-generate UUID v4.
+- `Identifier` not a UUID → skip the row (warning).
+- Criterion with no parent Rubric (`RubricIdentifier` empty and no preceding Rubric row) → skip (warning).
+- Level with no parent Criterion → skip (warning).
+- Unknown Type → skip (warning).
+- `Weight` / `Score` non-numeric → store as NULL (warning).
+- `Position` non-integer → store as NULL (warning).
+
+### Step 5: result report
+
+```
+Imported into 'Document Title' (doc-uuid)
+  Rubrics:   1 created, 0 updated, 0 skipped
+  Criteria:  2 created, 1 updated, 0 skipped
+  Levels:    4 created, 0 updated, 1 skipped
+```
+
+## Rubric CSV export flow
+
+```
+1. Fetch the target document (`--doc` required)
+2. Fetch its CFRubrics along with their criteria and levels
+3. Emit CSV rows in the order rubric → criterion → level
+```
+
+**Output format:**
+- Encoding: UTF-8 (no BOM); line endings: LF.
+- Header: `Type,Identifier,RubricIdentifier,CriterionIdentifier,Title,Description,Category,Weight,Position,Quality,Score,Feedback,CFItemIdentifier`.
+- Rubric order: `title` ASC → `identifier` lexicographic.
+- Criterion order: `position` ASC (NULL last) → `identifier` lexicographic.
+- Level order: `position` ASC (NULL last) → `identifier` lexicographic.
+- CFItemIdentifier: write the linked CFItem's `identifier` (empty cell when there's no link).
+
+## CSV export flow
+
+```
+1. Fetch the CFDocument and all its CFItems
+2. Resolve parent/child relations from isChildOf in the same document (`cf_association.cf_document_id` matches the target)
+3. Sort in tree (depth-first) order
+4. Generate CSV in the specified format
+```
+
+### Common export rules
+
+- Encoding: UTF-8 (no BOM).
+- Line endings: LF.
+- CSV syntax: RFC 4180 (quote fields containing commas, newlines, or double-quotes).
+
+### Custom-format export
+
+- Emit metadata rows from CFDocument's non-NULL, non-empty fields. (VARCHAR fields → omit when NULL. FK reference `cf_license_id` → omit when NULL; otherwise resolve `cf_license.title` and emit as `#license`. JSONB array `subject` → omit when NULL or `[]`. **Round-trip caveat**: `[]` is omitted, so re-importing as a new document drops `subject` / `subject_uri` to NULL; on update with omitted keys, the existing values are preserved, so there's no impact.) Output order: `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`. `#status_start_date` / `#status_end_date` are emitted as `YYYY-MM-DD`. Metadata rows follow RFC 4180 too (quote values containing commas, newlines, or double-quotes; e.g., `#description,"Information I, II"`). `#subject` is emitted with each JSONB element as a separate CSV field (not as one quoted string; e.g., `#subject,Japanese,Geography,Civics`). Quote individual `subject` values that contain commas, etc., per RFC 4180 (e.g., `#subject,Japanese,"Information I, II",Geography`).
+- Emit the header row: `Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,language,listEnumeration,license,statusStartDate,statusEndDate`.
+- Emit every column (including Identifier).
+- `parentIdentifier` is the parent's UUID; an empty cell for root-level items (parent = CFDocument). When an item has multiple `isChildOf` parents (possible via external CASE imports), pick the association with the smallest `sequence_number` (NULL last; ties broken by `destination_node_identifier` lexicographic). **Round-trip caveat**: an item with multiple isChildOf parents is collapsed to one in the export. Re-importing this CSV loses the non-selected relationships via the isChildOf delete-all → regenerate.
+- `sequenceNumber` is the `sequence_number` of the isChildOf association used for `parentIdentifier` (when there are multiple isChildOfs, the selected one's value). NULL → empty cell. **Round-trip caveat**: an empty `sequenceNumber` cell auto-numbers (10, 20, 30, …) on re-import. The display order is preserved because the export sort matches the auto-numbering order, but the actual values change.
+- `CFItemType` resolves `cf_item_type_id` to `cf_item_type.title` (`cf_item_type_id` NULL → empty cell). **Round-trip caveat**: only the `title` is emitted, so `cf_item_type`'s `type_code` / `hierarchy_code` / `description` aren't in the CSV. Re-importing into the same tenant matches by title and reuses the existing row (so these fields are preserved). Importing into a different tenant creates a new row with title only — those fields are lost.
+- `educationLevel` converts the JSONB array to a comma-separated string (`["09","10","11","12"]` → `"09,10,11,12"`). NULL or `[]` → empty cell. **Round-trip caveat**: empty cell becomes NULL on re-import as a new document (API responses distinguish `[]` and `null`). On update, the empty cell preserves the existing value.
+- `conceptKeywords` converts the JSONB array to comma-separated (`["analysis","evaluation"]` → `"analysis,evaluation"`). NULL or `[]` → empty cell (same round-trip caveat as `educationLevel`). **Caveat**: array elements containing commas (can happen with external imports) get split by the comma on re-import and are corrupted. This caveat also applies to `educationLevel`, but in practice education-level codes never contain commas.
+- **`cf_concept_id` round-trip caveat**: `conceptKeywordsURI` (the FK to `cf_concept`) is not in the CSV. CSV import never sets `cf_concept_id`, so values set by external CASE imports are lost on export → re-import (becomes NULL). On update within the same tenant, the empty cell preserves the existing value — no impact.
+- **`subject_uri` round-trip caveat**: `subject_uri` is not in the CSV (`#subject` only emits subject names). On re-import, the URI is rebuilt from the local `cf_subject` lookup table, so external-CASE-originated external URIs are replaced with local URIs. Within the same tenant, the lookup row's `identifier` matches and the URI is preserved; importing into a new tenant assigns new identifiers / URIs.
+- **`framework_type` / `case_version` round-trip caveat**: there are no `#framework_type` / `#case_version` keys in the CSV metadata. Values set by external CASE imports are lost on export → re-import (become NULL). On update within the same tenant, the keys are absent, so the existing values are preserved.
+- **CFItem `subject` / `subject_uri` round-trip caveat**: the CSV has no item-level subject column (`#subject` is document-level metadata). Item-level `subject` / `subject_uri` set by external CASE imports are lost on export → re-import (NULL on create; on update, empty cells preserve existing).
+- `language` is `cf_item.language` as-is (NULL → empty cell).
+- `abbreviatedStatement` is `cf_item.abbreviated_statement` as-is (NULL → empty cell).
+- `listEnumeration` is `cf_item.list_enumeration` as-is (NULL → empty cell).
+- `license` resolves `cf_item.cf_license_id` to `cf_license.title` (NULL → empty cell). Same FK → JOIN pattern as CFItemType. **Round-trip caveat**: only `title` is emitted, so `license_text` / `description` aren't in the CSV. Same caveats as CFItemType for re-import into another tenant.
+- `statusStartDate` emits `cf_item.status_start_date` as `YYYY-MM-DD` (NULL → empty cell).
+- `statusEndDate` emits `cf_item.status_end_date` as `YYYY-MM-DD` (NULL → empty cell).
+- **`cf_association_grouping` round-trip caveat**: `cf_association_grouping` is not emitted at all (no CSV column). Rows created by external CASE imports are entirely lost when exporting and importing into a different tenant. Within the same tenant, the tenant-owned lookup row stays in the DB, so updates aren't affected. For cross-tenant data migration, use external CASE imports instead of CSV.
+
+### OpenSALT-format export
+
+> See [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md) for differences from OpenSALT's actual format.
+
+- Metadata rows use the same rule as the custom format (`#title`, `#version`, …, `#subject` order; only non-NULL, non-empty fields).
+- Header: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of` (12 columns).
+- Column mapping:
+  - `Identifier` → `cf_item.identifier`.
+  - `Full Statement` → `cf_item.full_statement`.
+  - `Human Coding Scheme` → `cf_item.human_coding_scheme` (NULL → empty).
+  - `Abbreviated Statement` → `cf_item.abbreviated_statement` (NULL → empty).
+  - `Concept Keywords` → JSONB array as comma-separated (same as custom).
+  - `Education Level` → JSONB array as comma-separated (same as custom).
+  - `CF Item Type` → `cf_item_type.title` (NULL → empty).
+  - `Language` → `cf_item.language` (NULL → empty).
+  - `License` → always empty (OpenSALT manages license at the document level; the item-level cell is not used).
+  - `Is Child Of` → parent's identifier (same logic as custom format `parentIdentifier`; root → empty).
+  - `Sequence Number` → the isChildOf association's `sequence_number` (same logic as custom format `sequenceNumber`).
+  - `Is Part Of` → the CFDocument `identifier` (same value for every row).
+- Sort order: same as the custom format (depth-first; see "Sort order" below).
+- Round-trip caveats: same as the custom format. The `License` column is always empty, so item-level `cf_license_id` is lost in round-trip. Document-level license is preserved via the `#license` metadata row.
+
+### Sort order
+
+Tree depth-first order:
+1. Root-level items sorted by `sequence_number` ASC (items whose isChildOf parent is the CFDocument).
+2. For each item, insert its children recursively in `sequence_number` ASC.
+3. Items whose isChildOf `sequence_number` is NULL go last among the same parent's children.
+4. When `sequence_number` ties, use `human_coding_scheme` natural sort (numeric parts compared numerically; e.g., `"A-2"` < `"A-10"`. Python `natsort.natsorted()` defaults — `alg=natsort.ns.DEFAULT`. No locale-dependent sort like `humansorted` / `os_sorted`. NULL last).
+5. When that also ties, use `identifier` lexicographic.
+6. Orphan items (no isChildOf) are placed after the normal root items. Orphans are sorted by `human_coding_scheme` natural sort → `identifier` lexicographic (same as the tree view's orphan order).
+
+---
+
+# インポート/エクスポート ビジネスロジック（日本語）
 
 **エラー・警告メッセージの言語:** 本ドキュメント内のエラーメッセージ・警告メッセージは**英語で統一**している（CASE API・Admin API の他のエラーメッセージと一致）。説明文（エラーの条件・動作の解説）は日本語で記載している。
 
