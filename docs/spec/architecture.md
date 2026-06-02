@@ -45,7 +45,9 @@ The CLI connects directly to PostgreSQL using `DATABASE_URL` (env var or `.env` 
 
 ## Background and differentiation
 
-The current de facto CASE implementation is **OpenSALT** (an OSS project by PCG Education), but it only supports CASE v1.0. This project differentiates itself as a modern implementation that targets CASE v1.1. Importing frameworks published in OpenSALT instances is also an important capability.
+The current de facto CASE implementation is **OpenSALT** (an OSS project by PCG Education). Its latest stable release (3.2.0, September 2023) targets CASE v1.0; CASE v1.1 work is in progress on the `develop` branch but is not yet released as of mid-2026. OpenSALT is a full-featured framework editor.
+
+COMPEITO takes a complementary role: a lightweight Python / FastAPI **API distribution server** that ships CASE v1.1 conformance today, with multi-tenancy and bilingual (English / Japanese) UI, CLI, and docs. It is intended as a competency reference endpoint for systems such as Open Badge Factory and QTI Testing. Importing frameworks published in OpenSALT instances is a first-class capability.
 
 ## Referenced specifications
 
@@ -121,9 +123,9 @@ CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreS
 
 ## 背景・差別化
 
-現在のデファクトCASE実装は **OpenSALT** (PCG Education製OSS) だが CASE v1.0 止まり。
-本プロジェクトは CASE v1.1 対応の現代的な実装として差別化する。
-OpenSALT で公開されているフレームワークをインポートできることも重要な価値。
+CASE 実装のデファクトスタンダードは **OpenSALT** (PCG Education 製 OSS)。現行の安定リリース (3.2.0、2023 年 9 月) は CASE v1.0 対応で、`develop` ブランチで CASE v1.1 対応の作業が進行中（2026 年中盤時点で未リリース）。OpenSALT はフレームワーク編集機能を備えたフル機能ツール。
+
+本プロジェクトは補完的な役割を担う: 軽量な Python / FastAPI ベースの **API 配信サーバー**として CASE v1.1 を正式リリースで提供し、マルチテナント・英日両対応の UI / CLI / ドキュメントを備える。Open Badge Factory や QTI Testing 等のコンピテンシー参照先として連携することを目指す。OpenSALT インスタンスで公開されたフレームワークをインポートできることも重要な価値。
 
 ## 参照仕様
 
