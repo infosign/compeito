@@ -799,9 +799,7 @@ class TestUriContentNegotiation:
             headers={"Accept": "application/json"},
         )
         assert resp.status_code == 303
-        assert resp.headers["location"] == (
-            f"/{tenant.id}/ims/case/v1p1/CFDocuments/{sample_document.identifier}"
-        )
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFDocuments/{sample_document.identifier}")
 
     async def test_json_accept_redirects_item(
         self,
@@ -827,9 +825,7 @@ class TestUriContentNegotiation:
             headers={"Accept": "application/json"},
         )
         assert resp.status_code == 303
-        assert resp.headers["location"] == (
-            f"/{tenant.id}/ims/case/v1p1/CFItems/{item.identifier}"
-        )
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFItems/{item.identifier}")
 
     async def test_jsonld_accept_redirects(
         self,
@@ -866,9 +862,7 @@ class TestUriContentNegotiation:
             headers={"Accept": "application/json"},
         )
         assert resp.status_code == 303
-        assert resp.headers["location"] == (
-            f"/{tenant.id}/ims/case/v1p1/CFItemTypes/{item_type.identifier}"
-        )
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFItemTypes/{item_type.identifier}")
 
     async def test_html_accept_returns_html(
         self,
@@ -895,10 +889,7 @@ class TestUriContentNegotiation:
         resp = await db_client.get(
             f"/{tenant.id}/uri/{sample_document.identifier}",
             headers={
-                "Accept": (
-                    "text/html,application/xhtml+xml,"
-                    "application/xml;q=0.9,*/*;q=0.8"
-                ),
+                "Accept": ("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
             },
         )
         assert resp.status_code == 200
