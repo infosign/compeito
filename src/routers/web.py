@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,37 @@ templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
 
 CACHE_CONTROL = "public, max-age=3600"
 CACHE_CONTROL_FRAGMENT = "public, max-age=86400"
+
+# Map UriResult.resource_type to the CASE v1.1 API path segment.
+# Resource types without an individual API endpoint (CFRubricCriterion,
+# CFRubricCriterionLevel — nested only inside CFRubrics) are absent.
+_RESOURCE_TYPE_TO_API_PATH: dict[str, str] = {
+    "CFDocument": "CFDocuments",
+    "CFItem": "CFItems",
+    "CFAssociation": "CFAssociations",
+    "CFAssociationGrouping": "CFAssociationGroupings",
+    "CFConcept": "CFConcepts",
+    "CFItemType": "CFItemTypes",
+    "CFLicense": "CFLicenses",
+    "CFSubject": "CFSubjects",
+    "CFRubric": "CFRubrics",
+}
+
+
+def _prefers_json(accept_header: str) -> bool:
+    """Return True if the Accept header signals a JSON API consumer.
+
+    Heuristic tuned for CASE clients (e.g., Open Badge Factory):
+    - Accept contains application/json or application/ld+json AND does NOT
+      include text/html → treat as JSON consumer.
+    - Browsers (text/html present) and unspecified Accept fall through to HTML.
+    """
+    if not accept_header:
+        return False
+    accept = accept_header.lower()
+    has_json = "application/json" in accept or "application/ld+json" in accept
+    has_html = "text/html" in accept
+    return has_json and not has_html
 
 
 def _get_lang(request: Request) -> str:
@@ -200,8 +231,16 @@ async def uri_detail(
     resource_id: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
-) -> HTMLResponse:
-    """Resource detail page (/uri/{uuid})."""
+) -> Response:
+    """Resource detail page (/uri/{uuid}).
+
+    Content negotiation:
+    - Browsers (Accept includes text/html) → HTML detail page.
+    - JSON API consumers (e.g., Open Badge Factory) → 303 See Other to the
+      matching CASE v1.1 API endpoint. Resource types without an individual
+      API endpoint (CFRubricCriterion / CFRubricCriterionLevel) fall through
+      to HTML.
+    """
     lang = _get_lang(request)
     t = get_translator(lang)
     # Validate tenant
@@ -234,6 +273,13 @@ async def uri_detail(
     )
     if result is None:
         return _error_response(request, 404, t("error_not_found"))
+
+    # Content negotiation: redirect JSON consumers to the CASE API endpoint.
+    if _prefers_json(request.headers.get("accept", "")):
+        api_path = _RESOURCE_TYPE_TO_API_PATH.get(result.resource_type)
+        if api_path is not None:
+            redirect_url = f"/{tenant}/ims/case/v1p1/{api_path}/{res_uuid}"
+            return RedirectResponse(url=redirect_url, status_code=303)
 
     # Fetch rubrics for CFDocument, referring criteria for CFItem
     rubrics = []
