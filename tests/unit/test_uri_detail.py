@@ -782,3 +782,176 @@ class TestUriSecurityUrls:
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
         assert 'href="javascript:' not in resp.text
         assert "javascript:alert(1)" not in resp.text
+
+
+class TestUriContentNegotiation:
+    """Accept-based content negotiation on /uri/{uuid} (Issue #151)."""
+
+    async def test_json_accept_redirects_document(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{sample_document.identifier}",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 303
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFDocuments/{sample_document.identifier}")
+
+    async def test_json_accept_redirects_item(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/item",
+            full_statement="Some statement",
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{item.identifier}",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 303
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFItems/{item.identifier}")
+
+    async def test_jsonld_accept_redirects(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{sample_document.identifier}",
+            headers={"Accept": "application/ld+json"},
+        )
+        assert resp.status_code == 303
+
+    async def test_lookup_resource_redirects(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+    ):
+        item_type = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/type",
+            title="Knowledge",
+            type_code="KN",
+            last_change_date_time=NOW,
+        )
+        db_session.add(item_type)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{item_type.identifier}",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 303
+        assert resp.headers["location"] == (f"/{tenant.id}/ims/case/v1p1/CFItemTypes/{item_type.identifier}")
+
+    async def test_html_accept_returns_html(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{sample_document.identifier}",
+            headers={"Accept": "text/html"},
+        )
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+
+    async def test_browser_accept_returns_html(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A typical browser Accept (text/html + */*) MUST return HTML."""
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{sample_document.identifier}",
+            headers={
+                "Accept": ("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+            },
+        )
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+
+    async def test_wildcard_accept_returns_html(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{sample_document.identifier}",
+            headers={"Accept": "*/*"},
+        )
+        assert resp.status_code == 200
+
+    async def test_rubric_criterion_falls_through_to_html(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """CFRubricCriterion has no individual CASE API endpoint — keep HTML."""
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="R",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            category="C",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/{criterion.identifier}",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+
+    async def test_missing_resource_with_json_accept_returns_404(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+    ):
+        """Unknown UUID with JSON Accept MUST 404, not 303 to a dead URL."""
+        resp = await db_client.get(
+            f"/{tenant.id}/uri/99999999-9999-9999-9999-999999999999",
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code == 404
