@@ -237,100 +237,101 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
 Fetches every resource under a document in one shot.
 
 **Response (200):**
+
+The response is a `CFPackageDType` returned at the top level (no `CFPackage` wrapper) — matches CASE v1.1 spec and OpenSALT.
+
 ```json
 {
-  "CFPackage": {
-    "CFDocument": {
-      "identifier": "d86774f2-...",
-      "uri": "https://...",
-      "title": "高等学校学習指導要領",
-      "creator": "文部科学省",
-      "publisher": "文部科学省",
-      "description": "高等学校学習指導要領（平成30年告示）",
-      "frameworkType": null,
-      "caseVersion": null,
+  "CFDocument": {
+    "identifier": "d86774f2-...",
+    "uri": "https://...",
+    "title": "高等学校学習指導要領",
+    "creator": "文部科学省",
+    "publisher": "文部科学省",
+    "description": "高等学校学習指導要領（平成30年告示）",
+    "frameworkType": null,
+    "caseVersion": null,
+    "language": "ja",
+    "version": "1.0",
+    "adoptionStatus": "Adopted",
+    "statusStartDate": "2018-03-30",
+    "statusEndDate": null,
+    "licenseURI": null,
+    "officialSourceURL": "https://www.mext.go.jp/...",
+    "subject": ["国語", "地理歴史", "公民"],
+    "subjectURI": [
+      {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
+      {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
+      {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+    ],
+    "lastChangeDateTime": "2025-10-08T12:00:00Z"
+  },
+  "CFItems": [
+    {
+      "identifier": "e97885g3-...",
+      "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
+      "fullStatement": "国語",
+      "humanCodingScheme": "A",
+      "abbreviatedStatement": null,
+      "conceptKeywords": null,
+      "conceptKeywordsURI": null,
+      "educationLevel": ["10", "11", "12"],
+      "subject": null,
+      "subjectURI": null,
+      "CFItemType": "知識及び技能",
+      "CFItemTypeURI": {"title": "知識及び技能", "identifier": "fff-...", "uri": "https://..."},
       "language": "ja",
-      "version": "1.0",
-      "adoptionStatus": "Adopted",
-      "statusStartDate": "2018-03-30",
-      "statusEndDate": null,
       "licenseURI": null,
-      "officialSourceURL": "https://www.mext.go.jp/...",
-      "subject": ["国語", "地理歴史", "公民"],
-      "subjectURI": [
-        {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
-        {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
-        {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
-      ],
+      "statusStartDate": null,
+      "statusEndDate": null,
+      "listEnumeration": null,
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
-    },
-    "CFItems": [
-      {
-        "identifier": "e97885g3-...",
-        "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
-        "fullStatement": "国語",
-        "humanCodingScheme": "A",
-        "abbreviatedStatement": null,
-        "conceptKeywords": null,
-        "conceptKeywordsURI": null,
-        "educationLevel": ["10", "11", "12"],
-        "subject": null,
-        "subjectURI": null,
-        "CFItemType": "知識及び技能",
-        "CFItemTypeURI": {"title": "知識及び技能", "identifier": "fff-...", "uri": "https://..."},
-        "language": "ja",
-        "licenseURI": null,
-        "statusStartDate": null,
-        "statusEndDate": null,
-        "listEnumeration": null,
-        "lastChangeDateTime": "2025-10-08T12:00:00Z"
-      }
-    ],
-    "CFAssociations": [
-      {
-        "identifier": "aaa11111-...",
-        "uri": "https://case.example.com/550e8400-.../uri/aaa11111-...",
-        "associationType": "isChildOf",
-        "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://...", "targetType": null},
-        "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://...", "targetType": null},
-        "sequenceNumber": 10,
-        "CFAssociationGroupingURI": null,
-        "lastChangeDateTime": "2025-10-08T12:00:00Z"
-      }
-    ],
-    "CFDefinitions": {
-      "CFItemTypes": [
-        {
-          "identifier": "fff-...",
-          "uri": "https://...",
-          "title": "知識及び技能",
-          "description": null,
-          "typeCode": null,
-          "hierarchyCode": null,
-          "lastChangeDateTime": "2025-10-08T12:00:00Z"
-        }
-      ],
-      "CFSubjects": [
-        {
-          "identifier": "aaa-...",
-          "uri": "https://...",
-          "title": "国語",
-          "description": null,
-          "hierarchyCode": null,
-          "lastChangeDateTime": "2025-10-08T12:00:00Z"
-        }
-      ],
-      "CFLicenses": [
-        {
-          "identifier": "lic11111-...",
-          "uri": "https://...",
-          "title": "CC BY 4.0",
-          "description": null,
-          "licenseText": null,
-          "lastChangeDateTime": "2025-10-08T12:00:00Z"
-        }
-      ]
     }
+  ],
+  "CFAssociations": [
+    {
+      "identifier": "aaa11111-...",
+      "uri": "https://case.example.com/550e8400-.../uri/aaa11111-...",
+      "associationType": "isChildOf",
+      "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://...", "targetType": null},
+      "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://...", "targetType": null},
+      "sequenceNumber": 10,
+      "CFAssociationGroupingURI": null,
+      "lastChangeDateTime": "2025-10-08T12:00:00Z"
+    }
+  ],
+  "CFDefinitions": {
+    "CFItemTypes": [
+      {
+        "identifier": "fff-...",
+        "uri": "https://...",
+        "title": "知識及び技能",
+        "description": null,
+        "typeCode": null,
+        "hierarchyCode": null,
+        "lastChangeDateTime": "2025-10-08T12:00:00Z"
+      }
+    ],
+    "CFSubjects": [
+      {
+        "identifier": "aaa-...",
+        "uri": "https://...",
+        "title": "国語",
+        "description": null,
+        "hierarchyCode": null,
+        "lastChangeDateTime": "2025-10-08T12:00:00Z"
+      }
+    ],
+    "CFLicenses": [
+      {
+        "identifier": "lic11111-...",
+        "uri": "https://...",
+        "title": "CC BY 4.0",
+        "description": null,
+        "licenseText": null,
+        "lastChangeDateTime": "2025-10-08T12:00:00Z"
+      }
+    ]
   }
 }
 ```
