@@ -32,8 +32,9 @@ class TestGetCFPackageBasic:
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
         assert response.status_code == 200
         body = response.json()
-        assert "CFPackage" in body
-        pkg = body["CFPackage"]
+        # CASE v1.1: CFPackageDType returned at top level (no "CFPackage" wrapper)
+        pkg = body
+        assert "CFPackage" not in pkg
         # CFDocument present (CFPckgDocumentDType — no CFPackageURI)
         assert "CFDocument" in pkg
         assert pkg["CFDocument"]["identifier"] == DOC_IDENTIFIER
@@ -198,7 +199,7 @@ class TestGetCFPackageFull:
     ) -> None:
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
         assert response.status_code == 200
-        pkg = response.json()["CFPackage"]
+        pkg = response.json()
 
         # CFDocument — no CFPackageURI
         doc = pkg["CFDocument"]
@@ -258,7 +259,7 @@ class TestGetCFPackageFull:
         await db_session.flush()
 
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
-        defs = response.json()["CFPackage"]["CFDefinitions"]
+        defs = response.json()["CFDefinitions"]
         type_titles = [t["title"] for t in defs["CFItemTypes"]]
         assert "Unused Type" not in type_titles
 
@@ -289,7 +290,7 @@ class TestGetCFPackageFull:
         await db_session.flush()
 
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
-        items = response.json()["CFPackage"]["CFItems"]
+        items = response.json()["CFItems"]
         identifiers = [i["identifier"] for i in items]
         assert identifiers == sorted(identifiers)
 
@@ -327,7 +328,7 @@ class TestGetCFPackageFull:
         await db_session.flush()
 
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
-        defs = response.json()["CFPackage"]["CFDefinitions"]
+        defs = response.json()["CFDefinitions"]
         assert "CFItemTypes" in defs
         # These should NOT be present since nothing references them
         assert "CFConcepts" not in defs

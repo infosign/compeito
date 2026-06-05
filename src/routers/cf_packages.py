@@ -23,5 +23,8 @@ async def get_cf_package(
     package = await cf_view_service.get_cf_package(session, tenant_obj.id, doc_uuid)
     if package is None:
         raise ResourceNotFoundError(f"CFPackage not found: '{id}'")
-    content = {"CFPackage": package.model_dump(by_alias=True)}
+    # CASE v1.1: GET CFPackages/{id} returns a CFPackageDType — CFDocument,
+    # CFItems, CFAssociations, CFDefinitions, CFRubrics at the top level. No
+    # "CFPackage" wrapper (matches the spec and reference servers like OpenSALT).
+    content = package.model_dump(by_alias=True)
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

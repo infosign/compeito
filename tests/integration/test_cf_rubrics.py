@@ -315,7 +315,7 @@ class TestCFPackageWithRubrics:
     ) -> None:
         """CFPackage always includes CFRubrics as empty array."""
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
-        pkg = response.json()["CFPackage"]
+        pkg = response.json()
         assert "CFRubrics" in pkg
         assert pkg["CFRubrics"] == []
 
@@ -328,7 +328,7 @@ class TestCFPackageWithRubrics:
     ) -> None:
         """CFPackage includes rubrics with nested criteria and levels."""
         response = await db_client.get(f"{CASE_PATH}/CFPackages/{DOC_IDENTIFIER}")
-        pkg = response.json()["CFPackage"]
+        pkg = response.json()
         assert len(pkg["CFRubrics"]) == 1
         rubric = pkg["CFRubrics"][0]
         assert rubric["identifier"] == RUBRIC_IDENTIFIER
