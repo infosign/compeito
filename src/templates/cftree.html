@@ -51,8 +51,8 @@
         </div>
     </div>
 
-    {# Right pane: detail (hidden on mobile) #}
-    <div id="detail-pane" class="hidden md:block md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow-sm border border-stone-200 p-6" style="max-height: 80vh; overflow-y: auto;">
+    {# Right pane: detail (stacks below tree on mobile) #}
+    <div id="detail-pane" class="w-full md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow-sm border border-stone-200 p-6 md:overflow-y-auto md:max-h-[80vh]">
         {% if selected_item %}
             {% with tenant_id=tenant_id %}
                 {% include "fragments/detail.html" %}

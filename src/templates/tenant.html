@@ -12,7 +12,23 @@
 
 {% block content %}
 {% if documents %}
-<div class="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
+{# Mobile: card list #}
+<ul class="md:hidden space-y-3">
+    {% for item in documents %}
+    <li>
+        <a href="/{{ tenant.id }}/cftree/doc/{{ item.doc.identifier }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 px-4 py-3 hover:shadow-md hover:border-violet-200 transition-all">
+            <div class="text-violet-600 font-medium break-words">{{ item.doc.title }}</div>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
+                <time datetime="{{ item.doc.last_change_date_time.isoformat() }}">{{ item.doc.last_change_date_time.strftime('%Y-%m-%d %H:%M') }}</time>
+                <span>{{ t("item_count") }}: {{ item.item_count }}</span>
+                <span>{{ t("rubrics") }}: {{ item.rubric_count }}</span>
+            </div>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+{# Desktop: table #}
+<div class="hidden md:block bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
     <table class="min-w-full divide-y divide-stone-200">
         <thead class="bg-violet-50/50">
             <tr>
