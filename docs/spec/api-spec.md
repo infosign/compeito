@@ -303,10 +303,21 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
 
 ## Content negotiation
 
-**No content negotiation.** CloudFront ignores `Accept` for cache lookups, so HTML/JSON could be mixed by accident.
-- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*`, `/{tenant}/uri/{uuid}` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/children/*`, `/detail/*`) are HTML too.
+- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/children/*`, `/detail/*`) are HTML too.
+- `/{tenant}/uri/{uuid}` → Accept-based negotiation (see below).
 - CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → always JSON (`Content-Type: application/json`).
 - Admin API: → always JSON (`Content-Type: application/json`).
+
+### `/{tenant}/uri/{uuid}` content negotiation
+
+`/{tenant}/uri/{uuid}` is the canonical URI returned in `LinkURIDType.uri`. CASE clients (e.g., Open Badge Factory) fetch it to obtain JSON, while browsers expect a human-readable page. The handler inspects the `Accept` request header:
+
+- Contains `application/json` or `application/ld+json` AND does NOT contain `text/html` → **303 See Other** redirect to the matching CASE API endpoint (e.g., CFItem → `/{tenant}/ims/case/v1p1/CFItems/{uuid}`).
+- Otherwise (browsers, `*/*`, or absent Accept) → HTML detail page.
+
+Resource types without an individual CASE API endpoint (`CFRubricCriterion`, `CFRubricCriterionLevel`) always serve HTML.
+
+When `Accept`-based variants matter for caches, the response should also vary on `Accept`. CloudFront currently ignores `Accept` for cache key lookups, so deployments behind a shared cache must whitelist `Accept` (or split the URIs by path suffix) before relying on the negotiated response.
 
 ---
 
@@ -616,8 +627,18 @@ CASE v1.1 情報モデルで定義されている標準値:
 
 ## コンテントネゴシエーション
 
-**コンテントネゴシエーションは使わない。** CloudFrontがAcceptヘッダーを無視して
-キャッシュするため、HTML/JSONが混在するリスクがある。
-- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*`, `/{tenant}/uri/{uuid}` → 常にHTML（`Content-Type: text/html; charset=utf-8`）。HTMX フラグメント（`/children/*`, `/detail/*`）も HTML
-- CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → 常にJSON（`Content-Type: application/json`）
-- Admin API: → 常にJSON（`Content-Type: application/json`）
+- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → 常に HTML（`Content-Type: text/html; charset=utf-8`）。HTMX フラグメント（`/children/*`, `/detail/*`）も HTML
+- `/{tenant}/uri/{uuid}` → Accept ヘッダによるネゴシエーション（下記参照）
+- CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → 常に JSON（`Content-Type: application/json`）
+- Admin API: → 常に JSON（`Content-Type: application/json`）
+
+### `/{tenant}/uri/{uuid}` のコンテントネゴシエーション
+
+`/{tenant}/uri/{uuid}` は `LinkURIDType.uri` で返される正規 URI であり、CASE クライアント（Open Badge Factory 等）は JSON 取得のためこの URI を直接 fetch する。一方、ブラウザは人間向けページを期待する。そのためハンドラは `Accept` リクエストヘッダを参照する:
+
+- `application/json` または `application/ld+json` を含み、かつ `text/html` を含まない → 該当する CASE API エンドポイント（例: CFItem → `/{tenant}/ims/case/v1p1/CFItems/{uuid}`）へ **303 See Other** リダイレクト
+- それ以外（ブラウザ、`*/*`、Accept 未指定）→ HTML 詳細ページ
+
+CASE API エンドポイントを持たないリソース種別（`CFRubricCriterion`、`CFRubricCriterionLevel`）は常に HTML を返す。
+
+Accept 別レスポンスをキャッシュ層に正しく反映させたい場合は、レスポンスを `Accept` でバリエーション分けする必要がある。CloudFront は現状 `Accept` をキャッシュキーに含めないため、共有キャッシュ配下で本ネゴシエーション結果に依存する場合は `Accept` ホワイトリスト化、または別パス分割を事前に検討すること。
