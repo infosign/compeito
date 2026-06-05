@@ -553,6 +553,10 @@ async def import_case_package(
 ) -> CaseImportReport:
     """Import an external CASE v1.1 CFPackage into the database.
 
+    Fetches the CFPackage from ``url`` and imports it. To import an
+    already-fetched package without any network access, use
+    :func:`import_case_from_dict`.
+
     Args:
         session: Async database session (caller manages transaction).
         tenant_id: Target tenant UUID.
@@ -562,15 +566,51 @@ async def import_case_package(
     Returns:
         CaseImportReport with counts and warnings.
     """
+    data, fetch_warnings = await fetch_cf_package(url)
+    return await import_case_from_dict(
+        session,
+        tenant_id,
+        data,
+        doc_identifier=doc_identifier,
+        source_url=url,
+        fetch_warnings=fetch_warnings,
+    )
+
+
+async def import_case_from_dict(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    data: dict,
+    *,
+    doc_identifier: uuid.UUID | None = None,
+    source_url: str = "",
+    fetch_warnings: list[str] | None = None,
+) -> CaseImportReport:
+    """Import an already-fetched CASE v1.1 CFPackage dict into the database.
+
+    Identical to :func:`import_case_package` minus the network fetch — import a
+    CFPackage obtained from any source (a file, a test fixture, or a payload
+    fetched elsewhere). The fetch/import split keeps the network boundary out of
+    the persistence logic.
+
+    Args:
+        session: Async database session (caller manages transaction).
+        tenant_id: Target tenant UUID.
+        data: The CFPackage JSON as a dict (v1.0 or v1.1).
+        doc_identifier: Optional existing document UUID to update.
+        source_url: Original URL; used only for v1.0 detection/normalization.
+        fetch_warnings: Warnings collected during fetching, prepended to the report.
+
+    Returns:
+        CaseImportReport with counts and warnings.
+    """
     report = CaseImportReport()
     now = _now_utc()
-
-    # Step 1: Fetch CFPackage
-    data, fetch_warnings = await fetch_cf_package(url)
-    report.warnings.extend(fetch_warnings)
+    if fetch_warnings:
+        report.warnings.extend(fetch_warnings)
 
     # Step 1.5: Normalize v1.0 → v1.1
-    data = _normalize_v1p0_package(data, url, report.warnings)
+    data = _normalize_v1p0_package(data, source_url, report.warnings)
 
     # Step 2: Validate
     pkg = _validate_cf_package(data)
