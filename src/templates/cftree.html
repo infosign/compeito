@@ -27,8 +27,8 @@
 
 {% block content %}
 <div class="flex flex-col md:flex-row gap-6">
-    {# Left pane: tree #}
-    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto" style="max-height: 80vh;">
+    {# Left pane: tree (shorter on mobile so detail pane peeks below) #}
+    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]">
         <div class="p-4 border-b border-stone-200">
             <div class="font-medium text-gray-800">{{ doc.title }}</div>
             <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
