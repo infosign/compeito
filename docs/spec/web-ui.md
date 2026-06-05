@@ -24,7 +24,7 @@
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | Tree view (Levels 1–2 SSR, Levels 3+ lazy-loaded via HTMX). |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | HTML fragment of child items (for HTMX). |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | HTML fragment of an item's detail (for the HTMX right pane). |
-| GET /{tenant-uuid}/uri/{uuid} | Resource detail page (HTML, fixed). |
+| GET /{tenant-uuid}/uri/{uuid} | Resource detail page (HTML by default; **303 See Other** to the matching CASE API endpoint when the `Accept` header signals a JSON client — see [api-spec.md](api-spec.md#tenanturiuuid-content-negotiation)). |
 
 ## Tree view (`/cftree/doc/{doc-uuid}`)
 
@@ -95,6 +95,8 @@ Including `{doc-uuid}` in the children path lets CloudFront invalidate `/{tenant
 
 A public page linked from external systems such as Open Badge Factory. Use OpenSALT's `/uri/{uuid}` page as a reference, with a modern Tailwind CSS default look.
 Hide fields with no value (omit the whole row). "No value" means `null`, an empty string `""`, or an empty array `[]`. JSONB array fields (`educationLevel`, `conceptKeywords`, `subject`, etc.) are also hidden for `null` or `[]`.
+
+**Content negotiation:** the same URL doubles as the JSON identifier for CASE clients. When the request's `Accept` header signals a JSON consumer (contains `application/json` or `application/ld+json` AND does not contain `text/html`), the handler responds with **303 See Other** pointing to the matching CASE API endpoint (e.g., CFItem → `/{tenant}/ims/case/v1p1/CFItems/{uuid}`). Otherwise the HTML page below is served. Resource types without an individual CASE API endpoint (CFRubricCriterion / CFRubricCriterionLevel) always serve HTML. See [api-spec.md](api-spec.md#tenanturiuuid-content-negotiation) for details.
 
 **Security:** URL fields (`uri`, `officialSourceURL`, the `uri` field in LinkURIDType, etc.) are rendered as clickable links **only** when the scheme is `http:` / `https:`. Other schemes (e.g., `javascript:`, `data:`) are rendered as plain text (to prevent XSS). All text fields are HTML-escaped via Jinja2 autoescaping.
 
@@ -312,7 +314,7 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | ツリービュー (Level 1-2をSSR、Level 3+はHTMX遅延ロード) |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | 子アイテムHTMLフラグメント (HTMX用) |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | アイテム詳細HTMLフラグメント (HTMX右ペイン用) |
-| GET /{tenant-uuid}/uri/{uuid} | リソース詳細ページ (HTML固定) |
+| GET /{tenant-uuid}/uri/{uuid} | リソース詳細ページ（デフォルトは HTML。`Accept` が JSON クライアントを示す場合は該当 CASE API エンドポイントへ **303 See Other**。詳細は [api-spec.md](api-spec.md#tenanturiuuid-のコンテントネゴシエーション) を参照） |
 
 ## ツリービュー (`/cftree/doc/{doc-uuid}`)
 
@@ -384,6 +386,8 @@ childrenパスに `{doc-uuid}` を含めることで、CloudFrontのワイルド
 Open Badge Factory 等の外部システムからリンクされる公開ページ。
 OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tailwind CSS のデフォルトスタイルでモダンに仕上げる。
 値がないフィールドは非表示（行ごと省略）。「値がない」の定義: `null`、空文字列 `""`、空配列 `[]` のいずれも非表示とする。JSONB 配列フィールド（`educationLevel`, `conceptKeywords`, `subject` 等）は `null` でも `[]` でも行を表示しない。
+
+**コンテントネゴシエーション:** この URL は CASE クライアント向けの JSON 識別子も兼ねる。リクエストの `Accept` ヘッダが JSON クライアント（`application/json` または `application/ld+json` を含み、かつ `text/html` を含まない）を示す場合、該当する CASE API エンドポイント（例: CFItem → `/{tenant}/ims/case/v1p1/CFItems/{uuid}`）へ **303 See Other** リダイレクトを返す。それ以外は本セクションで定義する HTML ページを返す。CASE API エンドポイントを持たないリソース種別（CFRubricCriterion / CFRubricCriterionLevel）は常に HTML を返す。詳細は [api-spec.md](api-spec.md#tenanturiuuid-のコンテントネゴシエーション) を参照。
 
 **セキュリティ:** URL として表示するフィールド（`uri`, `officialSourceURL`, LinkURIDType 内の `uri` 等）は、`http:` / `https:` スキームの場合のみクリック可能なリンクとして描画する。それ以外のスキーム（`javascript:`, `data:` 等）はプレーンテキストとして表示する（XSS 防止）。全テキストフィールドは Jinja2 の autoescaping で HTML エスケープする。
 
