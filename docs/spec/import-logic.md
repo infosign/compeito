@@ -171,7 +171,8 @@ Persist parent–child relationships as `isChildOf` CFAssociation rows.
 - `last_change_date_time` = the import-time UTC timestamp.
 
 **Existing associations on upsert:**
-- Updating an existing document (`--doc` specified, or OpenSALT `Is Part Of` matched an existing document): **delete all** existing `isChildOf` associations of that document, then regenerate. If the CSV has 0 data rows (including all-skipped), existing `isChildOf` rows are still deleted (the tree structure is lost). If the document had at least one existing `isChildOf` and we processed 0 items, emit a warning ("No items processed, but {N} existing isChildOf associations were deleted"). With 0 existing `isChildOf` rows, no warning is emitted (nothing was actually deleted).
+- Updating an existing document (`--doc` specified, OpenSALT `Is Part Of` matched, or `#identifier` matched) **with at least 1 data row**: **delete all** existing `isChildOf` associations of that document, then regenerate from the current CSV.
+- Updating an existing document **with 0 data rows** (metadata-only CSV): existing items and `isChildOf` associations are **preserved**; only CFDocument metadata (`#title`, `#subject`, etc.) is updated. A non-destructive warning is emitted ("No data rows in CSV; metadata updated, existing items and isChildOf preserved"). To intentionally wipe the tree, a future explicit `--clear-items` flag is the planned entry point; until then no implicit wipe path exists. This safety carve-out is especially relevant for `#identifier`, which makes triggering an update with a metadata-only CSV trivially easy.
 - New document: just generate. With 0 items processed, an empty document is created and a warning is emitted ("No items processed, empty document created").
 
 ### Step 8: depth computation
@@ -736,7 +737,8 @@ CSVの `CFItemType` 列・`license` 列・メタデータ `#subject`・メタデ
 - `last_change_date_time` = インポート実行時のUTCタイムスタンプ
 
 **upsert時の既存Association処理:**
-- 既存ドキュメントの更新時（`--doc` 指定、または OpenSALT `Is Part Of` で既存ドキュメントにマッチした場合）: 該当ドキュメントの既存 `isChildOf` Association を**全削除**してから再生成する。CSVにデータ行が0件（全行スキップを含む）の場合も既存 isChildOf は全削除される（ツリー構造が消失する）。既存 isChildOf が 1 件以上あり、かつ処理アイテムが 0 件の場合は警告を出力する（「No items processed, but {N} existing isChildOf associations were deleted」）。既存 isChildOf が 0 件の場合は警告を出力しない（削除実績がないため）
+- 既存ドキュメントの更新時（`--doc` 指定、OpenSALT `Is Part Of` マッチ、または `#identifier` マッチ）で**データ行が 1 件以上ある場合**: 該当ドキュメントの既存 `isChildOf` Association を**全削除**してから、現 CSV から再生成する
+- 既存ドキュメントの更新時で**データ行が 0 件**（メタデータのみの CSV）の場合: 既存のアイテムと `isChildOf` Association は**保持**され、CFDocument のメタデータ（`#title` / `#subject` 等）のみが更新される。非破壊的な警告を出力する（「No data rows in CSV; metadata updated, existing items and isChildOf preserved」）。意図的にツリーを消したい場合は将来追加予定の明示フラグ `--clear-items` を入口とする。それまでは暗黙的な wipe パスを設けない。この安全策は `#identifier` が「メタデータのみの CSV で誤って update を発火させる」操作を簡単に作れるようになったことを踏まえた措置
 - 新規ドキュメント作成時: そのまま生成。処理アイテムが 0 件の場合は、空のドキュメントが作成される。この場合は警告を出力する（「No items processed, empty document created」）
 
 ### ステップ8: depth計算

@@ -1464,8 +1464,14 @@ async def import_csv(
         # (identifiers were auto-generated in _upsert_item)
 
     # Step 7: isChildOf Association generation
-    # Delete existing isChildOf if updating
-    if is_update:
+    # Delete existing isChildOf if updating — but ONLY when the CSV actually
+    # contains items to (re)build the tree from. A metadata-only CSV (no data
+    # rows) is a deliberately safe no-op for the tree: items and their
+    # isChildOf are preserved as-is, only #title / #version / #subject / etc.
+    # on the CFDocument are updated. To intentionally wipe the tree, a future
+    # explicit `--clear-items` flag is the right entry point; until then the
+    # safe-by-default behavior wins.
+    if is_update and len(upserted_items) > 0:
         result = await session.execute(
             select(CFAssociation).where(
                 CFAssociation.cf_document_id == doc.id,
@@ -1479,11 +1485,8 @@ async def import_csv(
             await session.delete(assoc)
         await session.flush()
         report.existing_is_child_of_deleted = existing_count
-
-        if existing_count > 0 and len(upserted_items) == 0:
-            report.warnings.append(
-                f"No items processed, but {existing_count} existing isChildOf associations were deleted"
-            )
+    elif is_update and len(upserted_items) == 0:
+        report.warnings.append("No data rows in CSV; metadata updated, existing items and isChildOf preserved")
     elif len(upserted_items) == 0:
         report.warnings.append("No items processed, empty document created")
 
