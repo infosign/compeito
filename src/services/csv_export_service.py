@@ -380,10 +380,13 @@ async def export_opensalt_csv(
 
 def _write_metadata(writer: csv.writer, doc: CFDocument) -> None:
     """Write metadata rows in the specified order."""
-    # Order: title, version, creator, publisher, description, language,
-    # adoption_status, status_start_date, status_end_date, license,
+    # Order: identifier, title, version, creator, publisher, description,
+    # language, adoption_status, status_start_date, status_end_date, license,
     # official_source_url, subject
 
+    # #identifier is emitted first so re-importing the exported CSV preserves
+    # the CFDocument UUID (find-or-create on identifier match).
+    writer.writerow(["#identifier", str(doc.identifier)])
     if doc.title:
         writer.writerow(["#title", doc.title])
     if doc.version:
