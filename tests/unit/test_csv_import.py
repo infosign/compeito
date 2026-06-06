@@ -847,3 +847,104 @@ class TestDocumentIdentifierDirective:
         result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
         docs = list(result.scalars().all())
         assert len(docs) == 2
+
+
+class TestMetadataOnlyUpdate:
+    """Re-importing the same #identifier with NO data rows must NOT wipe the
+    document's items or isChildOf — it should only update the CFDocument's
+    metadata fields. Regression test for Codex review concern on
+    `#identifier` + empty CSV silently destroying the tree.
+    """
+
+    async def test_empty_csv_preserves_items_and_associations(self, db_session: AsyncSession, tenant: Tenant):
+        ident = "deadbeef-0000-4000-8000-000000000001"
+
+        # 1st import: full document with items + isChildOf
+        full_csv = (
+            f"#identifier,{ident}\n"
+            "#title,Original Title\n"
+            "Identifier,fullStatement,parentIdentifier\n"
+            "aaaa1111-0000-0000-0000-000000000001,Root,\n"
+            "aaaa1111-0000-0000-0000-000000000002,Child A,aaaa1111-0000-0000-0000-000000000001\n"
+            "aaaa1111-0000-0000-0000-000000000003,Child B,aaaa1111-0000-0000-0000-000000000001\n"
+        ).encode("utf-8")
+        await import_csv(db_session, tenant.id, full_csv)
+        await db_session.flush()
+
+        # Verify pre-state: 3 items + 2 isChildOf
+        items_before = list((await db_session.execute(select(CFItem).where(CFItem.tenant_id == tenant.id))).scalars())
+        assoc_before = list(
+            (await db_session.execute(select(CFAssociation).where(CFAssociation.tenant_id == tenant.id))).scalars()
+        )
+        assert len(items_before) == 3
+        # 3 isChildOf: Root→CFDocument, Child A→Root, Child B→Root
+        assert len(assoc_before) == 3
+
+        # 2nd import: same #identifier but NO data rows (metadata-only update)
+        meta_only_csv = (
+            f"#identifier,{ident}\n#title,Updated Title\nIdentifier,fullStatement,parentIdentifier\n"
+        ).encode("utf-8")
+        report = await import_csv(db_session, tenant.id, meta_only_csv)
+        await db_session.flush()
+
+        # Items and isChildOf must be intact
+        items_after = list((await db_session.execute(select(CFItem).where(CFItem.tenant_id == tenant.id))).scalars())
+        assoc_after = list(
+            (await db_session.execute(select(CFAssociation).where(CFAssociation.tenant_id == tenant.id))).scalars()
+        )
+        assert len(items_after) == 3, "Items must be preserved on empty-CSV update"
+        assert len(assoc_after) == 3, "isChildOf must be preserved on empty-CSV update"
+
+        # Metadata must be updated
+        result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
+        doc = result.scalar_one()
+        assert doc.title == "Updated Title"
+        assert str(doc.identifier) == ident
+
+        # A clear, non-destructive warning is emitted
+        assert any("preserved" in w for w in report.warnings)
+        # The previous misleading "associations were deleted" warning must NOT fire
+        assert not any("were deleted" in w for w in report.warnings)
+
+    async def test_csv_with_items_still_regenerates_associations(self, db_session: AsyncSession, tenant: Tenant):
+        """Existing 'delete-all → regenerate' behavior is preserved when the
+        CSV actually has data rows. This guards against the metadata-only
+        carve-out accidentally turning into a global behavior change.
+        """
+        ident = "deadbeef-0000-4000-8000-000000000002"
+
+        # 1st import: Root + 2 children
+        csv1 = (
+            f"#identifier,{ident}\n"
+            "#title,T\n"
+            "Identifier,fullStatement,parentIdentifier\n"
+            "bbbb2222-0000-0000-0000-000000000001,Root,\n"
+            "bbbb2222-0000-0000-0000-000000000002,Old Child,bbbb2222-0000-0000-0000-000000000001\n"
+        ).encode("utf-8")
+        await import_csv(db_session, tenant.id, csv1)
+        await db_session.flush()
+
+        # 2nd import: same root + a different child; old child not in CSV.
+        csv2 = (
+            f"#identifier,{ident}\n"
+            "#title,T\n"
+            "Identifier,fullStatement,parentIdentifier\n"
+            "bbbb2222-0000-0000-0000-000000000001,Root,\n"
+            "bbbb2222-0000-0000-0000-000000000003,New Child,bbbb2222-0000-0000-0000-000000000001\n"
+        ).encode("utf-8")
+        report = await import_csv(db_session, tenant.id, csv2)
+        await db_session.flush()
+
+        # Tree associations are regenerated from the new CSV; the old child's
+        # isChildOf is gone (existing documented behavior for non-empty CSV).
+        # 2 expected: Root→CFDocument and New Child→Root. Old Child's
+        # isChildOf→Root from the 1st import was deleted-and-not-regenerated.
+        assoc_after = list(
+            (await db_session.execute(select(CFAssociation).where(CFAssociation.tenant_id == tenant.id))).scalars()
+        )
+        assert len(assoc_after) == 2
+        origins = sorted(str(a.origin_node_identifier) for a in assoc_after)
+        assert "bbbb2222-0000-0000-0000-000000000001" in origins  # Root → doc
+        assert "bbbb2222-0000-0000-0000-000000000003" in origins  # New Child → Root
+        # Old Child's old isChildOf (2 from 1st run = Root→doc + Old Child→Root) was deleted
+        assert report.existing_is_child_of_deleted == 2
