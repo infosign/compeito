@@ -786,3 +786,64 @@ class TestLookupReuse:
         result = await db_session.execute(select(CFItem).where(CFItem.full_statement == "Item 1"))
         item = result.scalar_one()
         assert item.cf_item_type_id == pre.id
+
+
+class TestDocumentIdentifierDirective:
+    """`#identifier` metadata pins the CFDocument UUID so re-imports keep it stable."""
+
+    async def test_pinned_identifier_new_document(self, db_session: AsyncSession, tenant: Tenant):
+        ident = "abcdef12-3456-7890-abcd-ef1234567890"
+        csv = (f"#identifier,{ident}\n#title,Pinned Doc\nIdentifier,fullStatement\n,Root item\n").encode("utf-8")
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
+        doc = result.scalar_one()
+        assert str(doc.identifier) == ident
+        assert doc.title == "Pinned Doc"
+        assert not any("Unknown metadata key" in w for w in report.warnings)
+
+    async def test_pinned_identifier_reimport_updates_in_place(self, db_session: AsyncSession, tenant: Tenant):
+        ident = "11112222-3333-4444-5555-666677778888"
+        csv1 = (f"#identifier,{ident}\n#title,Original Title\nIdentifier,fullStatement\n,Item 1\n").encode("utf-8")
+        await import_csv(db_session, tenant.id, csv1)
+        await db_session.flush()
+
+        # Re-import with different title; identifier stays the same
+        csv2 = (f"#identifier,{ident}\n#title,Updated Title\nIdentifier,fullStatement\n,Item 1\n").encode("utf-8")
+        await import_csv(db_session, tenant.id, csv2)
+        await db_session.flush()
+
+        result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
+        docs = list(result.scalars().all())
+        # Must be exactly one doc (re-import updated in place, did NOT create a duplicate).
+        assert len(docs) == 1
+        assert str(docs[0].identifier) == ident
+        assert docs[0].title == "Updated Title"
+
+    async def test_invalid_identifier_warns_and_generates_uuid(self, db_session: AsyncSession, tenant: Tenant):
+        csv = ("#identifier,not-a-uuid\n#title,Doc with bad identifier\nIdentifier,fullStatement\n,Item 1\n").encode(
+            "utf-8"
+        )
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        assert any("not a valid UUID" in w for w in report.warnings)
+        result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
+        doc = result.scalar_one()
+        # A random UUID was generated, but the doc exists.
+        assert doc.title == "Doc with bad identifier"
+
+    async def test_no_identifier_generates_uuid(self, db_session: AsyncSession, tenant: Tenant):
+        """Existing behavior: when #identifier is absent, a new UUID is assigned."""
+        csv = ("#title,Doc without identifier\nIdentifier,fullStatement\n,Item 1\n").encode("utf-8")
+        await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+        # Re-import without #identifier should create a SECOND doc (since no UUID
+        # to match against), preserving the prior surprising-but-documented behavior.
+        await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        result = await db_session.execute(select(CFDocument).where(CFDocument.tenant_id == tenant.id))
+        docs = list(result.scalars().all())
+        assert len(docs) == 2
