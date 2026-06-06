@@ -91,9 +91,15 @@ Legacy `/ims/case/v1p0/` paths are redirected (301) to `/ims/case/v1p1/`.
 
 ## Background
 
-The current de facto CASE implementation is [OpenSALT](https://github.com/opensalt/opensalt) (by PCG Education). Its latest stable release (3.2.0, September 2023) targets CASE v1.0, with v1.1 work actively underway on the `develop` branch but not yet released as of mid-2026. OpenSALT is a full-featured framework editor.
+The 1EdTech CASE ecosystem has several active open-source implementations, each addressing a different slice of the workflow:
 
-COMPEITO takes a complementary approach: a lightweight Python / FastAPI **API distribution server** with CASE v1.1 conformance shipping today, multi-tenancy, and bilingual (English / Japanese) UI, CLI, and documentation. It is designed to serve as a competency reference endpoint for systems such as Open Badge Factory and QTI Testing. Importing frameworks published in OpenSALT instances is a first-class capability.
+- **[OpenCASE](https://github.com/1EdTech/OpenCASE)** — the 1EdTech reference implementation. A full platform combining a visual framework editor, Keycloak-based multi-tenant authentication, immutable version history, and a certified publishing server. A good fit for organizations that want a single integrated stack covering editing through publishing.
+
+- **[OpenSALT](https://github.com/opensalt/opensalt)** — the long-standing community implementation (by PCG Education). The latest stable release (3.2.0, September 2023) targets CASE v1.0; v1.1 work is underway on the `develop` branch. A full-featured framework editor with a large existing user base, especially around US K-12 standards.
+
+- **COMPEITO** — a lightweight, distribution-focused server developed in Japan. CASE v1.1 conformance shipping today, with English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks. A good fit when you already have an editor (OpenCASE, OpenSALT, or any CASE-conformant tool) and want a small, focused publishing component — or when you need a Japanese-language deployment of a CASE endpoint.
+
+These projects are designed to **interoperate via the CASE standard**. COMPEITO can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by COMPEITO can be consumed by any CASE-conformant client (e.g., Open Badge Factory). Importing competency frameworks from external CASE sources is a first-class capability.
 
 ## Roadmap
 
@@ -204,9 +210,15 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 ## 背景
 
-CASE 実装のデファクトスタンダードは [OpenSALT](https://github.com/opensalt/opensalt)（PCG Education 開発）です。現行の安定リリース（3.2.0、2023年9月）は CASE v1.0 対応で、`develop` ブランチで CASE v1.1 対応の作業が進行中（2026 年中盤時点で未リリース）です。OpenSALT はフレームワーク編集機能を備えたフル機能ツールです。
+1EdTech CASE のエコシステムには複数の OSS 実装が存在し、それぞれワークフローの異なる部分を担っています:
 
-COMPEITO は補完的な位置づけです: 軽量な Python / FastAPI ベースの **API 配信サーバー**として CASE v1.1 を正式リリースで提供し、マルチテナント、英日両対応の UI / CLI / ドキュメントを備えます。Open Badge Factory や QTI Testing 等のコンピテンシー参照先として連携することを目指しています。OpenSALT インスタンスで公開されたフレームワークをインポートできることも重要な価値です。
+- **[OpenCASE](https://github.com/1EdTech/OpenCASE)** — 1EdTech 公式のリファレンス実装。ビジュアルなフレームワークエディタ、Keycloak ベースのマルチテナント認証、不変なバージョン履歴、認定済み配信サーバーを一体で提供するフルプラットフォームです。編集から配信までを一つのスタックで完結させたい組織に向いています。
+
+- **[OpenSALT](https://github.com/opensalt/opensalt)** — 長年コミュニティで使われてきた実装（PCG Education 開発）。安定リリース 3.2.0 (2023 年 9 月) は CASE v1.0 対応で、v1.1 対応は `develop` ブランチで作業中です。フル機能のエディタで、米国の K-12 標準など大きな既存ユーザーベースを持ちます。
+
+- **COMPEITO** — 日本で開発される軽量・配信特化のサーバーです。CASE v1.1 を正式リリースで提供し、英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視しています。既存のエディタ（OpenCASE、OpenSALT、その他 CASE 準拠ツール）と組み合わせて配信を担当させたい場合や、日本語環境に CASE エンドポイントを設けたい場合に向いています。
+
+これらは **CASE 標準を介して相互運用すること** を前提に設計されています。COMPEITO は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、また COMPEITO が公開するフレームワークは CASE 準拠の任意のクライアント（例: Open Badge Factory）から参照可能です。外部 CASE ソースからのインポートは中核機能の一つです。
 
 ## ロードマップ
 
