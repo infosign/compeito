@@ -159,6 +159,45 @@ Re-export and re-run `import case-file` with the same `--tenant`. COMPEITO upser
 
 > **Note**: `import case-file` accepts CFPackage JSON exported from **any CASE-conformant tool**, not just OpenCASE — OpenSALT, Standards Satchel, or a hand-edited JSON all work the same way.
 
+## Reverse direction: COMPEITO → OpenCASE
+
+In some workflows you'll want to move the other way — share a COMPEITO-hosted framework with someone running OpenCASE. Two approaches:
+
+### Option 1 — OpenCASE pulls directly from COMPEITO (public COMPEITO)
+
+If COMPEITO is on the internet, OpenCASE's import-from-URL endpoint can fetch your CFPackage:
+
+```bash
+curl -X POST "https://YOUR_OPENCASE/management/tenants/{tenant_id}/ims/case/v1p1/CFPackages/import" \
+  -H "Authorization: Bearer $OPENCASE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"endpointUrl": "https://YOUR_COMPEITO/{tenant}/ims/case/v1p1/CFPackages/{doc_id}"}'
+```
+
+COMPEITO is public by default, so no license / auth setup is required on the COMPEITO side. OpenCASE downloads the CFPackage and stores it in the specified tenant.
+
+> The OpenCASE editor expects one of the 5 seeded license UUIDs (`c0c0c0c0-...0001`–`...0005`) to grant public access. If your framework has a custom license, OpenCASE will import it but treat the framework as private. To make it publicly readable from OpenCASE afterwards, change the license to one of the public CC variants in the OpenCASE editor.
+
+### Option 2 — Export from COMPEITO as a JSON file
+
+Use COMPEITO's `export case` command to write a CASE v1.1 CFPackage JSON file:
+
+```bash
+docker compose exec app uv run python cli.py export case \
+  --tenant {tenant_id} \
+  --doc {doc_id} \
+  --file framework.json
+# 36 アイテムを framework.json にエクスポートしました
+```
+
+The output is **byte-for-byte identical** to what `GET /ims/case/v1p1/CFPackages/{id}` would return. You can:
+
+- Re-import into a different COMPEITO tenant via `import case-file` (handy for migrations / backups)
+- Host the file at any URL and point OpenCASE's import-from-URL endpoint at it
+- Share with collaborators who can manually feed it to their CASE-conformant editor
+
+The exported JSON has top-level `CFDocument` / `CFItems` / `CFAssociations` / `CFDefinitions` / `CFRubrics` (no `CFPackage` wrapper, per CASE v1.1 spec).
+
 ## Known interop caveats
 
 A few minor things to be aware of when going OpenCASE → COMPEITO:
@@ -335,6 +374,45 @@ docker compose exec app uv run python cli.py import case-file \
 再エクスポートして同じ `--tenant` で `import case-file` を再実行するだけです。COMPEITO はフレームワーク UUID で upsert します。
 
 > **補足**: `import case-file` は OpenCASE 限定ではなく、**任意の CASE 準拠ツール**がエクスポートした CFPackage JSON を受け入れます — OpenSALT、Standards Satchel、手書きの JSON もすべて同じように動作します。
+
+## 逆方向: COMPEITO → OpenCASE
+
+COMPEITO に登録したフレームワークを OpenCASE 側に渡したい場合の選択肢:
+
+### オプション 1 — OpenCASE が COMPEITO から直接 pull する（公開 COMPEITO の場合）
+
+COMPEITO がインターネットに公開されているなら、OpenCASE の import-from-URL エンドポイントから CFPackage を fetch できます:
+
+```bash
+curl -X POST "https://YOUR_OPENCASE/management/tenants/{tenant_id}/ims/case/v1p1/CFPackages/import" \
+  -H "Authorization: Bearer $OPENCASE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"endpointUrl": "https://YOUR_COMPEITO/{tenant}/ims/case/v1p1/CFPackages/{doc_id}"}'
+```
+
+COMPEITO はデフォルトで public 配信なので、COMPEITO 側にライセンス設定や認証準備は不要です。OpenCASE が CFPackage をダウンロードして、指定したテナントに保存します。
+
+> OpenCASE のエディタは 5 種のシード済みライセンス UUID（`c0c0c0c0-...0001`〜`...0005`）でしか public 扱いになりません。フレームワークがカスタムライセンスだった場合、OpenCASE はインポートはしますが private 扱いにします。OpenCASE 側で公開可能にしたい場合は、エディタで CC ベースの公開ライセンス 3 種のいずれかに付け替えてください。
+
+### オプション 2 — COMPEITO から JSON ファイルにエクスポート
+
+COMPEITO の `export case` コマンドで CASE v1.1 CFPackage JSON ファイルを書き出します:
+
+```bash
+docker compose exec app uv run python cli.py export case \
+  --tenant {tenant_id} \
+  --doc {doc_id} \
+  --file framework.json
+# 36 アイテムを framework.json にエクスポートしました
+```
+
+出力は `GET /ims/case/v1p1/CFPackages/{id}` のレスポンスと**バイト単位で同一**です。以下のような使い方ができます:
+
+- 別の COMPEITO テナントに `import case-file` で再取り込み（移行 / バックアップに便利）
+- 任意の URL でホストして OpenCASE の import-from-URL エンドポイントから参照
+- CASE 準拠の他のエディタに渡す（手動取り込み）
+
+エクスポートされた JSON はトップレベルに `CFDocument` / `CFItems` / `CFAssociations` / `CFDefinitions` / `CFRubrics` を持ち、`CFPackage` ラッパーは付きません（CASE v1.1 仕様準拠）。
 
 ## 既知の相互運用上の注意点
 

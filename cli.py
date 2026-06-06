@@ -955,6 +955,67 @@ def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
 
 
 # ---------------------------------------------------------------------------
+# export case (JSON)
+# ---------------------------------------------------------------------------
+
+
+@export_group.command("case", help=t("cmd_export_case"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
+def export_case_cmd(tenant_id: str, doc_id: str, file_path: str):
+    """Export a document as a CASE v1.1 CFPackage JSON file.
+
+    The output matches `GET /ims/case/v1p1/CFPackages/{id}` byte-for-byte and
+    can be imported into any CASE-conformant tool (OpenCASE, OpenSALT, etc.)
+    via their respective import endpoints, or back into COMPEITO via
+    `import case-file`.
+    """
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id)
+
+    out = Path(file_path)
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.touch()
+        out.unlink()
+    except (PermissionError, OSError):
+        err_console.print(t("err_file_unwritable", value=file_path))
+        raise SystemExit(1) from None
+
+    async def _run_export():
+        import json
+
+        from sqlalchemy import select
+
+        from src.models.tenant import Tenant
+        from src.services.cf_view_service import get_cf_package
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            with console.status(t("msg_exporting_case")):
+                pkg = await get_cf_package(session, tid, did)
+                if pkg is None:
+                    err_console.print(t("err_doc_not_found", value=str(did)))
+                    raise SystemExit(1)
+                payload = pkg.model_dump(by_alias=True, exclude_none=False)
+                out.write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2, default=str),
+                    encoding="utf-8",
+                )
+
+            item_count = len(payload.get("CFItems") or [])
+            console.print(t("msg_exported", count=str(item_count), path=str(out)))
+
+    _run(_run_export())
+
+
+# ---------------------------------------------------------------------------
 # export csv-rubric
 # ---------------------------------------------------------------------------
 

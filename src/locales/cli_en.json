@@ -16,6 +16,7 @@
     "cmd_import_case_url": "Import from an external CASE source.",
     "cmd_import_case_file": "Import from a local CASE CFPackage JSON file (no network fetch).",
     "cmd_export_csv": "Export a document to CSV.",
+    "cmd_export_case": "Export a document as a CASE v1.1 CFPackage JSON file.",
     "cmd_db_migrate": "Run database migrations (alembic upgrade head).",
 
     "help_tenant_name": "Tenant name",
@@ -58,6 +59,7 @@
     "msg_importing_csv": "Importing CSV...",
     "msg_importing_case": "Importing from CASE source...",
     "msg_exporting_csv": "Exporting CSV...",
+    "msg_exporting_case": "Exporting CASE CFPackage JSON...",
     "msg_migration_complete": "Migration complete.",
 
     "msg_imported_into": "Imported into '{title}' ({id})",

@@ -63,6 +63,10 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 # --format: "custom" (default) / "opensalt"
 #           Invalid → error exit ("Invalid format: '{value}'. Valid values: custom, opensalt")
 
+# CASE CFPackage JSON export (output is byte-for-byte identical to GET /CFPackages/{id})
+# Re-importable via `import case-file`, or feed-able to any CASE-conformant editor.
+uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
+
 # Rubric CSV import (--doc selects the target document; upsert)
 uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
@@ -208,6 +212,10 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
 # --format: "custom"（デフォルト）/ "opensalt"
 #           不正な値 → エラー終了（「Invalid format: '{value}'. Valid values: custom, opensalt」）
+
+# CASE CFPackage JSON エクスポート（出力は GET /CFPackages/{id} と同一のバイト列）
+# import case-file で再取り込みするか、任意の CASE 準拠エディタへ受け渡せる
+uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
 
 # ルーブリックCSVインポート (--doc で対象ドキュメントを指定、upsert)
 uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
