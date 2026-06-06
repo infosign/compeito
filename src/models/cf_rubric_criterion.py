@@ -22,7 +22,9 @@ class CFRubricCriterion(Base):
     )
     identifier: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     uri: Mapped[str] = mapped_column(String, nullable=False)
-    cf_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cf_items.id"))
+    cf_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cf_items.id", ondelete="SET NULL")
+    )
     rubric_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     category: Mapped[str | None] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
