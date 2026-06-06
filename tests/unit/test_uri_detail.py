@@ -955,3 +955,156 @@ class TestUriContentNegotiation:
             headers={"Accept": "application/json"},
         )
         assert resp.status_code == 404
+
+
+class TestLicenseInheritance:
+    """Effective license display: own license takes precedence, otherwise inherit from document."""
+
+    async def _make_license(self, db_session: AsyncSession, tenant: Tenant, title: str) -> CFLicense:
+        lic = CFLicense(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/license/x",
+            title=title,
+            description=f"{title} desc",
+            license_text=f"{title} full text",
+            last_change_date_time=NOW,
+        )
+        db_session.add(lic)
+        await db_session.flush()
+        return lic
+
+    async def test_cf_item_inherits_doc_license_when_no_own(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        lic = await self._make_license(db_session, tenant, "Doc-CC-BY")
+        sample_document.cf_license_id = lic.id
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            full_statement="An item",
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
+        assert resp.status_code == 200
+        assert "Doc-CC-BY" in resp.text
+        assert "ドキュメントから継承" in resp.text  # inheritance badge (Japanese)
+
+    async def test_cf_item_uses_own_license_without_badge(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        doc_lic = await self._make_license(db_session, tenant, "Doc-CC-BY")
+        item_lic = await self._make_license(db_session, tenant, "Item-CC-BY-NC")
+        sample_document.cf_license_id = doc_lic.id
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            full_statement="An item",
+            cf_license_id=item_lic.id,
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
+        assert resp.status_code == 200
+        assert "Item-CC-BY-NC" in resp.text
+        # Doc license is NOT shown when item has its own
+        assert "Doc-CC-BY" not in resp.text
+        assert "ドキュメントから継承" not in resp.text
+
+    async def test_cf_association_inherits_doc_license(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        lic = await self._make_license(db_session, tenant, "Doc-CC-BY")
+        sample_document.cf_license_id = lic.id
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            association_type="isChildOf",
+            origin_node_uri="ou",
+            origin_node_identifier=str(uuid.uuid4()),
+            destination_node_uri="du",
+            destination_node_identifier=str(uuid.uuid4()),
+            last_change_date_time=NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        assert "Doc-CC-BY" in resp.text
+        assert "ドキュメントから継承" in resp.text
+
+    async def test_cf_rubric_inherits_doc_license(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        lic = await self._make_license(db_session, tenant, "Doc-CC-BY")
+        sample_document.cf_license_id = lic.id
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="Test Rubric",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{rubric.identifier}")
+        assert resp.status_code == 200
+        assert "Doc-CC-BY" in resp.text
+        assert "ドキュメントから継承" in resp.text
+
+    async def test_no_license_anywhere_renders_nothing(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            full_statement="An item",
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
+        assert resp.status_code == 200
+        # No license label/badge anywhere
+        assert "ライセンス URI" not in resp.text
+        assert "ドキュメントから継承" not in resp.text
