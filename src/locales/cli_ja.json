@@ -14,6 +14,7 @@
     "cmd_doc_delete": "ドキュメントとアイテム/アソシエーションを削除する。",
     "cmd_import_csv": "CSVファイルからアイテムをインポートする。",
     "cmd_import_case_url": "外部CASEソースからインポートする。",
+    "cmd_import_case_file": "ローカルの CASE CFPackage JSON ファイルからインポートする（ネットワーク取得なし）。",
     "cmd_export_csv": "ドキュメントをCSVにエクスポートする。",
     "cmd_db_migrate": "データベースマイグレーションを実行する (alembic upgrade head)。",
 
@@ -31,6 +32,7 @@
     "help_doc_title": "ドキュメントタイトル",
     "help_doc_version": "ドキュメントバージョン",
     "help_case_url": "CASE API URLまたはCFPackage URL",
+    "help_case_file": "ローカル CFPackage JSON ファイルのパス（OpenCASE / OpenSALT / CASE 準拠ツールからエクスポートしたファイル）",
     "help_output_file": "出力ファイルパス",
     "help_export_format": "エクスポート形式: custom（デフォルト）またはopensalt",
     "err_env_required": "DATABASE_URLを設定してください",

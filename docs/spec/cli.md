@@ -51,6 +51,11 @@ uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framewor
 uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
 uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
 
+# Local CFPackage JSON import (no network fetch; same persistence path as case-url)
+# Useful when the source CASE server is private / not reachable from this host.
+uv run python cli.py import case-file --tenant {uuid} --file framework.json
+uv run python cli.py import case-file --tenant {uuid} --doc {doc-uuid} --file framework.json
+
 # Export (custom format with UUIDs; editing + re-importing upserts)
 # --file: output path. Overwrites without confirmation if the file exists.
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
@@ -191,6 +196,11 @@ uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framewor
 # --url: CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
 uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
 uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
+
+# ローカル CFPackage JSON ファイルからインポート（ネットワーク取得なし、永続化処理は case-url と同じ）
+# 取り込み元 CASE サーバーがプライベートでこのホストから到達できない場合に使う
+uv run python cli.py import case-file --tenant {uuid} --file framework.json
+uv run python cli.py import case-file --tenant {uuid} --doc {doc-uuid} --file framework.json
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）

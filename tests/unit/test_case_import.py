@@ -30,6 +30,7 @@ from src.services.case_import_service import (
     _validate_association,
     _validate_cf_package,
     fetch_cf_package,
+    import_case_from_dict,
     import_case_package,
 )
 
@@ -1653,3 +1654,54 @@ class TestRubricImport:
 
         await db_session.flush()
         assert any("CFRubricCriterionLevel" in w and "not a valid UUID" in w for w in report.warnings)
+
+
+class TestImportFromDict:
+    """import_case_from_dict() — file-based / pre-fetched CFPackage import."""
+
+    async def test_imports_without_network_fetch(self, db_session: AsyncSession, tenant: Tenant):
+        pkg = _make_cf_package(
+            items=[_make_item(full_statement="Item via dict")],
+            associations=[_make_association()],
+        )
+
+        # No fetch_cf_package mock — import_case_from_dict must not call it.
+        report = await import_case_from_dict(db_session, tenant.id, pkg)
+        await db_session.flush()
+
+        assert report.items_created == 1
+        assert report.associations_created == 1
+        assert report.document_title == "Test Document"
+
+    async def test_source_url_empty_still_normalizes_v1p0_by_structure(self, db_session: AsyncSession, tenant: Tenant):
+        """When source_url is empty (file import), v1.0 is detected by data
+        structure (CFDocument at root, no CFPackage wrapper, no caseVersion).
+        """
+        v1p0_pkg = {
+            "CFDocument": {
+                "identifier": "aaaa0000-0000-0000-0000-000000000001",
+                "uri": "https://example.com/uri/x",
+                "title": "v1p0 Doc",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [_make_item()],
+            "CFAssociations": [],
+        }
+        report = await import_case_from_dict(db_session, tenant.id, v1p0_pkg)
+        await db_session.flush()
+        assert any("v1.0" in w for w in report.warnings)
+        assert report.items_created == 1
+
+    async def test_fetch_warnings_passthrough(self, db_session: AsyncSession, tenant: Tenant):
+        """Warnings collected before persistence (e.g., from a pre-fetch step)
+        are prepended to the report.
+        """
+        pkg = _make_cf_package(items=[_make_item()])
+        report = await import_case_from_dict(
+            db_session,
+            tenant.id,
+            pkg,
+            fetch_warnings=["fake pre-fetch warning"],
+        )
+        await db_session.flush()
+        assert "fake pre-fetch warning" in report.warnings
