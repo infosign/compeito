@@ -13,7 +13,9 @@ If neither is set, the CLI exits with code 1. When both are set, the environment
 
 ```bash
 # Tenant management
-uv run python cli.py tenant create --name "Company Name" [--private]
+uv run python cli.py tenant create --name "Company Name" [--private] [--id {uuid}]
+# --id pins the UUID (useful for seed scripts re-creating the same tenant);
+#      omit to auto-generate a UUID v4.
 uv run python cli.py tenant list
 # UUID                                  NAME        VISIBILITY  CREATED
 # 550e8400-...                          University A  public      2025-01-01
@@ -163,7 +165,9 @@ CLI は PostgreSQL に直接接続する。接続先の URL は以下のいず�
 
 ```bash
 # テナント管理
-uv run python cli.py tenant create --name "Company Name" [--private]
+uv run python cli.py tenant create --name "Company Name" [--private] [--id {uuid}]
+# --id を指定すると UUID を固定できる（seed スクリプトで再作成時にもテナント URL を保ちたい用途）。
+#      省略時は UUID v4 を自動採番。
 uv run python cli.py tenant list
 # UUID                                  NAME        VISIBILITY  CREATED
 # 550e8400-...                          大学A        public      2025-01-01
