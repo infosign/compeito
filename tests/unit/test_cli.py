@@ -187,6 +187,45 @@ class TestTenantCreate:
         result = runner.invoke(cli, ["tenant", "create"])
         assert result.exit_code != 0
 
+    def test_create_with_pinned_id(self, runner, env_docker, clean_db):
+        """`tenant create --id <uuid>` lets seed scripts keep a stable tenant URL."""
+        from cli import cli
+
+        pinned = "abcd0000-0000-4000-8000-000000000001"
+        result = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "Pinned", "--id", pinned],
+        )
+        assert result.exit_code == 0
+        assert pinned in result.output
+
+    def test_create_with_pinned_id_duplicate(self, runner, env_docker, clean_db):
+        from cli import cli
+
+        pinned = "abcd0000-0000-4000-8000-000000000002"
+        first = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "First", "--id", pinned],
+        )
+        assert first.exit_code == 0
+
+        second = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "Second", "--id", pinned],
+        )
+        assert second.exit_code != 0
+        # The user-facing error string is what stays stable; translation is in cli_*.json
+        assert pinned in (second.stderr + second.output)
+
+    def test_create_with_invalid_id(self, runner, env_docker, clean_db):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "Bad", "--id", "not-a-uuid"],
+        )
+        assert result.exit_code != 0
+
 
 class TestTenantList:
     def test_list_empty(self, runner, env_docker, clean_db):
