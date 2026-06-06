@@ -122,6 +122,27 @@
 </div>
 {% endmacro %}
 
+{# Show the effective license: prefer the resource's own license; otherwise
+   inherit from the parent document, with a small "from document" badge to
+   make the inheritance explicit. Pass own_license=None for resources that
+   don't have a per-resource license (CFAssociation, CFRubric, etc.). #}
+{% macro effective_license(own_license, doc) %}
+{% set lic = own_license if own_license else (doc.license if (doc and doc.license) else None) %}
+{% set inherited = (not own_license) and doc and doc.license %}
+{% if lic %}
+<div>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">
+        {{ t("f_license_uri") }}{% if inherited %} <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] font-normal normal-case rounded bg-stone-100 text-stone-500 tracking-normal">{{ t("inherited_from_document") }}</span>{% endif %}
+    </dt>
+    <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+        <div>{{ sub_label(t("f_title")) }}{{ lic.title }}</div>
+        <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(lic.identifier) }}<code class="text-sm">{{ lic.identifier }}</code></div>
+        {{ nested_uri(t("f_uri"), lic.uri) }}
+    </dd>
+</div>
+{% endif %}
+{% endmacro %}
+
 {% macro linked_resource(label, link_url, link_text, ident, uri) %}
 <div>
     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
@@ -179,9 +200,7 @@
         {{ array_field(t("f_subject"), resource.subject) }}
         {{ subject_uri_list(resource.subject_uri) }}
         {{ optional_field(t("f_language"), resource.language) }}
-        {% if resource.license %}
-            {{ nested_resource(t("f_license_uri"), resource.license.title, resource.license.identifier, resource.license.uri) }}
-        {% endif %}
+        {{ effective_license(resource.license, doc) }}
         {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
         {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
         {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
@@ -231,9 +250,7 @@
         {% endif %}
         {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
         {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
-        {% if resource.license %}
-            {{ nested_resource(t("f_license_uri"), resource.license.title, resource.license.identifier, resource.license.uri) }}
-        {% endif %}
+        {{ effective_license(resource.license, None) }}
         {{ optional_uri_field(t("f_official_source_url"), resource.official_source_url) }}
         {{ optional_field(t("f_framework_type"), resource.framework_type) }}
         {{ optional_field(t("f_case_version"), resource.case_version) }}
@@ -290,6 +307,7 @@
         {% if resource.association_grouping %}
             {{ nested_resource(t("f_cf_association_grouping_uri"), resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
         {% endif %}
+        {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
 
@@ -302,6 +320,7 @@
         {% endif %}
         {{ optional_field(t("f_title"), resource.title) }}
         {{ optional_field(t("f_description"), resource.description) }}
+        {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
 
@@ -413,6 +432,7 @@
         {% endif %}
         {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
         {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+        {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
         {# Parent rubric link #}
         {% if resource.cf_rubric %}
@@ -461,6 +481,7 @@
         {% if resource.score is not none %}{{ field(t("f_score"), resource.score) }}{% endif %}
         {{ optional_field(t("f_feedback"), resource.feedback) }}
         {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+        {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
         {# Parent criterion link #}
         {% if resource.cf_rubric_criterion %}

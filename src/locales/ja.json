@@ -45,6 +45,7 @@
     "f_subject": "教科",
     "f_subject_uri": "教科 URI",
     "f_license_uri": "ライセンス URI",
+    "inherited_from_document": "ドキュメントから継承",
     "f_list_enumeration": "リスト番号",
     "f_cf_document_uri": "所属ドキュメント",
     "f_cf_item_uri": "対象アイテム",
