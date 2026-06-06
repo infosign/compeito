@@ -169,16 +169,32 @@ db.help = t("db_group")
 
 @tenant.command("create", help=t("cmd_tenant_create"))
 @click.option("--name", required=True, help=t("help_tenant_name"))
+@click.option("--id", "tenant_id", default=None, help=t("help_tenant_id"))
 @click.option("--private", "is_private", is_flag=True, default=False, help=t("help_make_private"))
-def tenant_create(name: str, is_private: bool):
+def tenant_create(name: str, tenant_id: str | None, is_private: bool):
     """Create a new tenant."""
     _check_db()
 
+    tid: uuid.UUID | None = None
+    if tenant_id is not None:
+        tid = _parse_uuid(tenant_id)
+
     async def _run_create():
+        from sqlalchemy import select
+
         from src.models.tenant import Tenant
 
         async with _get_session() as session:
-            tenant_obj = Tenant(name=name, is_private=is_private)
+            if tid is not None:
+                # Pre-flight uniqueness check to give a friendly error instead of
+                # leaving the user to decipher a Postgres UNIQUE-violation traceback.
+                result = await session.execute(select(Tenant).where(Tenant.id == tid))
+                if result.scalar_one_or_none() is not None:
+                    err_console.print(t("err_tenant_id_in_use", value=str(tid)))
+                    raise SystemExit(1)
+                tenant_obj = Tenant(id=tid, name=name, is_private=is_private)
+            else:
+                tenant_obj = Tenant(name=name, is_private=is_private)
             session.add(tenant_obj)
             await session.flush()
             console.print(
