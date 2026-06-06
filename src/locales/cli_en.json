@@ -14,6 +14,7 @@
     "cmd_doc_delete": "Delete a document and its items/associations.",
     "cmd_import_csv": "Import items from a CSV file.",
     "cmd_import_case_url": "Import from an external CASE source.",
+    "cmd_import_case_file": "Import from a local CASE CFPackage JSON file (no network fetch).",
     "cmd_export_csv": "Export a document to CSV.",
     "cmd_db_migrate": "Run database migrations (alembic upgrade head).",
 
@@ -31,6 +32,7 @@
     "help_doc_title": "Document title",
     "help_doc_version": "Document version",
     "help_case_url": "CASE API URL or CFPackage URL",
+    "help_case_file": "Path to a local CFPackage JSON file (exported from OpenCASE / OpenSALT / any CASE-conformant tool)",
     "help_output_file": "Output file path",
     "help_export_format": "Export format: custom (default) or opensalt",
     "err_env_required": "DATABASE_URL must be set",
