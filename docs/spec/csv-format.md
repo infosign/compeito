@@ -6,7 +6,7 @@ Three CSV formats are supported. The format is auto-detected on import; on expor
 
 | Format | Import | Export | Use case |
 |--------|--------|--------|----------|
-| Custom | yes | yes (default) | Carries UUIDs; safe to edit and re-import (upsert) |
+| Custom | yes | yes (default) | Carries UUIDs (incl. CFDocument via `#identifier`); safe to edit and re-import (upsert) |
 | OpenSALT | yes | yes (`--format opensalt`) | Migration from OpenSALT |
 | Simple | yes | — | Minimal header; suitable for the first ingest |
 
@@ -41,6 +41,7 @@ Lines starting with `#` may appear at the top of the file (optional). The rule a
 #subject,Japanese,Geography & History,Civics
 ```
 
+- `#identifier`: CFDocument UUID. When present, the importer **finds-or-creates** by this UUID: an existing CFDocument with the same `identifier` in the same tenant is updated in place; otherwise a new CFDocument is created with this UUID. Use this to make seed CSVs idempotent across re-imports and to keep stable URIs after export → re-import. Invalid UUIDs emit a warning and are ignored (a new UUID is generated as a fallback). The CLI `--doc` flag overrides `#identifier` if both are given (a warning is emitted when they differ).
 - `#title`: CFDocument title. If `--doc-title` is given on the CLI, the CLI flag wins.
 - `#version`: CFDocument version. If `--doc-version` is given on the CLI, the CLI flag wins.
 - `#subject`: subject(s). Multiple values can be comma-separated (e.g., `#subject,Japanese,Geography`). cf_subject lookups are auto-generated. Each value is trimmed; trimmed-empty values are filtered (e.g., `#subject,Japanese,,Geography` → `["Japanese", "Geography"]`).
@@ -260,7 +261,7 @@ Rows are processed top-down. When a Criterion row has an empty `RubricIdentifier
 
 | フォーマット | インポート | エクスポート | 用途 |
 |-------------|-----------|------------|------|
-| 独自形式 | ○ | ○ (デフォルト) | UUID付き。編集後のre-importでupsert可能 |
+| 独自形式 | ○ | ○ (デフォルト) | UUID 付き（CFDocument は `#identifier` で固定可能）。編集後の re-import で upsert 可能 |
 | OpenSALT形式 | ○ | ○ (`--format opensalt`) | OpenSALTからの移行 |
 | 簡易形式 | ○ | - | ヘッダー最小。初回インポート向け |
 
@@ -295,6 +296,7 @@ CSVファイルの先頭に `#` で始まるメタデータ行を配置できる
 #subject,国語,地理歴史,公民
 ```
 
+- `#identifier`: CFDocument の UUID。指定するとインポート時に **find-or-create** で振る舞う: 同一テナント内に同じ `identifier` の CFDocument があればその場で更新、なければ指定された UUID で新規作成する。seed CSV を再インポート idempotent にしたい場合や、エクスポート → 再インポートで URI を保持したい場合に使う。UUID として不正な値は警告を出して無視し、UUID 自動生成にフォールバックする。CLI `--doc` フラグが同時指定されていた場合は `--doc` が優先される（差異がある場合は警告を出力）
 - `#title`: CFDocumentのタイトル。CLI `--doc-title` が指定されている場合はCLI引数を優先
 - `#version`: CFDocumentのバージョン。CLI `--doc-version` が指定されている場合はCLI引数を優先
 - `#subject`: 教科・科目。カンマ区切りで複数指定可（例: `#subject,国語,地理歴史`）。cf_subject lookup を自動生成。各値の前後空白をトリムし、トリム後の空文字列はフィルタする（例: `#subject,国語,,地理歴史` → `["国語", "地理歴史"]`）
