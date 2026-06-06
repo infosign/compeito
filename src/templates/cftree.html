@@ -15,7 +15,8 @@
 {% block heading %}
 {{ doc.title }}
 {% if doc.adoption_status %}
-<span class="ml-2 inline-block px-2 py-0.5 text-xs font-medium rounded
+<br class="md:hidden">
+<span class="inline-block mt-1 md:mt-0 md:ml-2 px-2 py-0.5 text-xs font-medium rounded align-middle
     {% if doc.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
     {% elif doc.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
     {% elif doc.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
