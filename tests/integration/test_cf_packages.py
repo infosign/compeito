@@ -347,3 +347,84 @@ class TestTenantIsolation:
         other_tenant_id = str(uuid.uuid4())
         response = await db_client.get(f"/{other_tenant_id}/ims/case/v1p1/CFPackages/{DOC_IDENTIFIER}")
         assert response.status_code == 404
+
+
+class TestExportRoundTrip:
+    """End-to-end: get_cf_package → model_dump → import_case_from_dict
+    must reproduce the same document/items/associations (validates the
+    `export case` CLI's underlying pipeline).
+    """
+
+    async def test_round_trip_preserves_items_and_associations(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ) -> None:
+        import json
+
+        from src.services.case_import_service import import_case_from_dict
+        from src.services.cf_view_service import get_cf_package
+
+        # Seed: 2 items + 1 isChildOf association
+        item1 = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.UUID("bbbbbbbb-0000-0000-0000-000000000001"),
+            uri="https://example.com/i1",
+            full_statement="Root item",
+            human_coding_scheme="R",
+            last_change_date_time=LCT,
+            depth=0,
+        )
+        item2 = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.UUID("bbbbbbbb-0000-0000-0000-000000000002"),
+            uri="https://example.com/i2",
+            full_statement="Child item",
+            human_coding_scheme="R-1",
+            last_change_date_time=LCT,
+            depth=1,
+        )
+        db_session.add_all([item1, item2])
+        await db_session.flush()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.UUID("cccccccc-0000-0000-0000-000000000001"),
+            uri="https://example.com/a1",
+            association_type="isChildOf",
+            origin_node_uri="https://example.com/i2",
+            origin_node_identifier=str(item2.identifier),
+            origin_node_title="Child item",
+            destination_node_uri="https://example.com/i1",
+            destination_node_identifier=str(item1.identifier),
+            destination_node_title="Root item",
+            last_change_date_time=LCT,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        # Export via the same pipeline the `export case` CLI uses
+        pkg = await get_cf_package(session=db_session, tenant_id=tenant.id, identifier=sample_document.identifier)
+        assert pkg is not None
+        payload = pkg.model_dump(by_alias=True, exclude_none=False)
+
+        # Serialise & deserialise to mimic file round-trip
+        serialised = json.dumps(payload, default=str, ensure_ascii=False)
+        reloaded = json.loads(serialised)
+
+        # Import into a separate tenant via the file-import code path
+        from src.models.tenant import Tenant as TenantModel
+
+        other_tenant = TenantModel(name="Round-trip target")
+        db_session.add(other_tenant)
+        await db_session.flush()
+
+        report = await import_case_from_dict(db_session, other_tenant.id, reloaded)
+        await db_session.flush()
+
+        assert report.items_created == 2
+        assert report.associations_created == 1
+        assert report.document_title == sample_document.title
