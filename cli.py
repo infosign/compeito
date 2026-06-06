@@ -966,10 +966,10 @@ def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
 def export_case_cmd(tenant_id: str, doc_id: str, file_path: str):
     """Export a document as a CASE v1.1 CFPackage JSON file.
 
-    The output matches `GET /ims/case/v1p1/CFPackages/{id}` byte-for-byte and
-    can be imported into any CASE-conformant tool (OpenCASE, OpenSALT, etc.)
-    via their respective import endpoints, or back into COMPEITO via
-    `import case-file`.
+    The output has the same payload shape as `GET /ims/case/v1p1/CFPackages/{id}`
+    (pretty-printed for readability; the API serves compact JSON) and can be
+    imported into any CASE-conformant tool (OpenCASE, OpenSALT, etc.) via their
+    respective import endpoints, or back into COMPEITO via `import case-file`.
     """
     _check_db()
     tid = _parse_uuid(tenant_id)
