@@ -690,6 +690,109 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
 
 
 # ---------------------------------------------------------------------------
+# import case-file
+# ---------------------------------------------------------------------------
+
+
+@import_group.command("case-file", help=t("cmd_import_case_file"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option(
+    "--file",
+    "file_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help=t("help_case_file"),
+)
+@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
+def import_case_file(tenant_id: str, file_path: str, doc_id: str | None):
+    """Import a CASE CFPackage from a local JSON file (no network fetch).
+
+    Useful when OpenCASE / OpenSALT / similar editors run on a private network
+    and their CFPackage URL is not reachable from this server. Export the
+    CFPackage JSON manually, then import via this command.
+    """
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id) if doc_id else None
+
+    import json
+
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        err_console.print(f"[red]Invalid JSON: {e}[/red]")
+        raise SystemExit(1) from e
+
+    async def _run_import():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+        from src.services.case_import_service import import_case_from_dict
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            if did is not None:
+                result = await session.execute(
+                    select(CFDocument).where(
+                        CFDocument.tenant_id == tid,
+                        CFDocument.identifier == did,
+                    ),
+                )
+                if result.scalar_one_or_none() is None:
+                    err_console.print(t("err_doc_not_found", value=str(did)))
+                    raise SystemExit(1)
+
+            with console.status(t("msg_importing_case")):
+                report = await import_case_from_dict(
+                    session,
+                    tid,
+                    data,
+                    doc_identifier=did,
+                )
+                await session.commit()
+
+            console.print(
+                t("msg_imported", title=report.document_title, id=str(report.document_identifier)),
+            )
+            console.print(
+                t(
+                    "msg_items_summary",
+                    created=str(report.items_created),
+                    updated=str(report.items_updated),
+                    skipped=str(report.items_skipped),
+                ),
+            )
+            console.print(
+                t(
+                    "msg_assoc_summary",
+                    created=str(report.associations_created),
+                    updated=str(report.associations_updated),
+                    skipped=str(report.associations_skipped),
+                ),
+            )
+            if report.rubrics_created or report.rubrics_updated or report.rubrics_skipped:
+                console.print(
+                    t(
+                        "msg_rubrics_summary",
+                        created=str(report.rubrics_created),
+                        updated=str(report.rubrics_updated),
+                        skipped=str(report.rubrics_skipped),
+                    ),
+                )
+            if report.warnings:
+                for w in report.warnings:
+                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+
+    _run(_run_import())
+
+
+# ---------------------------------------------------------------------------
 # export csv
 # ---------------------------------------------------------------------------
 
