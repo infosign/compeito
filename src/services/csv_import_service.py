@@ -1024,28 +1024,39 @@ def _calculate_depths(
     visited: set[str] = set()
     queue: list[tuple[str, int]] = []
 
-    # Seed: children of document
+    def _bfs(start_depth: int = 0) -> None:
+        idx = 0
+        while idx < len(queue):
+            ident, depth = queue[idx]
+            idx += 1
+            if ident in visited:
+                continue
+            visited.add(ident)
+            if ident in item_by_ident:
+                item_by_ident[ident].depth = depth
+            for grand_child_ident in children_of.get(ident, []):
+                if grand_child_ident not in visited and grand_child_ident in item_by_ident:
+                    queue.append((grand_child_ident, depth + 1))
+
+    # Seed: items whose isChildOf points to the document
     for child_ident in children_of.get(doc_ident, []):
         if child_ident in item_by_ident:
             queue.append((child_ident, 0))
+    _bfs()
 
-    idx = 0
-    while idx < len(queue):
-        ident, depth = queue[idx]
-        idx += 1
+    # Fallback: editors like OpenCASE don't emit `isChildOf -> CFDocument` for
+    # top-level items. Treat any remaining items that have NO isChildOf
+    # association at all as document-level roots and BFS from there.
+    items_with_parent = {a.origin_node_identifier for a in is_child_of_assocs}
+    unreachable = set(item_by_ident.keys()) - visited
+    orphan_roots = [ident for ident in unreachable if ident not in items_with_parent]
+    if orphan_roots:
+        for root_ident in orphan_roots:
+            queue.append((root_ident, 0))
+        _bfs()
 
-        if ident in visited:
-            continue
-        visited.add(ident)
-
-        if ident in item_by_ident:
-            item_by_ident[ident].depth = depth
-
-        for child_ident in children_of.get(ident, []):
-            if child_ident not in visited and child_ident in item_by_ident:
-                queue.append((child_ident, depth + 1))
-
-    # Handle orphan/unreachable items
+    # Handle remaining unreachable items (true cycles, or items whose isChildOf
+    # points outside the document scope)
     unreachable = set(item_by_ident.keys()) - visited
     if unreachable:
         # Check for circular references

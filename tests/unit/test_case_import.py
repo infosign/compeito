@@ -1210,6 +1210,57 @@ class TestDepthCalculation:
         child = result.scalar_one()
         assert child.depth == 1
 
+    async def test_opencase_style_root_without_doc_parent(self, db_session: AsyncSession, tenant: Tenant):
+        """OpenCASE / similar editors don't emit `isChildOf -> CFDocument`.
+
+        Root items have NO isChildOf at all; child items point at the root.
+        COMPEITO should treat such items as document roots and BFS from there.
+        """
+        root_ident = "bbbb0000-0000-0000-0000-000000000010"
+        child1_ident = "bbbb0000-0000-0000-0000-000000000011"
+        child2_ident = "bbbb0000-0000-0000-0000-000000000012"
+        items = [
+            _make_item(identifier=root_ident, full_statement="Critical Thinking"),
+            _make_item(identifier=child1_ident, full_statement="Identify assumptions"),
+            _make_item(identifier=child2_ident, full_statement="Evaluate arguments"),
+        ]
+        # NO isChildOf -> document. Only child -> root associations.
+        assocs = [
+            _make_association(
+                identifier="cccc0000-0000-0000-0000-000000000010",
+                origin_ident=child1_ident,
+                dest_ident=root_ident,
+            ),
+            _make_association(
+                identifier="cccc0000-0000-0000-0000-000000000011",
+                origin_ident=child2_ident,
+                dest_ident=root_ident,
+            ),
+        ]
+        pkg = _make_cf_package(items=items, associations=assocs)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            report = await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+
+        # Root should be depth 0, children should be depth 1 — not flat at 0.
+        result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(root_ident)))
+        assert result.scalar_one().depth == 0
+        for child_id in (child1_ident, child2_ident):
+            result = await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(child_id)))
+            assert result.scalar_one().depth == 1
+
+        # The false-positive "Circular reference" warning must NOT be emitted.
+        assert not any("Circular reference" in w for w in report.warnings), (
+            f"Unexpected circular-ref warning: {report.warnings}"
+        )
+
 
 class TestURIPreservation:
     async def test_uri_rewritten_to_local(self, db_session: AsyncSession, tenant: Tenant):

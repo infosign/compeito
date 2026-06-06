@@ -182,8 +182,14 @@ Compute `depth` for every CFItem in the target document using its `isChildOf` as
 ```
 1. Items directly under the CFDocument (parent = CFDocument) get depth=0.
 2. BFS over isChildOf: each child gets parent.depth + 1.
-3. Items not reachable from any parent (orphans) get depth=0 (warning "Orphan item '{identifier}' has no reachable parent, set to depth 0").
-4. If a cycle is detected, set the affected items' depth=0 and add an entry to the error report.
+3. Fallback: if any items remain unreachable after step 2, the items that have
+   NO isChildOf association at all are treated as document roots (depth=0) and
+   a second BFS runs from them. This handles editors (e.g., OpenCASE) that do
+   not emit `isChildOf -> CFDocument` for top-level items.
+4. Items still unreachable after step 3 are orphans (depth=0) with a warning
+   "Orphan item '{identifier}' has no reachable parent, set to depth 0".
+5. If a cycle is detected, set the affected items' depth=0 and add an entry to
+   the error report.
 ```
 
 **Cycle detection:**
@@ -740,8 +746,13 @@ CSVの `CFItemType` 列・`license` 列・メタデータ `#subject`・メタデ
 ```
 1. CFDocument直下のアイテム（parentがCFDocument）を depth=0 とする
 2. BFS（幅優先探索）で isChildOf を辿り、子に parent.depth + 1 を設定
-3. どの親からも到達できないアイテム（孤立ノード）は depth=0 とする（警告「Orphan item '{identifier}' has no reachable parent, set to depth 0」）
-4. 循環参照を検出した場合: 該当アイテムの depth=0 とし、エラーレポートに追記
+3. ステップ2 で到達できなかったアイテムのうち、isChildOf を一つも持たない
+   アイテムをドキュメント直下のルート（depth=0）として扱い、そこから再度
+   BFS を行う。OpenCASE 等、トップレベルアイテムに `isChildOf -> CFDocument`
+   を出力しないエディタからの取り込みに対応するためのフォールバック
+4. ステップ3 でも到達できなかったアイテム（孤立ノード）は depth=0 とする
+   （警告「Orphan item '{identifier}' has no reachable parent, set to depth 0」）
+5. 循環参照を検出した場合: 該当アイテムの depth=0 とし、エラーレポートに追記
 ```
 
 **循環参照検出:**
