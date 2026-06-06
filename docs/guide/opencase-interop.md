@@ -163,7 +163,7 @@ Re-export and re-run `import case-file` with the same `--tenant`. COMPEITO upser
 
 A few minor things to be aware of when going OpenCASE → COMPEITO:
 
-- **`caseVersion: "1.1"` is not preserved in OpenCASE responses.** The CFDocument is sent through OpenCASE's API without the `caseVersion` field, even when it was set on import. COMPEITO uses the response structure to detect CASE v1.0 vs v1.1, and this missing field triggers a benign warning ("Detected CASE v1.0 response, normalizing to v1.1 format"). The data is correct; only the warning is misleading.
+- **`caseVersion: "1.1"` is not preserved in OpenCASE responses.** OpenCASE strips the `caseVersion` field from its CFDocument responses. For URL-based imports (Topology A) this is handled silently because COMPEITO trusts the `v1p1` segment in the source URL and skips the structural heuristic. For file-based imports (Topology B), COMPEITO falls back to a structural check and may emit a benign warning ("Detected CASE v1.0 response, normalizing to v1.1 format"). To suppress this warning, add `"caseVersion": "1.1"` to the CFDocument inside the exported JSON before importing.
 - **Top-level items have no `isChildOf -> CFDocument` association.** OpenCASE doesn't generate this association for root items; OpenSALT does. COMPEITO handles both conventions: when a framework lacks the `isChildOf -> CFDocument` edge, items with no `isChildOf` at all are treated as roots and the depth tree is computed correctly. No action required; this is mentioned only for transparency.
 
 ## See also
@@ -340,7 +340,7 @@ docker compose exec app uv run python cli.py import case-file \
 
 OpenCASE → COMPEITO 方向で、知っておくと便利なポイント:
 
-- **OpenCASE のレスポンスは `caseVersion: "1.1"` を含まない。** インポート時に設定しても、OpenCASE の API レスポンスでは CFDocument から `caseVersion` フィールドが落ちます。COMPEITO はレスポンス構造で v1.0 / v1.1 を判定しており、このフィールドの欠如により無害な警告（「Detected CASE v1.0 response, normalizing to v1.1 format」）が発生します。データ自体は正しく取り込まれており、警告だけ誤発火するという状態です。
+- **OpenCASE のレスポンスは `caseVersion: "1.1"` を含まない。** OpenCASE は CFDocument レスポンスから `caseVersion` フィールドを落とします。URL 経由のインポート（トポロジー A）では COMPEITO がソース URL の `v1p1` を信頼して構造ヒューリスティックをスキップするため、静かに正しく処理されます。ファイル経由のインポート（トポロジー B）では構造判定にフォールバックするため、無害な警告（「Detected CASE v1.0 response, normalizing to v1.1 format」）が出ることがあります。この警告を抑制したい場合は、エクスポートした JSON の CFDocument に `"caseVersion": "1.1"` を手動追加してから取り込んでください。
 - **トップレベルアイテムに `isChildOf -> CFDocument` association がない。** OpenCASE はルートアイテムにこの association を生成しません（OpenSALT は生成する）。COMPEITO は両方の慣行に対応しており、`isChildOf -> CFDocument` がないフレームワークでは「`isChildOf` を一つも持たないアイテム」をルートとして扱い、深さの計算を正しく行います。対応は不要で、念のための説明です。
 
 ## 関連ドキュメント
