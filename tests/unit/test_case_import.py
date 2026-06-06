@@ -126,25 +126,41 @@ class TestV1p0Detection:
         data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
         assert _is_v1p0(data, "https://example.com/ims/case/v1p0/CFPackages/xxx") is True
 
-    def test_detects_v1p0_structure(self):
-        """v1.0 structure: CFDocument at root, no CFPackage wrapper, no caseVersion."""
+    def test_v1p0_in_url_wins_over_case_version(self):
+        """A `v1p0` path beats a contradicting `caseVersion: 1.1` in the body."""
+        data = {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p0/CFPackages/xxx") is True
+
+    def test_v1p1_in_url_wins_over_structural_heuristic(self):
+        """OpenCASE-style: v1.1 path, top-level CFDocument, no caseVersion → NOT v1.0.
+        The path is explicit and authoritative; the structural heuristic must not
+        misclassify these as v1.0.
+        """
+        data = {
+            "CFDocument": {"identifier": "x", "title": "T"},  # no caseVersion
+            "CFItems": [],
+        }
+        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
+
+    def test_structural_v1p0_detected_when_url_has_no_version(self):
+        """File-based imports (empty source URL) fall back to structural detection."""
         data = {
             "CFDocument": {"identifier": "x", "title": "T"},
             "CFItems": [],
         }
-        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is True
+        assert _is_v1p0(data, "") is True
 
     def test_v1p1_with_wrapper_not_detected(self):
         data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
         assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
 
-    def test_v1p0_structure_with_case_version_not_detected(self):
-        """If caseVersion is present, it's not v1.0 even without wrapper."""
+    def test_structural_v1p0_with_case_version_not_detected(self):
+        """File-based import (empty URL) with caseVersion present → not v1.0."""
         data = {
             "CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"},
             "CFItems": [],
         }
-        assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
+        assert _is_v1p0(data, "") is False
 
 
 class TestNormalizeConceptKeywordsUri:
