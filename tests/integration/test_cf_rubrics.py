@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_document import CFDocument
@@ -347,3 +348,39 @@ class TestTenantIsolation:
         other_tenant_id = str(uuid.uuid4())
         response = await db_client.get(f"/{other_tenant_id}/ims/case/v1p1/CFRubrics/{RUBRIC_IDENTIFIER}")
         assert response.status_code == 404
+
+
+class TestTenantDeleteWithRubric:
+    """Regression: deleting a tenant whose rubric criterion references a CFItem
+    must succeed. The original migration omitted ON DELETE on
+    cf_rubric_criteria.cf_item_id, blocking the cascade. Fixed to SET NULL.
+    """
+
+    async def test_delete_tenant_with_rubric_criterion_linked_to_item(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_rubric: CFRubric,
+    ) -> None:
+        # sample_rubric fixture sets up: tenant → doc → rubric → criterion(cf_item_id=item_id).
+        # Sanity check: at least one criterion has a non-null cf_item_id.
+        result = await db_session.execute(
+            select(CFRubricCriterion).where(CFRubricCriterion.cf_rubric_id == sample_rubric.id)
+        )
+        criteria = list(result.scalars().all())
+        criterion_ids = [c.id for c in criteria]
+        assert any(c.cf_item_id is not None for c in criteria), "fixture must link criterion to item"
+
+        # Before the FK fix, this DELETE would raise IntegrityError because
+        # cf_rubric_criteria.cf_item_id had no ON DELETE clause.
+        await db_session.delete(tenant)
+        await db_session.flush()
+
+        # Tenant gone
+        result = await db_session.execute(select(Tenant).where(Tenant.id == tenant.id))
+        assert result.scalar_one_or_none() is None
+
+        # Criteria also gone (parent rubric cascaded → criterion rows deleted)
+        for cid in criterion_ids:
+            r = await db_session.execute(select(CFRubricCriterion).where(CFRubricCriterion.id == cid))
+            assert r.scalar_one_or_none() is None
