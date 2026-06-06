@@ -6,6 +6,10 @@ A modern [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) compatibl
 
 > "compeito" is also the Japanese word for [konpeitō](https://en.wikipedia.org/wiki/Konpeit%C5%8D) (金平糖), a traditional Japanese sugar candy.
 
+## Try it now — [playground.compeito.org](https://playground.compeito.org/)
+
+A live demo with a sample competency framework preloaded. Browse the tree view, hit the CASE v1.1 API directly, or register the URL as a CASE source in Open Badge Factory — no setup required.
+
 ## Features
 
 - **CASE v1.1 compatible** — All required REST API endpoints (CFPackages, CFDocuments, CFItems, CFAssociations, and more)
@@ -114,6 +118,10 @@ COMPEITO takes a complementary approach: a lightweight Python / FastAPI **API di
 [1EdTech CASE v1.1](https://www.imsglobal.org/spec/case/v1p1) 対応のコンピテンシーフレームワーク配信サーバーです。将来的に [Open Badge Factory (OB v3)](https://www.imsglobal.org/spec/ob/v3p0) や [TAO Testing (QTI v3.0)](https://www.imsglobal.org/spec/qti/v3p0) のコンピテンシー参照先として連携することを目指しています。
 
 > "compeito" は日本語の「[金平糖](https://ja.wikipedia.org/wiki/%E9%87%91%E5%B9%B3%E7%B3%96)（こんぺいとう）」にも由来しています。
+
+## すぐ試す — [playground.compeito.org](https://playground.compeito.org/)
+
+サンプルのコンピテンシーフレームワークを投入済みの公開デモサイトです。ツリービューでの閲覧、CASE v1.1 API の確認、Open Badge Factory への CASE ソースとしての登録など、セットアップ不要でそのまま試せます。
 
 ## 特徴
 
