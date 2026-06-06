@@ -170,6 +170,7 @@ def _simple_depth_from_indent(text: str) -> int:
 # ---------------------------------------------------------------------------
 
 _KNOWN_META_KEYS = {
+    "identifier",
     "title",
     "version",
     "creator",
@@ -1225,6 +1226,21 @@ async def import_csv(
     if effective_version is not None and not effective_version.strip():
         effective_version = None
 
+    # Resolve #identifier metadata (lets seed CSVs pin a stable CFDocument UUID
+    # so re-imports update in place instead of creating a new document each time).
+    meta_identifier_raw = (metadata.get("identifier") or "").strip()
+    meta_identifier: uuid.UUID | None = None
+    if meta_identifier_raw:
+        if not _is_valid_uuid(meta_identifier_raw):
+            report.warnings.append(f"Metadata #identifier '{meta_identifier_raw}' is not a valid UUID, ignored")
+        else:
+            meta_identifier = uuid.UUID(meta_identifier_raw)
+
+    if doc_identifier is not None and meta_identifier is not None and meta_identifier != doc_identifier:
+        report.warnings.append(
+            f"Metadata #identifier '{meta_identifier}' differs from --doc '{doc_identifier}'; --doc takes precedence"
+        )
+
     if doc_identifier is not None:
         # --doc specified: must exist
         result = await session.execute(
@@ -1264,9 +1280,19 @@ async def import_csv(
             doc.status_end_date = meta_sed
         doc.last_change_date_time = now
 
-    elif fmt == FormatType.OPENSALT and opensalt_doc_ident:
-        # OpenSALT with Is Part Of
-        ident_uuid = uuid.UUID(opensalt_doc_ident)
+    elif meta_identifier is not None or (fmt == FormatType.OPENSALT and opensalt_doc_ident):
+        # #identifier metadata (any format) or OpenSALT `Is Part Of` (find-or-create).
+        # `#identifier` wins over `Is Part Of` if both are set; if they differ,
+        # warn but keep `#identifier` as the authoritative value.
+        if meta_identifier is not None:
+            ident_uuid = meta_identifier
+            if opensalt_doc_ident and str(meta_identifier) != opensalt_doc_ident:
+                report.warnings.append(
+                    f"Metadata #identifier '{meta_identifier}' differs from "
+                    f"OpenSALT 'Is Part Of' '{opensalt_doc_ident}'; #identifier wins"
+                )
+        else:
+            ident_uuid = uuid.UUID(opensalt_doc_ident)  # type: ignore[arg-type]
         result = await session.execute(
             select(CFDocument)
             .where(
@@ -1301,7 +1327,7 @@ async def import_csv(
                 doc.status_end_date = meta_sed
             doc.last_change_date_time = now
         else:
-            # Create new with Is Part Of identifier
+            # Create new with the pinned identifier
             if not effective_title:
                 raise ValueError("Document title is required")
             doc = CFDocument(
