@@ -45,6 +45,7 @@
     "f_subject": "Subject",
     "f_subject_uri": "Subject URI",
     "f_license_uri": "License URI",
+    "inherited_from_document": "from document",
     "f_list_enumeration": "List Enumeration",
     "f_cf_document_uri": "CFDocument URI",
     "f_cf_item_uri": "CFItem URI",
