@@ -16,6 +16,7 @@
     "cmd_import_case_url": "外部CASEソースからインポートする。",
     "cmd_import_case_file": "ローカルの CASE CFPackage JSON ファイルからインポートする（ネットワーク取得なし）。",
     "cmd_export_csv": "ドキュメントをCSVにエクスポートする。",
+    "cmd_export_case": "ドキュメントを CASE v1.1 CFPackage JSON ファイルとしてエクスポートする。",
     "cmd_db_migrate": "データベースマイグレーションを実行する (alembic upgrade head)。",
 
     "help_tenant_name": "テナント名",
@@ -58,6 +59,7 @@
     "msg_importing_csv": "CSVをインポート中...",
     "msg_importing_case": "CASEソースからインポート中...",
     "msg_exporting_csv": "CSVをエクスポート中...",
+    "msg_exporting_case": "CASE CFPackage JSON をエクスポート中...",
     "msg_migration_complete": "マイグレーション完了。",
 
     "msg_imported_into": "'{title}' ({id}) にインポートしました",
