@@ -20,6 +20,8 @@
     "cmd_db_migrate": "データベースマイグレーションを実行する (alembic upgrade head)。",
 
     "help_tenant_name": "テナント名",
+    "help_tenant_id": "テナント UUID を明示指定する（任意）。未指定なら UUID v4 を自動採番する。seed スクリプト等で再作成時もテナント URL を固定したい場合に使う。",
+    "err_tenant_id_in_use": "テナント UUID '{value}' は既に使用されています",
     "help_make_private": "テナントを非公開にする",
     "help_show_docs": "各テナントのドキュメントを表示する",
     "help_tenant_uuid": "テナントUUID",
