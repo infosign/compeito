@@ -22,6 +22,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | docs/spec/import-logic.md                        | インポート/エクスポートのビジネスロジック・upsertルール             |
 | docs/spec/cli.md                                 | CLIコマンド仕様                                   |
 | docs/guide/initial-setup.md                      | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで）         |
+| docs/guide/opencase-interop.md                   | OpenCASE 相互運用ガイド（公開/プライベートの配置パターンと運用フロー）         |
 | docs/dev/conventions.md                          | コミット・PR・リリースノートの書き方規約                       |
 | docs/dev/local-setup.md                          | ローカル開発セットアップ（ハイブリッド/全 Docker 両構成）             |
 | docs/requirements/phases.md                      | フェーズ定義・ロードマップ                               |

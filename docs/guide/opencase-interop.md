@@ -1,0 +1,243 @@
+# OpenCASE Interoperability Guide
+
+A practical guide to using [OpenCASE](https://github.com/1EdTech/OpenCASE) (the 1EdTech reference implementation) as an editor and COMPEITO as a publishing endpoint.
+
+OpenCASE and COMPEITO target different parts of the CASE workflow — OpenCASE provides a visual editor, multi-user collaboration, and version history; COMPEITO is a lightweight publishing server with Japanese/English UI and easy embedding. Combining them lets each tool do what it's best at, with the CASE v1.1 standard as the contract between them.
+
+## Topology
+
+There are three realistic deployment topologies, all supported in principle:
+
+| Topology | OpenCASE | COMPEITO | Typical use |
+|---|---|---|---|
+| **A** | Public (internet-reachable) | Public | Org publishes via a clear two-stage pipeline |
+| **B** | Private (LAN / `localhost`) | Public | Authors edit privately; publish only the final framework externally |
+| **C** | Private | Private | Closed evaluation / development |
+
+This guide currently covers **Topology A** end-to-end. Topologies B and C require additional COMPEITO commands that are being added incrementally — sections will be appended as those commands land.
+
+## OpenCASE's license model
+
+OpenCASE uses the CFDocument's `licenseURI` field for two things at once:
+
+1. **Rights statement** — what consumers may do with the framework (CC0 / CC BY / etc.)
+2. **Public access gate** — whether the framework's CASE Provider API can be fetched **without authentication**
+
+Every OpenCASE tenant is seeded with five licenses (UUIDs are stable across all tenants):
+
+| Title | UUID suffix | Unauthenticated read? |
+|---|---|---|
+| Public Domain (CC0 1.0) | `...0001` | Yes |
+| Open — Credit Required (CC BY 4.0) | `...0002` | Yes |
+| Educational Use (CC BY-NC-SA 4.0) | `...0003` | Yes |
+| View and Share Only (CC BY-NC-ND 4.0) | `...0004` | **No** (Bearer token required) |
+| Private — All Rights Reserved | `...0005` | **No** (Bearer token required) |
+| _(no license set)_ | — | **No** (private by default) |
+
+The full UUID prefix is `c0c0c0c0-0000-4000-a000-00000000000X`.
+
+CASE clients such as Open Badge Factory, COMPEITO, and TAO Testing fetch frameworks **without** OpenCASE credentials. For these clients to read a framework, the framework's `licenseURI` MUST be one of the three CC-based public licenses above. Custom licenses can still be set and are preserved verbatim through the API, but OpenCASE treats them as private (auth required).
+
+COMPEITO, in contrast, does not enforce access control based on `licenseURI`. The license is stored as metadata and shown on every detail page, but the framework is always served publicly on COMPEITO once imported.
+
+## Topology A: public OpenCASE → public COMPEITO
+
+The simplest topology. OpenCASE publishes a framework with a public license; COMPEITO fetches it via the CASE Provider API.
+
+### Step 1 — Author a framework in OpenCASE
+
+In the OpenCASE editor, create or open a framework, then:
+
+1. Click the framework root node on the canvas.
+2. In the side panel, find the **License** dropdown.
+3. Select one of the three public licenses (CC0 / CC BY / CC BY-NC-SA).
+4. Save / publish.
+
+> **Without a public license, COMPEITO's import will fail with HTTP 401 from OpenCASE.** If you forgot this step, OpenCASE returns an `imsx_StatusInfo` error message of `"Authentication required to access this framework."`.
+
+### Step 2 — Get the CFPackage URL
+
+The CFPackage URL is structured as:
+
+```
+https://{OPENCASE_HOST}/ims/case/v1p1/CFPackages/{CFDocument_identifier}
+```
+
+You can find the identifier in the OpenCASE editor's framework metadata pane, or from `GET /ims/case/v1p1/CFDocuments` on the OpenCASE API.
+
+You can validate that the framework is publicly fetchable:
+
+```bash
+curl -s "https://YOUR_OPENCASE/ims/case/v1p1/CFPackages/{CFDocument_id}" \
+  | head -c 300
+```
+
+If you see CASE JSON (`{"CFDocument": ..., "CFItems": [...], ...`), the license is set correctly.
+
+### Step 3 — Import into COMPEITO
+
+Create a tenant on COMPEITO if you don't already have one:
+
+```bash
+docker compose exec app uv run python cli.py tenant create --name "My Organization"
+# Created tenant: 550e8400-e29b-41d4-a716-446655440000 (My Organization, public)
+```
+
+Import the framework:
+
+```bash
+docker compose exec app uv run python cli.py import case-url \
+  --tenant 550e8400-e29b-41d4-a716-446655440000 \
+  --url https://YOUR_OPENCASE/ims/case/v1p1/CFPackages/{CFDocument_id}
+```
+
+Expected output:
+
+```
+'Sample Framework' ({id}) をインポートしました
+  アイテム: 36 作成, 0 更新, 0 スキップ
+  アソシエーション: 36 作成, 0 更新, 0 スキップ
+```
+
+The license you set in OpenCASE is preserved as `licenseURI` metadata on the imported CFDocument and is shown on every detail page in COMPEITO (with a "from document" badge on items that don't have their own license).
+
+### Updating
+
+When you edit and republish the framework in OpenCASE, simply re-run the same `import case-url` command. COMPEITO upserts based on the framework's UUID, so items / associations are updated in place.
+
+## Known interop caveats
+
+A few minor things to be aware of when going OpenCASE → COMPEITO:
+
+- **`caseVersion: "1.1"` is not preserved in OpenCASE responses.** The CFDocument is sent through OpenCASE's API without the `caseVersion` field, even when it was set on import. COMPEITO uses the response structure to detect CASE v1.0 vs v1.1, and this missing field triggers a benign warning ("Detected CASE v1.0 response, normalizing to v1.1 format"). The data is correct; only the warning is misleading.
+- **Top-level items have no `isChildOf -> CFDocument` association.** OpenCASE doesn't generate this association for root items; OpenSALT does. COMPEITO handles both conventions: when a framework lacks the `isChildOf -> CFDocument` edge, items with no `isChildOf` at all are treated as roots and the depth tree is computed correctly. No action required; this is mentioned only for transparency.
+
+## See also
+
+- [Architecture overview](../spec/architecture.md) — COMPEITO's design and how it relates to OpenSALT / OpenCASE
+- [API specification](../spec/api-spec.md) — CASE v1.1 endpoint details
+- [Import logic](../spec/import-logic.md) — How external CASE sources are normalized and imported
+- [OpenCASE on GitHub](https://github.com/1EdTech/OpenCASE)
+
+---
+
+# OpenCASE 相互運用ガイド（日本語）
+
+[OpenCASE](https://github.com/1EdTech/OpenCASE)（1EdTech 公式リファレンス実装）をエディタとして、COMPEITO を配信エンドポイントとして組み合わせる運用ガイドです。
+
+OpenCASE と COMPEITO は CASE ワークフローの異なる部分を担います。OpenCASE はビジュアルエディタ、共同編集、バージョン履歴を提供し、COMPEITO は英日対応 UI と組み込みやすさを重視した軽量配信サーバーです。CASE v1.1 標準を契約として、両者を組み合わせることでそれぞれの得意領域を活かせます。
+
+## トポロジー
+
+3 つの現実的な配置パターンを想定しています:
+
+| トポロジー | OpenCASE | COMPEITO | 想定用途 |
+|---|---|---|---|
+| **A** | 公開（インターネット到達可） | 公開 | 編集と配信を 2 段階で公開運用 |
+| **B** | プライベート（LAN / `localhost`） | 公開 | 編集は内部で、完成したフレームワークだけ外部公開 |
+| **C** | プライベート | プライベート | クローズドな検証 / 開発 |
+
+本ガイドは現時点で **トポロジー A** をエンドツーエンドでカバーします。トポロジー B / C には COMPEITO 側の追加コマンドが必要で、段階的に追加していきます。コマンドが揃い次第、対応する節を追記します。
+
+## OpenCASE のライセンスモデル
+
+OpenCASE は CFDocument の `licenseURI` フィールドを 2 つの役割で使います:
+
+1. **権利情報** — フレームワークの利用許諾（CC0 / CC BY 等）
+2. **公開アクセス制御** — CASE Provider API を**認証なし**で fetch できるかどうか
+
+各 OpenCASE テナントには 5 種類のライセンスがシードされます（UUID は全テナント共通）:
+
+| 名称 | UUID 末尾 | 認証なし read |
+|---|---|---|
+| Public Domain (CC0 1.0) | `...0001` | 可 |
+| Open — Credit Required (CC BY 4.0) | `...0002` | 可 |
+| Educational Use (CC BY-NC-SA 4.0) | `...0003` | 可 |
+| View and Share Only (CC BY-NC-ND 4.0) | `...0004` | **不可**（Bearer トークン必須） |
+| Private — All Rights Reserved | `...0005` | **不可**（Bearer トークン必須） |
+| _（ライセンス未設定）_ | — | **不可**（デフォルト private） |
+
+UUID の完全な接頭辞は `c0c0c0c0-0000-4000-a000-00000000000X` です。
+
+Open Badge Factory、COMPEITO、TAO Testing といった CASE クライアントは OpenCASE の認証情報なしでフレームワークを fetch します。これらのクライアントから読み取れるようにするには、`licenseURI` を上記の CC ベース公開ライセンス 3 種のいずれかに設定する必要があります。カスタムライセンスも設定可能で API では正確に保持されますが、OpenCASE は private（認証必須）として扱います。
+
+一方 COMPEITO は `licenseURI` をアクセス制御に使いません。ライセンス情報はメタデータとして保存され、すべての詳細ページに表示されますが、フレームワークは取り込まれた時点で COMPEITO 上では常に公開状態となります。
+
+## トポロジー A: 公開 OpenCASE → 公開 COMPEITO
+
+最もシンプルな構成です。OpenCASE で公開ライセンスを設定したフレームワークを、COMPEITO が CASE Provider API 経由で取り込みます。
+
+### ステップ 1 — OpenCASE でフレームワークを作成
+
+OpenCASE のエディタでフレームワークを作成 or 開いて:
+
+1. キャンバス上のフレームワーク root ノードをクリック
+2. 右側のプロパティパネルで **License** ドロップダウンを探す
+3. 公開ライセンス 3 種（CC0 / CC BY / CC BY-NC-SA）のいずれかを選択
+4. 保存 / 公開
+
+> **公開ライセンスを設定していないと、COMPEITO のインポートは OpenCASE から HTTP 401 で失敗します。** 設定忘れの場合、OpenCASE は `imsx_StatusInfo` 形式で `"Authentication required to access this framework."` を返します。
+
+### ステップ 2 — CFPackage URL の取得
+
+CFPackage URL は以下の形式です:
+
+```
+https://{OPENCASE_HOST}/ims/case/v1p1/CFPackages/{CFDocument_identifier}
+```
+
+CFDocument の identifier は OpenCASE エディタのフレームワークメタデータ画面、または `GET /ims/case/v1p1/CFDocuments` から取得できます。
+
+公開 fetch ができるか事前確認:
+
+```bash
+curl -s "https://YOUR_OPENCASE/ims/case/v1p1/CFPackages/{CFDocument_id}" \
+  | head -c 300
+```
+
+CASE JSON（`{"CFDocument": ..., "CFItems": [...], ...`）が表示されればライセンス設定は正しいです。
+
+### ステップ 3 — COMPEITO にインポート
+
+COMPEITO 側でテナントを作成（既存テナントを使う場合はスキップ）:
+
+```bash
+docker compose exec app uv run python cli.py tenant create --name "私の組織"
+# テナントを作成しました: 550e8400-e29b-41d4-a716-446655440000 (私の組織, 公開)
+```
+
+フレームワークを取り込み:
+
+```bash
+docker compose exec app uv run python cli.py import case-url \
+  --tenant 550e8400-e29b-41d4-a716-446655440000 \
+  --url https://YOUR_OPENCASE/ims/case/v1p1/CFPackages/{CFDocument_id}
+```
+
+出力例:
+
+```
+'サンプルフレームワーク' ({id}) をインポートしました
+  アイテム: 36 作成, 0 更新, 0 スキップ
+  アソシエーション: 36 作成, 0 更新, 0 スキップ
+```
+
+OpenCASE で設定したライセンスはインポートされた CFDocument の `licenseURI` メタデータとして保持され、COMPEITO の全詳細ページに表示されます（個別ライセンス未設定のアイテムには「ドキュメントから継承」バッジ付きで表示）。
+
+### 更新時
+
+OpenCASE で編集して再公開した場合は、同じ `import case-url` コマンドを再実行するだけです。COMPEITO はフレームワーク UUID で upsert するため、items / associations は同一行で更新されます。
+
+## 既知の相互運用上の注意点
+
+OpenCASE → COMPEITO 方向で、知っておくと便利なポイント:
+
+- **OpenCASE のレスポンスは `caseVersion: "1.1"` を含まない。** インポート時に設定しても、OpenCASE の API レスポンスでは CFDocument から `caseVersion` フィールドが落ちます。COMPEITO はレスポンス構造で v1.0 / v1.1 を判定しており、このフィールドの欠如により無害な警告（「Detected CASE v1.0 response, normalizing to v1.1 format」）が発生します。データ自体は正しく取り込まれており、警告だけ誤発火するという状態です。
+- **トップレベルアイテムに `isChildOf -> CFDocument` association がない。** OpenCASE はルートアイテムにこの association を生成しません（OpenSALT は生成する）。COMPEITO は両方の慣行に対応しており、`isChildOf -> CFDocument` がないフレームワークでは「`isChildOf` を一つも持たないアイテム」をルートとして扱い、深さの計算を正しく行います。対応は不要で、念のための説明です。
+
+## 関連ドキュメント
+
+- [アーキテクチャ概要](../spec/architecture.md) — COMPEITO の設計と OpenSALT / OpenCASE との関係
+- [API 仕様](../spec/api-spec.md) — CASE v1.1 エンドポイント詳細
+- [インポートロジック](../spec/import-logic.md) — 外部 CASE ソースの正規化と取り込み処理
+- [OpenCASE on GitHub](https://github.com/1EdTech/OpenCASE)
