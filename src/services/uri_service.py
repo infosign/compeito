@@ -72,7 +72,7 @@ async def find_resource_by_identifier(
         select(CFAssociation)
         .options(
             joinedload(CFAssociation.association_grouping),
-            joinedload(CFAssociation.cf_document),
+            joinedload(CFAssociation.cf_document).joinedload(CFDocument.license),
         )
         .where(CFAssociation.tenant_id == tenant_id, CFAssociation.identifier == identifier)
     )
@@ -86,7 +86,7 @@ async def find_resource_by_identifier(
         .options(
             joinedload(CFRubric.criteria).joinedload(CFRubricCriterion.levels),
             joinedload(CFRubric.criteria).joinedload(CFRubricCriterion.cf_item),
-            joinedload(CFRubric.cf_document),
+            joinedload(CFRubric.cf_document).joinedload(CFDocument.license),
         )
         .where(CFRubric.tenant_id == tenant_id, CFRubric.identifier == identifier)
     )
@@ -98,7 +98,7 @@ async def find_resource_by_identifier(
     result = await session.execute(
         select(CFRubricCriterion)
         .options(
-            joinedload(CFRubricCriterion.cf_rubric).joinedload(CFRubric.cf_document),
+            joinedload(CFRubricCriterion.cf_rubric).joinedload(CFRubric.cf_document).joinedload(CFDocument.license),
             joinedload(CFRubricCriterion.cf_item),
             joinedload(CFRubricCriterion.levels),
         )
@@ -114,7 +114,8 @@ async def find_resource_by_identifier(
         .options(
             joinedload(CFRubricCriterionLevel.cf_rubric_criterion)
             .joinedload(CFRubricCriterion.cf_rubric)
-            .joinedload(CFRubric.cf_document),
+            .joinedload(CFRubric.cf_document)
+            .joinedload(CFDocument.license),
             joinedload(CFRubricCriterionLevel.cf_rubric_criterion).joinedload(CFRubricCriterion.cf_item),
         )
         .where(CFRubricCriterionLevel.identifier == identifier)
