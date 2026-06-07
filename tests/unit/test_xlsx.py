@@ -170,6 +170,83 @@ class TestXlsxRoundTrip:
         assert len(related) == 1
 
 
+class TestXlsxAssociationGrouping:
+    async def test_import_association_with_grouping(self, db_session: AsyncSession):
+        """A CF Association row carrying an associationGroupIdentifier must
+        find-or-create a (tenant-wide) CFAssociationGrouping — regression guard
+        for the document-scoped lookup bug."""
+        from openpyxl import Workbook
+
+        from src.models.cf_association_grouping import CFAssociationGrouping
+
+        db_session.add(Tenant(id=TENANT_ID, name="T", is_private=False))
+        await db_session.flush()
+
+        origin = uuid.UUID("30000000-0000-0000-0000-000000000001")
+        dest = uuid.UUID("30000000-0000-0000-0000-000000000002")
+        group = uuid.UUID("40000000-0000-0000-0000-0000000000aa")
+
+        wb = Workbook()
+        wb.remove(wb.active)
+        d = wb.create_sheet("CF Doc")
+        d.append(["identifier", "creator", "title"] + [""] * 13)
+        d.append([str(uuid.uuid4()), "A", "Grouping Test"] + [""] * 13)
+        it = wb.create_sheet("CF Item")
+        it.append(["identifier", "fullStatement", "humanCodingScheme", "smartLevel"] + [""] * 8)
+        it.append([str(origin), "Origin item", "O", "1"] + [""] * 8)
+        it.append([str(dest), "Dest item", "D", "2"] + [""] * 8)
+        a = wb.create_sheet("CF Association")
+        a.append(
+            [
+                "identifier",
+                "originNodeURI",
+                "originNodeIdentifier",
+                "originNodeHumanCodingScheme",
+                "associationType",
+                "destinationNodeURI",
+                "destinationNodeIdentifier",
+                "destinationNodeHumanCodingScheme",
+                "associationGroupIdentifier",
+                "associationGroupName",
+            ]
+        )
+        a.append(
+            [
+                str(uuid.uuid4()),
+                "",
+                str(origin),
+                "",
+                "isRelatedTo",
+                "",
+                str(dest),
+                "",
+                str(group),
+                "Crosswalk Group",
+            ]
+        )
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+
+        groupings = list(
+            (
+                await db_session.execute(
+                    select(CFAssociationGrouping).where(CFAssociationGrouping.tenant_id == TENANT_ID)
+                )
+            ).scalars()
+        )
+        assert len(groupings) == 1
+        assert groupings[0].identifier == group
+        assert groupings[0].title == "Crosswalk Group"
+
+        rel = (
+            await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isRelatedTo"))
+        ).scalar_one()
+        assert rel.cf_association_grouping_id == groupings[0].id
+
+
 class TestXlsxImportErrors:
     async def test_non_xlsx_bytes(self, db_session: AsyncSession):
         db_session.add(Tenant(id=TENANT_ID, name="T", is_private=False))

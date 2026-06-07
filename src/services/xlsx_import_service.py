@@ -191,7 +191,8 @@ async def _import_associations(
         if existing.scalar_one_or_none() is not None:
             continue
 
-        # Resolve a grouping (find-or-create by identifier within the document).
+        # Resolve a grouping (find-or-create by identifier within the tenant —
+        # CFAssociationGrouping is a tenant-wide lookup, not document-scoped).
         grouping: CFAssociationGrouping | None = None
         if group_id and _is_valid_uuid(group_id):
             gkey = group_id
@@ -200,7 +201,7 @@ async def _import_associations(
                 gident = uuid.UUID(group_id)
                 gres = await session.execute(
                     select(CFAssociationGrouping).where(
-                        CFAssociationGrouping.cf_document_id == doc.id,
+                        CFAssociationGrouping.tenant_id == tenant_id,
                         CFAssociationGrouping.identifier == gident,
                     )
                 )
@@ -209,7 +210,6 @@ async def _import_associations(
                     grouping = CFAssociationGrouping(
                         id=uuid.uuid4(),
                         tenant_id=tenant_id,
-                        cf_document_id=doc.id,
                         identifier=gident,
                         uri=_build_uri(tenant_id, gident),
                         title=group_name or str(gident),
