@@ -11,7 +11,9 @@ from src.database import Base
 class CFRubricCriterionLevel(Base):
     __tablename__ = "cf_rubric_criterion_levels"
     __table_args__ = (
-        UniqueConstraint("identifier", name="uq_cf_rubric_criterion_levels_identifier"),
+        UniqueConstraint(
+            "cf_rubric_criterion_id", "identifier", name="uq_cf_rubric_criterion_levels_criterion_identifier"
+        ),
         Index("ix_cf_rubric_criterion_levels_criterion", "cf_rubric_criterion_id"),
         Index("ix_cf_rubric_criterion_levels_identifier", "identifier"),
     )
