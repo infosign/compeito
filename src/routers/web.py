@@ -68,6 +68,24 @@ def _parse_uuid(value: str) -> uuid.UUID | None:
         return None
 
 
+def _tenant_url_segment(request_segment: str, tenant_obj) -> str:
+    """Return the URL segment form to use for nav links in the response.
+
+    Preserves the form the user requested ("sticky" navigation): if they came
+    in via UUID, every nav href in the rendered page stays UUID; if they came
+    in via slug, every nav href stays slug. The URL bar form therefore does
+    not drift mid-session. Display fields (permalink / API URL strings) ignore
+    this and always emit the canonical UUID — see templates.
+    """
+    try:
+        uuid.UUID(request_segment)
+        return str(tenant_obj.id)
+    except (ValueError, AttributeError):
+        # Slug request — emit the canonical slug as stored (defensive fallback
+        # to UUID if the tenant unexpectedly lacks a slug).
+        return tenant_obj.slug or str(tenant_obj.id)
+
+
 def _error_response(
     request: Request,
     status_code: int,
@@ -142,7 +160,13 @@ async def tenant_page(
     response = templates.TemplateResponse(
         request,
         "tenant.html",
-        {"tenant": tenant_obj, "documents": documents, "t": t, "lang": lang},
+        {
+            "tenant": tenant_obj,
+            "documents": documents,
+            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
+            "t": t,
+            "lang": lang,
+        },
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
@@ -198,9 +222,11 @@ async def tree_view(
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
-            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
-            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
-            "tenant_id": tenant_obj.slug_or_id,
+            # Sticky URL segment: preserves the form the user requested (UUID
+            # or slug) so nav links don't drift the URL bar mid-session.
+            # Permalink / API URL strings rendered in the page use `tenant.id`
+            # directly (canonical UUID — stable across slug renames).
+            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "rubrics": rubrics,
             "t": t,
             "lang": lang,
@@ -290,6 +316,7 @@ async def uri_detail(
             "page_title": page_title,
             "rubrics": rubrics,
             "referring_criteria": referring_criteria,
+            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "t": t,
             "lang": lang,
         },
@@ -342,9 +369,9 @@ async def children_fragment(
         "fragments/children.html",
         {
             "nodes": nodes,
-            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
-            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
-            "tenant_id": tenant_obj.slug_or_id,
+            # Sticky URL segment: matches the form the user requested so nav
+            # links don't drift the URL bar mid-session.
+            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "doc_identifier": str(doc.identifier),
         },
     )
@@ -393,9 +420,9 @@ async def detail_fragment(
         "fragments/detail.html",
         {
             "selected_item": selected_item,
-            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
-            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
-            "tenant_id": tenant_obj.slug_or_id,
+            # Sticky URL segment: matches the form the user requested so nav
+            # links don't drift the URL bar mid-session.
+            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "t": t,
             "lang": lang,
         },

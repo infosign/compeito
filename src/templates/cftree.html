@@ -6,9 +6,9 @@
 <nav class="text-sm text-stone-500 mb-1">
     <a href="/" class="hover:text-violet-600 transition-colors">{{ t("tenant_list") }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
-    <a href="/{{ tenant.slug_or_id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
+    <a href="/{{ tenant_url }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-violet-300 align-middle"></span>
-    <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
+    <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
 </nav>
 {% endblock %}
 
@@ -32,16 +32,16 @@
     <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]">
         <div class="p-4 border-b border-stone-200">
             <div class="font-medium text-gray-800">{{ doc.title }}</div>
-            <a href="/{{ tenant.slug_or_id }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
+            <a href="/{{ tenant_url }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
-                {% with nodes=root_nodes, tenant_id=tenant_id, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                {% with nodes=root_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item %}
                     {% include "fragments/tree_nodes.html" %}
                 {% endwith %}
                 {% if orphan_nodes %}
                 <div class="mt-2 pt-2 border-t border-stone-100">
-                    {% with nodes=orphan_nodes, tenant_id=tenant_id, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                    {% with nodes=orphan_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item %}
                         {% include "fragments/tree_nodes.html" %}
                     {% endwith %}
                 </div>
@@ -55,7 +55,7 @@
     {# Right pane: detail (stacks below tree on mobile) #}
     <div id="detail-pane" class="w-full md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow-sm border border-stone-200 p-6 md:overflow-y-auto md:max-h-[80vh]">
         {% if selected_item %}
-            {% with tenant_id=tenant_id %}
+            {% with tenant_url=tenant_url %}
                 {% include "fragments/detail.html" %}
             {% endwith %}
         {% else %}
@@ -102,7 +102,7 @@
                 <ul class="space-y-1">
                     {% for rubric in rubrics %}
                     <li>
-                        <a href="/{{ tenant.slug_or_id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
+                        <a href="/{{ tenant_url }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
                     </li>
                     {% endfor %}
                 </ul>
