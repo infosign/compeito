@@ -424,10 +424,10 @@ The following are skipped with a warning:
 
 For CASE v1.0 CFPackage responses, normalize to v1.1 form after fetch and before validation.
 
-**Version detection:**
+**Version detection** (positive v1.0 signals only; ambiguous payloads default to v1.1):
 - URL contains `v1p0` → v1.0.
 - URL contains `v1p1` → NOT v1.0 (the path is treated as authoritative; the body's `caseVersion` is not required). This avoids spurious v1.0 detection for servers like OpenCASE that ship v1.1 responses without the `caseVersion` field.
-- URL has neither segment (e.g., file-based imports) → fall back to structural check: no `CFPackage` wrapper + missing `CFDocument.caseVersion` → v1.0.
+- URL has neither segment (e.g., file-based imports) → look at `CFDocument.caseVersion` (at the root, or inside the `CFPackage` wrapper). Only `"1.0"` triggers v1.0 detection. Missing / `"1.1"` / any other value → NOT v1.0. The `CFPackage` wrapper alone is NOT a v1.0 signal — `_validate_cf_package()` accepts wrapped payloads from non-conforming v1.1 sources as well.
 
 **Normalization rules:**
 - `conceptKeywordsURI`: some v1.0 implementations (e.g., OpenSALT) return an array. If it's an array, use the first element; warn if there are multiple.
@@ -990,10 +990,10 @@ CFRubric の upsert ルールは CFItem / CFAssociation と同様:
 
 CASE v1.0 の CFPackage レスポンスをフェッチ後、バリデーション前に v1.1 互換形式に正規化する。
 
-**バージョン検出:**
+**バージョン検出**（positive な v1.0 signal のみを使用。曖昧なペイロードは v1.1（現行仕様）として扱う）:
 - URL に `v1p0` を含む場合は v1.0 と判定
 - URL に `v1p1` を含む場合は v1.0 ではないと判定（パスを権威とみなし、ボディの `caseVersion` 有無に関わらず v1.1 として扱う）。OpenCASE のように v1.1 レスポンスから `caseVersion` フィールドを落とす実装に対する誤検出を防ぐためのルール
-- URL にいずれのバージョンセグメントも含まれない場合（例: ファイル経由インポート）→ 構造判定にフォールバック: `CFPackage` ラッパーがなく `CFDocument.caseVersion` も存在しない → v1.0
+- URL にいずれのバージョンセグメントも含まれない場合（例: ファイル経由インポート）→ `CFDocument.caseVersion`（root、または `CFPackage` ラッパー内）を見る。`"1.0"` のみ v1.0 と判定。欠落 / `"1.1"` / その他の値はすべて NOT v1.0。`CFPackage` ラッパーの有無は v1.0 signal として扱わない（非準拠の v1.1 ソースもラップ形式で送ってくることがあるため、`_validate_cf_package()` も両方受け入れる）
 
 **正規化ルール:**
 - `conceptKeywordsURI`: 一部の v1.0 実装（OpenSALT 等）が配列を返す場合がある。配列の場合は先頭要素を使用し、複数要素がある場合は警告を出力

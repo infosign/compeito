@@ -323,25 +323,28 @@ def _is_v1p0(data: dict, url: str) -> bool:
 
     Detection uses **positive v1.0 signals only**. Absence of `caseVersion`
     is NOT a v1.0 signal — OpenCASE-style v1.1 exports routinely omit it,
-    so treating "missing caseVersion" as v1.0 misclassifies them and
-    triggers spurious "Detected CASE v1.0 response" warnings during file
-    import. Ambiguous payloads default to v1.1 (the current spec).
+    so treating "missing caseVersion" as v1.0 misclassifies them. Likewise
+    the `CFPackage` wrapper is NOT used as a v1.0 signal on its own:
+    `_validate_cf_package()` accepts wrapped payloads from non-conforming
+    v1.1 sources too, and existing tests cover that case. Ambiguous payloads
+    default to v1.1 (the current spec).
 
     Order:
     1. URL contains `v1p0` → v1.0
     2. URL contains `v1p1` → NOT v1.0
-    3. Body has a `CFPackage` wrapper → v1.0 (the wrapper is a v1.0 thing;
-       v1.1 places the package contents at the root)
-    4. Body has `CFDocument.caseVersion == "1.0"` → v1.0
-    5. Otherwise → NOT v1.0
+    3. `CFDocument.caseVersion == "1.0"` (at root for v1.1-style shape,
+       or inside the `CFPackage` wrapper) → v1.0
+    4. Otherwise → NOT v1.0
     """
     if "v1p0" in url:
         return True
     if "v1p1" in url:
         return False
-    if "CFPackage" in data:
-        return True
     cf_doc = data.get("CFDocument")
+    if not isinstance(cf_doc, dict):
+        wrapper = data.get("CFPackage")
+        if isinstance(wrapper, dict):
+            cf_doc = wrapper.get("CFDocument")
     if isinstance(cf_doc, dict) and cf_doc.get("caseVersion") == "1.0":
         return True
     return False

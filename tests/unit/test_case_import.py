@@ -168,19 +168,36 @@ class TestV1p0Detection:
         }
         assert _is_v1p0(data, "") is False
 
-    def test_v1p0_wrapper_detected_without_url(self):
-        """A `CFPackage` wrapper is a positive v1.0 signal — v1.0 used the
-        wrapper, v1.1 places contents at the root."""
-        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T"}}}
-        assert _is_v1p0(data, "") is True
-
-    def test_explicit_v1p0_case_version_detected_without_url(self):
-        """`caseVersion: "1.0"` in the body is a positive v1.0 signal."""
+    def test_explicit_v1p0_case_version_at_root_detected(self):
+        """`caseVersion: "1.0"` at root is a positive v1.0 signal."""
         data = {
             "CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.0"},
             "CFItems": [],
         }
         assert _is_v1p0(data, "") is True
+
+    def test_explicit_v1p0_case_version_inside_wrapper_detected(self):
+        """`caseVersion: "1.0"` inside a CFPackage wrapper is a positive v1.0 signal."""
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.0"}}}
+        assert _is_v1p0(data, "") is True
+
+    def test_wrapped_v1p1_with_explicit_case_version_not_v1p0(self):
+        """`CFPackage` wrapper alone is NOT a v1.0 signal. A wrapped payload
+        whose CFDocument explicitly declares `caseVersion: "1.1"` (some
+        non-conforming v1.1 producers wrap the package) must be classified
+        as v1.1 even when the URL gives no version hint.
+        """
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
+        assert _is_v1p0(data, "") is False
+
+    def test_wrapped_payload_without_version_not_v1p0(self):
+        """Wrapper alone, no explicit caseVersion → ambiguous, default to v1.1.
+
+        Prevents the regression Codex flagged on PR #182 where the wrapper
+        signal would silently misclassify OpenCASE-style v1.1 payloads.
+        """
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T"}}}
+        assert _is_v1p0(data, "") is False
 
 
 class TestNormalizeConceptKeywordsUri:
@@ -1741,12 +1758,14 @@ class TestImportFromDict:
         assert report.associations_created == 1
         assert report.document_title == "Test Document"
 
-    async def test_source_url_empty_v1p0_detected_by_wrapper(self, db_session: AsyncSession, tenant: Tenant):
-        """When source_url is empty (file import), v1.0 is detected by a
-        positive structural signal: the `CFPackage` wrapper. Ambiguous
-        payloads (no URL, no wrapper, no caseVersion) used to be treated as
-        v1.0 but now default to v1.1 — see test_opencase_style_v1p1_file_import_not_v1p0
-        in TestV1p0Detection for the rationale.
+    async def test_source_url_empty_v1p0_detected_by_explicit_case_version(
+        self, db_session: AsyncSession, tenant: Tenant
+    ):
+        """When source_url is empty (file import), v1.0 is detected by an
+        explicit `caseVersion: "1.0"` in the CFDocument. The CFPackage
+        wrapper alone is no longer a sufficient signal — see
+        test_wrapped_v1p1_with_explicit_case_version_not_v1p0 in
+        TestV1p0Detection for the rationale.
         """
         v1p0_pkg = {
             "CFPackage": {
@@ -1754,6 +1773,7 @@ class TestImportFromDict:
                     "identifier": "aaaa0000-0000-0000-0000-000000000001",
                     "uri": "https://example.com/uri/x",
                     "title": "v1p0 Doc",
+                    "caseVersion": "1.0",
                     "lastChangeDateTime": "2025-01-01T00:00:00Z",
                 },
                 "CFItems": [_make_item()],
