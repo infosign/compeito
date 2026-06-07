@@ -10,6 +10,11 @@ Three CSV formats are supported. The format is auto-detected on import; on expor
 | OpenSALT | yes | yes (`--profile opensalt`) | Migration from OpenSALT |
 | Simple | yes | — | Minimal header; suitable for the first ingest |
 
+> For full-fidelity OpenSALT interchange use the **Excel (.xlsx)** format instead of CSV
+> (`import xlsx` / `export xlsx`). OpenSALT's CSV importer drops CFItemType / educationLevel,
+> whereas its 3-sheet Excel workbook preserves them. See
+> [round_trip_status.md](../dev/round_trip_status.md) (OpenSALT section).
+
 ## Auto-detection logic
 
 The format is decided from the header row (line 1, or the first non-empty line after `#` metadata rows). Empty lines between metadata and the header are skipped by the common rule. **Column names are matched case-insensitively** across all formats:
@@ -264,6 +269,11 @@ Rows are processed top-down. When a Criterion row has an empty `RubricIdentifier
 | 独自形式 | ○ | ○ (デフォルト) | UUID 付き（CFDocument は `#identifier` で固定可能）。編集後の re-import で upsert 可能 |
 | OpenSALT形式 | ○ | ○ (`--profile opensalt`) | OpenSALTからの移行 |
 | 簡易形式 | ○ | - | ヘッダー最小。初回インポート向け |
+
+> OpenSALT との完全な相互運用には CSV ではなく **Excel (.xlsx)** 形式を使う
+> （`import xlsx` / `export xlsx`）。OpenSALT の CSV インポートは CFItemType /
+> educationLevel を取り込まないが、3 シートの Excel ワークブックはこれらを保持する。
+> 詳細は [round_trip_status.md](../dev/round_trip_status.md) の OpenSALT 節を参照。
 
 ## フォーマット自動判定ロジック
 

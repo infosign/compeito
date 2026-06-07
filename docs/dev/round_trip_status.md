@@ -129,7 +129,7 @@ hasSkillLevel, isRelatedTo
 ## 含意（round-trip の faithful なターゲット）
 
 - 「OpenSALT UI で設定できる項目を満遍なく埋めたフレームワークを往復させる」faithful な経路は **Excel (.xlsx)** である。CSV では item type / 学年 / 階層が落ちるため、満遍ない round-trip は CSV では閉じない
-- 一方 **compeito は CSV しか喋れない**（OpenSALT 形式 export = CSV、xlsx 非対応）。よって OpenSALT との完全な round-trip には **compeito 側に OpenSALT-Excel (.xlsx) の import/export を追加する**必要がある。これは [phases.md](../requirements/phases.md) Phase 3 の "Improved OpenSALT compatibility" の具体的中身に相当する
+- 当初 **compeito は CSV しか喋れなかった**ため、OpenSALT との完全な round-trip には **compeito 側に OpenSALT-Excel (.xlsx) の import/export を追加する**必要があった。これは [phases.md](../requirements/phases.md) Phase 3 の "Improved OpenSALT compatibility" の具体的中身に相当する。→ **下記「実装」のとおり対応済**
 - CASE JSON 経由は OpenSALT の export が v1.0 固定でバージョン非対称（v1p0 → v1p1 正規化の検証にはなるが、OpenCASE round-trip と大部分が重複する）
 
 ## OpenSALT Docker セットアップ（調査時の構成・再現用）
@@ -140,6 +140,21 @@ hasSkillLevel, isRelatedTo
 - 既定の `docker-compose.yml` は MySQL 8.0 + FrankenPHP/Symfony + Caddy に加え、ベクトル検索用の `qdrant` / `t2v`（huggingface text-embeddings-inference）と `scheduler` を含む。CSV/Excel round-trip にこれらは不要なので、`docker-compose.override.yml` で web の `depends_on` を `!override` で db のみにし、`qdrant`/`t2v`/`scheduler` を `profiles: ["full"]` に退避して既定起動から外した（`depends_on` はマージされるため `!override` が必要）
 - `cp .env.dist .env` → データ/キャッシュディレクトリを `chmod 777` → `docker compose up -d` → `bin/console doctrine:migrations:migrate` → `salt:group:add` / `salt:user:add <user> <group> --password=... --role=super-user`（**group は位置引数で必須**）
 
+## 実装（Excel 採用・完了）
+
+方針として **Excel (.xlsx) を OpenSALT の交換形式に採用**し、compeito に xlsx import/export を追加した。
+
+- `src/services/xlsx_export_service.py` / `xlsx_import_service.py`、CLI `export xlsx` / `import xlsx`（依存 `openpyxl`）
+- export は CF Doc / CF Item / CF Association の 3 シートを生成。**階層は smartLevel（1 / 1.1 / 1.1.1 …、1-based 兄弟位置）**で表現し、isChildOf は CF Association シートに重複させない。CFItemType / educationLevel / conceptKeywords を含む
+- import は CF Doc + CF Item を compeito の custom CSV に変換して既存 `csv_import_service.import_csv` を再利用（アイテム upsert・CFItemType find-or-create・educationLevel・smartLevel→isChildOf を流用）。CF Association シートの非 isChildOf 関連は専用パスで取り込む
+- **実 OpenSALT で検証済（2026-06-07）**: compeito 出力の xlsx を稼働中 OpenSALT の `/salt/excel/import` に投入し、36 items・日本語の humanCodingScheme/fullStatement・smartLevel からの 36 isChildOf 階層・5 種の CFItemType（領域/分野/知識/技能/態度）・CF Doc メタデータがすべて復元されることを確認
+
+### 既知のギャップ
+
+- compeito は CFItem/CFDocument に `notes` 列を持たないため、`notes` セルは空で出力し import 時は無視する
+- OpenSALT の Excel import は CF Doc の identifier をシートから設定せず**新規採番**する（`ExcelImport::saveDoc` の identifier 設定がコメントアウト）。そのため OpenSALT 側の doc UUID は投入値と変わる（items の identifier は保持される）
+- smartLevel は 1-based 兄弟位置で再採番するため、compeito の sequenceNumber（10, 20 …）は xlsx 往復で 1, 2 … に変わる（OpenSALT は smartLevel を再計算するモデルなので相互運用上は問題ない）
+
 ## 状態
 
-**調査済・方針保留**。実装（fixture 作成・テスト追加・compeito の xlsx 対応）には未着手。round-trip の方針（Excel 採用 / CSV 片方向 / CASE JSON）は別途決定する。
+**Excel round-trip 実装済・実機検証済**。CSV は依然として OpenSALT 側 export 不在のため双方向 round-trip は閉じないが、満遍ない相互運用は xlsx 経路で達成。

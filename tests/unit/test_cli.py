@@ -881,3 +881,54 @@ class TestUuidValidation:
         )
         assert result.exit_code == 1
         assert "Invalid UUID format" in result.output
+
+
+# ---------------------------------------------------------------------------
+# XLSX import / export tests
+# ---------------------------------------------------------------------------
+
+
+class TestXlsxCli:
+    def test_export_xlsx_success(self, runner, env_docker, test_document, tmp_path):
+        from cli import cli
+
+        out_file = tmp_path / "out.xlsx"
+        result = runner.invoke(
+            cli,
+            ["export", "xlsx", "--tenant", str(TENANT_ID), "--doc", str(DOC_IDENT), "--file", str(out_file)],
+        )
+        assert result.exit_code == 0
+        assert out_file.exists()
+        from openpyxl import load_workbook
+
+        wb = load_workbook(out_file)
+        assert wb.sheetnames == ["CF Doc", "CF Item", "CF Association"]
+
+    def test_import_xlsx_success(self, runner, env_docker, test_tenant, tmp_path):
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        wb.remove(wb.active)
+        d = wb.create_sheet("CF Doc")
+        d.append(["identifier", "creator", "title"] + [""] * 13)
+        d.append([str(uuid.uuid4()), "Author", "Imported via CLI"] + [""] * 13)
+        it = wb.create_sheet("CF Item")
+        it.append(["identifier", "fullStatement", "humanCodingScheme", "smartLevel"] + [""] * 8)
+        it.append([str(uuid.uuid4()), "Root item", "R", "1"] + [""] * 8)
+        wb.create_sheet("CF Association").append(["identifier"] + [""] * 9)
+        path = tmp_path / "in.xlsx"
+        wb.save(path)
+
+        from cli import cli
+
+        result = runner.invoke(cli, ["import", "xlsx", "--tenant", str(TENANT_ID), "--file", str(path)])
+        assert result.exit_code == 0, result.output
+        assert "Imported into" in result.output
+
+    def test_import_xlsx_bad_file(self, runner, env_docker, test_tenant, tmp_path):
+        bad = tmp_path / "bad.xlsx"
+        bad.write_bytes(b"not a real xlsx")
+        from cli import cli
+
+        result = runner.invoke(cli, ["import", "xlsx", "--tenant", str(TENANT_ID), "--file", str(bad)])
+        assert result.exit_code == 1
