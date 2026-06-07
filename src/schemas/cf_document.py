@@ -30,7 +30,14 @@ class CFDocumentDType(CASEBaseSchema):
 
 
 class CFPckgDocumentDType(CASEBaseSchema):
-    """CFDocument within CFPackage (excludes CFPackageURI)."""
+    """CFDocument within CFPackage.
+
+    Includes `CFPackageURI` so that the OpenCASE → compeito → OpenCASE
+    round-trip preserves the field (OpenCASE emits it inside CFPackage too).
+    The CASE v1.1 spec permits this — the link is redundant inside a package
+    you already fetched, but echoing it preserves the round-trip and gives
+    clients a stable handle to re-fetch the package.
+    """
 
     identifier: str
     uri: str
@@ -49,4 +56,5 @@ class CFPckgDocumentDType(CASEBaseSchema):
     official_source_url: str | None = Field(default=None, alias="officialSourceURL")
     subject: list[str] | None = None
     subject_uri: list[LinkURIType] | None = Field(default=None, alias="subjectURI")
+    cf_package_uri: LinkURIType = Field(alias="CFPackageURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

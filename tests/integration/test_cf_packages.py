@@ -35,11 +35,13 @@ class TestGetCFPackageBasic:
         # CASE v1.1: CFPackageDType returned at top level (no "CFPackage" wrapper)
         pkg = body
         assert "CFPackage" not in pkg
-        # CFDocument present (CFPckgDocumentDType — no CFPackageURI)
+        # CFDocument present (CFPckgDocumentDType — includes CFPackageURI for
+        # round-trip parity with OpenCASE; see docs/dev/round_trip_status.md cat D)
         assert "CFDocument" in pkg
         assert pkg["CFDocument"]["identifier"] == DOC_IDENTIFIER
         assert pkg["CFDocument"]["title"] == "Test Document"
-        assert "CFPackageURI" not in pkg["CFDocument"]
+        assert pkg["CFDocument"]["CFPackageURI"]["identifier"] == DOC_IDENTIFIER
+        assert pkg["CFDocument"]["CFPackageURI"]["uri"].endswith(f"/ims/case/v1p1/CFPackages/{DOC_IDENTIFIER}")
         # CFItems and CFAssociations always present as empty arrays
         assert pkg["CFItems"] == []
         assert pkg["CFAssociations"] == []
@@ -201,10 +203,10 @@ class TestGetCFPackageFull:
         assert response.status_code == 200
         pkg = response.json()
 
-        # CFDocument — no CFPackageURI
+        # CFDocument — includes CFPackageURI (round-trip cat D)
         doc = pkg["CFDocument"]
         assert doc["identifier"] == DOC_IDENTIFIER
-        assert "CFPackageURI" not in doc
+        assert doc["CFPackageURI"]["identifier"] == DOC_IDENTIFIER
 
         # CFItems — CFPckgItemDType (includes CFDocumentURI for round-trip
         # parity with OpenCASE; see docs/dev/round_trip_status.md cat B)
