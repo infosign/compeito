@@ -37,6 +37,19 @@ def _build_uri(tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
     return f"{settings.base_url}/{tenant_id}/uri/{identifier}"
 
 
+def _extract_link_uri_source(link_uri) -> str | None:
+    """Return the `uri` field from a CASE LinkURI dict, or None if missing/blank.
+
+    Used to preserve source LinkURI values verbatim (round-trip cat F / cat G).
+    """
+    if not isinstance(link_uri, dict):
+        return None
+    src = link_uri.get("uri")
+    if isinstance(src, str) and src.strip():
+        return src
+    return None
+
+
 def _resolve_uri(source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
     """Return the source CFPackage's `uri` if present, else build a compeito-native URI.
 
@@ -813,6 +826,7 @@ def _create_document(
         official_source_url=data.get("officialSourceURL"),
         subject=data.get("subject"),
         subject_uri=data.get("subjectURI"),
+        cf_package_uri_source=_extract_link_uri_source(data.get("CFPackageURI")),
         last_change_date_time=ldt,
     )
 
@@ -828,6 +842,11 @@ def _update_document(
 
     # Preserve source URI when present (FR-7.2); fall back to compeito-native URI.
     doc.uri = _resolve_uri(data, tenant_id, doc.identifier)
+    # CFPackageURI verbatim preservation (round-trip cat G). When the source
+    # field is absent we leave the existing stored value alone — same as
+    # other "missing → keep existing" semantics in this function.
+    if "CFPackageURI" in data:
+        doc.cf_package_uri_source = _extract_link_uri_source(data.get("CFPackageURI"))
     if data.get("title"):
         doc.title = data["title"].strip()
     if "creator" in data:

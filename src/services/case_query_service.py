@@ -31,10 +31,14 @@ from src.schemas.common import LinkGenURIDType, LinkURIType
 
 
 def _build_cf_package_uri(tenant_id: uuid.UUID, doc: CFDocument) -> LinkURIType:
+    # Prefer the verbatim source CFPackageURI.uri captured at import time
+    # (round-trip cat G); fall back to a compeito-native URL when this
+    # CFDocument originated from CSV/manual creation rather than a CFPackage.
+    uri = doc.cf_package_uri_source or (f"{settings.base_url}/{tenant_id}/ims/case/v1p1/CFPackages/{doc.identifier}")
     return LinkURIType(
         title=doc.title,
         identifier=str(doc.identifier),
-        uri=f"{settings.base_url}/{tenant_id}/ims/case/v1p1/CFPackages/{doc.identifier}",
+        uri=uri,
     )
 
 
