@@ -25,9 +25,9 @@
 | ~~D. CFDocument に CFPackageURI 欠落~~ | **解消** | ~~1~~ → 0 | `CFPckgDocumentDType` に CFPackageURI を emit するよう変更 |
 | E. LinkURI.title の表現差 | 未対応 | 37 | OpenCASE は literal type label（`"Document"` / `"CFPackage"`）を emit、compeito は実際の title を emit |
 | ~~F. CFItemURI の denormalized URI 不一致~~ | **解消** | ~~7~~ → 0 | `cf_rubric_criteria.cf_item_uri_source` 列を追加し、source の CFItemURI.uri を verbatim 保存。export 時は被リンク CFItem.uri より優先 |
-| G. CFDocument.CFPackageURI.uri 不保持 | 未対応 | 1 | CFPackage import 時に source の CFPackageURI.uri を捨てている（compeito 側で BASE_URL から組み立て直す） |
+| ~~G. CFDocument.CFPackageURI.uri 不保持~~ | **解消** | ~~1~~ → 0 | `cf_documents.cf_package_uri_source` 列を追加し、同じパターンで保存。export 時は `_build_cf_package_uri()` で参照 |
 
-合計 38 件。
+合計 37 件。残るは E のみ。
 
 ### ~~A. URI 書き換え~~（概ね解消、残 8 件は F / G に分離）
 
@@ -62,15 +62,9 @@ OpenCASE は LinkURI の `title` を、リンク種別を示す literal（`"Docu
 
 `cf_rubric_criteria` テーブルに `cf_item_uri_source TEXT NULL` 列を追加（マイグレーション `0054ee62f823`）。CFPackage import 時に source の `CFItemURI.uri` を verbatim 保存し、export 時はそれを優先、無ければ被リンク CFItem.uri にフォールバック。これで OpenCASE の「denormalized LinkURI を再解決しない」挙動と一致するため、round-trip が壊れない。
 
-### G. CFDocument.CFPackageURI.uri が source と一致しない（1 件、1 パス）
+### ~~G. CFDocument.CFPackageURI.uri が source と一致しない~~（解消済）
 
-| 件数 | パス |
-|------|------|
-| 1 | `CFDocument.CFPackageURI.uri` |
-
-CFPackageURI は compeito 側で `_build_cf_package_uri(tenant_id, doc)` により `{BASE_URL}/{tenant_id}/ims/case/v1p1/CFPackages/{doc.identifier}` で組み立てている。source CFDocument の CFPackageURI.uri を保存していないため、re-export では compeito のホスト/テナント URL が使われ、source とは一致しない。
-
-**対応案**: `cf_documents` テーブルに source の CFPackageURI.uri を保持する列を追加し、export 時はそれを優先、無ければ build。あるいは「compeito ホスト中のリソースの CFPackageURI は compeito 自身が emit すべき canonical」として割り切る判断もあり得る（OpenCASE round-trip 目標とは衝突）。マイグレーション + 移行が必要。
+`cf_documents` テーブルに `cf_package_uri_source TEXT NULL` 列を追加（マイグレーション `bfbb97d3805a`）。CFPackage import 時に source の CFPackageURI.uri を verbatim 保存し、`_build_cf_package_uri()` でそれを優先、NULL なら compeito-native URL にフォールバック。cat F と同じパターン。
 
 ## 作業の進め方
 
