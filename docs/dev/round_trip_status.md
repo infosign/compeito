@@ -19,38 +19,21 @@
 
 | カテゴリ | 状態 | 件数 | 内容 |
 |---------|------|------|------|
-| A. URI 書き換え | 未対応 | 270 | `_build_uri()` で外部 URI を rewrite してしまっている |
+| ~~A. URI 書き換え~~ | **概ね解消** | ~~270~~ → 8 | CFPackage import が source URI を保持するよう `_resolve_uri()` を導入。残 8 件はカテゴリ F / G の denormalized LinkURI 系（schema 追加が必要）に分離 |
 | ~~B. CFItem に CFDocumentURI 欠落~~ | **解消** | ~~36~~ → 0 | `CFPckgItemDType` に CFDocumentURI を emit するよう変更 |
 | ~~C. score が int → float~~ | **解消** | ~~28~~ → 0 | `CASEBaseSchema` に整数値の float を int として emit する serializer を追加 |
 | ~~D. CFDocument に CFPackageURI 欠落~~ | **解消** | ~~1~~ → 0 | `CFPckgDocumentDType` に CFPackageURI を emit するよう変更 |
 | E. LinkURI.title の表現差 | 未対応 | 37 | OpenCASE は literal type label（`"Document"` / `"CFPackage"`）を emit、compeito は実際の title を emit |
+| F. CFItemURI の denormalized URI 不一致 | 未対応 | 7 | CFRubricCriterion.CFItemURI.uri が source と一致しない（compeito は被リンク CFItem.uri から再構築） |
+| G. CFDocument.CFPackageURI.uri 不保持 | 未対応 | 1 | CFPackage import 時に source の CFPackageURI.uri を捨てている（compeito 側で BASE_URL から組み立て直す） |
 
-合計 307 件（カテゴリ A の細目は後述）。
+合計 45 件。
 
-### A. URI 書き換え（270 件、14 パス）
+### ~~A. URI 書き換え~~（概ね解消、残 8 件は F / G に分離）
 
-import 時に外部 URI を `{BASE_URL}/{tenant_id}/uri/{identifier}` で再生成しており、FR-7.2「外部リソースの URI と identifier をそのまま保持する」と矛盾している。`identifier` 自体は保持されているが、`uri` フィールドだけが書き換わる。
+`case_import_service` に `_resolve_uri(source, tenant_id, identifier)` ヘルパーを導入し、CFPackage import 経由のリソース URI は source の `uri` を優先、無ければ `_build_uri()` で生成、というポリシーに変更。CSV import（`csv_import_service`）はそのまま `_build_uri()` を直叩きするので影響なし。
 
-該当パス:
-
-| 件数 | パス |
-|------|------|
-| 36 | `CFAssociations[*].uri` |
-| 36 | `CFAssociations[*].originNodeURI.uri` |
-| 36 | `CFAssociations[*].destinationNodeURI.uri` |
-| 36 | `CFItems[*].uri` |
-| 36 | `CFItems[*].CFItemTypeURI.uri` |
-| 36 | `CFItems[*].CFDocumentURI.uri` |
-| 28 | `CFRubrics[*].CFRubricCriteria[*].CFRubricCriterionLevels[*].uri` |
-|  7 | `CFRubrics[*].CFRubricCriteria[*].uri` |
-|  7 | `CFRubrics[*].CFRubricCriteria[*].CFItemURI.uri` |
-|  5 | `CFDefinitions.CFItemTypes[*].uri` |
-|  3 | `CFDefinitions.CFSubjects[*].uri` |
-|  2 | `CFRubrics[*].uri` |
-|  1 | `CFDocument.uri` |
-|  1 | `CFDocument.CFPackageURI.uri` |
-
-**対応案**: import 時に source の `uri` 文字列をそのまま DB に保存する（既に `_build_uri()` で再生成しているのを止める）。CSV 経由のインポートでは従来通り `_build_uri()` で生成、CFPackage JSON 経由では入力を尊重する、という分岐が必要。
+主要パス（CFDocument / CFItem / CFAssociation / CFRubric / CFRubricCriterion / CFRubricCriterionLevel / CFDefinitions の各 lookup）の URI 書き換えは 262 件解消。残 8 件は **F**（CFRubricCriterion.CFItemURI.uri、7 件）と **G**（CFDocument.CFPackageURI.uri、1 件）に切り出し（後述）。これらは「DB に source の denormalized LinkURI を保存していない」ことに起因し、schema 列追加を伴うため別 PR で対応する。
 
 ### ~~B. CFItem に CFDocumentURI が欠落~~（解消済）
 
@@ -75,8 +58,28 @@ OpenCASE は LinkURI の `title` を、リンク種別を示す literal（`"Docu
 
 **対応案**: round-trip 優先なら compeito も LinkURI.title を type label（`"Document"`、`"CFPackage"` 等）に揃える。ただし compeito の standalone CFItem / CFAssociation レスポンスにも影響するため、Web UI / 既存テストの互換性を併せて検討する。
 
+### F. CFRubricCriterion.CFItemURI.uri が source と一致しない（7 件、1 パス）
+
+| 件数 | パス |
+|------|------|
+| 7 | `CFRubrics[*].CFRubricCriteria[*].CFItemURI.uri` |
+
+CFRubricCriterion は CFItem への参照（`CFItemURI`）を持つが、現実装では `cf_item_id`（FK）のみを DB に保存し、export 時に被リンク CFItem の `uri` フィールドから LinkURI を再構築する。source の CFItemURI.uri と CFItem.uri が一致していないケース（実際の fixture でも発生）では、re-export 時に source の CFItemURI.uri が失われる。
+
+**対応案**: `cf_rubric_criteria` テーブルに source の CFItemURI.uri を保持する列（例: `cf_item_uri_source`）を追加し、export 時はそれを優先、無ければ被リンク CFItem.uri から再構築、という二段フォールバック。マイグレーション + 既存データ移行が必要。
+
+### G. CFDocument.CFPackageURI.uri が source と一致しない（1 件、1 パス）
+
+| 件数 | パス |
+|------|------|
+| 1 | `CFDocument.CFPackageURI.uri` |
+
+CFPackageURI は compeito 側で `_build_cf_package_uri(tenant_id, doc)` により `{BASE_URL}/{tenant_id}/ims/case/v1p1/CFPackages/{doc.identifier}` で組み立てている。source CFDocument の CFPackageURI.uri を保存していないため、re-export では compeito のホスト/テナント URL が使われ、source とは一致しない。
+
+**対応案**: `cf_documents` テーブルに source の CFPackageURI.uri を保持する列を追加し、export 時はそれを優先、無ければ build。あるいは「compeito ホスト中のリソースの CFPackageURI は compeito 自身が emit すべき canonical」として割り切る判断もあり得る（OpenCASE round-trip 目標とは衝突）。マイグレーション + 移行が必要。
+
 ## 作業の進め方
 
-各カテゴリを別 PR で潰す。カテゴリ A は影響範囲が広いので慎重に。すべてのカテゴリが片付いたら、`test_lossless` の `xfail` を外す（`strict=True` にすると、不意に diff が増えた時に CI が落ちる）。
+各カテゴリを別 PR で潰す。すべてのカテゴリが片付いたら、`test_lossless` の `xfail` を外す（`strict=True` にすると、不意に diff が増えた時に CI が落ちる）。
 
 OpenCASE 上でフレームワークをさらに enrich（`conceptKeywordsURI` / `licenseURI` / non-isChildOf associationType / CFConcept / CFLicense / CFAssociationGrouping 等）して fixture を更新したい場合は、enrich 後の CFPackage を `GET /ims/case/v1p1/CFPackages/{id}` で再取得し `tests/fixtures/opencase_round_trip_baseline.json` を差し替える。

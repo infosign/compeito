@@ -535,7 +535,8 @@ class TestImportBasic:
         )
         doc = result.scalar_one()
         assert doc.title == "Test Document"
-        assert doc.uri == f"http://localhost:8000/{tenant.id}/uri/aaaa0000-0000-0000-0000-000000000001"
+        # CFPackage import preserves the source CFDocument.uri (FR-7.2).
+        assert doc.uri == "https://example.com/uri/aaaa0000-0000-0000-0000-000000000001"
 
     async def test_update_existing_document(self, db_session: AsyncSession, tenant: Tenant):
         """Re-import with same identifier should update."""
@@ -1280,8 +1281,17 @@ class TestDepthCalculation:
 
 
 class TestURIPreservation:
-    async def test_uri_rewritten_to_local(self, db_session: AsyncSession, tenant: Tenant):
-        """External URIs should be rewritten to local BASE_URL."""
+    """CFPackage import preserves source URIs verbatim per FR-7.2.
+
+    Behavior changed in round-trip cat A (PR closing the URI-rewriting gap):
+    previously compeito ran every imported URI through `_build_uri()` and
+    stamped its own BASE_URL onto it; now the source `uri` is kept as-is so
+    OpenCASE → compeito → OpenCASE round-trips don't churn references stored
+    by external clients (OBF, OpenSALT, …). Fall-back to a compeito-native
+    URI only applies when the source dict omits `uri`.
+    """
+
+    async def test_source_uri_preserved_on_create(self, db_session: AsyncSession, tenant: Tenant):
         items = [_make_item()]
         pkg = _make_cf_package(items=items)
 
@@ -1299,9 +1309,9 @@ class TestURIPreservation:
             select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
         )
         item = result.scalar_one()
-        assert item.uri == f"http://localhost:8000/{tenant.id}/uri/bbbb0000-0000-0000-0000-000000000001"
+        assert item.uri == "https://example.com/uri/bbbb0000-0000-0000-0000-000000000001"
 
-    async def test_uri_rewritten_on_update(self, db_session: AsyncSession, tenant: Tenant):
+    async def test_source_uri_preserved_on_update(self, db_session: AsyncSession, tenant: Tenant):
         items = [_make_item()]
         pkg = _make_cf_package(items=items)
 
@@ -1315,13 +1325,35 @@ class TestURIPreservation:
 
         await db_session.flush()
 
-        # Re-import with different URI — should still use local BASE_URL
+        # Re-import with a different URI — the new source URI should win.
         items2 = [_make_item()]
         items2[0]["uri"] = "https://new-server.com/different-uri"
         pkg2 = _make_cf_package(items=items2)
 
         with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
             mock_fetch.return_value = (pkg2, [])
+            await import_case_package(
+                db_session,
+                tenant.id,
+                "https://example.com/CFPackages/xxx",
+            )
+
+        await db_session.flush()
+
+        result = await db_session.execute(
+            select(CFItem).where(CFItem.identifier == uuid.UUID("bbbb0000-0000-0000-0000-000000000001"))
+        )
+        item = result.scalar_one()
+        assert item.uri == "https://new-server.com/different-uri"
+
+    async def test_missing_source_uri_falls_back_to_local(self, db_session: AsyncSession, tenant: Tenant):
+        """Source CFPackage omits `uri` → compeito-native URI is generated."""
+        items = [_make_item()]
+        items[0].pop("uri")
+        pkg = _make_cf_package(items=items)
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
             await import_case_package(
                 db_session,
                 tenant.id,
