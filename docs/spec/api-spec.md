@@ -295,7 +295,7 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
 6. **`X-Total-Count` / `links` headers omitted:** not implemented in Phase 1 (see pagination section).
 7. **Emitting `targetType: null`:** OpenAPI's anyOf does not permit null, but we include it for practical reasons (see LinkURI section).
 8. **Tenant prefix:** `/{tenant}/ims/case/v1p1/` is an extension to support multi-tenancy (not in the CASE v1.1 spec).
-9. **Service Discovery endpoint:** CASE v1.1 defines `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`. Not implemented in Phase 1; Phase 2 will revisit during Conformance work.
+9. **Service Discovery endpoint:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` returns the official OpenAPI 3 schema as static JSON. No tenant prefix. `Cache-Control: public, max-age=86400` (the schema is release-pinned). FR-2.12.
 10. **405 Method Not Allowed:** not defined in CASE v1.1 OpenAPI, but reasonable for a GET-only API; we add it.
 11. **401 / 403 not implemented:** defined for every endpoint in CASE v1.1 OpenAPI, but our CASE API is public (no auth) so they're irrelevant.
 12. **CFDocument `creator` nullable:** required in CASE v1.1 OpenAPI (in the CFDocumentDType required list), but nullable in our DB to accommodate CSV imports that omit it. The API response can return `null`. External CFPackage import behavior: on create, missing / null / blank `creator` emits a warning and stores `null`; on update, missing / null retains the existing value silently, and a blank string emits a warning while still retaining the existing value (the existing `creator` is not overwritten with an empty string). Phase 2 will consider an empty-string default for Conformance.
@@ -619,7 +619,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 6. **`X-Total-Count` / `links` ヘッダー省略:** Phase 1 では実装しない（上記ページネーション節参照）
 7. **`targetType: null` の出力:** OpenAPI の anyOf 定義上 null は有効値でないが、実運用上必要なため null を含める（上記 LinkURI 型節参照）
 8. **テナントプレフィックス:** `/{tenant}/ims/case/v1p1/` パスは CASE v1.1 仕様にない独自拡張（マルチテナント対応）
-9. **Service Discovery エンドポイント:** CASE v1.1 では `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` が定義されている。Phase 1 では未実装。Phase 2 の Conformance テスト対応で実装を検討する
+9. **Service Discovery エンドポイント:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で公式 OpenAPI 3 スキーマを静的 JSON として返す。テナントプレフィックスなし。`Cache-Control: public, max-age=86400`（スキーマはリリース固定）。FR-2.12
 10. **405 Method Not Allowed:** CASE v1.1 OpenAPI に定義はないが、GET only の API として合理的なため追加
 11. **401/403 未実装:** CASE v1.1 OpenAPI で全エンドポイントに定義されているが、CASE API は public（認証不要）のため不要
 12. **CFDocument `creator` の nullable 化:** CASE v1.1 OpenAPI では `creator` は required（CFDocumentDType の required リストに含まれる）だが、CSV インポートで未指定のケースに対応するため DB では nullable。API レスポンスで `null` が返る可能性がある。外部 CASE CFPackage インポート時の挙動: 新規作成時に `creator` が欠落・null・空白文字列であれば警告を出力した上で `null` で保存する。更新時は欠落・null は既存値を保持（無警告）、空白文字列の場合は警告を出した上で既存値を保持する（既存 creator を空文字に上書きしない）。Phase 2 の Conformance テスト対応で空文字列デフォルト化を検討する
