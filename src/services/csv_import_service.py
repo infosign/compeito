@@ -1188,9 +1188,7 @@ async def import_csv(
         first_row = non_empty_remaining[0][1]
         detected = _detect_format(first_row)
         if profile is not None and profile != detected:
-            raise ValueError(
-                f"--profile {profile} specified but the CSV content matches '{detected}' format"
-            )
+            raise ValueError(f"--profile {profile} specified but the CSV content matches '{detected}' format")
         fmt = profile or detected
 
         if fmt == FormatType.SIMPLE:
