@@ -704,9 +704,10 @@ class TestUriDetailPage:
 
 
 class TestUriDetailErrors:
-    async def test_invalid_tenant_400(self, db_client):
+    async def test_non_uuid_tenant_falls_back_to_slug_404(self, db_client):
+        """A non-UUID tenant segment is interpreted as a slug; unknown slug → 404."""
         resp = await db_client.get("/bad/uri/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     async def test_missing_tenant_404(self, db_client):
         resp = await db_client.get(

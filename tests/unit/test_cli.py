@@ -226,6 +226,57 @@ class TestTenantCreate:
         )
         assert result.exit_code != 0
 
+    def test_create_with_slug(self, runner, env_docker, clean_db):
+        """`tenant create --slug` stores the slug alongside the UUID."""
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "Ikenohata University", "--slug", "ikenohata-u"],
+        )
+        assert result.exit_code == 0
+        assert "Ikenohata University" in result.output
+
+        listed = runner.invoke(cli, ["tenant", "list"])
+        assert "ikenohata-u" in listed.output
+
+    def test_create_with_duplicate_slug(self, runner, env_docker, clean_db):
+        from cli import cli
+
+        first = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "First", "--slug", "ikenohata-u"],
+        )
+        assert first.exit_code == 0
+
+        second = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "Second", "--slug", "ikenohata-u"],
+        )
+        assert second.exit_code != 0
+        assert "ikenohata-u" in (second.stderr + second.output)
+
+    @pytest.mark.parametrize(
+        "bad_slug",
+        [
+            "-foo",  # leading hyphen
+            "foo-",  # trailing hyphen
+            "Foo",  # uppercase
+            "a",  # too short
+            "health",  # reserved
+            "static",  # reserved
+            "550e8400-e29b-41d4-a716-446655440000",  # UUID-shaped
+        ],
+    )
+    def test_create_with_invalid_slug(self, runner, env_docker, clean_db, bad_slug: str):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "create", "--name", "x", "--slug", bad_slug],
+        )
+        assert result.exit_code != 0
+
 
 class TestTenantList:
     def test_list_empty(self, runner, env_docker, clean_db):
@@ -328,6 +379,60 @@ class TestTenantUpdate:
         )
         assert result.exit_code == 1
         assert "Invalid UUID format" in result.output
+
+    def test_update_set_slug(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--slug", "ikenohata-u"],
+        )
+        assert result.exit_code == 0
+        listed = runner.invoke(cli, ["tenant", "list"])
+        assert "ikenohata-u" in listed.output
+
+    def test_update_clear_slug(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        # Set a slug, then clear it.
+        runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--slug", "to-clear"],
+        )
+        result = runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--clear-slug"],
+        )
+        assert result.exit_code == 0
+        listed = runner.invoke(cli, ["tenant", "list"])
+        assert "to-clear" not in listed.output
+
+    def test_update_slug_and_clear_slug_conflict(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            [
+                "tenant",
+                "update",
+                "--tenant",
+                str(TENANT_ID),
+                "--slug",
+                "x",
+                "--clear-slug",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+    def test_update_invalid_slug(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--slug", "Bad-Slug!"],
+        )
+        assert result.exit_code == 1
 
 
 class TestTenantDelete:

@@ -291,10 +291,11 @@ class TestTenantPage:
 
 
 class TestTenantPageErrors:
-    async def test_invalid_uuid_400(self, db_client):
+    async def test_non_uuid_segment_falls_back_to_slug_404(self, db_client):
+        """A non-UUID segment is interpreted as a slug; an unknown slug → 404."""
         resp = await db_client.get("/not-a-uuid/")
-        assert resp.status_code == 400
-        assert "リクエストが不正です" in resp.text
+        assert resp.status_code == 404
+        assert "ページが見つかりません" in resp.text
 
     async def test_missing_tenant_404(self, db_client):
         resp = await db_client.get("/99999999-9999-9999-9999-999999999999/")
