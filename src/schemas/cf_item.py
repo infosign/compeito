@@ -30,7 +30,14 @@ class CFItemDType(CASEBaseSchema):
 
 
 class CFPckgItemDType(CASEBaseSchema):
-    """CFItem within CFPackage (excludes CFDocumentURI)."""
+    """CFItem within CFPackage.
+
+    Includes `CFDocumentURI` so that the OpenCASE → compeito → OpenCASE
+    round-trip preserves the field (OpenCASE emits it inside CFPackage too).
+    The CASE v1.1 spec permits this — the document is at the top of the
+    package, but echoing the link on each item is allowed and aids parsing
+    by clients that walk items independently.
+    """
 
     identifier: str
     uri: str
@@ -49,4 +56,5 @@ class CFPckgItemDType(CASEBaseSchema):
     status_start_date: date | None = Field(default=None, alias="statusStartDate")
     status_end_date: date | None = Field(default=None, alias="statusEndDate")
     list_enumeration: str | None = Field(default=None, alias="listEnumeration")
+    cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
