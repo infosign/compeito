@@ -137,7 +137,7 @@ class TestCliTranslator:
             "cmd_doc_list",
             "cmd_doc_delete",
             "cmd_import_csv",
-            "cmd_import_case_url",
+            "cmd_import_case",
             "cmd_export_csv",
             "cmd_db_migrate",
             "err_invalid_uuid",

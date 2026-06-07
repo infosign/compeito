@@ -1096,6 +1096,7 @@ async def import_csv(
     doc_identifier: uuid.UUID | None = None,
     doc_title: str | None = None,
     doc_version: str | None = None,
+    profile: str | None = None,
 ) -> ImportReport:
     """Import a CSV file into the database.
 
@@ -1106,6 +1107,10 @@ async def import_csv(
         doc_identifier: Optional --doc parameter (existing document UUID).
         doc_title: Optional --doc-title override.
         doc_version: Optional --doc-version override.
+        profile: Optional format override ("custom" / "opensalt" / "simple").
+            None (default) auto-detects from the header. When given, the
+            content must match that profile or a ValueError is raised (no
+            silent fallback to a different format).
 
     Returns:
         ImportReport with counts and warnings.
@@ -1176,12 +1181,17 @@ async def import_csv(
 
     # Determine format
     if not non_empty_remaining:
-        fmt = FormatType.SIMPLE
+        fmt = profile or FormatType.SIMPLE
         header: list[str] = []
         data_rows_indexed: list[tuple[int, list[str]]] = []
     else:
         first_row = non_empty_remaining[0][1]
-        fmt = _detect_format(first_row)
+        detected = _detect_format(first_row)
+        if profile is not None and profile != detected:
+            raise ValueError(
+                f"--profile {profile} specified but the CSV content matches '{detected}' format"
+            )
+        fmt = profile or detected
 
         if fmt == FormatType.SIMPLE:
             # Simple format: no header skip, first row is data

@@ -50,36 +50,40 @@ uv run python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force
 # CSV import (new: omit --doc; update: with --doc → upsert)
 # --doc-title: CFDocument title. On create, can be omitted if the CSV has a #title row, otherwise required. On update, optional (existing value retained).
 # --doc-version: version (optional; on update existing value retained; default is NULL on create).
+# --profile: format override. auto (default) auto-detects custom / opensalt / simple.
+#            When set explicitly, the content must match that profile or it errors
+#            (no silent fallback). Values: auto / custom / opensalt / simple.
 uv run python cli.py import csv --tenant {uuid} --file framework.csv
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "Name" --doc-version "1.0"
 uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile opensalt
 
-# External CASE source import (v1.1 supported; v1.0 Phase 2; upsert)
-# --url: CASE API base path or a direct CFPackage URL (see import-logic.md).
-uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
-uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
-
-# Local CFPackage JSON import (no network fetch; same persistence path as case-url)
-# Useful when the source CASE server is private / not reachable from this host.
-uv run python cli.py import case-file --tenant {uuid} --file framework.json
-uv run python cli.py import case-file --tenant {uuid} --doc {doc-uuid} --file framework.json
+# External CASE import (v1.1 supported; v1.0 Phase 2; upsert).
+# Exactly one of --url / --file must be given.
+# --url:  CASE API base path or a direct CFPackage URL (see import-logic.md).
+# --file: a local CFPackage JSON file (no network fetch; same persistence path).
+#         Useful when the source CASE server is private / not reachable from this host.
+uv run python cli.py import case --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
+uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
+uv run python cli.py import case --tenant {uuid} --file framework.json
+uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framework.json
 
 # Export (custom format with UUIDs; editing + re-importing upserts)
 # --file: output path. Overwrites without confirmation if the file exists.
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
-uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
-# --format: "custom" (default) / "opensalt"
-#           Invalid → error exit ("Invalid format: '{value}'. Valid values: custom, opensalt")
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --profile opensalt
+# --profile: "custom" (default) / "opensalt"
+#            Invalid → error exit ("Invalid profile: '{value}'. Valid values: custom, opensalt")
 
 # CASE CFPackage JSON export (output is byte-for-byte identical to GET /CFPackages/{id})
-# Re-importable via `import case-file`, or feed-able to any CASE-conformant editor.
+# Re-importable via `import case --file`, or feed-able to any CASE-conformant editor.
 uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
 
 # Rubric CSV import (--doc selects the target document; upsert)
-uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py import rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # Rubric CSV export
-uv run python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py export rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # DB migration
 uv run python cli.py db migrate
@@ -234,36 +238,39 @@ uv run python cli.py doc delete --tenant {tenant-uuid} --doc {doc-uuid} [--force
 # CSVインポート (新規: --doc省略、更新: --doc指定でupsert)
 # --doc-title: CFDocumentタイトル。新規作成時はCSVの#title行があれば省略可、なければ必須。更新時は省略可（既存値を保持）
 # --doc-version: バージョン（任意、省略時は既存値を保持。新規作成時のデフォルトは NULL）
+# --profile: 形式の明示指定。auto（デフォルト）は custom / opensalt / simple を自動判定。
+#            明示時は内容がその profile に一致しなければエラー終了（サイレントなフォールバックなし）。
+#            値: auto / custom / opensalt / simple
 uv run python cli.py import csv --tenant {uuid} --file framework.csv
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title "名称" --doc-version "1.0"
 uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile opensalt
 
-# 外部CASEソースインポート (v1.1対応、v1.0はPhase 2、upsert)
-# --url: CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
-uv run python cli.py import case-url --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
-uv run python cli.py import case-url --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
-
-# ローカル CFPackage JSON ファイルからインポート（ネットワーク取得なし、永続化処理は case-url と同じ）
-# 取り込み元 CASE サーバーがプライベートでこのホストから到達できない場合に使う
-uv run python cli.py import case-file --tenant {uuid} --file framework.json
-uv run python cli.py import case-file --tenant {uuid} --doc {doc-uuid} --file framework.json
+# 外部CASEインポート (v1.1対応、v1.0はPhase 2、upsert)。--url / --file のどちらか一方を指定する。
+# --url:  CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
+# --file: ローカルの CFPackage JSON ファイル（ネットワーク取得なし、永続化処理は --url と同じ）。
+#         取り込み元 CASE サーバーがプライベートでこのホストから到達できない場合に使う
+uv run python cli.py import case --tenant {uuid} --url https://case.example.com/{tenant}/ims/case/v1p1
+uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
+uv run python cli.py import case --tenant {uuid} --file framework.json
+uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framework.json
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
-uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --format opensalt
-# --format: "custom"（デフォルト）/ "opensalt"
-#           不正な値 → エラー終了（「Invalid format: '{value}'. Valid values: custom, opensalt」）
+uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --profile opensalt
+# --profile: "custom"（デフォルト）/ "opensalt"
+#            不正な値 → エラー終了（「Invalid profile: '{value}'. Valid values: custom, opensalt」）
 
 # CASE CFPackage JSON エクスポート（出力は GET /CFPackages/{id} と同一のバイト列）
-# import case-file で再取り込みするか、任意の CASE 準拠エディタへ受け渡せる
+# import case --file で再取り込みするか、任意の CASE 準拠エディタへ受け渡せる
 uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
 
 # ルーブリックCSVインポート (--doc で対象ドキュメントを指定、upsert)
-uv run python cli.py import csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py import rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # ルーブリックCSVエクスポート
-uv run python cli.py export csv-rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
+uv run python cli.py export rubric --tenant {uuid} --doc {doc-uuid} --file rubric.csv
 
 # DBマイグレーション
 uv run python cli.py db migrate

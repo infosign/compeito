@@ -285,7 +285,7 @@ UPDATE cf_associations SET destination_node_uri = REPLACE(destination_node_uri, 
 
 ### Caution: external URIs
 
-Data imported via `import case-url` retains the original server's URIs (e.g., `https://opensalt.net/uri/...`). REPLACE only your **own** old hostname. The SQL above does that explicitly, so external URIs are unaffected.
+Data imported via `import case` retains the original server's URIs (e.g., `https://opensalt.net/uri/...`). REPLACE only your **own** old hostname. The SQL above does that explicitly, so external URIs are unaffected.
 
 ### When the hostname does not change
 
@@ -590,7 +590,7 @@ UPDATE cf_associations SET destination_node_uri = REPLACE(destination_node_uri, 
 
 ### 注意: 外部サーバーの URI
 
-CASE API インポート（`import case-url`）で取り込んだデータには、元のサーバーの URI（例: `https://opensalt.net/uri/...`）がそのまま保存されている。REPLACE の対象は自サーバーの旧ホスト名のみにすること。上記の SQL は旧ホスト名を明示的に指定しているので、外部 URI に影響はない。
+CASE API インポート（`import case`）で取り込んだデータには、元のサーバーの URI（例: `https://opensalt.net/uri/...`）がそのまま保存されている。REPLACE の対象は自サーバーの旧ホスト名のみにすること。上記の SQL は旧ホスト名を明示的に指定しているので、外部 URI に影響はない。
 
 ### ホスト名が変わらない場合
 

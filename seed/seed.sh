@@ -67,7 +67,7 @@ if [ -f "$RUBRIC_FILE" ] && [ -n "$DOC_UUID" ]; then
         RUBRIC_PATH="$RUBRIC_FILE"
     fi
     echo "==> Importing rubric CSV: $RUBRIC_PATH"
-    "${RUN_CMD[@]}" python cli.py import csv-rubric --tenant "$TENANT_UUID" --doc "$DOC_UUID" --file "$RUBRIC_PATH"
+    "${RUN_CMD[@]}" python cli.py import rubric --tenant "$TENANT_UUID" --doc "$DOC_UUID" --file "$RUBRIC_PATH"
 fi
 
 echo "==> Done! Tenant: $TENANT_UUID ($TENANT_NAME)"

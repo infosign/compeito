@@ -654,6 +654,66 @@ class TestImportCsv:
         assert result.exit_code == 1
         assert "Document not found" in result.output
 
+    def test_import_profile_mismatch(self, runner, env_docker, test_tenant, tmp_path):
+        # Header detects as OpenSALT ("full statement"), but --profile simple is
+        # forced → no silent fallback, clean error exit.
+        from cli import cli
+
+        csv_file = tmp_path / "test.csv"
+        csv_file.write_text("Identifier,Full Statement\n,Stmt 1\n", encoding="utf-8")
+        result = runner.invoke(
+            cli,
+            [
+                "import",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--file",
+                str(csv_file),
+                "--profile",
+                "simple",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "opensalt" in result.output
+
+    def test_import_profile_invalid_value(self, runner, env_docker):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["import", "csv", "--tenant", str(TENANT_ID), "--file", "/x.csv", "--profile", "xml"],
+        )
+        # click.Choice rejects unknown values with a usage error (exit code 2).
+        assert result.exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# Import CASE tests
+# ---------------------------------------------------------------------------
+
+
+class TestImportCase:
+    def test_requires_exactly_one_source(self, runner, env_docker):
+        from cli import cli
+
+        # Neither --url nor --file.
+        result = runner.invoke(cli, ["import", "case", "--tenant", str(TENANT_ID)])
+        assert result.exit_code == 1
+        assert "exactly one" in result.output
+
+    def test_rejects_both_sources(self, runner, env_docker, tmp_path):
+        from cli import cli
+
+        f = tmp_path / "pkg.json"
+        f.write_text("{}", encoding="utf-8")
+        result = runner.invoke(
+            cli,
+            ["import", "case", "--tenant", str(TENANT_ID), "--url", "https://x/y", "--file", str(f)],
+        )
+        assert result.exit_code == 1
+        assert "exactly one" in result.output
+
 
 # ---------------------------------------------------------------------------
 # Export CSV tests
@@ -697,7 +757,7 @@ class TestExportCsv:
                 str(DOC_IDENT),
                 "--file",
                 str(out_file),
-                "--format",
+                "--profile",
                 "opensalt",
             ],
         )
@@ -707,7 +767,7 @@ class TestExportCsv:
         content = out_file.read_text()
         assert "Is Child Of" in content
 
-    def test_export_invalid_format(self, runner, env_docker):
+    def test_export_invalid_profile(self, runner, env_docker):
         from cli import cli
 
         result = runner.invoke(
@@ -721,12 +781,12 @@ class TestExportCsv:
                 str(DOC_IDENT),
                 "--file",
                 "/tmp/out.csv",
-                "--format",
+                "--profile",
                 "xml",
             ],
         )
         assert result.exit_code == 1
-        assert "Invalid format: 'xml'" in result.output
+        assert "Invalid profile: 'xml'" in result.output
 
     def test_export_tenant_not_found(self, runner, env_docker, clean_db, tmp_path):
         from cli import cli

@@ -17,7 +17,7 @@
 - pyproject.toml, README.md
 
 ## Phase 2 — complete
-- OpenSALT-compatible CSV export (`--format opensalt`)
+- OpenSALT-compatible CSV export (`--profile opensalt`)
 - CFRubric API endpoints + CFPackage integration
 - CFRubric CSV import / export
 - Rubric ingestion in the CASE API import
@@ -63,7 +63,7 @@ These features are not on the roadmap. The positioning rationale is documented h
 - pyproject.toml, README.md
 
 ## Phase 2 — 完了
-- CSVエクスポートのOpenSALT互換形式 (`--format opensalt`)
+- CSVエクスポートのOpenSALT互換形式 (`--profile opensalt`)
 - CFRubric API エンドポイント + CFPackage 統合
 - CFRubric CSV インポート/エクスポート
 - CASE API インポートでのルーブリック取り込み
