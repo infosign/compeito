@@ -144,7 +144,7 @@ _RESERVED_SLUGS = frozenset(
 
 
 def _validate_slug(slug: str) -> str | None:
-    """Return an error message string if `slug` is unacceptable; else None.
+    """Return a translated error message if `slug` is unacceptable; else None.
 
     The same rules are enforced by the `ck_tenants_slug_format` DB constraint
     + the unique constraint, but we check here first so the user sees a
@@ -152,16 +152,13 @@ def _validate_slug(slug: str) -> str | None:
     """
     try:
         uuid.UUID(slug)
-        return f"Slug '{slug}' looks like a UUID; use a non-UUID alias"
+        return t("err_slug_uuid_shaped", value=slug)
     except (ValueError, AttributeError):
         pass
     if slug in _RESERVED_SLUGS:
-        return f"Slug '{slug}' is reserved (conflicts with a top-level route)"
+        return t("err_slug_reserved", value=slug)
     if not _SLUG_RE.match(slug):
-        return (
-            f"Slug '{slug}' is invalid: must be 2-64 chars of lowercase a-z, 0-9, or hyphens, "
-            "starting and ending with an alphanumeric character"
-        )
+        return t("err_slug_invalid_format", value=slug)
     return None
 
 
