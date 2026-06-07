@@ -1109,3 +1109,76 @@ class TestLicenseInheritance:
         # No license label/badge anywhere
         assert "ライセンス URI" not in resp.text
         assert "ドキュメントから継承" not in resp.text
+
+
+class TestUriCrossTenantCriterion:
+    """After relaxing the criterion/level unique constraint to be parent-scoped,
+    the same criterion identifier can exist in multiple tenants. /uri resolution
+    must still return THIS tenant's resource and must not raise
+    MultipleResultsFound."""
+
+    async def _make_rubric_with_criterion(self, db_session, tenant_id, crit_ident, level_ident):
+        doc = CFDocument(
+            tenant_id=tenant_id,
+            identifier=uuid.uuid4(),
+            uri=f"https://example.com/{tenant_id}/doc",
+            title="Doc",
+            last_change_date_time=NOW,
+        )
+        db_session.add(doc)
+        await db_session.flush()
+        rubric = CFRubric(
+            tenant_id=tenant_id,
+            cf_document_id=doc.id,
+            identifier=uuid.uuid4(),
+            uri="u",
+            title="R",
+            last_change_date_time=NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+        criterion = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=crit_ident,
+            uri="u",
+            category="Quality",
+            last_change_date_time=NOW,
+        )
+        db_session.add(criterion)
+        await db_session.flush()
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=criterion.id,
+            identifier=level_ident,
+            uri="u",
+            last_change_date_time=NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+        return criterion, level
+
+    async def test_same_identifier_resolves_per_tenant(self, db_session: AsyncSession, tenant: Tenant):
+        TENANT_B = uuid.UUID("22222222-2222-2222-2222-222222222222")
+        db_session.add(Tenant(id=TENANT_B, name="Tenant B", is_private=False))
+        await db_session.flush()
+
+        crit_ident = uuid.uuid4()
+        level_ident = uuid.uuid4()
+        crit_a, level_a = await self._make_rubric_with_criterion(db_session, tenant.id, crit_ident, level_ident)
+        crit_b, level_b = await self._make_rubric_with_criterion(db_session, TENANT_B, crit_ident, level_ident)
+        assert crit_a.id != crit_b.id  # two distinct rows, same identifier
+
+        # Tenant A resolves to A's criterion (no MultipleResultsFound).
+        res_a = await uri_service.find_resource_by_identifier(db_session, tenant.id, crit_ident)
+        assert res_a is not None and res_a.resource_type == "CFRubricCriterion"
+        assert res_a.resource.id == crit_a.id
+
+        # Tenant B resolves to B's criterion.
+        res_b = await uri_service.find_resource_by_identifier(db_session, TENANT_B, crit_ident)
+        assert res_b is not None and res_b.resource.id == crit_b.id
+
+        # Same for levels.
+        lvl_a = await uri_service.find_resource_by_identifier(db_session, tenant.id, level_ident)
+        assert lvl_a is not None and lvl_a.resource_type == "CFRubricCriterionLevel"
+        assert lvl_a.resource.id == level_a.id
+        lvl_b = await uri_service.find_resource_by_identifier(db_session, TENANT_B, level_ident)
+        assert lvl_b is not None and lvl_b.resource.id == level_b.id

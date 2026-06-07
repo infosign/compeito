@@ -180,6 +180,7 @@ async def import_rubric_csv(
         elif row_type == "level":
             await _process_level_row(
                 session,
+                tenant_id,
                 row,
                 col_idx,
                 _get,
@@ -330,10 +331,14 @@ async def _process_criterion_row(
         else:
             report.warnings.append(f"Row {row_num}: Invalid CFItemIdentifier '{cf_item_ident_str}', set to null")
 
-    # Upsert
+    # Upsert. Scope the lookup to the parent rubric so a different tenant
+    # importing the same criterion identifier creates its own row instead of
+    # stealing this one (criterion has no tenant_id; the rubric — already
+    # resolved by (tenant_id, identifier) — provides the tenant scope).
     result = await session.execute(
         select(CFRubricCriterion).where(
             CFRubricCriterion.identifier == crit_ident_uuid,
+            CFRubricCriterion.cf_rubric_id == rubric.id,
         )
     )
     existing = result.scalar_one_or_none()
@@ -376,6 +381,7 @@ async def _process_criterion_row(
 
 async def _process_level_row(
     session: AsyncSession,
+    tenant_id: uuid.UUID,
     row: list[str],
     col_idx: dict,
     _get,
@@ -407,11 +413,17 @@ async def _process_level_row(
         report.warnings.append(f"Row {row_num}: Invalid CriterionIdentifier '{crit_ident_str}', skipped")
         return
 
-    # Find criterion in DB
+    # Find criterion in DB, scoped to this tenant (criterion has no tenant_id;
+    # join through its rubric). Without the tenant scope, another tenant's
+    # criterion with the same identifier would be matched (and a duplicate id
+    # across tenants would raise MultipleResultsFound).
     crit_uuid = uuid.UUID(crit_ident_str)
     result = await session.execute(
-        select(CFRubricCriterion).where(
+        select(CFRubricCriterion)
+        .join(CFRubric, CFRubricCriterion.cf_rubric_id == CFRubric.id)
+        .where(
             CFRubricCriterion.identifier == crit_uuid,
+            CFRubric.tenant_id == tenant_id,
         )
     )
     criterion = result.scalar_one_or_none()
@@ -427,10 +439,14 @@ async def _process_level_row(
     feedback = _get(row, "feedback") or None
     position = _parse_int(_get(row, "position"), "position", row_num, report.warnings)
 
-    # Upsert
+    # Upsert. Scope the lookup to the parent criterion so a different tenant
+    # importing the same level identifier creates its own row instead of
+    # stealing this one (level has no tenant_id; its parent criterion provides
+    # the tenant scope).
     result = await session.execute(
         select(CFRubricCriterionLevel).where(
             CFRubricCriterionLevel.identifier == level_ident_uuid,
+            CFRubricCriterionLevel.cf_rubric_criterion_id == criterion.id,
         )
     )
     existing = result.scalar_one_or_none()

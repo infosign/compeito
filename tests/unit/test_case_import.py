@@ -1798,3 +1798,64 @@ class TestImportFromDict:
         )
         await db_session.flush()
         assert "fake pre-fetch warning" in report.warnings
+
+
+class TestRubricTenantIsolation:
+    """Two tenants importing the same CFPackage (identical rubric/criterion/
+    level identifiers) must each keep their own criteria/levels — regression
+    guard for the tenant-isolation bug in the JSON CASE import path (mirror of
+    the csv_rubric_import fix)."""
+
+    async def test_same_package_two_tenants(self, db_session: AsyncSession, tenant: Tenant):
+        TENANT_B = uuid.UUID("22222222-2222-2222-2222-222222222222")
+        CRIT = "eee20000-0000-0000-0000-000000000001"
+        LEVEL = "eee30000-0000-0000-0000-000000000001"
+
+        pkg = _make_cf_package(
+            rubrics=[_make_rubric(criteria=[_make_criterion(levels=[_make_level()])])],
+        )
+
+        rep_a = await import_case_from_dict(db_session, tenant.id, pkg)
+        await db_session.flush()
+        assert rep_a.rubrics_created == 1
+
+        db_session.add(Tenant(id=TENANT_B, name="Tenant B", is_private=False))
+        await db_session.flush()
+        rep_b = await import_case_from_dict(db_session, TENANT_B, pkg)
+        await db_session.flush()
+        assert rep_b.rubrics_created == 1
+
+        # Both tenants' criterion rows coexist.
+        crits = list(
+            (
+                await db_session.execute(
+                    select(CFRubricCriterion).where(CFRubricCriterion.identifier == uuid.UUID(CRIT))
+                )
+            ).scalars()
+        )
+        assert len(crits) == 2
+
+        # Tenant A's rubric still owns its criterion (not stolen by B).
+        rubric_a = (
+            await db_session.execute(
+                select(CFRubric).where(
+                    CFRubric.tenant_id == tenant.id,
+                    CFRubric.identifier == uuid.UUID("eee10000-0000-0000-0000-000000000001"),
+                )
+            )
+        ).scalar_one()
+        a_crits = list(
+            (
+                await db_session.execute(select(CFRubricCriterion).where(CFRubricCriterion.cf_rubric_id == rubric_a.id))
+            ).scalars()
+        )
+        assert len(a_crits) == 1
+        a_levels = list(
+            (
+                await db_session.execute(
+                    select(CFRubricCriterionLevel).where(CFRubricCriterionLevel.cf_rubric_criterion_id == a_crits[0].id)
+                )
+            ).scalars()
+        )
+        assert len(a_levels) == 1
+        _ = LEVEL  # identifier reused across tenants; existence asserted above
