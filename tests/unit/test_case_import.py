@@ -142,13 +142,19 @@ class TestV1p0Detection:
         }
         assert _is_v1p0(data, "https://example.com/ims/case/v1p1/CFPackages/xxx") is False
 
-    def test_structural_v1p0_detected_when_url_has_no_version(self):
-        """File-based imports (empty source URL) fall back to structural detection."""
+    def test_opencase_style_v1p1_file_import_not_v1p0(self):
+        """File-based imports of OpenCASE-style v1.1 (no URL, no caseVersion in
+        the body, no CFPackage wrapper) must NOT be misclassified as v1.0.
+
+        Previously the structural fallback assumed "no caseVersion → v1.0",
+        which caught real v1.1 OpenCASE exports because OpenCASE omits the
+        `caseVersion` field. We require a positive v1.0 signal now.
+        """
         data = {
-            "CFDocument": {"identifier": "x", "title": "T"},
+            "CFDocument": {"identifier": "x", "title": "T"},  # no caseVersion
             "CFItems": [],
         }
-        assert _is_v1p0(data, "") is True
+        assert _is_v1p0(data, "") is False
 
     def test_v1p1_with_wrapper_not_detected(self):
         data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.1"}}}
@@ -161,6 +167,20 @@ class TestV1p0Detection:
             "CFItems": [],
         }
         assert _is_v1p0(data, "") is False
+
+    def test_v1p0_wrapper_detected_without_url(self):
+        """A `CFPackage` wrapper is a positive v1.0 signal — v1.0 used the
+        wrapper, v1.1 places contents at the root."""
+        data = {"CFPackage": {"CFDocument": {"identifier": "x", "title": "T"}}}
+        assert _is_v1p0(data, "") is True
+
+    def test_explicit_v1p0_case_version_detected_without_url(self):
+        """`caseVersion: "1.0"` in the body is a positive v1.0 signal."""
+        data = {
+            "CFDocument": {"identifier": "x", "title": "T", "caseVersion": "1.0"},
+            "CFItems": [],
+        }
+        assert _is_v1p0(data, "") is True
 
 
 class TestNormalizeConceptKeywordsUri:
@@ -1721,19 +1741,24 @@ class TestImportFromDict:
         assert report.associations_created == 1
         assert report.document_title == "Test Document"
 
-    async def test_source_url_empty_still_normalizes_v1p0_by_structure(self, db_session: AsyncSession, tenant: Tenant):
-        """When source_url is empty (file import), v1.0 is detected by data
-        structure (CFDocument at root, no CFPackage wrapper, no caseVersion).
+    async def test_source_url_empty_v1p0_detected_by_wrapper(self, db_session: AsyncSession, tenant: Tenant):
+        """When source_url is empty (file import), v1.0 is detected by a
+        positive structural signal: the `CFPackage` wrapper. Ambiguous
+        payloads (no URL, no wrapper, no caseVersion) used to be treated as
+        v1.0 but now default to v1.1 — see test_opencase_style_v1p1_file_import_not_v1p0
+        in TestV1p0Detection for the rationale.
         """
         v1p0_pkg = {
-            "CFDocument": {
-                "identifier": "aaaa0000-0000-0000-0000-000000000001",
-                "uri": "https://example.com/uri/x",
-                "title": "v1p0 Doc",
-                "lastChangeDateTime": "2025-01-01T00:00:00Z",
-            },
-            "CFItems": [_make_item()],
-            "CFAssociations": [],
+            "CFPackage": {
+                "CFDocument": {
+                    "identifier": "aaaa0000-0000-0000-0000-000000000001",
+                    "uri": "https://example.com/uri/x",
+                    "title": "v1p0 Doc",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                },
+                "CFItems": [_make_item()],
+                "CFAssociations": [],
+            }
         }
         report = await import_case_from_dict(db_session, tenant.id, v1p0_pkg)
         await db_session.flush()

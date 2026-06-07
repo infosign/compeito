@@ -321,24 +321,29 @@ async def fetch_cf_package(url: str) -> tuple[dict, list[str]]:
 def _is_v1p0(data: dict, url: str) -> bool:
     """Detect whether the CFPackage data is from a CASE v1.0 source.
 
-    Detection order:
-    1. URL contains `v1p0` → v1.0 (explicit and authoritative)
-    2. URL contains `v1p1` → NOT v1.0 (trust the path even if `caseVersion` is
-       absent in the body — OpenCASE, for example, ships v1.1 responses without
-       the `caseVersion` field)
-    3. Structural fallback: `CFDocument` at root + no `CFPackage` wrapper +
-       missing `caseVersion` → v1.0 (covers CSV-/file-based imports where the
-       source URL is empty)
+    Detection uses **positive v1.0 signals only**. Absence of `caseVersion`
+    is NOT a v1.0 signal — OpenCASE-style v1.1 exports routinely omit it,
+    so treating "missing caseVersion" as v1.0 misclassifies them and
+    triggers spurious "Detected CASE v1.0 response" warnings during file
+    import. Ambiguous payloads default to v1.1 (the current spec).
+
+    Order:
+    1. URL contains `v1p0` → v1.0
+    2. URL contains `v1p1` → NOT v1.0
+    3. Body has a `CFPackage` wrapper → v1.0 (the wrapper is a v1.0 thing;
+       v1.1 places the package contents at the root)
+    4. Body has `CFDocument.caseVersion == "1.0"` → v1.0
+    5. Otherwise → NOT v1.0
     """
     if "v1p0" in url:
         return True
     if "v1p1" in url:
         return False
-    # Structural fallback (used when URL has no version segment, e.g., file imports)
-    if "CFDocument" in data and "CFPackage" not in data:
-        cf_doc = data.get("CFDocument")
-        if isinstance(cf_doc, dict) and not cf_doc.get("caseVersion"):
-            return True
+    if "CFPackage" in data:
+        return True
+    cf_doc = data.get("CFDocument")
+    if isinstance(cf_doc, dict) and cf_doc.get("caseVersion") == "1.0":
+        return True
     return False
 
 

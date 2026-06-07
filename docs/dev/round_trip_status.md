@@ -22,7 +22,7 @@ OpenCASE → compeito → OpenCASE の round-trip で「データが情報量を
 
 | カテゴリ | 状態 | 件数 | 内容 |
 |---------|------|------|------|
-| ~~A. URI 書き換え~~ | **解消** | ~~270~~ → 0 | CFPackage import が source URI を保持するよう `_resolve_uri()` を導入（カテゴリ A 単体で 262 件、残 8 件は F / G で対処） |
+| ~~A. URI 書き換え~~ | **解消** | ~~270~~ → 0 | CFPackage import が source URI を保持するよう `_resolve_uri()` を導入（カテゴリ A 単体で 262 件解消。残 8 件は denormalized LinkURI の verbatim 保存が必要な系統で、F / G にて schema 列追加で解決） |
 | ~~B. CFItem に CFDocumentURI 欠落~~ | **解消** | ~~36~~ → 0 | `CFPckgItemDType` に CFDocumentURI を emit するよう変更 |
 | ~~C. score が int → float~~ | **解消** | ~~28~~ → 0 | `CASEBaseSchema` に整数値の float を int として emit する serializer を追加 |
 | ~~D. CFDocument に CFPackageURI 欠落~~ | **解消** | ~~1~~ → 0 | `CFPckgDocumentDType` に CFPackageURI を emit するよう変更 |
@@ -32,11 +32,11 @@ OpenCASE → compeito → OpenCASE の round-trip で「データが情報量を
 
 合計 0 件。
 
-### ~~A. URI 書き換え~~（概ね解消、残 8 件は F / G に分離）
+### ~~A. URI 書き換え~~（解消）
 
 `case_import_service` に `_resolve_uri(source, tenant_id, identifier)` ヘルパーを導入し、CFPackage import 経由のリソース URI は source の `uri` を優先、無ければ `_build_uri()` で生成、というポリシーに変更。CSV import（`csv_import_service`）はそのまま `_build_uri()` を直叩きするので影響なし。
 
-主要パス（CFDocument / CFItem / CFAssociation / CFRubric / CFRubricCriterion / CFRubricCriterionLevel / CFDefinitions の各 lookup）の URI 書き換えは 262 件解消。残 8 件は **F**（CFRubricCriterion.CFItemURI.uri、7 件）と **G**（CFDocument.CFPackageURI.uri、1 件）に切り出し（後述）。これらは「DB に source の denormalized LinkURI を保存していない」ことに起因し、schema 列追加を伴うため別 PR で対応する。
+主要パス（CFDocument / CFItem / CFAssociation / CFRubric / CFRubricCriterion / CFRubricCriterionLevel / CFDefinitions の各 lookup）の URI 書き換え 262 件は本カテゴリで解消。残 8 件は denormalized LinkURI を DB に保存していない系統で、カテゴリ F / G で schema 列を追加して解決済。
 
 ### ~~B. CFItem に CFDocumentURI が欠落~~（解消済）
 
