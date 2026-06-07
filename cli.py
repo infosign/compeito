@@ -722,7 +722,7 @@ def import_csv_cmd(
             )
             if report.warnings:
                 for w in report.warnings:
-                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
 
     _run(_run_import())
 
@@ -809,7 +809,7 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                 )
             if report.warnings:
                 for w in report.warnings:
-                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
 
     _run(_run_import())
 
@@ -846,7 +846,7 @@ def import_case_file(tenant_id: str, file_path: str, doc_id: str | None):
         with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        err_console.print(f"[red]Invalid JSON: {e}[/red]")
+        err_console.print(f"[red]{t('err_invalid_json', value=str(e))}[/red]")
         raise SystemExit(1) from e
 
     async def _run_import():
@@ -912,7 +912,7 @@ def import_case_file(tenant_id: str, file_path: str, doc_id: str | None):
                 )
             if report.warnings:
                 for w in report.warnings:
-                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
 
     _run(_run_import())
 
@@ -1074,7 +1074,7 @@ def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
             )
             if report.warnings:
                 for w in report.warnings:
-                    console.print(f"  [yellow]Warning: {w}[/yellow]")
+                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
 
     _run(_run_import())
 

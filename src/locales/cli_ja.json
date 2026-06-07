@@ -29,6 +29,8 @@
     "err_slug_uuid_shaped": "slug '{value}' は UUID 形式です。UUID と区別できる別名を指定してください",
     "err_slug_reserved": "slug '{value}' は予約語です（トップレベルルートと衝突します）",
     "err_slug_invalid_format": "slug '{value}' は不正です: 2-64 文字の小文字 a-z / 数字 / ハイフンで、先頭・末尾は英数字である必要があります",
+    "err_invalid_json": "不正な JSON: {value}",
+    "lbl_warning": "警告:",
     "help_make_private": "テナントを非公開にする",
     "help_show_docs": "各テナントのドキュメントを表示する",
     "help_tenant_uuid": "テナントUUID",

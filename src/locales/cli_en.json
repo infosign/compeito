@@ -29,6 +29,8 @@
     "err_slug_uuid_shaped": "Slug '{value}' looks like a UUID; use a non-UUID alias",
     "err_slug_reserved": "Slug '{value}' is reserved (conflicts with a top-level route)",
     "err_slug_invalid_format": "Slug '{value}' is invalid: must be 2-64 chars of lowercase a-z, 0-9, or hyphens, starting and ending with an alphanumeric character",
+    "err_invalid_json": "Invalid JSON: {value}",
+    "lbl_warning": "Warning:",
     "help_make_private": "Make tenant private",
     "help_show_docs": "Show documents under each tenant",
     "help_tenant_uuid": "Tenant UUID",
