@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -104,6 +105,67 @@ def _visibility(is_private: bool) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Tenant slug — character / length / format rules
+# ---------------------------------------------------------------------------
+# A slug is an OPTIONAL URL-friendly alias for a tenant. The canonical
+# identifier is still the UUID (CASE API URIs always carry the UUID).
+#
+# Rules (mirrored by the `ck_tenants_slug_format` CHECK constraint at DB level
+# and by `docs/spec/architecture.md`):
+#
+#   1. Length: 2-64 characters
+#   2. Allowed characters: lowercase letters a-z, digits 0-9, hyphen `-`
+#   3. Must START with an alphanumeric character (no leading hyphen)
+#   4. Must END with an alphanumeric character (no trailing hyphen)
+#   5. NOT a valid UUID string (would shadow the canonical-id path)
+#   6. NOT one of the reserved tokens that collide with top-level mounts
+#      (`/health`, `/static`, and a few defensive ones for future expansion)
+#
+# Examples of valid slugs:   `ikenohata-u`, `mext-curriculum-2025`, `acme`
+# Examples of invalid slugs: `Ikenohata` (uppercase), `池之端大学` (non-ASCII),
+#                            `-acme` (leading hyphen), `acme-` (trailing hyphen),
+#                            `a` (too short), `health` (reserved).
+
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$")
+
+_RESERVED_SLUGS = frozenset(
+    {
+        "health",  # GET /health
+        "static",  # /static/* (FastAPI StaticFiles)
+        # Defensive reserves for likely future top-level expansion:
+        "admin",
+        "api",
+        "assets",
+        "favicon.ico",
+        "robots.txt",
+        "_",
+    }
+)
+
+
+def _validate_slug(slug: str) -> str | None:
+    """Return an error message string if `slug` is unacceptable; else None.
+
+    The same rules are enforced by the `ck_tenants_slug_format` DB constraint
+    + the unique constraint, but we check here first so the user sees a
+    friendly message instead of a Postgres IntegrityError traceback.
+    """
+    try:
+        uuid.UUID(slug)
+        return f"Slug '{slug}' looks like a UUID; use a non-UUID alias"
+    except (ValueError, AttributeError):
+        pass
+    if slug in _RESERVED_SLUGS:
+        return f"Slug '{slug}' is reserved (conflicts with a top-level route)"
+    if not _SLUG_RE.match(slug):
+        return (
+            f"Slug '{slug}' is invalid: must be 2-64 chars of lowercase a-z, 0-9, or hyphens, "
+            "starting and ending with an alphanumeric character"
+        )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Click groups
 # ---------------------------------------------------------------------------
 
@@ -170,14 +232,21 @@ db.help = t("db_group")
 @tenant.command("create", help=t("cmd_tenant_create"))
 @click.option("--name", required=True, help=t("help_tenant_name"))
 @click.option("--id", "tenant_id", default=None, help=t("help_tenant_id"))
+@click.option("--slug", default=None, help=t("help_tenant_slug"))
 @click.option("--private", "is_private", is_flag=True, default=False, help=t("help_make_private"))
-def tenant_create(name: str, tenant_id: str | None, is_private: bool):
+def tenant_create(name: str, tenant_id: str | None, slug: str | None, is_private: bool):
     """Create a new tenant."""
     _check_db()
 
     tid: uuid.UUID | None = None
     if tenant_id is not None:
         tid = _parse_uuid(tenant_id)
+
+    if slug is not None:
+        err = _validate_slug(slug)
+        if err is not None:
+            err_console.print(err)
+            raise SystemExit(1)
 
     async def _run_create():
         from sqlalchemy import select
@@ -192,9 +261,18 @@ def tenant_create(name: str, tenant_id: str | None, is_private: bool):
                 if result.scalar_one_or_none() is not None:
                     err_console.print(t("err_tenant_id_in_use", value=str(tid)))
                     raise SystemExit(1)
-                tenant_obj = Tenant(id=tid, name=name, is_private=is_private)
-            else:
-                tenant_obj = Tenant(name=name, is_private=is_private)
+            if slug is not None:
+                result = await session.execute(select(Tenant).where(Tenant.slug == slug))
+                if result.scalar_one_or_none() is not None:
+                    err_console.print(t("err_tenant_slug_in_use", value=slug))
+                    raise SystemExit(1)
+
+            kwargs: dict = {"name": name, "is_private": is_private}
+            if tid is not None:
+                kwargs["id"] = tid
+            if slug is not None:
+                kwargs["slug"] = slug
+            tenant_obj = Tenant(**kwargs)
             session.add(tenant_obj)
             await session.flush()
             console.print(
@@ -241,12 +319,14 @@ def tenant_list(with_docs: bool):
             if not with_docs:
                 table = Table()
                 table.add_column("UUID")
+                table.add_column("SLUG")
                 table.add_column("NAME")
                 table.add_column("VISIBILITY")
                 table.add_column("CREATED")
                 for tenant_obj in tenants:
                     table.add_row(
                         str(tenant_obj.id),
+                        tenant_obj.slug or "",
                         tenant_obj.name,
                         _visibility(tenant_obj.is_private),
                         tenant_obj.created_at.strftime("%Y-%m-%d") if tenant_obj.created_at else "",
@@ -256,7 +336,8 @@ def tenant_list(with_docs: bool):
                 # With docs: tree-style output
                 for tenant_obj in tenants:
                     visibility = _visibility(tenant_obj.is_private)
-                    console.print(f"{tenant_obj.id}  {tenant_obj.name}  {visibility}")
+                    slug_part = f"  [{tenant_obj.slug}]" if tenant_obj.slug else ""
+                    console.print(f"{tenant_obj.id}{slug_part}  {tenant_obj.name}  {visibility}")
                     # Fetch documents with item counts
                     stmt = (
                         select(
@@ -288,9 +369,18 @@ def tenant_list(with_docs: bool):
 @tenant.command("update", help=t("cmd_tenant_update"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--name", default=None, help=t("help_new_name"))
+@click.option("--slug", default=None, help=t("help_tenant_slug"))
+@click.option("--clear-slug", "clear_slug", is_flag=True, default=False, help=t("help_tenant_clear_slug"))
 @click.option("--private", "set_private", is_flag=True, default=False, help=t("help_set_private"))
 @click.option("--public", "set_public", is_flag=True, default=False, help=t("help_set_public"))
-def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_public: bool):
+def tenant_update(
+    tenant_id: str,
+    name: str | None,
+    slug: str | None,
+    clear_slug: bool,
+    set_private: bool,
+    set_public: bool,
+):
     """Update a tenant."""
     _check_db()
 
@@ -298,9 +388,19 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
         err_console.print(t("err_private_public_exclusive"))
         raise SystemExit(1)
 
-    if not name and not set_private and not set_public:
+    if slug is not None and clear_slug:
+        err_console.print(t("err_tenant_slug_clear_exclusive"))
+        raise SystemExit(1)
+
+    if not name and not set_private and not set_public and slug is None and not clear_slug:
         err_console.print(t("err_update_requires_option"))
         raise SystemExit(1)
+
+    if slug is not None:
+        err = _validate_slug(slug)
+        if err is not None:
+            err_console.print(err)
+            raise SystemExit(1)
 
     tid = _parse_uuid(tenant_id)
 
@@ -318,12 +418,26 @@ def tenant_update(tenant_id: str, name: str | None, set_private: bool, set_publi
                 err_console.print(t("err_tenant_not_found", value=str(tid)))
                 raise SystemExit(1)
 
+            if slug is not None:
+                # Uniqueness pre-flight (skip when reassigning the same slug to
+                # the same tenant — that's a no-op, not a conflict).
+                existing = await session.execute(
+                    select(Tenant).where(Tenant.slug == slug, Tenant.id != tid)
+                )
+                if existing.scalar_one_or_none() is not None:
+                    err_console.print(t("err_tenant_slug_in_use", value=slug))
+                    raise SystemExit(1)
+
             if name is not None:
                 tenant_obj.name = name
             if set_private:
                 tenant_obj.is_private = True
             if set_public:
                 tenant_obj.is_private = False
+            if slug is not None:
+                tenant_obj.slug = slug
+            elif clear_slug:
+                tenant_obj.slug = None
 
             await session.flush()
             console.print(

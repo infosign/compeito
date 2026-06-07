@@ -6,9 +6,9 @@
 <nav class="text-sm text-stone-500 mb-1">
     <a href="/" class="hover:text-violet-600 transition-colors">{{ t("tenant_list") }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
-    <a href="/{{ tenant.id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
+    <a href="/{{ tenant.slug_or_id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-violet-300 align-middle"></span>
-    <a href="/{{ tenant.id }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
+    <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
 </nav>
 {% endblock %}
 
@@ -32,7 +32,7 @@
     <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]">
         <div class="p-4 border-b border-stone-200">
             <div class="font-medium text-gray-800">{{ doc.title }}</div>
-            <a href="/{{ tenant.id }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
+            <a href="/{{ tenant.slug_or_id }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
@@ -71,12 +71,13 @@
                     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_identifier") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></dd>
                 </div>
-                {% set doc_api_url = request.base_url|string ~ tenant_id ~ "/ims/case/v1p1/CFDocuments/" ~ doc.identifier|string %}
+                {# API URLs use the canonical tenant UUID (CASE clients store these as stable references). #}
+                {% set doc_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFDocuments/" ~ doc.identifier|string %}
                 <div>
                     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_cf_documents_api") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(doc_api_url) }}<code class="text-sm break-all">{{ doc_api_url }}</code></dd>
                 </div>
-                {% set pkg_api_url = request.base_url|string ~ tenant_id ~ "/ims/case/v1p1/CFPackages/" ~ doc.identifier|string %}
+                {% set pkg_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFPackages/" ~ doc.identifier|string %}
                 <div>
                     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_cf_package_api") }}</dt>
                     <dd class="text-gray-800">{{ copy_btn(pkg_api_url) }}<code class="text-sm break-all">{{ pkg_api_url }}</code></dd>
@@ -101,7 +102,7 @@
                 <ul class="space-y-1">
                     {% for rubric in rubrics %}
                     <li>
-                        <a href="/{{ tenant.id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
+                        <a href="/{{ tenant.slug_or_id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
                     </li>
                     {% endfor %}
                 </ul>

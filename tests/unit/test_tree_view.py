@@ -481,9 +481,10 @@ class TestTreeViewPage:
         )
         assert "アイテムがありません" in resp.text
 
-    async def test_invalid_tenant_400(self, db_client):
+    async def test_non_uuid_tenant_falls_back_to_slug_404(self, db_client):
+        """A non-UUID tenant segment is interpreted as a slug; unknown slug → 404."""
         resp = await db_client.get("/not-uuid/cftree/doc/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     async def test_missing_doc_404(
         self,
@@ -634,12 +635,13 @@ class TestChildrenFragment:
         )
         assert resp.headers["cache-control"] == "public, max-age=86400"
 
-    async def test_invalid_tenant_400(self, db_client):
+    async def test_non_uuid_tenant_falls_back_to_slug_404(self, db_client):
+        """A non-UUID tenant segment is interpreted as a slug; unknown slug → 404."""
         resp = await db_client.get(
             "/bad/cftree/doc/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/children/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         )
-        assert resp.status_code == 400
-        assert "リクエストが不正です" in resp.text
+        assert resp.status_code == 404
+        assert "テナントが見つかりません" in resp.text
 
     async def test_missing_tenant_404(self, db_client):
         resp = await db_client.get(

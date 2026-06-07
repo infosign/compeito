@@ -14,7 +14,7 @@
 <ul class="space-y-2">
     {% for tenant in tenants %}
     <li>
-        <a href="/{{ tenant.id }}/" class="group block bg-white rounded-lg shadow-sm border border-stone-200 px-6 py-4 hover:shadow-md hover:border-violet-200 transition-all">
+        <a href="/{{ tenant.slug_or_id }}/" class="group block bg-white rounded-lg shadow-sm border border-stone-200 px-6 py-4 hover:shadow-md hover:border-violet-200 transition-all">
             <span class="text-violet-600 group-hover:text-violet-700 font-medium">{{ tenant.name }}</span>
         </a>
     </li>

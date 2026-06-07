@@ -16,7 +16,7 @@
 <ul class="md:hidden space-y-3">
     {% for item in documents %}
     <li>
-        <a href="/{{ tenant.id }}/cftree/doc/{{ item.doc.identifier }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 px-4 py-3 hover:shadow-md hover:border-violet-200 transition-all">
+        <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ item.doc.identifier }}" class="block bg-white rounded-lg shadow-sm border border-stone-200 px-4 py-3 hover:shadow-md hover:border-violet-200 transition-all">
             <div class="text-violet-600 font-medium break-words">{{ item.doc.title }}</div>
             <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
                 <time datetime="{{ item.doc.last_change_date_time.isoformat() }}">{{ item.doc.last_change_date_time.strftime('%Y-%m-%d %H:%M') }}</time>
@@ -42,7 +42,7 @@
             {% for item in documents %}
             <tr class="hover:bg-violet-50/30 transition-colors">
                 <td class="px-6 py-4">
-                    <a href="/{{ tenant.id }}/cftree/doc/{{ item.doc.identifier }}" class="text-violet-600 hover:text-violet-800">
+                    <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ item.doc.identifier }}" class="text-violet-600 hover:text-violet-800">
                         {{ item.doc.title }}
                     </a>
                 </td>

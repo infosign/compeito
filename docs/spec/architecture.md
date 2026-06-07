@@ -6,7 +6,7 @@
 Docker (FastAPI + uvicorn) → PostgreSQL
 ```
 
-- **Multi-tenant**: tenants are isolated under `/{tenant-uuid}/ims/case/v1p1/` (v1p0 is kept as a backward-compatible redirect).
+- **Multi-tenant**: tenants are isolated under `/{tenant}/ims/case/v1p1/` (v1p0 is kept as a backward-compatible redirect). `{tenant}` is either the tenant UUID (canonical) or, if set, a URL-friendly `slug` alias (e.g., `ikenohata-u`). CASE API response bodies always carry the canonical UUID; slugs appear only in Web UI navigation. See [cli.md](./cli.md#tenant-slug-rules) for the slug format and [web-ui.md](./web-ui.md#uuid-vs-slug--which-one-appears-where) for which URL form is used where.
 - **Visibility control**: a public/private flag. Private tenants are hidden from the top list, but reachable via direct URL.
 - **Data updates**: CLI only (no Web UI for editing). Data is imported from CSV or from an external CASE source.
 
@@ -87,7 +87,7 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 Docker (FastAPI + uvicorn) → PostgreSQL
 ```
 
-- **マルチテナント**: `/{tenant-uuid}/ims/case/v1p1/` でテナント分離（v1p0も後方互換で維持）
+- **マルチテナント**: `/{tenant}/ims/case/v1p1/` でテナント分離（v1p0も後方互換で維持）。`{tenant}` はテナント UUID（canonical）または設定済みの URL 別名 `slug`（例: `ikenohata-u`）のいずれか。CASE API レスポンス本文では常に canonical な UUID を返し、slug は Web UI のナビゲーションのみで使う。slug のフォーマット仕様は [cli.md](./cli.md#テナント-slug-の制約)、Web UI 上の使い分けは [web-ui.md](./web-ui.md#uuid-と-slug-の使い分け) を参照
 - **公開制御**: public/private フラグ。privateはトップ一覧に非表示、URL直接アクセスは可能
 - **データ更新**: CLI経由のみ（Web UIなし）。CSV または外部CASEソースからインポート
 
