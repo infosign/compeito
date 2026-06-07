@@ -27,6 +27,27 @@ async def get_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> Tenant | No
     return result.scalar_one_or_none()
 
 
+async def get_tenant_by_slug(session: AsyncSession, slug: str) -> Tenant | None:
+    """Return a tenant by slug, or None."""
+    result = await session.execute(select(Tenant).where(Tenant.slug == slug))
+    return result.scalar_one_or_none()
+
+
+async def resolve_tenant(session: AsyncSession, identifier: str) -> Tenant | None:
+    """Resolve a URL segment to a Tenant.
+
+    Accepts either a UUID string or a slug. UUID lookup is tried first to keep
+    O(1) PK access fast and to preserve the canonical-identifier semantics
+    (CASE clients always see UUID-based URIs). Slug lookup is the fallback for
+    Web-UI-friendly URLs.
+    """
+    try:
+        tenant_uuid = uuid.UUID(identifier)
+    except (ValueError, AttributeError):
+        return await get_tenant_by_slug(session, identifier)
+    return await get_tenant(session, tenant_uuid)
+
+
 async def list_documents_with_item_count(
     session: AsyncSession,
     tenant_id: uuid.UUID,

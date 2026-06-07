@@ -9,19 +9,21 @@ INVALID_UUID = "not-a-uuid"
 
 
 class TestTenantValidation:
-    """Test tenant UUID validation and existence checks."""
+    """Test tenant URL segment resolution and existence checks."""
 
-    async def test_invalid_tenant_uuid_returns_400(self, client: AsyncClient) -> None:
-        response = await client.get(f"/{INVALID_UUID}{CASE_PATH}/CFDocuments")
-        assert response.status_code == 400
+    async def test_non_uuid_tenant_segment_returns_404(self, db_client: AsyncClient) -> None:
+        """A segment that isn't a UUID falls back to slug lookup; if neither
+        matches, the response is 404 unknownobject (not 400 invalid_uuid)."""
+        response = await db_client.get(f"/{INVALID_UUID}{CASE_PATH}/CFDocuments")
+        assert response.status_code == 404
         body = response.json()
         assert body["imsx_codeMajor"] == "failure"
         assert body["imsx_severity"] == "error"
-        assert "invalid_uuid" in str(body["imsx_codeMinor"])
+        assert "unknownobject" in str(body["imsx_codeMinor"])
         assert INVALID_UUID in body["imsx_description"]
 
-    async def test_nonexistent_tenant_returns_404(self, client: AsyncClient) -> None:
-        response = await client.get(f"/{VALID_UUID}{CASE_PATH}/CFDocuments")
+    async def test_nonexistent_tenant_returns_404(self, db_client: AsyncClient) -> None:
+        response = await db_client.get(f"/{VALID_UUID}{CASE_PATH}/CFDocuments")
         assert response.status_code == 404
         body = response.json()
         assert body["imsx_codeMajor"] == "failure"

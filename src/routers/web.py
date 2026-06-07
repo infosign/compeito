@@ -131,16 +131,7 @@ async def tenant_page(
     """Framework list for a tenant."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    tenant_uuid = _parse_uuid(tenant)
-    if tenant_uuid is None:
-        return _error_response(
-            request,
-            400,
-            t("error_bad_request"),
-            t("error_invalid_uuid", value=tenant),
-        )
-
-    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
         return _error_response(request, 404, t("error_not_found"))
 
@@ -168,16 +159,8 @@ async def tree_view(
     """Tree view page (SSR depth 0-1 + HTMX lazy load)."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    # Validate tenant
-    tenant_uuid = _parse_uuid(tenant)
-    if tenant_uuid is None:
-        return _error_response(
-            request,
-            400,
-            t("error_bad_request"),
-            t("error_invalid_uuid", value=tenant),
-        )
-    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    # Resolve tenant (UUID or slug)
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
         return _error_response(request, 404, t("error_not_found"))
 
@@ -215,7 +198,9 @@ async def tree_view(
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
-            "tenant_id": str(tenant_obj.id),
+            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
+            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
+            "tenant_id": tenant_obj.slug_or_id,
             "rubrics": rubrics,
             "t": t,
             "lang": lang,
@@ -243,16 +228,8 @@ async def uri_detail(
     """
     lang = _get_lang(request)
     t = get_translator(lang)
-    # Validate tenant
-    tenant_uuid = _parse_uuid(tenant)
-    if tenant_uuid is None:
-        return _error_response(
-            request,
-            400,
-            t("error_bad_request"),
-            t("error_invalid_uuid", value=tenant),
-        )
-    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    # Resolve tenant (UUID or slug)
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
         return _error_response(request, 404, t("error_not_found"))
 
@@ -340,11 +317,8 @@ async def children_fragment(
     """HTMX fragment: child items of {item_id}."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    # Validate tenant
-    tenant_uuid = _parse_uuid(tenant)
-    if tenant_uuid is None:
-        return _error_fragment(400, t("error_bad_request"))
-    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    # Resolve tenant (UUID or slug)
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
         return _error_fragment(404, t("error_tenant_not_found"))
 
@@ -368,7 +342,9 @@ async def children_fragment(
         "fragments/children.html",
         {
             "nodes": nodes,
-            "tenant_id": str(tenant_obj.id),
+            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
+            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
+            "tenant_id": tenant_obj.slug_or_id,
             "doc_identifier": str(doc.identifier),
         },
     )
@@ -390,11 +366,8 @@ async def detail_fragment(
     """HTMX fragment: item detail for the right pane."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    # Validate tenant
-    tenant_uuid = _parse_uuid(tenant)
-    if tenant_uuid is None:
-        return _error_fragment(400, t("error_bad_request"))
-    tenant_obj = await tenant_service.get_tenant(session, tenant_uuid)
+    # Resolve tenant (UUID or slug)
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
         return _error_fragment(404, t("error_tenant_not_found"))
 
@@ -420,7 +393,9 @@ async def detail_fragment(
         "fragments/detail.html",
         {
             "selected_item": selected_item,
-            "tenant_id": str(tenant_obj.id),
+            # Friendly URL segment for navigation/HTMX URLs (slug if set, else UUID).
+            # Templates that render canonical API URLs / permalinks use `tenant.id` directly.
+            "tenant_id": tenant_obj.slug_or_id,
             "t": t,
             "lang": lang,
         },
