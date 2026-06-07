@@ -740,6 +740,82 @@ def import_csv_cmd(
 
 
 # ---------------------------------------------------------------------------
+# import xlsx
+# ---------------------------------------------------------------------------
+
+
+@import_group.command("xlsx", help=t("cmd_import_xlsx"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option(
+    "--file",
+    "file_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help=t("help_xlsx_file"),
+)
+@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
+def import_xlsx_cmd(tenant_id: str, file_path: str, doc_id: str | None):
+    """Import an OpenSALT-format Excel (.xlsx) workbook."""
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id) if doc_id else None
+
+    xlsx_data = Path(file_path).read_bytes()
+
+    async def _run_import():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+        from src.services.xlsx_import_service import import_xlsx
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            if did is not None:
+                result = await session.execute(
+                    select(CFDocument).where(
+                        CFDocument.tenant_id == tid,
+                        CFDocument.identifier == did,
+                    ),
+                )
+                if result.scalar_one_or_none() is None:
+                    err_console.print(t("err_doc_not_found", value=str(did)))
+                    raise SystemExit(1)
+
+            with console.status(t("msg_importing_xlsx")):
+                try:
+                    report = await import_xlsx(session, tid, xlsx_data, doc_identifier=did)
+                except ValueError as e:
+                    err_console.print(f"[red]{e}[/red]")
+                    raise SystemExit(1) from e
+                await session.commit()
+
+            console.print(
+                t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),
+            )
+            console.print(
+                t(
+                    "msg_items_summary",
+                    created=str(report.items_created),
+                    updated=str(report.items_updated),
+                    skipped=str(report.items_skipped),
+                ),
+            )
+            console.print(
+                t("msg_assoc_summary_short", created=str(report.associations_created)),
+            )
+            if report.warnings:
+                for w in report.warnings:
+                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
+
+    _run(_run_import())
+
+
+# ---------------------------------------------------------------------------
 # import case
 # ---------------------------------------------------------------------------
 
@@ -938,6 +1014,62 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, profile: str):
             console.print(
                 t("msg_exported", count=str(len(data_lines)), path=file_path),
             )
+
+    _run(_run_export())
+
+
+# ---------------------------------------------------------------------------
+# export xlsx
+# ---------------------------------------------------------------------------
+
+
+@export_group.command("xlsx", help=t("cmd_export_xlsx"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
+def export_xlsx_cmd(tenant_id: str, doc_id: str, file_path: str):
+    """Export a document to an OpenSALT-format Excel workbook (.xlsx)."""
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id)
+
+    out = Path(file_path)
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.touch()
+        out.unlink()
+    except (PermissionError, OSError):
+        err_console.print(t("err_file_unwritable", value=file_path))
+        raise SystemExit(1)
+
+    async def _run_export():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+        from src.services.xlsx_export_service import export_xlsx
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            result = await session.execute(
+                select(CFDocument).where(
+                    CFDocument.tenant_id == tid,
+                    CFDocument.identifier == did,
+                ),
+            )
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_doc_not_found", value=str(did)))
+                raise SystemExit(1)
+
+            with console.status(t("msg_exporting_xlsx")):
+                data = await export_xlsx(session, tid, did)
+
+            out.write_bytes(data)
+            console.print(t("msg_exported_xlsx", path=file_path))
 
     _run(_run_export())
 
