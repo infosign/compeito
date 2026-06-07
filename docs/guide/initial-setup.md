@@ -151,7 +151,7 @@ Check the `Identifier` column in the exported `items.csv` and enter the UUID in 
 ## 4. Import the rubric
 
 ```bash
-docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # Sample output:
 # Imported into 'Information I Competencies' (d86774f2-...)
@@ -167,7 +167,7 @@ docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant}
 ### Export
 
 ```bash
-docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
+docker compose exec app uv run python cli.py export rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
 
 # Sample output:
 # Exported 1 rubrics (2 criteria, 6 levels) to rubric-export.csv
@@ -191,9 +191,9 @@ Editing the exported CSV and re-importing updates rows whose Identifiers match:
 
 ```bash
 # Export → edit → re-import
-docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py export rubric --tenant {tenant} --doc {doc} --file rubric.csv
 # Edit rubric.csv (change scores, add levels, etc.)
-docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # Sample output:
 # Imported into 'Information I Competencies' (d86774f2-...)
@@ -368,7 +368,7 @@ docker compose exec app uv run python cli.py export csv --tenant {tenant} --doc 
 ## 4. ルーブリックのインポート
 
 ```bash
-docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # 出力例:
 # Imported into '情報Iコンピテンシー' (d86774f2-...)
@@ -384,7 +384,7 @@ docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant}
 ### エクスポート
 
 ```bash
-docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
+docker compose exec app uv run python cli.py export rubric --tenant {tenant} --doc {doc} --file rubric-export.csv
 
 # 出力例:
 # Exported 1 rubrics (2 criteria, 6 levels) to rubric-export.csv
@@ -408,9 +408,9 @@ CFPackage にもルーブリックが含まれる。
 
 ```bash
 # エクスポート → 編集 → 再インポート
-docker compose exec app uv run python cli.py export csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py export rubric --tenant {tenant} --doc {doc} --file rubric.csv
 # rubric.csv を編集（スコアの変更、レベルの追加等）
-docker compose exec app uv run python cli.py import csv-rubric --tenant {tenant} --doc {doc} --file rubric.csv
+docker compose exec app uv run python cli.py import rubric --tenant {tenant} --doc {doc} --file rubric.csv
 
 # 出力例:
 # Imported into '情報Iコンピテンシー' (d86774f2-...)

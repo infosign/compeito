@@ -2,12 +2,12 @@
 
 ## Format overview
 
-Three CSV formats are supported. The format is auto-detected on import; on export it is selected via `--format`.
+Three CSV formats are supported. The format is auto-detected on import; on export it is selected via `--profile`.
 
 | Format | Import | Export | Use case |
 |--------|--------|--------|----------|
 | Custom | yes | yes (default) | Carries UUIDs (incl. CFDocument via `#identifier`); safe to edit and re-import (upsert) |
-| OpenSALT | yes | yes (`--format opensalt`) | Migration from OpenSALT |
+| OpenSALT | yes | yes (`--profile opensalt`) | Migration from OpenSALT |
 | Simple | yes | — | Minimal header; suitable for the first ingest |
 
 ## Auto-detection logic
@@ -178,7 +178,7 @@ Indentation (leading whitespace) in the simple format is used **only for hierarc
 
 ## Rubric CSV format
 
-A CSV dedicated to rubrics (CFRubric / CFRubricCriterion / CFRubricCriterionLevel). Independent of the item CSV; used by the `import csv-rubric` / `export csv-rubric` commands.
+A CSV dedicated to rubrics (CFRubric / CFRubricCriterion / CFRubricCriterionLevel). Independent of the item CSV; used by the `import rubric` / `export rubric` commands.
 
 ### Columns
 
@@ -257,12 +257,12 @@ Rows are processed top-down. When a Criterion row has an empty `RubricIdentifier
 
 ## フォーマット概要
 
-3種類のCSVフォーマットをサポートする。インポート時は自動判定、エクスポート時は `--format` で選択。
+3種類のCSVフォーマットをサポートする。インポート時は自動判定、エクスポート時は `--profile` で選択。
 
 | フォーマット | インポート | エクスポート | 用途 |
 |-------------|-----------|------------|------|
 | 独自形式 | ○ | ○ (デフォルト) | UUID 付き（CFDocument は `#identifier` で固定可能）。編集後の re-import で upsert 可能 |
-| OpenSALT形式 | ○ | ○ (`--format opensalt`) | OpenSALTからの移行 |
+| OpenSALT形式 | ○ | ○ (`--profile opensalt`) | OpenSALTからの移行 |
 | 簡易形式 | ○ | - | ヘッダー最小。初回インポート向け |
 
 ## フォーマット自動判定ロジック
@@ -433,7 +433,7 @@ fullStatement の先頭のインデントで階層を判定する:
 
 ## ルーブリックCSV形式
 
-ルーブリック（CFRubric / CFRubricCriterion / CFRubricCriterionLevel）専用のCSV形式。アイテムCSVとは独立したフォーマットであり、`import csv-rubric` / `export csv-rubric` コマンドで使用する。
+ルーブリック（CFRubric / CFRubricCriterion / CFRubricCriterionLevel）専用のCSV形式。アイテムCSVとは独立したフォーマットであり、`import rubric` / `export rubric` コマンドで使用する。
 
 ### 列定義
 

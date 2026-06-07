@@ -32,10 +32,12 @@ cli.py
 │   ├── list      --tenant TENANT_ID
 │   └── delete    --tenant TENANT_ID DOC_ID [--force]
 ├── import
-│   ├── csv       --tenant TENANT_ID --file FILE [--doc DOC_ID] [--doc-title TITLE] ...
-│   └── case-url  --tenant TENANT_ID --url URL [--doc DOC_ID]
+│   ├── csv       --tenant TENANT_ID --file FILE [--doc DOC_ID] [--doc-title TITLE] [--profile {auto,custom,opensalt,simple}] ...
+│   ├── case      --tenant TENANT_ID (--url URL | --file FILE) [--doc DOC_ID]
+│   └── rubric    --tenant TENANT_ID --doc DOC_ID --file FILE
 ├── export
-│   └── csv       --tenant TENANT_ID --doc DOC_ID --file FILE [--format {native,opensalt}]
+│   ├── csv       --tenant TENANT_ID --doc DOC_ID --file FILE [--profile {custom,opensalt}]
+│   └── rubric    --tenant TENANT_ID --doc DOC_ID --file FILE
 ├── db
 │   └── migrate
 └── cache
@@ -210,13 +212,14 @@ async def _import_csv(tenant_id, file_path, doc_id, **kwargs):
 ### 外部CASEソースインポートコマンド
 
 ```python
-@import_group.command("case-url")
+@import_group.command("case")
 @click.option("--tenant", "tenant_id", required=True, type=click.UUID)
-@click.option("--url", required=True, help="CASE v1.1 CFPackage URL")
+@click.option("--url", default=None, help="CASE v1.1 CFPackage URL")
+@click.option("--file", "file_path", default=None, type=click.Path(), help="ローカルの CFPackage JSON ファイル")
 @click.option("--doc", "doc_id", type=click.UUID, default=None, help="既存ドキュメントID（更新時）")
-def import_case_url(tenant_id, url, doc_id):
-    """外部CASE v1.1サーバーからフレームワークをインポートする"""
-    asyncio.run(_import_case_url(tenant_id, url, doc_id))
+def import_case(tenant_id, url, file_path, doc_id):
+    """外部CASE v1.1サーバー（--url）またはローカルファイル（--file）からフレームワークをインポートする（--url / --file はどちらか一方）"""
+    asyncio.run(_import_case(tenant_id, url, file_path, doc_id))
 ```
 
 ### CSVエクスポートコマンド
@@ -232,13 +235,10 @@ def export_group():
 @click.option("--tenant", "tenant_id", required=True, type=click.UUID)
 @click.option("--doc", "doc_id", required=True, type=click.UUID)
 @click.option("--file", "file_path", required=True, type=click.Path(), help="出力先ファイルパス")
-@click.option("--format", "fmt", type=click.Choice(["native", "opensalt"]), default="native")
-def export_csv(tenant_id, doc_id, file_path, fmt):
+@click.option("--profile", type=click.Choice(["custom", "opensalt"]), default="custom")
+def export_csv(tenant_id, doc_id, file_path, profile):
     """フレームワークをCSVにエクスポートする"""
-    if fmt == "opensalt":
-        console.print("[yellow]OpenSALT形式は Phase 2 で対応予定です[/yellow]")
-        raise SystemExit(1)
-    asyncio.run(_export_csv(tenant_id, doc_id, file_path))
+    asyncio.run(_export_csv(tenant_id, doc_id, file_path, profile))
 ```
 
 ### DBマイグレーションコマンド
@@ -290,7 +290,7 @@ def handle_errors(f):
 2. `cli.py` にコマンドグループ構造を定義する
 3. DB セッション取得ユーティリティを実装する
 4. `tenant` コマンドから実装（最もシンプル）
-5. `import csv` → `export csv` → `import case-url` の順で実装
+5. `import csv` → `export csv` → `import case` の順で実装
 6. `db migrate` と `cache invalidate`（スタブ）を実装
 7. 全コマンドの `--help` 出力を確認
 8. Rich 出力の見栄えを調整

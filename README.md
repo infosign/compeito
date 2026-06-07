@@ -58,7 +58,7 @@ docker compose exec app uv run python cli.py tenant list --with-docs
 docker compose exec app uv run python cli.py import csv --tenant {uuid} --file framework.csv
 
 # Import from an external CASE server (e.g., OpenSALT)
-docker compose exec app uv run python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app uv run python cli.py import case --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # Export for editing
 docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
@@ -177,7 +177,7 @@ docker compose exec app uv run python cli.py tenant list --with-docs
 docker compose exec app uv run python cli.py import csv --tenant {uuid} --file framework.csv
 
 # 外部 CASE サーバー（OpenSALT 等）からインポート
-docker compose exec app uv run python cli.py import case-url --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+docker compose exec app uv run python cli.py import case --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
 # 編集用にエクスポート
 docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
