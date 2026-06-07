@@ -104,8 +104,14 @@ async def find_resource_by_identifier(
         )
         .where(CFRubricCriterion.identifier == identifier)
     )
-    criterion = result.scalars().unique().one_or_none()
-    if criterion is not None and criterion.cf_rubric.tenant_id == tenant_id:
+    # criterion has no tenant_id; its identifier is only unique per rubric
+    # (uq cf_rubric_id, identifier), so the same identifier can exist across
+    # tenants. Pick the one owned by this tenant (don't assume a single row).
+    criterion = next(
+        (c for c in result.scalars().unique().all() if c.cf_rubric.tenant_id == tenant_id),
+        None,
+    )
+    if criterion is not None:
         return UriResult("CFRubricCriterion", criterion, doc=criterion.cf_rubric.cf_document)
 
     # 6. CFRubricCriterionLevel
@@ -120,8 +126,13 @@ async def find_resource_by_identifier(
         )
         .where(CFRubricCriterionLevel.identifier == identifier)
     )
-    level = result.scalars().unique().one_or_none()
-    if level is not None and level.cf_rubric_criterion.cf_rubric.tenant_id == tenant_id:
+    # level has no tenant_id; its identifier is only unique per criterion, so
+    # the same identifier can exist across tenants. Pick this tenant's row.
+    level = next(
+        (lv for lv in result.scalars().unique().all() if lv.cf_rubric_criterion.cf_rubric.tenant_id == tenant_id),
+        None,
+    )
+    if level is not None:
         return UriResult(
             "CFRubricCriterionLevel",
             level,

@@ -1465,10 +1465,14 @@ async def _import_rubric_criteria(
         rubric_id_str = crit_data.get("rubricId")
         rubric_id_val = uuid.UUID(str(rubric_id_str)) if rubric_id_str and _is_valid_uuid(str(rubric_id_str)) else None
 
-        # Check existing criterion
+        # Check existing criterion, scoped to the parent rubric so a different
+        # tenant importing the same criterion identifier creates its own row
+        # instead of stealing this one (criterion has no tenant_id; the rubric
+        # — already resolved by (tenant_id, identifier) — provides the scope).
         result = await session.execute(
             select(CFRubricCriterion).where(
                 CFRubricCriterion.identifier == crit_ident_uuid,
+                CFRubricCriterion.cf_rubric_id == rubric.id,
             )
         )
         existing_crit = result.scalar_one_or_none()
@@ -1550,10 +1554,12 @@ async def _import_rubric_criterion_levels(
         rc_id_str = level_data.get("rubricCriterionId")
         rc_id_val = uuid.UUID(str(rc_id_str)) if rc_id_str and _is_valid_uuid(str(rc_id_str)) else None
 
-        # Check existing level
+        # Check existing level, scoped to the parent criterion (same tenant-
+        # isolation reasoning as the criterion lookup above).
         result = await session.execute(
             select(CFRubricCriterionLevel).where(
                 CFRubricCriterionLevel.identifier == level_ident_uuid,
+                CFRubricCriterionLevel.cf_rubric_criterion_id == criterion.id,
             )
         )
         existing_level = result.scalar_one_or_none()
