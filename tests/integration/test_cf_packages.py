@@ -206,12 +206,14 @@ class TestGetCFPackageFull:
         assert doc["identifier"] == DOC_IDENTIFIER
         assert "CFPackageURI" not in doc
 
-        # CFItems — CFPckgItemDType (no CFDocumentURI)
+        # CFItems — CFPckgItemDType (includes CFDocumentURI for round-trip
+        # parity with OpenCASE; see docs/dev/round_trip_status.md cat B)
         assert len(pkg["CFItems"]) == 1
         item = pkg["CFItems"][0]
         assert item["identifier"] == "66666666-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
         assert item["fullStatement"] == "Test Statement"
-        assert "CFDocumentURI" not in item
+        assert item["CFDocumentURI"]["identifier"] == DOC_IDENTIFIER
+        assert item["CFDocumentURI"]["uri"] == sample_document.uri
         assert item["CFItemType"] == "Knowledge"
         assert item["CFItemTypeURI"]["title"] == "Knowledge"
 
