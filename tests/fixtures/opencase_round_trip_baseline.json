@@ -1,0 +1,2326 @@
+{
+    "CFDocument": {
+        "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+        "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4",
+        "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+        "creator": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u6559\u52d9\u59d4\u54e1\u4f1a",
+        "description": "\u60c5\u5831\u5b66\u90e8\u306b\u304a\u3051\u308b\u5b66\u58eb\u8ab2\u7a0b\u306e\u5b66\u7fd2\u6210\u679c\u3092\u5b9a\u7fa9\u3059\u308b\u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af\uff08\u30b5\u30f3\u30d7\u30eb\u30c7\u30fc\u30bf\uff09",
+        "subject": [
+            "\u60c5\u5831\u79d1\u5b66",
+            "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9",
+            "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u5de5\u5b66"
+        ],
+        "subjectURI": [
+            {
+                "title": "\u60c5\u5831\u79d1\u5b66",
+                "identifier": "84c261f2-2a9d-4ba6-a60d-8c8dc055a163",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/84c261f2-2a9d-4ba6-a60d-8c8dc055a163"
+            },
+            {
+                "title": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9",
+                "identifier": "d37602c5-e4aa-402e-afdb-09a23ca9c677",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/d37602c5-e4aa-402e-afdb-09a23ca9c677"
+            },
+            {
+                "title": "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u5de5\u5b66",
+                "identifier": "61015141-f2a8-4189-b8da-26291b71e139",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/61015141-f2a8-4189-b8da-26291b71e139"
+            }
+        ],
+        "language": "ja",
+        "frameworkType": null,
+        "version": "2.0",
+        "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+        "adoptionStatus": "Adopted",
+        "officialSourceURL": null,
+        "publisher": "\u6c60\u4e4b\u7aef\u5927\u5b66",
+        "statusStartDate": "2025-04-01",
+        "statusEndDate": null,
+        "CFPackageURI": {
+            "title": "CFPackage",
+            "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFPackages/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+        }
+    },
+    "CFItems": [
+        {
+            "identifier": "10000000-0000-0000-0000-000000000001",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000001",
+            "fullStatement": "\u8a08\u7b97\u6a5f\u79d1\u5b66\u306e\u57fa\u790e",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u8a08\u7b97\u6a5f\u79d1\u5b66",
+            "CFItemType": "\u9818\u57df",
+            "CFItemTypeURI": {
+                "title": "\u9818\u57df",
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0"
+            },
+            "conceptKeywords": null,
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000002",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000002",
+            "fullStatement": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u3068\u958b\u767a\u5b9f\u8df5",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+            "CFItemType": "\u9818\u57df",
+            "CFItemTypeURI": {
+                "title": "\u9818\u57df",
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0"
+            },
+            "conceptKeywords": null,
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000003",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000003",
+            "fullStatement": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9\u3068\u5206\u6790",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9",
+            "CFItemType": "\u9818\u57df",
+            "CFItemTypeURI": {
+                "title": "\u9818\u57df",
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0"
+            },
+            "conceptKeywords": null,
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000004",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000004",
+            "fullStatement": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3068\u502b\u7406",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3068\u502b\u7406",
+            "CFItemType": "\u9818\u57df",
+            "CFItemTypeURI": {
+                "title": "\u9818\u57df",
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0"
+            },
+            "conceptKeywords": null,
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000005",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000005",
+            "fullStatement": "\u7dcf\u5408\u5b9f\u8df5",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u7dcf\u5408\u5b9f\u8df5",
+            "CFItemType": "\u9818\u57df",
+            "CFItemTypeURI": {
+                "title": "\u9818\u57df",
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0"
+            },
+            "conceptKeywords": null,
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000011",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000011",
+            "fullStatement": "\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u306e\u57fa\u672c\u69cb\u6210\u3068\u52d5\u4f5c\u539f\u7406\u3092\u8aac\u660e\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-A-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u69cb\u6210\u306e\u8aac\u660e",
+            "CFItemType": "\u77e5\u8b58",
+            "CFItemTypeURI": {
+                "title": "\u77e5\u8b58",
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89"
+            },
+            "conceptKeywords": [
+                "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000012",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000012",
+            "fullStatement": "\u30a2\u30eb\u30b4\u30ea\u30ba\u30e0\u306e\u8a08\u7b97\u91cf\u3092\u8a55\u4fa1\u3057\u9069\u5207\u306a\u30c7\u30fc\u30bf\u69cb\u9020\u3092\u9078\u629e\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-B-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30a2\u30eb\u30b4\u30ea\u30ba\u30e0\u3068\u30c7\u30fc\u30bf\u69cb\u9020",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u30a2\u30eb\u30b4\u30ea\u30ba\u30e0",
+                "\u30c7\u30fc\u30bf\u69cb\u9020",
+                "\u8a08\u7b97\u91cf"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000013",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000013",
+            "fullStatement": "\u30aa\u30da\u30ec\u30fc\u30c6\u30a3\u30f3\u30b0\u30b7\u30b9\u30c6\u30e0\u306e\u5f79\u5272\u3068\u30d7\u30ed\u30bb\u30b9\u7ba1\u7406\u306e\u4ed5\u7d44\u307f\u3092\u7406\u89e3\u3057\u3066\u3044\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-A-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "OS \u306e\u7406\u89e3",
+            "CFItemType": "\u77e5\u8b58",
+            "CFItemTypeURI": {
+                "title": "\u77e5\u8b58",
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89"
+            },
+            "conceptKeywords": [
+                "OS",
+                "\u30d7\u30ed\u30bb\u30b9\u7ba1\u7406"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000014",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000014",
+            "fullStatement": "\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u306e\u30d7\u30ed\u30c8\u30b3\u30eb\u968e\u5c64\u3092\u8aac\u660e\u3057\u57fa\u672c\u7684\u306a\u69cb\u6210\u3092\u8a2d\u8a08\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-B-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u8a2d\u8a08",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+                "TCP/IP"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000021",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000021",
+            "fullStatement": "\u624b\u7d9a\u304d\u578b\u30fb\u30aa\u30d6\u30b8\u30a7\u30af\u30c8\u6307\u5411\u306e\u57fa\u672c\u6982\u5ff5\u3092\u7406\u89e3\u3057\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-A-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+                "\u30aa\u30d6\u30b8\u30a7\u30af\u30c8\u6307\u5411"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000022",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000022",
+            "fullStatement": "\u30d0\u30fc\u30b8\u30e7\u30f3\u7ba1\u7406\u30b7\u30b9\u30c6\u30e0\u3092\u7528\u3044\u3066\u30c1\u30fc\u30e0\u3067\u5171\u540c\u958b\u767a\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-B-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u5171\u540c\u958b\u767a",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "Git",
+                "\u30c1\u30fc\u30e0\u958b\u767a"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000023",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000023",
+            "fullStatement": "\u30c6\u30b9\u30c8\u99c6\u52d5\u958b\u767a\u3084\u7d99\u7d9a\u7684\u30a4\u30f3\u30c6\u30b0\u30ec\u30fc\u30b7\u30e7\u30f3\u306e\u624b\u6cd5\u3092\u5b9f\u8df5\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-B-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30c6\u30b9\u30c8\u3068 CI",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u30c6\u30b9\u30c8",
+                "CI/CD"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000024",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000024",
+            "fullStatement": "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u8a2d\u8a08\u30d1\u30bf\u30fc\u30f3\u3092\u7406\u89e3\u3057\u4fdd\u5b88\u6027\u306e\u9ad8\u3044\u30b3\u30fc\u30c9\u3092\u8a18\u8ff0\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-A-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u8a2d\u8a08\u30d1\u30bf\u30fc\u30f3",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u8a2d\u8a08\u30d1\u30bf\u30fc\u30f3",
+                "\u30ea\u30d5\u30a1\u30af\u30bf\u30ea\u30f3\u30b0"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000025",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000025",
+            "fullStatement": "\u8981\u4ef6\u5b9a\u7fa9\u304b\u3089\u30c7\u30d7\u30ed\u30a4\u307e\u3067\u306e\u958b\u767a\u30e9\u30a4\u30d5\u30b5\u30a4\u30af\u30eb\u3092\u7ba1\u7406\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-B-3",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u958b\u767a\u30e9\u30a4\u30d5\u30b5\u30a4\u30af\u30eb",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u8981\u4ef6\u5b9a\u7fa9",
+                "\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u7ba1\u7406"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000031",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000031",
+            "fullStatement": "\u7d71\u8a08\u5b66\u306e\u57fa\u790e\u7406\u8ad6\u3092\u7406\u89e3\u3057\u30c7\u30fc\u30bf\u306e\u5206\u5e03\u3084\u691c\u5b9a\u3092\u9069\u7528\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-A-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u7d71\u8a08\u306e\u57fa\u790e",
+            "CFItemType": "\u77e5\u8b58",
+            "CFItemTypeURI": {
+                "title": "\u77e5\u8b58",
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89"
+            },
+            "conceptKeywords": [
+                "\u7d71\u8a08\u5b66",
+                "\u691c\u5b9a",
+                "\u5206\u5e03"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000032",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000032",
+            "fullStatement": "\u69cb\u9020\u5316\u30c7\u30fc\u30bf\u3068\u975e\u69cb\u9020\u5316\u30c7\u30fc\u30bf\u306e\u524d\u51e6\u7406\u30fb\u5909\u63db\u3092\u5b9f\u65bd\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-B-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30c7\u30fc\u30bf\u524d\u51e6\u7406",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u524d\u51e6\u7406",
+                "ETL",
+                "\u30c7\u30fc\u30bf\u30af\u30ec\u30f3\u30b8\u30f3\u30b0"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000033",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000033",
+            "fullStatement": "\u6a5f\u68b0\u5b66\u7fd2\u306e\u4ee3\u8868\u7684\u306a\u624b\u6cd5\u3092\u7406\u89e3\u3057\u30e2\u30c7\u30eb\u306e\u69cb\u7bc9\u3068\u8a55\u4fa1\u304c\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-A-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6a5f\u68b0\u5b66\u7fd2",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u6a5f\u68b0\u5b66\u7fd2",
+                "\u30e2\u30c7\u30eb\u8a55\u4fa1"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000034",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000034",
+            "fullStatement": "\u30c7\u30fc\u30bf\u5206\u6790\u306e\u7d50\u679c\u3092\u53ef\u8996\u5316\u3057\u975e\u5c02\u9580\u5bb6\u306b\u3082\u5206\u304b\u308a\u3084\u3059\u304f\u4f1d\u3048\u308b\u3053\u3068\u304c\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-B-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u5206\u6790\u7d50\u679c\u306e\u4f1d\u9054",
+            "CFItemType": "\u614b\u5ea6",
+            "CFItemTypeURI": {
+                "title": "\u614b\u5ea6",
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450"
+            },
+            "conceptKeywords": [
+                "\u53ef\u8996\u5316",
+                "\u30d7\u30ec\u30bc\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000041",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000041",
+            "fullStatement": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u306e\u57fa\u672c\u6982\u5ff5\u3068\u8105\u5a01\u30e2\u30c7\u30eb\u3092\u8aac\u660e\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-A-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u306e\u57fa\u790e",
+            "CFItemType": "\u77e5\u8b58",
+            "CFItemTypeURI": {
+                "title": "\u77e5\u8b58",
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89"
+            },
+            "conceptKeywords": [
+                "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3",
+                "\u8105\u5a01\u30e2\u30c7\u30eb"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000042",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000042",
+            "fullStatement": "\u5b89\u5168\u306a\u30b7\u30b9\u30c6\u30e0\u306e\u8a2d\u8a08\u539f\u5247\u3092\u9069\u7528\u3057\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u5bfe\u7b56\u3092\u5b9f\u88c5\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-A-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30bb\u30ad\u30e5\u30a2\u8a2d\u8a08",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u8a8d\u8a3c",
+                "\u6697\u53f7\u5316",
+                "\u30bb\u30ad\u30e5\u30a2\u8a2d\u8a08"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000043",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000043",
+            "fullStatement": "\u500b\u4eba\u60c5\u5831\u4fdd\u8b77\u6cd5\u3084\u77e5\u7684\u8ca1\u7523\u6a29\u306b\u95a2\u3059\u308b\u6cd5\u898f\u3092\u7406\u89e3\u3057\u3066\u3044\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-B-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6cd5\u898f\u306e\u7406\u89e3",
+            "CFItemType": "\u77e5\u8b58",
+            "CFItemTypeURI": {
+                "title": "\u77e5\u8b58",
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89"
+            },
+            "conceptKeywords": [
+                "\u500b\u4eba\u60c5\u5831\u4fdd\u8b77",
+                "\u77e5\u7684\u8ca1\u7523\u6a29"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000044",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000044",
+            "fullStatement": "\u6280\u8853\u8005\u3068\u3057\u3066\u306e\u502b\u7406\u7684\u5224\u65ad\u529b\u3092\u8eab\u306b\u3064\u3051\u793e\u4f1a\u7684\u8cac\u4efb\u3092\u81ea\u899a\u3057\u3066\u884c\u52d5\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-B-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6280\u8853\u8005\u502b\u7406",
+            "CFItemType": "\u614b\u5ea6",
+            "CFItemTypeURI": {
+                "title": "\u614b\u5ea6",
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450"
+            },
+            "conceptKeywords": [
+                "\u502b\u7406",
+                "\u793e\u4f1a\u7684\u8cac\u4efb"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000051",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000051",
+            "fullStatement": "\u5b9f\u793e\u4f1a\u306e\u8ab2\u984c\u306b\u5bfe\u3057\u3066\u60c5\u5831\u6280\u8853\u3092\u6d3b\u7528\u3057\u305f\u89e3\u6c7a\u7b56\u3092\u4f01\u753b\u30fb\u63d0\u6848\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-A-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u8ab2\u984c\u89e3\u6c7a\u306e\u4f01\u753b",
+            "CFItemType": "\u6280\u80fd",
+            "CFItemTypeURI": {
+                "title": "\u6280\u80fd",
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550"
+            },
+            "conceptKeywords": [
+                "\u8ab2\u984c\u89e3\u6c7a",
+                "\u4f01\u753b\u63d0\u6848"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000052",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000052",
+            "fullStatement": "\u30c1\u30fc\u30e0\u30e1\u30f3\u30d0\u30fc\u3068\u5354\u50cd\u3057\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u3092\u8a08\u753b\u7684\u306b\u9042\u884c\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-A-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30c1\u30fc\u30e0\u5354\u50cd",
+            "CFItemType": "\u614b\u5ea6",
+            "CFItemTypeURI": {
+                "title": "\u614b\u5ea6",
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450"
+            },
+            "conceptKeywords": [
+                "\u30c1\u30fc\u30e0\u30ef\u30fc\u30af",
+                "\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u7ba1\u7406"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000053",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000053",
+            "fullStatement": "\u6210\u679c\u7269\u3092\u8ad6\u7406\u7684\u306b\u69cb\u6210\u3057\u53e3\u982d\u304a\u3088\u3073\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3067\u767a\u8868\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-B-1",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6210\u679c\u767a\u8868",
+            "CFItemType": "\u614b\u5ea6",
+            "CFItemTypeURI": {
+                "title": "\u614b\u5ea6",
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450"
+            },
+            "conceptKeywords": [
+                "\u30d7\u30ec\u30bc\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3",
+                "\u30c9\u30ad\u30e5\u30e1\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000054",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000054",
+            "fullStatement": "\u81ea\u5df1\u306e\u5b66\u3073\u3092\u632f\u308a\u8fd4\u308a\u7d99\u7d9a\u7684\u306a\u5b66\u7fd2\u8a08\u753b\u3092\u7b56\u5b9a\u3067\u304d\u308b",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-B-2",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u7d99\u7d9a\u5b66\u7fd2",
+            "CFItemType": "\u614b\u5ea6",
+            "CFItemTypeURI": {
+                "title": "\u614b\u5ea6",
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450"
+            },
+            "conceptKeywords": [
+                "\u632f\u308a\u8fd4\u308a",
+                "\u751f\u6daf\u5b66\u7fd2"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000101",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000101",
+            "fullStatement": "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2\u3068\u30b7\u30b9\u30c6\u30e0",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-A",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2\u3068\u30b7\u30b9\u30c6\u30e0",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2",
+                "OS"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000102",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000102",
+            "fullStatement": "\u7406\u8ad6\u3068\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "CS-B",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u7406\u8ad6\u3068\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u30a2\u30eb\u30b4\u30ea\u30ba\u30e0",
+                "\u30cd\u30c3\u30c8\u30ef\u30fc\u30af"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000201",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000201",
+            "fullStatement": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-A",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+                "\u8a2d\u8a08"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14",
+                "15"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000202",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000202",
+            "fullStatement": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "SE-B",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "Git",
+                "\u30c6\u30b9\u30c8",
+                "CI/CD"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000301",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000301",
+            "fullStatement": "\u7406\u8ad6\u3068\u624b\u6cd5",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-A",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u7406\u8ad6\u3068\u624b\u6cd5",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u7d71\u8a08\u5b66",
+                "\u6a5f\u68b0\u5b66\u7fd2"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000302",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000302",
+            "fullStatement": "\u30c7\u30fc\u30bf\u5b9f\u8df5",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "DS-B",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30c7\u30fc\u30bf\u5b9f\u8df5",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u524d\u51e6\u7406",
+                "\u53ef\u8996\u5316"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000401",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000401",
+            "fullStatement": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u6280\u8853",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-A",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u6280\u8853",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3",
+                "\u6697\u53f7\u5316"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "13",
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000402",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000402",
+            "fullStatement": "\u6cd5\u898f\u3068\u502b\u7406",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "ET-B",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6cd5\u898f\u3068\u502b\u7406",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u6cd5\u898f",
+                "\u502b\u7406"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "14",
+                "15",
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000501",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000501",
+            "fullStatement": "\u4f01\u753b\u3068\u5b9f\u884c",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-A",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u4f01\u753b\u3068\u5b9f\u884c",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u4f01\u753b",
+                "\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u7ba1\u7406"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        },
+        {
+            "identifier": "10000000-0000-0000-0000-000000000502",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFItems/10000000-0000-0000-0000-000000000502",
+            "fullStatement": "\u6210\u679c\u3068\u767a\u4fe1",
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "CFDocumentURI": {
+                "title": "Document",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "http://localhost:3000/ims/case/v1p1/CFDocuments/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "humanCodingScheme": "PJ-B",
+            "listEnumeration": null,
+            "abbreviatedStatement": "\u6210\u679c\u3068\u767a\u4fe1",
+            "CFItemType": "\u5206\u91ce",
+            "CFItemTypeURI": {
+                "title": "\u5206\u91ce",
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee"
+            },
+            "conceptKeywords": [
+                "\u30d7\u30ec\u30bc\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3",
+                "\u632f\u308a\u8fd4\u308a"
+            ],
+            "language": "ja",
+            "subject": null,
+            "educationLevel": [
+                "16"
+            ],
+            "statusStartDate": null,
+            "statusEndDate": null
+        }
+    ],
+    "CFAssociations": [
+        {
+            "identifier": "11b21e15-8f9c-4d56-b675-9a82ea049445",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/11b21e15-8f9c-4d56-b675-9a82ea049445",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30c6\u30b9\u30c8\u99c6\u52d5\u958b\u767a\u3084\u7d99\u7d9a\u7684\u30a4\u30f3\u30c6\u30b0\u30ec\u30fc\u30b7\u30e7\u30f3\u306e\u624b\u6cd5\u3092\u5b9f\u8df5\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000023",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000023"
+            },
+            "destinationNodeURI": {
+                "title": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                "identifier": "10000000-0000-0000-0000-000000000202",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000202"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "1d29671d-24df-444f-bf96-42aa612d2009",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/1d29671d-24df-444f-bf96-42aa612d2009",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30aa\u30da\u30ec\u30fc\u30c6\u30a3\u30f3\u30b0\u30b7\u30b9\u30c6\u30e0\u306e\u5f79\u5272\u3068\u30d7\u30ed\u30bb\u30b9\u7ba1\u7406\u306e\u4ed5\u7d44\u307f\u3092\u7406\u89e3\u3057\u3066\u3044\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000013",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000013"
+            },
+            "destinationNodeURI": {
+                "title": "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2\u3068\u30b7\u30b9\u30c6\u30e0",
+                "identifier": "10000000-0000-0000-0000-000000000101",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000101"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "24bd2bfd-3ba5-4912-a976-57a0a3f041a1",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/24bd2bfd-3ba5-4912-a976-57a0a3f041a1",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u4f01\u753b\u3068\u5b9f\u884c",
+                "identifier": "10000000-0000-0000-0000-000000000501",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000501"
+            },
+            "destinationNodeURI": {
+                "title": "\u7dcf\u5408\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000005",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000005"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "2e5829f8-1aea-499b-b5d4-9cd51e88e09e",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/2e5829f8-1aea-499b-b5d4-9cd51e88e09e",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u3068\u958b\u767a\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000002",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000002"
+            },
+            "destinationNodeURI": {
+                "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "303f7c2a-8e56-4ed6-aa98-66d65e1149ef",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/303f7c2a-8e56-4ed6-aa98-66d65e1149ef",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u624b\u6cd5",
+                "identifier": "10000000-0000-0000-0000-000000000301",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000301"
+            },
+            "destinationNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9\u3068\u5206\u6790",
+                "identifier": "10000000-0000-0000-0000-000000000003",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000003"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "3139e7b0-89d3-4eba-bd07-d52f2bcc4f50",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/3139e7b0-89d3-4eba-bd07-d52f2bcc4f50",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u306e\u57fa\u672c\u69cb\u6210\u3068\u52d5\u4f5c\u539f\u7406\u3092\u8aac\u660e\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000011",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000011"
+            },
+            "destinationNodeURI": {
+                "title": "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2\u3068\u30b7\u30b9\u30c6\u30e0",
+                "identifier": "10000000-0000-0000-0000-000000000101",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000101"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "34c76298-5acb-4f05-ba7d-488fbaabb98c",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/34c76298-5acb-4f05-ba7d-488fbaabb98c",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u6280\u8853",
+                "identifier": "10000000-0000-0000-0000-000000000401",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000401"
+            },
+            "destinationNodeURI": {
+                "title": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000004",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000004"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "39c9090c-9ac1-4505-a55e-ff47eaccc820",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/39c9090c-9ac1-4505-a55e-ff47eaccc820",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u306e\u57fa\u672c\u6982\u5ff5\u3068\u8105\u5a01\u30e2\u30c7\u30eb\u3092\u8aac\u660e\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000041",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000041"
+            },
+            "destinationNodeURI": {
+                "title": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u6280\u8853",
+                "identifier": "10000000-0000-0000-0000-000000000401",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000401"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "3c6b529b-c2b9-4151-9ad3-bab6b534b95b",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/3c6b529b-c2b9-4151-9ad3-bab6b534b95b",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30d0\u30fc\u30b8\u30e7\u30f3\u7ba1\u7406\u30b7\u30b9\u30c6\u30e0\u3092\u7528\u3044\u3066\u30c1\u30fc\u30e0\u3067\u5171\u540c\u958b\u767a\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000022",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000022"
+            },
+            "destinationNodeURI": {
+                "title": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                "identifier": "10000000-0000-0000-0000-000000000202",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000202"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "4cf2726c-3df0-4668-af4e-670cff3ef42a",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/4cf2726c-3df0-4668-af4e-670cff3ef42a",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u6210\u679c\u7269\u3092\u8ad6\u7406\u7684\u306b\u69cb\u6210\u3057\u53e3\u982d\u304a\u3088\u3073\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3067\u767a\u8868\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000053",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000053"
+            },
+            "destinationNodeURI": {
+                "title": "\u6210\u679c\u3068\u767a\u4fe1",
+                "identifier": "10000000-0000-0000-0000-000000000502",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000502"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "53adcfe7-e191-4046-b082-6be56513e4ca",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/53adcfe7-e191-4046-b082-6be56513e4ca",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000004",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000004"
+            },
+            "destinationNodeURI": {
+                "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 40
+        },
+        {
+            "identifier": "57938894-acbb-4147-8428-648711b16541",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/57938894-acbb-4147-8428-648711b16541",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30a2\u30eb\u30b4\u30ea\u30ba\u30e0\u306e\u8a08\u7b97\u91cf\u3092\u8a55\u4fa1\u3057\u9069\u5207\u306a\u30c7\u30fc\u30bf\u69cb\u9020\u3092\u9078\u629e\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000012",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000012"
+            },
+            "destinationNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+                "identifier": "10000000-0000-0000-0000-000000000102",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000102"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "5c2d0500-2226-4cf9-a783-66027a5427a8",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/5c2d0500-2226-4cf9-a783-66027a5427a8",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u5206\u6790\u306e\u7d50\u679c\u3092\u53ef\u8996\u5316\u3057\u975e\u5c02\u9580\u5bb6\u306b\u3082\u5206\u304b\u308a\u3084\u3059\u304f\u4f1d\u3048\u308b\u3053\u3068\u304c\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000034",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000034"
+            },
+            "destinationNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000302",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000302"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "5ecfa47e-7af7-4a37-9f30-9b21e6c9c468",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/5ecfa47e-7af7-4a37-9f30-9b21e6c9c468",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u8a2d\u8a08\u30d1\u30bf\u30fc\u30f3\u3092\u7406\u89e3\u3057\u4fdd\u5b88\u6027\u306e\u9ad8\u3044\u30b3\u30fc\u30c9\u3092\u8a18\u8ff0\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000024",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000024"
+            },
+            "destinationNodeURI": {
+                "title": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+                "identifier": "10000000-0000-0000-0000-000000000201",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000201"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "6d2dfe96-775c-4e4c-83bc-bc752a9f924d",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/6d2dfe96-775c-4e4c-83bc-bc752a9f924d",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+                "identifier": "10000000-0000-0000-0000-000000000201",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000201"
+            },
+            "destinationNodeURI": {
+                "title": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u3068\u958b\u767a\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000002",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000002"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "6e9d5bcc-f643-4b68-a4e1-5848d39f5da5",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/6e9d5bcc-f643-4b68-a4e1-5848d39f5da5",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u6280\u8853\u8005\u3068\u3057\u3066\u306e\u502b\u7406\u7684\u5224\u65ad\u529b\u3092\u8eab\u306b\u3064\u3051\u793e\u4f1a\u7684\u8cac\u4efb\u3092\u81ea\u899a\u3057\u3066\u884c\u52d5\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000044",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000044"
+            },
+            "destinationNodeURI": {
+                "title": "\u6cd5\u898f\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000402",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000402"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "71fb41f8-a63d-44f3-a05b-44013adae98f",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/71fb41f8-a63d-44f3-a05b-44013adae98f",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9\u3068\u5206\u6790",
+                "identifier": "10000000-0000-0000-0000-000000000003",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000003"
+            },
+            "destinationNodeURI": {
+                "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 30
+        },
+        {
+            "identifier": "95e2c8b7-5c5e-41f1-bfeb-699c9c171be5",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/95e2c8b7-5c5e-41f1-bfeb-699c9c171be5",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u5b89\u5168\u306a\u30b7\u30b9\u30c6\u30e0\u306e\u8a2d\u8a08\u539f\u5247\u3092\u9069\u7528\u3057\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u5bfe\u7b56\u3092\u5b9f\u88c5\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000042",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000042"
+            },
+            "destinationNodeURI": {
+                "title": "\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u6280\u8853",
+                "identifier": "10000000-0000-0000-0000-000000000401",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000401"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "97077c1d-61ca-4d38-88d7-3111016b4724",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/97077c1d-61ca-4d38-88d7-3111016b4724",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30c1\u30fc\u30e0\u30e1\u30f3\u30d0\u30fc\u3068\u5354\u50cd\u3057\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u3092\u8a08\u753b\u7684\u306b\u9042\u884c\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000052",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000052"
+            },
+            "destinationNodeURI": {
+                "title": "\u4f01\u753b\u3068\u5b9f\u884c",
+                "identifier": "10000000-0000-0000-0000-000000000501",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000501"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "9768963f-f3cb-46a9-8bed-b426272b7926",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/9768963f-f3cb-46a9-8bed-b426272b7926",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u6cd5\u898f\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000402",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000402"
+            },
+            "destinationNodeURI": {
+                "title": "\u60c5\u5831\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000004",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000004"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "a5976f7a-5d1d-4e7b-8a8f-6369c8934b7d",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/a5976f7a-5d1d-4e7b-8a8f-6369c8934b7d",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000302",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000302"
+            },
+            "destinationNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9\u3068\u5206\u6790",
+                "identifier": "10000000-0000-0000-0000-000000000003",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000003"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "a9eb8339-7b6c-48d1-b409-4c01b702db66",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/a9eb8339-7b6c-48d1-b409-4c01b702db66",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u5b9f\u793e\u4f1a\u306e\u8ab2\u984c\u306b\u5bfe\u3057\u3066\u60c5\u5831\u6280\u8853\u3092\u6d3b\u7528\u3057\u305f\u89e3\u6c7a\u7b56\u3092\u4f01\u753b\u30fb\u63d0\u6848\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000051",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000051"
+            },
+            "destinationNodeURI": {
+                "title": "\u4f01\u753b\u3068\u5b9f\u884c",
+                "identifier": "10000000-0000-0000-0000-000000000501",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000501"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "b86db71f-a329-49fd-9c0a-5129c26ec235",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/b86db71f-a329-49fd-9c0a-5129c26ec235",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30cf\u30fc\u30c9\u30a6\u30a7\u30a2\u3068\u30b7\u30b9\u30c6\u30e0",
+                "identifier": "10000000-0000-0000-0000-000000000101",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000101"
+            },
+            "destinationNodeURI": {
+                "title": "\u8a08\u7b97\u6a5f\u79d1\u5b66\u306e\u57fa\u790e",
+                "identifier": "10000000-0000-0000-0000-000000000001",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000001"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "b9deaf31-e256-4671-be5d-9a11f7b259f4",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/b9deaf31-e256-4671-be5d-9a11f7b259f4",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u30b3\u30f3\u30d4\u30e5\u30fc\u30bf\u30cd\u30c3\u30c8\u30ef\u30fc\u30af\u306e\u30d7\u30ed\u30c8\u30b3\u30eb\u968e\u5c64\u3092\u8aac\u660e\u3057\u57fa\u672c\u7684\u306a\u69cb\u6210\u3092\u8a2d\u8a08\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000014",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000014"
+            },
+            "destinationNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+                "identifier": "10000000-0000-0000-0000-000000000102",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000102"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "c086053c-ba86-4ef4-9501-2151ab454296",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/c086053c-ba86-4ef4-9501-2151ab454296",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u6210\u679c\u3068\u767a\u4fe1",
+                "identifier": "10000000-0000-0000-0000-000000000502",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000502"
+            },
+            "destinationNodeURI": {
+                "title": "\u7dcf\u5408\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000005",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000005"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "c37bb9a7-534c-4770-aac6-42f41244aab8",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/c37bb9a7-534c-4770-aac6-42f41244aab8",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u8a08\u7b97\u6a5f\u79d1\u5b66\u306e\u57fa\u790e",
+                "identifier": "10000000-0000-0000-0000-000000000001",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000001"
+            },
+            "destinationNodeURI": {
+                "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "c720fc0c-c5aa-4f4e-80d0-c772d5abb320",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/c720fc0c-c5aa-4f4e-80d0-c772d5abb320",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u500b\u4eba\u60c5\u5831\u4fdd\u8b77\u6cd5\u3084\u77e5\u7684\u8ca1\u7523\u6a29\u306b\u95a2\u3059\u308b\u6cd5\u898f\u3092\u7406\u89e3\u3057\u3066\u3044\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000043",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000043"
+            },
+            "destinationNodeURI": {
+                "title": "\u6cd5\u898f\u3068\u502b\u7406",
+                "identifier": "10000000-0000-0000-0000-000000000402",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000402"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "c77f4248-4828-4781-96dd-6b2fb50bb681",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/c77f4248-4828-4781-96dd-6b2fb50bb681",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u81ea\u5df1\u306e\u5b66\u3073\u3092\u632f\u308a\u8fd4\u308a\u7d99\u7d9a\u7684\u306a\u5b66\u7fd2\u8a08\u753b\u3092\u7b56\u5b9a\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000054",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000054"
+            },
+            "destinationNodeURI": {
+                "title": "\u6210\u679c\u3068\u767a\u4fe1",
+                "identifier": "10000000-0000-0000-0000-000000000502",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000502"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "d278d7c1-03ec-4e6c-84b4-a5fc9482fde9",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/d278d7c1-03ec-4e6c-84b4-a5fc9482fde9",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u6a5f\u68b0\u5b66\u7fd2\u306e\u4ee3\u8868\u7684\u306a\u624b\u6cd5\u3092\u7406\u89e3\u3057\u30e2\u30c7\u30eb\u306e\u69cb\u7bc9\u3068\u8a55\u4fa1\u304c\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000033",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000033"
+            },
+            "destinationNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u624b\u6cd5",
+                "identifier": "10000000-0000-0000-0000-000000000301",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000301"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "d917fa27-efa9-4927-9667-846b3b0f744e",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/d917fa27-efa9-4927-9667-846b3b0f744e",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u7dcf\u5408\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000005",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000005"
+            },
+            "destinationNodeURI": {
+                "title": "\u6c60\u4e4b\u7aef\u5927\u5b66 \u60c5\u5831\u5b66\u90e8 \u30b3\u30f3\u30d4\u30c6\u30f3\u30b7\u30fc\u30d5\u30ec\u30fc\u30e0\u30ef\u30fc\u30af",
+                "identifier": "4f3c6a12-e83b-4654-b7ce-1738552191e4",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/4f3c6a12-e83b-4654-b7ce-1738552191e4"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 50
+        },
+        {
+            "identifier": "daf92eb5-4551-408c-8973-31ea02d4d925",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/daf92eb5-4551-408c-8973-31ea02d4d925",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u7d71\u8a08\u5b66\u306e\u57fa\u790e\u7406\u8ad6\u3092\u7406\u89e3\u3057\u30c7\u30fc\u30bf\u306e\u5206\u5e03\u3084\u691c\u5b9a\u3092\u9069\u7528\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000031",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000031"
+            },
+            "destinationNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u624b\u6cd5",
+                "identifier": "10000000-0000-0000-0000-000000000301",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000301"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "ded7ee6b-6d44-42b8-abb5-0cfb56ca9357",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/ded7ee6b-6d44-42b8-abb5-0cfb56ca9357",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                "identifier": "10000000-0000-0000-0000-000000000202",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000202"
+            },
+            "destinationNodeURI": {
+                "title": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u3068\u958b\u767a\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000002",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000002"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "e0e54a71-6c2f-40c3-975a-a807b60bd3a1",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/e0e54a71-6c2f-40c3-975a-a807b60bd3a1",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u69cb\u9020\u5316\u30c7\u30fc\u30bf\u3068\u975e\u69cb\u9020\u5316\u30c7\u30fc\u30bf\u306e\u524d\u51e6\u7406\u30fb\u5909\u63db\u3092\u5b9f\u65bd\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000032",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000032"
+            },
+            "destinationNodeURI": {
+                "title": "\u30c7\u30fc\u30bf\u5b9f\u8df5",
+                "identifier": "10000000-0000-0000-0000-000000000302",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000302"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        },
+        {
+            "identifier": "e16c3759-afee-4f32-94d2-bac16ce8e743",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/e16c3759-afee-4f32-94d2-bac16ce8e743",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u7406\u8ad6\u3068\u30cd\u30c3\u30c8\u30ef\u30fc\u30af",
+                "identifier": "10000000-0000-0000-0000-000000000102",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000102"
+            },
+            "destinationNodeURI": {
+                "title": "\u8a08\u7b97\u6a5f\u79d1\u5b66\u306e\u57fa\u790e",
+                "identifier": "10000000-0000-0000-0000-000000000001",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000001"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 20
+        },
+        {
+            "identifier": "f39c17ac-f186-4224-bd75-1ed68f887246",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/f39c17ac-f186-4224-bd75-1ed68f887246",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u8981\u4ef6\u5b9a\u7fa9\u304b\u3089\u30c7\u30d7\u30ed\u30a4\u307e\u3067\u306e\u958b\u767a\u30e9\u30a4\u30d5\u30b5\u30a4\u30af\u30eb\u3092\u7ba1\u7406\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000025",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000025"
+            },
+            "destinationNodeURI": {
+                "title": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                "identifier": "10000000-0000-0000-0000-000000000202",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000202"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 30
+        },
+        {
+            "identifier": "fb80694a-869e-49b4-9261-cb1f67a5551b",
+            "uri": "http://localhost:3000/ims/case/v1p1/CFAssociations/fb80694a-869e-49b4-9261-cb1f67a5551b",
+            "associationType": "isChildOf",
+            "originNodeURI": {
+                "title": "\u624b\u7d9a\u304d\u578b\u30fb\u30aa\u30d6\u30b8\u30a7\u30af\u30c8\u6307\u5411\u306e\u57fa\u672c\u6982\u5ff5\u3092\u7406\u89e3\u3057\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                "identifier": "10000000-0000-0000-0000-000000000021",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000021"
+            },
+            "destinationNodeURI": {
+                "title": "\u57fa\u790e\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0",
+                "identifier": "10000000-0000-0000-0000-000000000201",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000201"
+            },
+            "lastChangeDateTime": "2026-06-05T04:23:43.000Z",
+            "sequenceNumber": 10
+        }
+    ],
+    "CFDefinitions": {
+        "CFConcepts": [],
+        "CFSubjects": [
+            {
+                "identifier": "61015141-f2a8-4189-b8da-26291b71e139",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/61015141-f2a8-4189-b8da-26291b71e139",
+                "title": "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u5de5\u5b66",
+                "description": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "84c261f2-2a9d-4ba6-a60d-8c8dc055a163",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/84c261f2-2a9d-4ba6-a60d-8c8dc055a163",
+                "title": "\u60c5\u5831\u79d1\u5b66",
+                "description": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "d37602c5-e4aa-402e-afdb-09a23ca9c677",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/d37602c5-e4aa-402e-afdb-09a23ca9c677",
+                "title": "\u30c7\u30fc\u30bf\u30b5\u30a4\u30a8\u30f3\u30b9",
+                "description": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            }
+        ],
+        "CFLicenses": [],
+        "CFItemTypes": [
+            {
+                "identifier": "017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/017710d7-6dc3-4c81-89a1-ebef3f95cf89",
+                "title": "\u77e5\u8b58",
+                "description": null,
+                "typeCode": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/1e121bb3-0e68-41a7-89a2-f112f9211450",
+                "title": "\u614b\u5ea6",
+                "description": null,
+                "typeCode": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/3f1fdfbc-cc0c-4c08-8add-31e9479033a0",
+                "title": "\u9818\u57df",
+                "description": null,
+                "typeCode": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "59a69e7c-9111-4458-879b-256e9b566bee",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/59a69e7c-9111-4458-879b-256e9b566bee",
+                "title": "\u5206\u91ce",
+                "description": null,
+                "typeCode": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            },
+            {
+                "identifier": "de0ee81c-2429-4217-b689-238be726d550",
+                "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/de0ee81c-2429-4217-b689-238be726d550",
+                "title": "\u6280\u80fd",
+                "description": null,
+                "typeCode": null,
+                "hierarchyCode": null,
+                "lastChangeDateTime": "2026-06-05T04:23:43Z"
+            }
+        ],
+        "CFAssociationGroupings": []
+    },
+    "CFRubrics": [
+        {
+            "identifier": "20000000-0000-0000-0000-000000000001",
+            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000001",
+            "lastChangeDateTime": "2026-06-05T04:37:06.000Z",
+            "title": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u57fa\u790e \u8a55\u4fa1\u30eb\u30fc\u30d6\u30ea\u30c3\u30af",
+            "description": "\u30d7\u30ed\u30b0\u30e9\u30df\u30f3\u30b0\u3068\u958b\u767a\u5b9f\u8df5\u306e\u9818\u57df\u306b\u304a\u3051\u308b\u30b9\u30ad\u30eb\u8a55\u4fa1",
+            "CFRubricCriteria": [
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000011",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000011",
+                    "category": "\u30b3\u30fc\u30c9\u54c1\u8cea",
+                    "description": "\u30d7\u30ed\u30b0\u30e9\u30e0\u306e\u6b63\u78ba\u6027",
+                    "CFItemURI": {
+                        "title": "\u624b\u7d9a\u304d\u578b\u30fb\u30aa\u30d6\u30b8\u30a7\u30af\u30c8\u6307\u5411\u306e\u57fa\u672c\u6982\u5ff5\u3092\u7406\u89e3\u3057\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000021",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000021"
+                    },
+                    "weight": 0.3,
+                    "position": 1,
+                    "rubricId": "20000000-0000-0000-0000-000000000001",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000111",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000111",
+                            "description": "\u8981\u4ef6\u3092\u5b8c\u5168\u306b\u6e80\u305f\u3059\u6b63\u78ba\u306a\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u4ed5\u69d8\u901a\u308a\u306e\u52d5\u4f5c\u3092\u78ba\u8a8d\u3067\u304d\u3066\u3044\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000011",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000112",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000112",
+                            "description": "\u4e3b\u8981\u306a\u8981\u4ef6\u3092\u6e80\u305f\u3059\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u8efd\u5fae\u306a\u4e0d\u5177\u5408\u304c\u3042\u308b\u304c\u4e3b\u8981\u6a5f\u80fd\u306f\u52d5\u4f5c\u3059\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000011",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000113",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000113",
+                            "description": "\u57fa\u672c\u7684\u306a\u6a5f\u80fd\u3092\u6301\u3064\u30d7\u30ed\u30b0\u30e9\u30e0\u3092\u4f5c\u6210\u3067\u304d\u308b\u304c\u4e0d\u5177\u5408\u304c\u3042\u308b",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u57fa\u672c\u69cb\u9020\u306f\u7406\u89e3\u3057\u3066\u3044\u308b\u304c\u4fee\u6b63\u304c\u5fc5\u8981",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000011",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000114",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000114",
+                            "description": "\u30d7\u30ed\u30b0\u30e9\u30e0\u306e\u5b8c\u6210\u306b\u81f3\u3089\u306a\u3044",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u57fa\u790e\u304b\u3089\u518d\u5b66\u7fd2\u304c\u5fc5\u8981",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000011",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                },
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000012",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000012",
+                    "category": "\u30b3\u30fc\u30c9\u54c1\u8cea",
+                    "description": "\u30b3\u30fc\u30c9\u306e\u53ef\u8aad\u6027",
+                    "CFItemURI": {
+                        "title": "\u30bd\u30d5\u30c8\u30a6\u30a7\u30a2\u8a2d\u8a08\u30d1\u30bf\u30fc\u30f3\u3092\u7406\u89e3\u3057\u4fdd\u5b88\u6027\u306e\u9ad8\u3044\u30b3\u30fc\u30c9\u3092\u8a18\u8ff0\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000024",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000024"
+                    },
+                    "weight": 0.2,
+                    "position": 2,
+                    "rubricId": "20000000-0000-0000-0000-000000000001",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000121",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000121",
+                            "description": "\u547d\u540d\u898f\u5247\u30fb\u30a4\u30f3\u30c7\u30f3\u30c8\u30fb\u30b3\u30e1\u30f3\u30c8\u304c\u4e00\u8cab\u3057\u4ed6\u8005\u304c\u5bb9\u6613\u306b\u7406\u89e3\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u30c1\u30fc\u30e0\u958b\u767a\u306b\u9069\u3057\u305f\u30b3\u30fc\u30c9\u54c1\u8cea",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000012",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000122",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000122",
+                            "description": "\u6982\u306d\u8aad\u307f\u3084\u3059\u3044\u304c\u4e00\u90e8\u6539\u5584\u306e\u4f59\u5730\u304c\u3042\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u30b3\u30fc\u30c9\u30ec\u30d3\u30e5\u30fc\u3067\u8efd\u5fae\u306a\u6307\u6458\u304c\u3042\u308b\u7a0b\u5ea6",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000012",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000123",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000123",
+                            "description": "\u53ef\u8aad\u6027\u306b\u8ab2\u984c\u304c\u3042\u308a\u30b3\u30e1\u30f3\u30c8\u3084\u69cb\u9020\u306e\u6539\u5584\u304c\u5fc5\u8981",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u610f\u56f3\u3092\u8aad\u307f\u53d6\u308b\u306e\u306b\u6642\u9593\u304c\u304b\u304b\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000012",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000124",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000124",
+                            "description": "\u30b3\u30fc\u30c9\u306e\u69cb\u9020\u304c\u6574\u7406\u3055\u308c\u3066\u304a\u3089\u305a\u7406\u89e3\u304c\u56f0\u96e3",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u53ef\u8aad\u6027\u306e\u57fa\u672c\u539f\u5247\u306e\u5b66\u7fd2\u304c\u5fc5\u8981",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000012",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                },
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000013",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000013",
+                    "category": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                    "description": "\u30d0\u30fc\u30b8\u30e7\u30f3\u7ba1\u7406\u306e\u6d3b\u7528",
+                    "CFItemURI": {
+                        "title": "\u30d0\u30fc\u30b8\u30e7\u30f3\u7ba1\u7406\u30b7\u30b9\u30c6\u30e0\u3092\u7528\u3044\u3066\u30c1\u30fc\u30e0\u3067\u5171\u540c\u958b\u767a\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000022",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000022"
+                    },
+                    "weight": 0.2,
+                    "position": 3,
+                    "rubricId": "20000000-0000-0000-0000-000000000001",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000131",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000131",
+                            "description": "\u9069\u5207\u306a\u7c92\u5ea6\u3067\u30b3\u30df\u30c3\u30c8\u3057\u30d6\u30e9\u30f3\u30c1\u6226\u7565\u3092\u7528\u3044\u3066\u5171\u540c\u958b\u767a\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u30c1\u30fc\u30e0\u958b\u767a\u306e\u30ef\u30fc\u30af\u30d5\u30ed\u30fc\u3092\u4e3b\u5c0e\u3067\u304d\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000013",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000132",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000132",
+                            "description": "\u57fa\u672c\u7684\u306a\u30b3\u30df\u30c3\u30c8\u3068\u30d6\u30e9\u30f3\u30c1\u64cd\u4f5c\u304c\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u65e5\u5e38\u7684\u306a Git \u64cd\u4f5c\u306b\u554f\u984c\u306f\u306a\u3044",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000013",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000133",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000133",
+                            "description": "\u30b3\u30df\u30c3\u30c8\u306f\u3067\u304d\u308b\u304c\u30d6\u30e9\u30f3\u30c1\u64cd\u4f5c\u3084\u30b3\u30f3\u30d5\u30ea\u30af\u30c8\u89e3\u6c7a\u306b\u4e0d\u5b89\u304c\u3042\u308b",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u57fa\u672c\u64cd\u4f5c\u306e\u53cd\u5fa9\u7df4\u7fd2\u3092\u63a8\u5968",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000013",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000134",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000134",
+                            "description": "\u30d0\u30fc\u30b8\u30e7\u30f3\u7ba1\u7406\u306e\u6982\u5ff5\u3092\u7406\u89e3\u3057\u3066\u3044\u306a\u3044",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "Git \u306e\u57fa\u790e\u30c1\u30e5\u30fc\u30c8\u30ea\u30a2\u30eb\u304b\u3089\u59cb\u3081\u308b\u3053\u3068",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000013",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                },
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000014",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000014",
+                    "category": "\u958b\u767a\u30d7\u30ed\u30bb\u30b9",
+                    "description": "\u30c6\u30b9\u30c8\u306e\u5b9f\u8df5",
+                    "CFItemURI": {
+                        "title": "\u30c6\u30b9\u30c8\u99c6\u52d5\u958b\u767a\u3084\u7d99\u7d9a\u7684\u30a4\u30f3\u30c6\u30b0\u30ec\u30fc\u30b7\u30e7\u30f3\u306e\u624b\u6cd5\u3092\u5b9f\u8df5\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000023",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000023"
+                    },
+                    "weight": 0.3,
+                    "position": 4,
+                    "rubricId": "20000000-0000-0000-0000-000000000001",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000141",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000141",
+                            "description": "\u30c6\u30b9\u30c8\u30b1\u30fc\u30b9\u3092\u7db2\u7f85\u7684\u306b\u8a2d\u8a08\u3057 CI \u30d1\u30a4\u30d7\u30e9\u30a4\u30f3\u3092\u69cb\u7bc9\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u54c1\u8cea\u4fdd\u8a3c\u306e\u4ed5\u7d44\u307f\u3092\u81ea\u5f8b\u7684\u306b\u69cb\u7bc9\u3067\u304d\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000014",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000142",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000142",
+                            "description": "\u4e3b\u8981\u306a\u6a5f\u80fd\u306b\u5bfe\u3059\u308b\u30e6\u30cb\u30c3\u30c8\u30c6\u30b9\u30c8\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u30c6\u30b9\u30c8\u306e\u7fd2\u6163\u304c\u8eab\u306b\u3064\u3044\u3066\u3044\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000014",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000143",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000143",
+                            "description": "\u30c6\u30b9\u30c8\u306e\u5fc5\u8981\u6027\u306f\u7406\u89e3\u3057\u3066\u3044\u308b\u304c\u5b9f\u8df5\u304c\u4e0d\u5341\u5206",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u30c6\u30b9\u30c8\u30b3\u30fc\u30c9\u306e\u8a18\u8ff0\u7df4\u7fd2\u304c\u5fc5\u8981",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000014",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000144",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000144",
+                            "description": "\u30c6\u30b9\u30c8\u3092\u66f8\u304f\u7fd2\u6163\u304c\u306a\u3044",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u30c6\u30b9\u30c8\u99c6\u52d5\u958b\u767a\u306e\u57fa\u790e\u3092\u5b66\u3076\u3053\u3068",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000014",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "identifier": "20000000-0000-0000-0000-000000000002",
+            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000002",
+            "lastChangeDateTime": "2026-06-05T04:37:06.000Z",
+            "title": "\u5352\u696d\u7814\u7a76 \u8a55\u4fa1\u30eb\u30fc\u30d6\u30ea\u30c3\u30af",
+            "description": "\u7dcf\u5408\u5b9f\u8df5\u306e\u9818\u57df\u306b\u304a\u3051\u308b\u5352\u696d\u7814\u7a76\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u306e\u8a55\u4fa1",
+            "CFRubricCriteria": [
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000021",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000021",
+                    "category": "\u7814\u7a76\u30d7\u30ed\u30bb\u30b9",
+                    "description": "\u8ab2\u984c\u8a2d\u5b9a\u3068\u63d0\u6848",
+                    "CFItemURI": {
+                        "title": "\u5b9f\u793e\u4f1a\u306e\u8ab2\u984c\u306b\u5bfe\u3057\u3066\u60c5\u5831\u6280\u8853\u3092\u6d3b\u7528\u3057\u305f\u89e3\u6c7a\u7b56\u3092\u4f01\u753b\u30fb\u63d0\u6848\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000051",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000051"
+                    },
+                    "weight": 0.25,
+                    "position": 1,
+                    "rubricId": "20000000-0000-0000-0000-000000000002",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000211",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000211",
+                            "description": "\u793e\u4f1a\u7684\u610f\u7fa9\u306e\u3042\u308b\u8ab2\u984c\u3092\u72ec\u81ea\u306b\u767a\u898b\u3057\u5b9f\u73fe\u53ef\u80fd\u306a\u89e3\u6c7a\u7b56\u3092\u63d0\u6848\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u7814\u7a76\u30c6\u30fc\u30de\u3068\u3057\u3066\u5341\u5206\u306a\u65b0\u898f\u6027\u304c\u3042\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000021",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000212",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000212",
+                            "description": "\u4e0e\u3048\u3089\u308c\u305f\u8ab2\u984c\u306b\u5bfe\u3057\u3066\u9069\u5207\u306a\u89e3\u6c7a\u7b56\u3092\u63d0\u6848\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u63d0\u6848\u5185\u5bb9\u306f\u59a5\u5f53\u3060\u304c\u72ec\u81ea\u6027\u3092\u9ad8\u3081\u305f\u3044",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000021",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000213",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000213",
+                            "description": "\u8ab2\u984c\u306e\u5206\u6790\u304c\u6d45\u304f\u63d0\u6848\u306e\u5177\u4f53\u6027\u304c\u4e0d\u8db3\u3057\u3066\u3044\u308b",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u5148\u884c\u7814\u7a76\u306e\u8abf\u67fb\u3092\u6df1\u3081\u308b\u5fc5\u8981\u304c\u3042\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000021",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000214",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000214",
+                            "description": "\u8ab2\u984c\u306e\u8a2d\u5b9a\u304c\u3067\u304d\u3066\u3044\u306a\u3044",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u6307\u5c0e\u6559\u54e1\u3068\u8ab2\u984c\u306e\u65b9\u5411\u6027\u3092\u518d\u691c\u8a0e\u3059\u308b\u3053\u3068",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000021",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                },
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000022",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000022",
+                    "category": "\u7814\u7a76\u30d7\u30ed\u30bb\u30b9",
+                    "description": "\u30c1\u30fc\u30e0\u30ef\u30fc\u30af",
+                    "CFItemURI": {
+                        "title": "\u30c1\u30fc\u30e0\u30e1\u30f3\u30d0\u30fc\u3068\u5354\u50cd\u3057\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u3092\u8a08\u753b\u7684\u306b\u9042\u884c\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000052",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000052"
+                    },
+                    "weight": 0.25,
+                    "position": 2,
+                    "rubricId": "20000000-0000-0000-0000-000000000002",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000221",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000221",
+                            "description": "\u30e1\u30f3\u30d0\u30fc\u306e\u5f37\u307f\u3092\u6d3b\u304b\u3057\u305f\u5f79\u5272\u5206\u62c5\u3067\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u3092\u727d\u5f15\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u30ea\u30fc\u30c0\u30fc\u30b7\u30c3\u30d7\u3092\u767a\u63ee\u3057\u3066\u3044\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000022",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000222",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000222",
+                            "description": "\u62c5\u5f53\u30bf\u30b9\u30af\u3092\u671f\u9650\u5185\u306b\u5b8c\u4e86\u3057\u30c1\u30fc\u30e0\u306b\u8ca2\u732e\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u5b89\u5b9a\u3057\u305f\u8ca2\u732e\u304c\u898b\u3089\u308c\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000022",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000223",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000223",
+                            "description": "\u30c1\u30fc\u30e0\u6d3b\u52d5\u306b\u53c2\u52a0\u3059\u308b\u304c\u4e3b\u4f53\u6027\u306b\u6b20\u3051\u308b",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u7a4d\u6975\u7684\u306a\u95a2\u4e0e\u3092\u671f\u5f85\u3059\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000022",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000224",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000224",
+                            "description": "\u30c1\u30fc\u30e0\u6d3b\u52d5\u3078\u306e\u53c2\u52a0\u304c\u4e0d\u5341\u5206",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u30b3\u30df\u30e5\u30cb\u30b1\u30fc\u30b7\u30e7\u30f3\u306e\u6539\u5584\u304c\u5fc5\u8981",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000022",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                },
+                {
+                    "identifier": "20000000-0000-0000-0000-000000000023",
+                    "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000023",
+                    "category": "\u7814\u7a76\u6210\u679c",
+                    "description": "\u6210\u679c\u767a\u8868",
+                    "CFItemURI": {
+                        "title": "\u6210\u679c\u7269\u3092\u8ad6\u7406\u7684\u306b\u69cb\u6210\u3057\u53e3\u982d\u304a\u3088\u3073\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3067\u767a\u8868\u3067\u304d\u308b",
+                        "identifier": "10000000-0000-0000-0000-000000000053",
+                        "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/10000000-0000-0000-0000-000000000053"
+                    },
+                    "weight": 0.5,
+                    "position": 3,
+                    "rubricId": "20000000-0000-0000-0000-000000000002",
+                    "lastChangeDateTime": "2026-06-05T04:37:06Z",
+                    "CFRubricCriterionLevels": [
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000231",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000231",
+                            "description": "\u8ad6\u7406\u7684\u306a\u69cb\u6210\u3067\u8074\u8846\u3092\u5f15\u304d\u8fbc\u3080\u30d7\u30ec\u30bc\u30f3\u30c6\u30fc\u30b7\u30e7\u30f3\u3068\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                            "quality": "Excellent",
+                            "score": 4,
+                            "feedback": "\u5b66\u4f1a\u767a\u8868\u30ec\u30d9\u30eb\u306e\u5b8c\u6210\u5ea6",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000023",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000232",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000232",
+                            "description": "\u8981\u70b9\u3092\u6574\u7406\u3057\u305f\u5206\u304b\u308a\u3084\u3059\u3044\u767a\u8868\u3068\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3092\u4f5c\u6210\u3067\u304d\u308b",
+                            "quality": "Good",
+                            "score": 3,
+                            "feedback": "\u5185\u5bb9\u306f\u5341\u5206\u3060\u304c\u8868\u73fe\u306b\u6539\u5584\u306e\u4f59\u5730\u304c\u3042\u308b",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000023",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000233",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000233",
+                            "description": "\u767a\u8868\u306e\u69cb\u6210\u3084\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u306e\u8a18\u8ff0\u306b\u6539\u5584\u304c\u5fc5\u8981",
+                            "quality": "Adequate",
+                            "score": 2,
+                            "feedback": "\u8ad6\u7406\u69cb\u6210\u3068\u30d3\u30b8\u30e5\u30a2\u30eb\u306e\u898b\u76f4\u3057\u3092\u63a8\u5968",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000023",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        },
+                        {
+                            "identifier": "20000000-0000-0000-0000-000000000234",
+                            "uri": "https://playground.compeito.org/1dbf53e4-cd0d-4f20-93a0-f96aff9d6f04/uri/20000000-0000-0000-0000-000000000234",
+                            "description": "\u767a\u8868\u8cc7\u6599\u30fb\u30c9\u30ad\u30e5\u30e1\u30f3\u30c8\u3068\u3082\u306b\u4e0d\u5341\u5206",
+                            "quality": "Needs Improvement",
+                            "score": 1,
+                            "feedback": "\u6280\u8853\u6587\u66f8\u306e\u66f8\u304d\u65b9\u304b\u3089\u5b66\u3073\u76f4\u3059\u3053\u3068",
+                            "position": null,
+                            "rubricCriterionId": "20000000-0000-0000-0000-000000000023",
+                            "lastChangeDateTime": "2026-06-05T04:37:06Z"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
