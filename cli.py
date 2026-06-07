@@ -637,12 +637,19 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
 @click.option("--doc-title", default=None, help=t("help_doc_title"))
 @click.option("--doc-version", default=None, help=t("help_doc_version"))
+@click.option(
+    "--profile",
+    type=click.Choice(["auto", "custom", "opensalt", "simple"]),
+    default="auto",
+    help=t("help_import_profile"),
+)
 def import_csv_cmd(
     tenant_id: str,
     file_path: str,
     doc_id: str | None,
     doc_title: str | None,
     doc_version: str | None,
+    profile: str,
 ):
     """Import items from a CSV file."""
     _check_db()
@@ -696,14 +703,19 @@ def import_csv_cmd(
                     raise SystemExit(1)
 
             with console.status(t("msg_importing_csv")):
-                report = await import_csv(
-                    session,
-                    tid,
-                    csv_data,
-                    doc_identifier=did,
-                    doc_title=doc_title,
-                    doc_version=doc_version,
-                )
+                try:
+                    report = await import_csv(
+                        session,
+                        tid,
+                        csv_data,
+                        doc_identifier=did,
+                        doc_title=doc_title,
+                        doc_version=doc_version,
+                        profile=None if profile == "auto" else profile,
+                    )
+                except ValueError as e:
+                    err_console.print(f"[red]{e}[/red]")
+                    raise SystemExit(1) from e
                 await session.commit()
 
             console.print(
@@ -728,26 +740,52 @@ def import_csv_cmd(
 
 
 # ---------------------------------------------------------------------------
-# import case-url
+# import case
 # ---------------------------------------------------------------------------
 
 
-@import_group.command("case-url", help=t("cmd_import_case_url"))
+@import_group.command("case", help=t("cmd_import_case"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
-@click.option("--url", required=True, help=t("help_case_url"))
+@click.option("--url", default=None, help=t("help_case_url"))
+@click.option(
+    "--file",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help=t("help_case_file"),
+)
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
-def import_case_url(tenant_id: str, url: str, doc_id: str | None):
-    """Import from an external CASE source."""
+def import_case(tenant_id: str, url: str | None, file_path: str | None, doc_id: str | None):
+    """Import a CASE CFPackage from a URL (--url) or a local JSON file (--file).
+
+    Exactly one of --url / --file must be given. --file is useful when the
+    source editor (OpenCASE / OpenSALT / any CASE-conformant tool) runs on a
+    private network and its CFPackage URL is not reachable from this server.
+    """
     _check_db()
+    if bool(url) == bool(file_path):
+        err_console.print(t("err_case_source"))
+        raise SystemExit(1)
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id) if doc_id else None
+
+    data = None
+    if file_path:
+        import json
+
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            err_console.print(f"[red]{t('err_invalid_json', value=str(e))}[/red]")
+            raise SystemExit(1) from e
 
     async def _run_import():
         from sqlalchemy import select
 
         from src.models.cf_document import CFDocument
         from src.models.tenant import Tenant
-        from src.services.case_import_service import import_case_package
+        from src.services.case_import_service import import_case_from_dict, import_case_package
 
         async with _get_session() as session:
             # Check tenant
@@ -771,115 +809,20 @@ def import_case_url(tenant_id: str, url: str, doc_id: str | None):
                     raise SystemExit(1)
 
             with console.status(t("msg_importing_case")):
-                report = await import_case_package(
-                    session,
-                    tid,
-                    url,
-                    doc_identifier=did,
-                )
-                await session.commit()
-
-            console.print(
-                t("msg_imported", title=report.document_title, id=str(report.document_identifier)),
-            )
-            console.print(
-                t(
-                    "msg_items_summary",
-                    created=str(report.items_created),
-                    updated=str(report.items_updated),
-                    skipped=str(report.items_skipped),
-                ),
-            )
-            console.print(
-                t(
-                    "msg_assoc_summary",
-                    created=str(report.associations_created),
-                    updated=str(report.associations_updated),
-                    skipped=str(report.associations_skipped),
-                ),
-            )
-            if report.rubrics_created or report.rubrics_updated or report.rubrics_skipped:
-                console.print(
-                    t(
-                        "msg_rubrics_summary",
-                        created=str(report.rubrics_created),
-                        updated=str(report.rubrics_updated),
-                        skipped=str(report.rubrics_skipped),
-                    ),
-                )
-            if report.warnings:
-                for w in report.warnings:
-                    console.print(f"  [yellow]{t('lbl_warning')} {w}[/yellow]")
-
-    _run(_run_import())
-
-
-# ---------------------------------------------------------------------------
-# import case-file
-# ---------------------------------------------------------------------------
-
-
-@import_group.command("case-file", help=t("cmd_import_case_file"))
-@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
-@click.option(
-    "--file",
-    "file_path",
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    help=t("help_case_file"),
-)
-@click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
-def import_case_file(tenant_id: str, file_path: str, doc_id: str | None):
-    """Import a CASE CFPackage from a local JSON file (no network fetch).
-
-    Useful when OpenCASE / OpenSALT / similar editors run on a private network
-    and their CFPackage URL is not reachable from this server. Export the
-    CFPackage JSON manually, then import via this command.
-    """
-    _check_db()
-    tid = _parse_uuid(tenant_id)
-    did = _parse_uuid(doc_id) if doc_id else None
-
-    import json
-
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        err_console.print(f"[red]{t('err_invalid_json', value=str(e))}[/red]")
-        raise SystemExit(1) from e
-
-    async def _run_import():
-        from sqlalchemy import select
-
-        from src.models.cf_document import CFDocument
-        from src.models.tenant import Tenant
-        from src.services.case_import_service import import_case_from_dict
-
-        async with _get_session() as session:
-            result = await session.execute(select(Tenant).where(Tenant.id == tid))
-            if result.scalar_one_or_none() is None:
-                err_console.print(t("err_tenant_not_found", value=str(tid)))
-                raise SystemExit(1)
-
-            if did is not None:
-                result = await session.execute(
-                    select(CFDocument).where(
-                        CFDocument.tenant_id == tid,
-                        CFDocument.identifier == did,
-                    ),
-                )
-                if result.scalar_one_or_none() is None:
-                    err_console.print(t("err_doc_not_found", value=str(did)))
-                    raise SystemExit(1)
-
-            with console.status(t("msg_importing_case")):
-                report = await import_case_from_dict(
-                    session,
-                    tid,
-                    data,
-                    doc_identifier=did,
-                )
+                if data is not None:
+                    report = await import_case_from_dict(
+                        session,
+                        tid,
+                        data,
+                        doc_identifier=did,
+                    )
+                else:
+                    report = await import_case_package(
+                        session,
+                        tid,
+                        url,
+                        doc_identifier=did,
+                    )
                 await session.commit()
 
             console.print(
@@ -927,20 +870,19 @@ def import_case_file(tenant_id: str, file_path: str, doc_id: str | None):
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
 @click.option(
-    "--format",
-    "fmt",
+    "--profile",
     default="custom",
-    help=t("help_export_format"),
+    help=t("help_export_profile"),
 )
-def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
+def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, profile: str):
     """Export a document to CSV."""
     _check_db()
     tid = _parse_uuid(tenant_id)
     did = _parse_uuid(doc_id)
 
-    # Validate format
-    if fmt not in ("custom", "opensalt"):
-        err_console.print(t("err_invalid_format", value=fmt))
+    # Validate profile
+    if profile not in ("custom", "opensalt"):
+        err_console.print(t("err_invalid_profile", value=profile))
         raise SystemExit(1)
 
     # Check output path is writable
@@ -982,7 +924,7 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
                 raise SystemExit(1)
 
             with console.status(t("msg_exporting_csv")):
-                if fmt == "opensalt":
+                if profile == "opensalt":
                     csv_str = await export_opensalt_csv(session, tid, did)
                 else:
                     csv_str = await export_csv(session, tid, did)
@@ -1001,11 +943,11 @@ def export_csv_cmd(tenant_id: str, doc_id: str, file_path: str, fmt: str):
 
 
 # ---------------------------------------------------------------------------
-# import csv-rubric
+# import rubric
 # ---------------------------------------------------------------------------
 
 
-@import_group.command("csv-rubric", help=t("cmd_import_csv_rubric"))
+@import_group.command("rubric", help=t("cmd_import_rubric"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(exists=True), help=t("help_csv_file"))
@@ -1094,7 +1036,7 @@ def export_case_cmd(tenant_id: str, doc_id: str, file_path: str):
     The output has the same payload shape as `GET /ims/case/v1p1/CFPackages/{id}`
     (pretty-printed for readability; the API serves compact JSON) and can be
     imported into any CASE-conformant tool (OpenCASE, OpenSALT, etc.) via their
-    respective import endpoints, or back into COMPEITO via `import case-file`.
+    respective import endpoints, or back into COMPEITO via `import case --file`.
     """
     _check_db()
     tid = _parse_uuid(tenant_id)
@@ -1141,11 +1083,11 @@ def export_case_cmd(tenant_id: str, doc_id: str, file_path: str):
 
 
 # ---------------------------------------------------------------------------
-# export csv-rubric
+# export rubric
 # ---------------------------------------------------------------------------
 
 
-@export_group.command("csv-rubric", help=t("cmd_export_csv_rubric"))
+@export_group.command("rubric", help=t("cmd_export_rubric"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(), help=t("help_output_file"))
