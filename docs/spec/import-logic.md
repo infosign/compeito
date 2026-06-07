@@ -284,7 +284,7 @@ Same as CSV import: on update, Step 3 acquires `SELECT ... FOR UPDATE` on the ta
 
 Mapping from the external CFPackage's CFDocument object to DB columns:
 - `identifier` → `identifier` (used only on create; on update keep existing).
-- `uri` → `uri` (used only on create; on update keep existing — see URI preservation rule).
+- `uri` → `uri` (FR-7.2: source URI preserved verbatim on **both** create and update via `_resolve_uri()` in `case_import_service.py`. Same rule applies to CFItem / CFAssociation / CFRubric* / lookup resources).
 - `title` → `title`.
 - `creator` → `creator` (required in CASE v1.1 OpenAPI but nullable here. On create, missing / null / blank emits a warning and stores NULL. On update, follow the rule "no external value → keep existing": missing / null retains existing silently; a blank string emits a warning and still retains existing (the existing `creator` is not overwritten with an empty string). `null` / key absent / empty string / whitespace-only are all treated as "missing".).
 - `publisher` → `publisher`.
@@ -301,7 +301,8 @@ Mapping from the external CFPackage's CFDocument object to DB columns:
 - `subject` → `subject` (JSONB string array).
 - `subjectURI` → `subject_uri` (JSONB LinkURI object array).
 - `lastChangeDateTime` → `last_change_date_time` (parse ISO 8601; on invalid format or absence, use the import-time UTC timestamp with a warning — same rule as CFItem).
-- `CFPackageURI`, `notes`, etc. (non-persisted fields) are ignored.
+- `CFPackageURI.uri` → `cf_package_uri_source` (the rest of the LinkURI is rebuilt at emit time). Stored verbatim so re-export preserves the source URI without touching `BASE_URL` — required for OpenCASE / OBF round-trip (FR-7.2; see [round_trip_status.md](../dev/round_trip_status.md) cat G). On update, the field is overwritten when the new payload includes a `CFPackageURI` key (matches the existing "missing → keep existing" semantics).
+- `notes`, `extensions`, etc. (CASE v1.1 optional fields not yet persisted) are ignored. Tracked under FR-2.13.
 
 ### CFDefinitions field mapping
 
@@ -316,7 +317,7 @@ Map camelCase external CASE fields to snake_case DB columns. The common fields (
 
 Mapping from the external CFPackage's CFItem object to DB columns:
 - `identifier` → `identifier` (create only; update keeps existing).
-- `uri` → `uri` (create only; update keeps existing — see URI preservation rule).
+- `uri` → `uri` (FR-7.2: source URI preserved verbatim on **both** create and update — `_resolve_uri()` in `case_import_service.py`. Falls back to `{BASE_URL}/{tenant}/uri/{identifier}` only when the source omits `uri`. The same rule applies to CFDocument / CFAssociation / CFRubric* / lookup resources).
 - `fullStatement` → `full_statement` (stored after trimming surrounding whitespace; empty → skip).
 - `humanCodingScheme` → `human_coding_scheme`.
 - `abbreviatedStatement` → `abbreviated_statement`.
@@ -338,10 +339,10 @@ Mapping from the external CFPackage's CFItem object to DB columns:
 
 Mapping from the external CFPackage's CFAssociation object to DB columns:
 - `identifier` → `identifier` (create only; update keeps existing).
-- `uri` → `uri` (create only; update keeps existing — see URI preservation rule).
+- `uri` → `uri` (FR-7.2: source URI preserved verbatim on **both** create and update via `_resolve_uri()`. Same rule as CFDocument / CFItem).
 - `associationType` → `association_type`.
 - `originNodeURI.identifier` → `origin_node_identifier`.
-- `originNodeURI.uri` → `origin_node_uri`.
+- `originNodeURI.uri` → `origin_node_uri` (source URI preserved verbatim when present, same `_resolve_uri()` semantics).
 - `originNodeURI.title` → `origin_node_title`.
 - `originNodeURI.targetType` → `origin_node_target_type` (v1.1 new; values `"CASE"` / `"ext:*"`; NULL/absent → NULL).
 - `destinationNodeURI.identifier` → `destination_node_identifier`.
@@ -384,16 +385,18 @@ Validation:
 
 Report counters: `rubrics_created`, `rubrics_updated`, `rubrics_skipped` (CFRubric level. Criterion/Level skips go into warnings; no counters).
 
-### URI preservation rule
+### URI preservation rule (FR-7.2)
 
-External imports keep the original URI as-is:
-- `cf_document.uri` → external server's URI (not overwritten; on update, the existing `uri` is also kept).
-- `cf_item.uri` → external server's URI (same).
-- `cf_association.uri` → external server's URI (same).
-- `identifier` → use the external identifier as-is.
-- **Lookup resources (CFItemType, CFSubject, etc.) URI**: follow the general update rule (overwrite when a value is present). Re-imports from the same external source usually have the same value (so no practical change), but importing the same `identifier` lookup from a different external source will update the `uri`.
+CFPackage imports preserve the source `uri` verbatim — implemented by `_resolve_uri(source, tenant_id, identifier)` in `case_import_service.py`. The helper returns `source["uri"]` when present (non-blank string), and falls back to a compeito-native `{BASE_URL}/{tenant}/uri/{identifier}` only when the source omits it.
 
-The `/uri/{uuid}` route on our own server searches by `identifier`, so external-URI resources are reachable through our own server too.
+Behavior summary:
+- **CFDocument / CFItem / CFAssociation / CFRubric / CFRubricCriterion / CFRubricCriterionLevel / CFDefinitions lookups**: source `uri` overwrites the stored value on **both** create and update. A re-import with a different upstream URI updates the column.
+- **CFAssociation.originNodeURI.uri / destinationNodeURI.uri**: same — preferred over the synthesized URI when the source provides it.
+- **`identifier`**: always preserved as-is from the source (matches CASE round-trip semantics).
+- **Denormalized LinkURI fields** (`CFDocument.CFPackageURI.uri`, `CFRubricCriterion.CFItemURI.uri`): captured verbatim into dedicated columns (`cf_documents.cf_package_uri_source`, `cf_rubric_criteria.cf_item_uri_source`) so re-export reproduces them. See [round_trip_status.md](../dev/round_trip_status.md) cat F / G.
+- **CSV import**: bypasses `_resolve_uri()` and always synthesizes a compeito-native URI (CSV rows don't carry a URI column).
+
+The `/uri/{uuid}` route on our own server searches by `identifier`, so externally-URI resources remain reachable through compeito's own host as well.
 
 ### Error handling
 
@@ -849,7 +852,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 
 外部 CFPackage の CFDocument オブジェクトから DB カラムへのマッピング:
 - `identifier` → `identifier`（新規作成時のみ使用。更新時は既存値を保持）
-- `uri` → `uri`（新規作成時のみ使用。更新時は既存値を保持。URI保持ルール参照）
+- `uri` → `uri`（FR-7.2: source URI を **新規・更新の両方で** verbatim 保持。CFItem 側と同じ `_resolve_uri()` で処理）
 - `title` → `title`
 - `creator` → `creator`（CASE v1.1 OpenAPI では required だが本システムは nullable で受け入れる。新規作成時に欠落・null・空白文字列のいずれかであれば警告を出力した上で NULL として保存する。更新時はインポート規約「外部 CFPackage に値がない → 既存値を保持」に従い、キー未存在・null は既存値を保持し警告は出さない。空白文字列のみが指定された場合は警告を出した上で既存値を保持する（既存 creator を空文字へ上書きしない）。`null` 値・キー未存在・空文字列・空白のみは「missing」として同一扱い）
 - `publisher` → `publisher`
@@ -866,7 +869,8 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `subject` → `subject`（文字列配列 JSONB）
 - `subjectURI` → `subject_uri`（LinkURI オブジェクト配列 JSONB）
 - `lastChangeDateTime` → `last_change_date_time`（ISO 8601 文字列をパース。形式不正の場合はインポート実行時の UTC タイムスタンプを使用し警告出力。未存在の場合も同様。CFItem と同一ルール）
-- `CFPackageURI`, `notes` 等の非保存フィールドは無視する
+- `CFPackageURI.uri` → `cf_package_uri_source`（LinkURI の残り部分は emit 時に再構築する）。source URI を verbatim 保存することで、再 export 時に `BASE_URL` で上書きせず source の URI を返せる（OpenCASE / OBF round-trip のため必要。FR-7.2、詳細は [round_trip_status.md](../dev/round_trip_status.md) の cat G）。更新時、新しいペイロードに `CFPackageURI` キーがあれば上書きする（既存の「キー未存在 → 既存値を保持」のセマンティクスに沿う）
+- `notes`, `extensions` 等の CASE v1.1 オプションフィールド（まだ非保存）は無視する。FR-2.13 で対応予定
 
 ### CFDefinitions フィールドマッピング
 
@@ -881,7 +885,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 
 外部 CFPackage の CFItem オブジェクトから DB カラムへのマッピング:
 - `identifier` → `identifier`（新規作成時のみ使用。更新時は既存値を保持）
-- `uri` → `uri`（新規作成時のみ使用。更新時は既存値を保持。URI保持ルール参照）
+- `uri` → `uri`（FR-7.2: source URI を **新規・更新の両方で** verbatim 保持 — `case_import_service.py` の `_resolve_uri()`。source に `uri` が無い場合だけ `{BASE_URL}/{tenant}/uri/{identifier}` にフォールバック。同じルールが CFDocument / CFAssociation / CFRubric* / lookup リソースに適用される）
 - `fullStatement` → `full_statement`（前後空白トリム後に保存。空の場合はスキップ）
 - `humanCodingScheme` → `human_coding_scheme`
 - `abbreviatedStatement` → `abbreviated_statement`
@@ -949,17 +953,18 @@ CFRubric の upsert ルールは CFItem / CFAssociation と同様:
 
 レポートカウンタ: `rubrics_created`, `rubrics_updated`, `rubrics_skipped`（CFRubric 単位。Criterion/Level のスキップは warnings に出力するがカウンタは持たない）
 
-### URI保持ルール
+### URI保持ルール (FR-7.2)
 
-外部インポート時は元のURIをそのまま保持する:
-- `cf_document.uri` → 外部サーバーのURI（上書きしない。既存ドキュメント更新時も既存 uri を保持する）
-- `cf_item.uri` → 外部サーバーのURI（上書きしない。既存アイテム更新時も既存 uri を保持する）
-- `cf_association.uri` → 外部サーバーのURI（上書きしない。既存 Association 更新時も既存 uri を保持する）
-- `identifier` → 外部のidentifier をそのまま使用
-- **lookup リソース（CFItemType, CFSubject 等）の uri**: 一般更新ルール（値があれば上書き）に従う。同一外部ソースからの再インポートでは通常同じ値のため実質変化しないが、異なる外部ソースから同一 identifier の lookup を再インポートすると uri が更新される
+CFPackage インポートは source の `uri` を verbatim 保持する — `case_import_service.py` の `_resolve_uri(source, tenant_id, identifier)` ヘルパーで実装。source dict に `uri` キーがあれば（空白文字列以外）それを使い、無ければ `{BASE_URL}/{tenant}/uri/{identifier}` にフォールバック。
 
-自サーバーの `/uri/{uuid}` では `identifier` で検索するため、
-外部URIのリソースも自サーバー経由でアクセス可能になる。
+挙動まとめ:
+- **CFDocument / CFItem / CFAssociation / CFRubric / CFRubricCriterion / CFRubricCriterionLevel / CFDefinitions 系 lookup**: source `uri` は **新規・更新の両方で** DB に書き込まれる。別の上流から URI が変わった状態で再インポートすればその値で更新される
+- **CFAssociation.originNodeURI.uri / destinationNodeURI.uri**: 同じく、source 値があれば優先（無ければ identifier から生成）
+- **`identifier`**: source の値をそのまま保持（CASE round-trip 意味論に合致）
+- **denormalized LinkURI フィールド**（`CFDocument.CFPackageURI.uri`、`CFRubricCriterion.CFItemURI.uri`）: 専用列（`cf_documents.cf_package_uri_source`、`cf_rubric_criteria.cf_item_uri_source`）に verbatim 保存し、再 export で同じ値を返す。詳細は [round_trip_status.md](../dev/round_trip_status.md) cat F / G
+- **CSV インポート**: `_resolve_uri()` を経由せず、常に compeito-native な URI を生成（CSV 行は URI 列を持たないため）
+
+自サーバーの `/uri/{uuid}` は `identifier` で検索するので、外部 URI のリソースも自サーバー経由でアクセス可能。
 
 ### エラーハンドリング
 
