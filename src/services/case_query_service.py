@@ -474,10 +474,15 @@ def _rubric_criterion_level_to_schema(level) -> CFRubricCriterionLevelDType:
 def _rubric_criterion_to_schema(criterion) -> CFRubricCriterionDType:
     cf_item_uri = None
     if criterion.cf_item is not None:
+        # Prefer the source's denormalized CFItemURI.uri verbatim (round-trip
+        # cat F) — upstream systems like OpenCASE don't re-resolve linked URIs
+        # on import, so preserving the source value keeps the round-trip
+        # lossless. Falls back to the live CFItem.uri if we didn't capture
+        # a source value (e.g., resource created via CSV import).
         cf_item_uri = LinkURIType(
             title=criterion.cf_item.full_statement,
             identifier=str(criterion.cf_item.identifier),
-            uri=criterion.cf_item.uri,
+            uri=criterion.cf_item_uri_source or criterion.cf_item.uri,
         )
 
     levels = criterion.levels
