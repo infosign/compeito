@@ -282,3 +282,72 @@ class TestRoundTrip:
         assert report.rubrics_created == 0
         assert report.criteria_updated == 1
         assert report.levels_updated == 1
+
+
+class TestMultiTenantIsolation:
+    """Two tenants importing the same rubric CSV (identical criterion/level
+    identifiers) must each keep their own criteria/levels — regression guard
+    for the tenant-isolation bug where the second import stole the first
+    tenant's criterion/level rows."""
+
+    async def test_same_rubric_csv_two_tenants(self, db_session: AsyncSession, tenant: Tenant, doc: CFDocument):
+        TENANT_B = uuid.UUID("22222222-2222-2222-2222-222222222222")
+        DOC_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+
+        # Tenant A already has `tenant` + `doc`. Import the rubric into A.
+        rep_a = await import_rubric_csv(db_session, tenant.id, uuid.UUID(DOC_IDENTIFIER), _csv_bytes(FULL_CSV))
+        assert (rep_a.criteria_created, rep_a.levels_created) == (1, 1)
+
+        # Tenant B + its own document (same DOC identifier is fine; docs are
+        # tenant-scoped) — then import the *same* rubric CSV.
+        db_session.add(Tenant(id=TENANT_B, name="Tenant B", is_private=False))
+        await db_session.flush()
+        db_session.add(
+            CFDocument(
+                id=uuid.uuid4(),
+                tenant_id=TENANT_B,
+                identifier=DOC_B,
+                uri=f"https://example.com/uri/{DOC_B}",
+                title="Doc B",
+                last_change_date_time=LCT,
+            )
+        )
+        await db_session.flush()
+
+        rep_b = await import_rubric_csv(db_session, TENANT_B, DOC_B, _csv_bytes(FULL_CSV))
+        # B must CREATE its own criterion/level, not "update" (steal) A's.
+        assert (rep_b.criteria_created, rep_b.levels_created) == (1, 1)
+        assert (rep_b.criteria_updated, rep_b.levels_updated) == (0, 0)
+        await db_session.flush()
+
+        # Both tenants' criterion rows coexist (2 rows with the same identifier).
+        crits = list(
+            (
+                await db_session.execute(
+                    select(CFRubricCriterion).where(CFRubricCriterion.identifier == uuid.UUID(CRIT_IDENT))
+                )
+            ).scalars()
+        )
+        assert len(crits) == 2
+
+        # Tenant A's rubric still owns exactly one criterion (not stolen).
+        rubric_a = (
+            await db_session.execute(
+                select(CFRubric).where(CFRubric.tenant_id == tenant.id, CFRubric.identifier == uuid.UUID(RUBRIC_IDENT))
+            )
+        ).scalar_one()
+        a_crits = list(
+            (
+                await db_session.execute(select(CFRubricCriterion).where(CFRubricCriterion.cf_rubric_id == rubric_a.id))
+            ).scalars()
+        )
+        assert len(a_crits) == 1
+        # And A's criterion still has its level.
+        a_levels = list(
+            (
+                await db_session.execute(
+                    select(CFRubricCriterionLevel).where(CFRubricCriterionLevel.cf_rubric_criterion_id == a_crits[0].id)
+                )
+            ).scalars()
+        )
+        assert len(a_levels) == 1
