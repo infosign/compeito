@@ -107,6 +107,9 @@ async def find_resource_by_identifier(
     # criterion has no tenant_id; its identifier is only unique per rubric
     # (uq cf_rubric_id, identifier), so the same identifier can exist across
     # tenants. Pick the one owned by this tenant (don't assume a single row).
+    # Known limitation: the same identifier could also be reused across multiple
+    # rubrics within one tenant — then /uri returns the first match. Identifiers
+    # are UUIDs so this is effectively nonexistent (CASE assumes id uniqueness).
     criterion = next(
         (c for c in result.scalars().unique().all() if c.cf_rubric.tenant_id == tenant_id),
         None,
@@ -128,6 +131,7 @@ async def find_resource_by_identifier(
     )
     # level has no tenant_id; its identifier is only unique per criterion, so
     # the same identifier can exist across tenants. Pick this tenant's row.
+    # Same first-match caveat as the criterion lookup above (UUIDs → moot).
     level = next(
         (lv for lv in result.scalars().unique().all() if lv.cf_rubric_criterion.cf_rubric.tenant_id == tenant_id),
         None,
