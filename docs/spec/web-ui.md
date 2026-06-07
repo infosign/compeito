@@ -11,9 +11,14 @@
 
 ### UUID vs slug — which one appears where?
 
-- **Navigation `href` / HTMX `hx-get` URLs**: the Web UI emits `{tenant-slug}` if a slug is set, else `{tenant-uuid}`. Friendly URLs for end users.
-- **Displayed permalink / CASE API URLs (the strings users copy)**: always `{tenant-uuid}`. These are canonical references stored by CASE clients (e.g., Open Badge Factory), so they must not change when a slug is added, renamed, or removed.
-- **CASE API response bodies (`LinkURIDType.identifier` / `uri`)**: always `{tenant-uuid}`. The slug is a UI-only convenience and is intentionally absent from JSON-LD.
+- **Navigation `href` / HTMX `hx-get` URLs (rendered on a tenant-scoped page)**: **sticky to the request URL form** — if the incoming request was `/{tenant-uuid}/...`, every nav link in the rendered page uses `{tenant-uuid}`; if the incoming request was `/{tenant-slug}/...`, every nav link uses `{tenant-slug}`. This prevents the URL bar from drifting mid-session (a visitor who arrived via a UUID permalink stays on UUID URLs as they navigate, and vice versa).
+- **Navigation links on the public tenant list (`GET /`)**: not sticky — the index page has no incoming `{tenant}` form to inherit, so it emits `{tenant-slug}` when a slug is set, else `{tenant-uuid}`. This means the slug becomes the "discoverable" friendly URL.
+- **Displayed permalink / CASE API URLs (the strings users copy)**: always `{tenant-uuid}`, regardless of the request URL form. These are canonical references stored by CASE clients (e.g., Open Badge Factory), so they must not change when a slug is added, renamed, or removed.
+- **CASE API response bodies (`LinkURIDType.identifier` / `uri`)**: always `{tenant-uuid}`. The slug is a UI-only convenience and is intentionally absent from JSON-LD. URI fields are stamped at import time and never rewritten on slug change.
+
+### Implications for static rendering
+
+A static deployment (e.g., pre-rendering pages to S3 + CloudFront) must, for tenants that have a slug, generate **both** URL families — `/{tenant-uuid}/...` and `/{tenant-slug}/...` — and serve each as a distinct cached page. The two pages render the same content but with different nav `href` values (UUID-form vs slug-form), so they cannot share a cache entry. Tenants without a slug only need the UUID family.
 
 ## Response headers (Cache-Control)
 
@@ -309,9 +314,14 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 
 ### UUID と slug の使い分け
 
-- **ナビゲーションの `href` / HTMX `hx-get` URL**: slug があれば `{tenant-slug}`、なければ `{tenant-uuid}` を出力（エンドユーザー向けの読みやすい URL）
-- **画面に表示する permalink / CASE API URL（ユーザーがコピーする文字列）**: 常に `{tenant-uuid}`。これらは CASE クライアント（Open Badge Factory など）が保存する canonical な参照なので、slug を追加・変更・削除しても壊れないように UUID で固定する
-- **CASE API レスポンス本文（`LinkURIDType.identifier` / `uri`）**: 常に `{tenant-uuid}`。slug は UI 上の利便性のみを目的とし、JSON-LD 上には意図的に現れない
+- **ナビゲーションの `href` / HTMX `hx-get` URL（テナントスコープのページ内）**: **リクエスト URL の形に sticky** — `/{tenant-uuid}/...` でアクセスされたら描画されるページ内の全ナビリンクは `{tenant-uuid}`、`/{tenant-slug}/...` なら全部 `{tenant-slug}` を出力する。これにより URL バーがセッション中に勝手に切り替わる挙動を防ぐ（UUID パーマリンクで来た訪問者は UUID URL のまま回遊し、slug で来た人は slug のまま回遊する）
+- **公開テナント一覧（`GET /`）のナビリンク**: sticky の対象外 — リクエスト URL に `{tenant}` が含まれないため継承元がない。slug があれば `{tenant-slug}`、なければ `{tenant-uuid}` を出力する。これにより「最初に見える URL」は slug 形式となり、共有 / ブックマーク用の入口が読みやすい形に揃う
+- **画面に表示する permalink / CASE API URL（ユーザーがコピーする文字列）**: リクエスト URL の形に関わらず常に `{tenant-uuid}`。これらは CASE クライアント（Open Badge Factory など）が保存する canonical な参照なので、slug を追加・変更・削除しても壊れない
+- **CASE API レスポンス本文（`LinkURIDType.identifier` / `uri`）**: 常に `{tenant-uuid}`。slug は UI 上の利便性のみを目的とし、JSON-LD 上には意図的に現れない。URI フィールドはインポート時に書き込まれ、slug 変更で再書き込みはしない
+
+### 静的レンダリングへの含意
+
+静的デプロイ（事前レンダした HTML を S3 + CloudFront 等で配信する構成）では、slug が設定されたテナントについて **両形式** — `/{tenant-uuid}/...` と `/{tenant-slug}/...` — を別々のキャッシュエントリとして書き出す必要がある。両者は本文は同じだがナビ `href` の値が異なる（UUID 形式 vs slug 形式）ため、同一キャッシュは共有できない。slug 未設定のテナントは UUID 形式のみで足りる。
 
 ## レスポンスヘッダー（Cache-Control）
 
