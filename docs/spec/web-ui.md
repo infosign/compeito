@@ -2,10 +2,18 @@
 
 ## Meaning of path parameters
 
-- `{tenant-uuid}`: tenant `id` (the UUID PK used in public URLs).
+- `{tenant}`: tenant URL segment. Resolved to a tenant by first trying to parse it as a UUID v4 (matches `tenants.id` — the canonical identifier) and, failing that, by looking it up against `tenants.slug` (the optional URL-friendly alias). Either form addresses the same tenant.
+- `{tenant-uuid}`: tenant `id` (the UUID PK). Always valid as `{tenant}`; this is what CASE API responses use and what the Web UI emits for canonical permalinks / API URLs.
+- `{tenant-slug}`: tenant `slug` (URL-friendly alias, optional). When set, the Web UI emits this in navigation `href` / HTMX URLs in place of the UUID. The slug never appears in CASE API response bodies; only canonical UUIDs do. See [cli.md](cli.md#tenant-slug-rules) for the slug format.
 - `{doc-uuid}`: CFDocument `identifier` (the CASE identifier), not the internal PK (`id`). Same definition as in the Admin API.
 - `{item-uuid}`: CFItem `identifier` (the CASE identifier), not the internal PK (`id`).
 - `/uri/{uuid}`: the UUID searched across `identifier` columns within the tenant scope.
+
+### UUID vs slug — which one appears where?
+
+- **Navigation `href` / HTMX `hx-get` URLs**: the Web UI emits `{tenant-slug}` if a slug is set, else `{tenant-uuid}`. Friendly URLs for end users.
+- **Displayed permalink / CASE API URLs (the strings users copy)**: always `{tenant-uuid}`. These are canonical references stored by CASE clients (e.g., Open Badge Factory), so they must not change when a slug is added, renamed, or removed.
+- **CASE API response bodies (`LinkURIDType.identifier` / `uri`)**: always `{tenant-uuid}`. The slug is a UI-only convenience and is intentionally absent from JSON-LD.
 
 ## Response headers (Cache-Control)
 
@@ -292,10 +300,18 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 
 ## パスパラメータの意味
 
-- `{tenant-uuid}`: テナントの `id`（UUID PK。公開URLに使われるUUID）
+- `{tenant}`: テナント URL セグメント。まず UUID v4 として解釈を試み（`tenants.id` — canonical な識別子）、解釈失敗時に `tenants.slug`（任意の URL 別名）で検索する。どちらの形式でも同一テナントを指す
+- `{tenant-uuid}`: テナント `id`（UUID PK）。常に `{tenant}` として有効。CASE API レスポンスおよび Web UI の canonical な permalink / API URL 表示はこちらを使う
+- `{tenant-slug}`: テナント `slug`（URL 別名、任意）。設定されていれば Web UI のナビゲーション `href` / HTMX URL では UUID の代わりに slug を出力する。CASE API レスポンス本文に slug が現れることはなく、canonical な UUID のみが返される。slug のフォーマット仕様は [cli.md](cli.md#テナント-slug-の制約) を参照
 - `{doc-uuid}`: CFDocument の `identifier`（CASE識別子）。内部PK（`id`）ではない。Admin API と同一定義
 - `{item-uuid}`: CFItem の `identifier`（CASE識別子）。内部PK（`id`）ではない
 - `/uri/{uuid}`: テナントスコープ内で `identifier` カラムを横断検索する UUID
+
+### UUID と slug の使い分け
+
+- **ナビゲーションの `href` / HTMX `hx-get` URL**: slug があれば `{tenant-slug}`、なければ `{tenant-uuid}` を出力（エンドユーザー向けの読みやすい URL）
+- **画面に表示する permalink / CASE API URL（ユーザーがコピーする文字列）**: 常に `{tenant-uuid}`。これらは CASE クライアント（Open Badge Factory など）が保存する canonical な参照なので、slug を追加・変更・削除しても壊れないように UUID で固定する
+- **CASE API レスポンス本文（`LinkURIDType.identifier` / `uri`）**: 常に `{tenant-uuid}`。slug は UI 上の利便性のみを目的とし、JSON-LD 上には意図的に現れない
 
 ## レスポンスヘッダー（Cache-Control）
 
