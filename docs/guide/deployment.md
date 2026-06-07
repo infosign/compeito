@@ -62,17 +62,23 @@ volumes:
 
 ## 2. Configure BASE_URL
 
-`BASE_URL` is used to generate the CASE API resource URIs (`identifier` and `uri` fields).
+`BASE_URL` is the public hostname compeito uses when it has to **synthesize** a CASE resource URI:
+
+- Resources created via CSV import (rows don't carry a URI column)
+- Resources created manually (CLI, future Admin API)
+- A field falls back to a generated URI because the source CFPackage omitted it
 
 ```
 # With BASE_URL=https://compeito.example.com
 {
-  "uri": "https://compeito.example.com/{tenant}/ims/case/v1p1/CFPackages/{id}",
+  "uri": "https://compeito.example.com/{tenant}/uri/{identifier}",
   ...
 }
 ```
 
-**Always set this to your public hostname.** Leaving it at `http://localhost:8000` makes resources unreachable from external systems (e.g., Open Badge Factory).
+**Resources imported from an external CFPackage keep their source `uri` verbatim** (FR-7.2 — required for OpenCASE / OBF round-trip; see [docs/dev/round_trip_status.md](../dev/round_trip_status.md)). For those resources the returned `uri` may point at the original host (e.g., `https://opencase.example.com/...`), not your `BASE_URL`. This is intentional and safe — CASE clients dereference URIs by following the `identifier`, and external systems that already stored the source URI keep working.
+
+**Always set `BASE_URL` to your public hostname** anyway. Resources you create natively (CSV / CLI / manual) get URIs from this value, so leaving it at `http://localhost:8000` makes those resources unreachable from external systems.
 
 ## 3. Set up a reverse proxy (Nginx)
 
@@ -361,17 +367,23 @@ volumes:
 
 ## 2. BASE_URL の設定
 
-`BASE_URL` は CASE API のリソース URI（`identifier` や `uri` フィールド）の生成に使われる。
+`BASE_URL` は compeito が CASE リソース URI を **新規生成** するときに使う公開ホスト名:
+
+- CSV インポートで作成されたリソース（CSV 行は URI 列を持たない）
+- CLI / 将来の Admin API などで手動作成されたリソース
+- source CFPackage がそのフィールドの URI を持っていない場合のフォールバック
 
 ```
 # 例: BASE_URL=https://compeito.example.com の場合
 {
-  "uri": "https://compeito.example.com/{tenant}/ims/case/v1p1/CFPackages/{id}",
+  "uri": "https://compeito.example.com/{tenant}/uri/{identifier}",
   ...
 }
 ```
 
-**必ず公開ホスト名に変更すること。** `http://localhost:8000` のままだと、API を利用する外部システム（Open Badge Factory 等）がリソースにアクセスできない。
+**外部 CFPackage からインポートされたリソースは source の `uri` を verbatim 保持する**（FR-7.2 — OpenCASE / OBF round-trip のため。詳細は [docs/dev/round_trip_status.md](../dev/round_trip_status.md)）。そのため、レスポンス本文の `uri` が外部システム（例: `https://opencase.example.com/...`）を指すケースがあり、これは仕様上意図したもの。CASE クライアントは `identifier` で逆引きするので、外部システムが既に保存している URI 参照も壊れない。
+
+**`BASE_URL` は必ず公開ホスト名に設定すること。** CSV / CLI / 手動で compeito 自身が作成したリソースの URI はこの値から生成されるので、`http://localhost:8000` のままだと外部システムから到達できない。
 
 ## 3. リバースプロキシ（Nginx）の設定
 
