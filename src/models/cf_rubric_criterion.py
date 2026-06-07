@@ -25,6 +25,13 @@ class CFRubricCriterion(Base):
     cf_item_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cf_items.id", ondelete="SET NULL")
     )
+    # Verbatim copy of the source CFItemURI.uri at import time. CFPackage
+    # exports denormalize the linked CFItem's uri into each CFRubricCriterion;
+    # if the upstream system (e.g., OpenCASE) doesn't re-resolve those links
+    # when CFItem.uri changes, the denormalized value diverges from the live
+    # CFItem.uri. Preserving it here keeps OpenCASE → compeito → OpenCASE
+    # round-trip lossless. NULL falls back to `cf_item.uri` at emit time.
+    cf_item_uri_source: Mapped[str | None] = mapped_column(Text)
     rubric_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     category: Mapped[str | None] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
