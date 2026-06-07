@@ -19,6 +19,7 @@ from src.schemas.cf_package import CFDefinitionsDType, CFPackageDType
 from src.schemas.cf_subject import CFSubjectDType
 from src.schemas.common import LinkURIType
 from src.services.case_query_service import (
+    _build_cf_package_uri,
     _build_concept_keywords_uri,
     _build_document_uri,
     _build_item_type_uri,
@@ -29,7 +30,7 @@ from src.services.case_query_service import (
 )
 
 
-def _pckg_document_to_schema(doc: CFDocument) -> CFPckgDocumentDType:
+def _pckg_document_to_schema(doc: CFDocument, tenant_id: uuid.UUID) -> CFPckgDocumentDType:
     return CFPckgDocumentDType(
         identifier=str(doc.identifier),
         uri=doc.uri,
@@ -48,6 +49,7 @@ def _pckg_document_to_schema(doc: CFDocument) -> CFPckgDocumentDType:
         officialSourceURL=doc.official_source_url,
         subject=doc.subject,
         subjectURI=_build_subject_uri_list(doc.subject_uri),
+        CFPackageURI=_build_cf_package_uri(tenant_id, doc),
         lastChangeDateTime=doc.last_change_date_time,
     )
 
@@ -291,7 +293,7 @@ async def get_cf_package(
     # 6. Build package
     doc_uri = _build_document_uri(doc)
     return CFPackageDType(
-        CFDocument=_pckg_document_to_schema(doc),
+        CFDocument=_pckg_document_to_schema(doc, tenant_id),
         CFItems=[_pckg_item_to_schema(item, doc_uri) for item in items],
         CFAssociations=[association_to_pckg_schema(a) for a in assocs],
         CFDefinitions=_build_definitions(doc, items, assocs, subjects),
