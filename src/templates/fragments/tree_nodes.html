@@ -1,4 +1,4 @@
-{# Renders a list of TreeNodes. Uses: nodes, tenant_id, doc_identifier, selected_item, depth #}
+{# Renders a list of TreeNodes. Uses: nodes, tenant_url, doc_identifier, selected_item, depth #}
 {% for node in nodes %}
 <div class="mt-1">
     <div class="flex items-center group py-1.5 px-2 rounded
@@ -11,7 +11,7 @@
                 onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▼</button>
             {% else %}
             <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
-                hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
+                hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
                 hx-target="#ch-{{ node.item.identifier }}"
                 hx-swap="innerHTML"
                 hx-trigger="click once"
@@ -22,9 +22,9 @@
         {% endif %}
 
         {# Item content - HTMX swaps detail pane; mobile scrolls to it #}
-        <a href="/{{ tenant_id }}/uri/{{ node.item.identifier }}"
+        <a href="/{{ tenant_url }}/uri/{{ node.item.identifier }}"
            class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
-           hx-get="/{{ tenant_id }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
+           hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
            hx-target="#detail-pane"
            hx-swap="innerHTML"
            hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"

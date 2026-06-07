@@ -6,10 +6,10 @@
 <nav class="text-sm text-stone-500 mb-1">
     <a href="/" class="hover:text-violet-600 transition-colors">{{ t("tenant_list") }}</a>
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-pink-300 align-middle"></span>
-    <a href="/{{ tenant.slug_or_id }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
+    <a href="/{{ tenant_url }}/" class="hover:text-violet-600 transition-colors">{{ tenant.name }}</a>
     {% if doc %}
     <span class="mx-1.5 inline-block w-1 h-1 rounded-full bg-violet-300 align-middle"></span>
-    <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
+    <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="hover:text-violet-600 transition-colors">{{ doc.title }}</a>
     {% endif %}
 </nav>
 {% endblock %}
@@ -183,7 +183,7 @@
         {{ code_url_field(t("f_permalink"), permalink) }}
         {{ code_url_field(t("f_cf_items_api"), item_api_url) }}
         {% if doc %}
-            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.slug_or_id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
         {{ field(t("f_full_statement"), resource.full_statement) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
@@ -211,7 +211,7 @@
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for crit in referring_criteria %}
                     <li>
-                        <a href="/{{ tenant.slug_or_id }}/uri/{{ crit.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}</a>
+                        <a href="/{{ tenant_url }}/uri/{{ crit.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}</a>
                         {% if crit.cf_rubric %}<span class="text-stone-500 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
                     </li>
                     {% endfor %}
@@ -221,7 +221,7 @@
         {% endif %}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFDocument ========== #}
@@ -263,7 +263,7 @@
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for rubric in rubrics %}
                     <li>
-                        <a href="/{{ tenant.slug_or_id }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
+                        <a href="/{{ tenant_url }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
                     </li>
                     {% endfor %}
                 </ul>
@@ -272,7 +272,7 @@
         {% endif %}
     </dl>
     <div class="mt-6">
-        <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant_url }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFAssociation ========== #}
@@ -280,7 +280,7 @@
         {{ code_field(t("f_identifier"), resource.identifier) }}
         {{ uri_field(t("f_uri"), resource.uri) }}
         {% if doc %}
-            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.slug_or_id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
         {{ field(t("f_association_type"), resource.association_type) }}
         <div>
@@ -316,7 +316,7 @@
         {{ code_field(t("f_identifier"), resource.identifier) }}
         {{ uri_field(t("f_uri"), resource.uri) }}
         {% if doc %}
-            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant.slug_or_id ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
         {% endif %}
         {{ optional_field(t("f_title"), resource.title) }}
         {{ optional_field(t("f_description"), resource.description) }}
@@ -372,7 +372,7 @@
                                 {% if c.category %}<div class="font-semibold">{{ c.category }}</div>{% endif %}
                                 {% if c.description %}<div class="text-stone-600 text-xs">{{ c.description }}</div>{% endif %}
                                 {% if c.weight is not none %}<div class="text-xs text-stone-500">{{ t("f_weight") }}: {{ c.weight }}</div>{% endif %}
-                                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.slug_or_id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+                                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant_url }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                             </td>
                             {% for pos in ns.positions %}
                             <td class="border border-stone-300 px-3 py-2 align-top">
@@ -399,7 +399,7 @@
                 {% if c.category %}<div class="font-semibold text-gray-800">{{ c.category }}</div>{% endif %}
                 {% if c.description %}<div class="text-stone-600 text-sm">{{ c.description }}</div>{% endif %}
                 {% if c.weight is not none %}<div class="text-xs text-stone-500">{{ t("f_weight") }}: {{ c.weight }}</div>{% endif %}
-                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant.slug_or_id }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
+                {% if c.cf_item %}<div class="text-xs mt-1"><a href="/{{ tenant_url }}/uri/{{ c.cf_item.identifier }}" class="text-violet-600 hover:text-violet-800">{{ c.cf_item.full_statement[:50] }}</a></div>{% endif %}
                 {% if c.levels %}
                 <div class="mt-2 ml-4 space-y-2">
                     {% for lv in c.levels | sort(attribute='position,identifier') %}
@@ -418,7 +418,7 @@
         {% endif %}
     {% endif %}
     <div class="mt-6">
-        <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
 
     {# ========== CFRubricCriterion ========== #}
@@ -428,7 +428,7 @@
         {{ optional_field(t("f_category"), resource.category) }}
         {{ optional_field(t("f_description"), resource.description) }}
         {% if resource.cf_item %}
-            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant.slug_or_id ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
+            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant_url ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
         {% endif %}
         {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
         {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
@@ -439,7 +439,7 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent") }}</dt>
             <dd class="text-gray-800">
-                <a href="/{{ tenant.slug_or_id }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
+                <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
             </dd>
         </div>
         {% endif %}
@@ -455,7 +455,7 @@
                     {% if lv.score is not none %}<span class="text-stone-500">({{ t("f_score") }}: {{ lv.score }})</span>{% endif %}
                     {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
                     {% if lv.feedback %}<div class="text-xs text-stone-500 italic">{{ lv.feedback }}</div>{% endif %}
-                    <div class="text-xs"><a href="/{{ tenant.slug_or_id }}/uri/{{ lv.identifier }}" class="text-violet-600 hover:text-violet-800">{{ lv.identifier }}</a></div>
+                    <div class="text-xs"><a href="/{{ tenant_url }}/uri/{{ lv.identifier }}" class="text-violet-600 hover:text-violet-800">{{ lv.identifier }}</a></div>
                 </div>
                 {% endfor %}
             </div>
@@ -465,10 +465,10 @@
         {% endif %}
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_item %}
-            <a href="/{{ tenant.slug_or_id }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            <a href="/{{ tenant_url }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
             {% if doc %}
-            <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>
 
@@ -488,17 +488,17 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
             <dd class="text-gray-800">
-                <a href="/{{ tenant.slug_or_id }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
+                <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
             </dd>
         </div>
         {% endif %}
     </dl>
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
-            <a href="/{{ tenant.slug_or_id }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
             {% if doc %}
-            <a href="/{{ tenant.slug_or_id }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>
 
