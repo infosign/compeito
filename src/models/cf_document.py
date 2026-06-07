@@ -35,6 +35,12 @@ class CFDocument(Base):
     official_source_url: Mapped[str | None] = mapped_column(String)
     subject: Mapped[dict | None] = mapped_column(JSONB)
     subject_uri: Mapped[dict | None] = mapped_column(JSONB)
+    # Verbatim source CFPackageURI.uri (round-trip cat G). When this CFDocument
+    # was imported via CFPackage JSON, the source's `CFPackageURI.uri` is
+    # captured here so re-export reproduces it instead of synthesizing a
+    # compeito-native URL. NULL → fall back to a compeito-native URL at emit
+    # time. Same pattern as `cf_item_uri_source` on cf_rubric_criteria.
+    cf_package_uri_source: Mapped[str | None] = mapped_column(Text)
     last_change_date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     tenant = relationship("Tenant", back_populates="cf_documents")
