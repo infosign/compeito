@@ -15,7 +15,7 @@
 
 ## 2026-06-07 時点のギャップカタログ
 
-`tests/fixtures/opencase_round_trip_baseline.json`（OpenCASE から export した 池之端大学 情報学部フレームワーク、36 CFItems / 36 CFAssociations / 2 CFRubrics）を流すと、**15 カテゴリ・298 件**の差分が出る。
+`tests/fixtures/opencase_round_trip_baseline.json`（OpenCASE から export したテスト用フレームワーク、36 CFItems / 36 CFAssociations / 2 CFRubrics）を流すと、**15 カテゴリ・298 件**の差分が出る。
 
 ### A. URI 書き換え（233 件、12 カテゴリ）
 
