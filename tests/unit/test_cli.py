@@ -259,18 +259,16 @@ class TestTenantCreate:
     @pytest.mark.parametrize(
         "bad_slug",
         [
-            "-foo",                                       # leading hyphen
-            "foo-",                                       # trailing hyphen
-            "Foo",                                        # uppercase
-            "a",                                          # too short
-            "health",                                     # reserved
-            "static",                                     # reserved
-            "550e8400-e29b-41d4-a716-446655440000",       # UUID-shaped
+            "-foo",  # leading hyphen
+            "foo-",  # trailing hyphen
+            "Foo",  # uppercase
+            "a",  # too short
+            "health",  # reserved
+            "static",  # reserved
+            "550e8400-e29b-41d4-a716-446655440000",  # UUID-shaped
         ],
     )
-    def test_create_with_invalid_slug(
-        self, runner, env_docker, clean_db, bad_slug: str
-    ):
+    def test_create_with_invalid_slug(self, runner, env_docker, clean_db, bad_slug: str):
         from cli import cli
 
         result = runner.invoke(
@@ -409,9 +407,7 @@ class TestTenantUpdate:
         listed = runner.invoke(cli, ["tenant", "list"])
         assert "to-clear" not in listed.output
 
-    def test_update_slug_and_clear_slug_conflict(
-        self, runner, env_docker, test_tenant
-    ):
+    def test_update_slug_and_clear_slug_conflict(self, runner, env_docker, test_tenant):
         from cli import cli
 
         result = runner.invoke(

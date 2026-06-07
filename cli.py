@@ -421,9 +421,7 @@ def tenant_update(
             if slug is not None:
                 # Uniqueness pre-flight (skip when reassigning the same slug to
                 # the same tenant — that's a no-op, not a conflict).
-                existing = await session.execute(
-                    select(Tenant).where(Tenant.slug == slug, Tenant.id != tid)
-                )
+                existing = await session.execute(select(Tenant).where(Tenant.slug == slug, Tenant.id != tid))
                 if existing.scalar_one_or_none() is not None:
                     err_console.print(t("err_tenant_slug_in_use", value=slug))
                     raise SystemExit(1)

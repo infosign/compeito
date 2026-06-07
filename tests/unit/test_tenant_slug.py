@@ -49,9 +49,7 @@ class TestSlugDbConstraint:
         "valid_slug",
         ["ikenohata-u", "acme", "osaka-univ-2025", "a1", "z9"],
     )
-    async def test_accepts_valid_slugs(
-        self, db_session: AsyncSession, valid_slug: str
-    ):
+    async def test_accepts_valid_slugs(self, db_session: AsyncSession, valid_slug: str):
         t = Tenant(name="x", slug=valid_slug, is_private=False)
         db_session.add(t)
         await db_session.flush()
@@ -59,18 +57,16 @@ class TestSlugDbConstraint:
     @pytest.mark.parametrize(
         "invalid_slug",
         [
-            "-foo",       # leading hyphen
-            "foo-",       # trailing hyphen
-            "Foo",        # uppercase
-            "a",          # too short (1 char)
-            "foo_bar",    # underscore not allowed
-            "fo o",       # space not allowed
-            "foo!",       # special char
+            "-foo",  # leading hyphen
+            "foo-",  # trailing hyphen
+            "Foo",  # uppercase
+            "a",  # too short (1 char)
+            "foo_bar",  # underscore not allowed
+            "fo o",  # space not allowed
+            "foo!",  # special char
         ],
     )
-    async def test_rejects_invalid_slugs(
-        self, db_session: AsyncSession, invalid_slug: str
-    ):
+    async def test_rejects_invalid_slugs(self, db_session: AsyncSession, invalid_slug: str):
         t = Tenant(name="x", slug=invalid_slug, is_private=False)
         db_session.add(t)
         with pytest.raises(IntegrityError):
@@ -85,9 +81,7 @@ class TestSlugDbConstraint:
             await db_session.flush()
         await db_session.rollback()
 
-    async def test_null_slug_is_allowed_and_not_constrained_by_unique(
-        self, db_session: AsyncSession
-    ):
+    async def test_null_slug_is_allowed_and_not_constrained_by_unique(self, db_session: AsyncSession):
         """Multiple tenants without a slug must coexist."""
         a = Tenant(name="A", slug=None, is_private=False)
         b = Tenant(name="B", slug=None, is_private=False)
@@ -111,9 +105,7 @@ class TestResolveTenant:
         db_session.add(t)
         await db_session.flush()
 
-        result = await tenant_service.resolve_tenant(
-            db_session, "22222222-2222-2222-2222-222222222222"
-        )
+        result = await tenant_service.resolve_tenant(db_session, "22222222-2222-2222-2222-222222222222")
         assert result is not None
         assert result.id == t.id
 
@@ -132,18 +124,14 @@ class TestResolveTenant:
         assert result.id == t.id
 
     async def test_unknown_uuid_returns_none(self, db_session: AsyncSession):
-        result = await tenant_service.resolve_tenant(
-            db_session, "99999999-9999-9999-9999-999999999999"
-        )
+        result = await tenant_service.resolve_tenant(db_session, "99999999-9999-9999-9999-999999999999")
         assert result is None
 
     async def test_unknown_slug_returns_none(self, db_session: AsyncSession):
         result = await tenant_service.resolve_tenant(db_session, "no-such-slug")
         assert result is None
 
-    async def test_get_tenant_by_slug_finds_match(
-        self, db_session: AsyncSession
-    ):
+    async def test_get_tenant_by_slug_finds_match(self, db_session: AsyncSession):
         db_session.add(Tenant(name="x", slug="hit", is_private=False))
         await db_session.flush()
         result = await tenant_service.get_tenant_by_slug(db_session, "hit")
@@ -176,9 +164,7 @@ class TestSlugRouting:
         assert resp.status_code == 200
         assert "Ikenohata University" in resp.text
 
-    async def test_tenant_page_via_uuid_still_works(
-        self, db_session: AsyncSession, db_client
-    ):
+    async def test_tenant_page_via_uuid_still_works(self, db_session: AsyncSession, db_client):
         tid = uuid.UUID("55555555-5555-5555-5555-555555555555")
         db_session.add(
             Tenant(
@@ -194,9 +180,7 @@ class TestSlugRouting:
         assert resp.status_code == 200
         assert "Both URLs" in resp.text
 
-    async def test_nav_link_uses_slug_when_set(
-        self, db_session: AsyncSession, db_client
-    ):
+    async def test_nav_link_uses_slug_when_set(self, db_session: AsyncSession, db_client):
         """Index page emits /{slug}/ in tenant nav hrefs when slug is set."""
         db_session.add(
             Tenant(
@@ -212,30 +196,22 @@ class TestSlugRouting:
         assert resp.status_code == 200
         assert 'href="/ikenohata-u/"' in resp.text
 
-    async def test_nav_link_uses_uuid_when_slug_missing(
-        self, db_session: AsyncSession, db_client
-    ):
+    async def test_nav_link_uses_uuid_when_slug_missing(self, db_session: AsyncSession, db_client):
         tid = uuid.UUID("77777777-7777-7777-7777-777777777777")
-        db_session.add(
-            Tenant(id=tid, name="No Slug", slug=None, is_private=False)
-        )
+        db_session.add(Tenant(id=tid, name="No Slug", slug=None, is_private=False))
         await db_session.flush()
 
         resp = await db_client.get("/")
         assert resp.status_code == 200
         assert f'href="/{tid}/"' in resp.text
 
-    async def test_case_api_response_carries_uuid_not_slug(
-        self, db_session: AsyncSession, db_client
-    ):
+    async def test_case_api_response_carries_uuid_not_slug(self, db_session: AsyncSession, db_client):
         """CASE clients (e.g., Open Badge Factory) store the response-body UUID
         as a canonical reference, so it must stay UUID even when accessed via
         the slug URL. Empty list responses are enough — what matters is the URL
         form, not the payload here."""
         tid = uuid.UUID("88888888-8888-8888-8888-888888888888")
-        db_session.add(
-            Tenant(id=tid, name="CASE", slug="case-tenant", is_private=False)
-        )
+        db_session.add(Tenant(id=tid, name="CASE", slug="case-tenant", is_private=False))
         await db_session.flush()
 
         resp = await db_client.get("/case-tenant/ims/case/v1p1/CFDocuments")
