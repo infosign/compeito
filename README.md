@@ -60,6 +60,10 @@ docker compose exec app uv run python cli.py import csv --tenant {uuid} --file f
 # Import from an external CASE server (e.g., OpenSALT)
 docker compose exec app uv run python cli.py import case --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
 
+# Import / export OpenSALT Excel (.xlsx) — full-fidelity OpenSALT interchange
+docker compose exec app uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
+docker compose exec app uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
+
 # Export for editing
 docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
 ```
@@ -178,6 +182,10 @@ docker compose exec app uv run python cli.py import csv --tenant {uuid} --file f
 
 # 外部 CASE サーバー（OpenSALT 等）からインポート
 docker compose exec app uv run python cli.py import case --tenant {uuid} --url https://opensalt.net/ims/case/v1p0/CFPackages/{id}
+
+# OpenSALT Excel (.xlsx) の入出力 — OpenSALT の完全交換形式
+docker compose exec app uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
+docker compose exec app uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
 
 # 編集用にエクスポート
 docker compose exec app uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv
