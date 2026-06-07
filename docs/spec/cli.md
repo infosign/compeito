@@ -58,6 +58,13 @@ uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title
 uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile opensalt
 
+# OpenSALT Excel (.xlsx) import — the full-fidelity OpenSALT interchange format
+# (3 sheets: CF Doc / CF Item / CF Association). Hierarchy is carried by
+# smartLevel; CFItemType / educationLevel are preserved (unlike OpenSALT's CSV).
+# Verified against a running OpenSALT (round-trips items, hierarchy, item types).
+uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
+uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framework.xlsx
+
 # External CASE import (v1.1 supported; v1.0 Phase 2; upsert).
 # Exactly one of --url / --file must be given.
 # --url:  CASE API base path or a direct CFPackage URL (see import-logic.md).
@@ -74,6 +81,11 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --profile opensalt
 # --profile: "custom" (default) / "opensalt"
 #            Invalid → error exit ("Invalid profile: '{value}'. Valid values: custom, opensalt")
+
+# OpenSALT Excel (.xlsx) export — 3-sheet workbook consumable by OpenSALT's
+# Excel importer. smartLevel encodes the hierarchy; CFItemType / educationLevel
+# are included. isChildOf is NOT repeated in the CF Association sheet.
+uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
 
 # CASE CFPackage JSON export (output is byte-for-byte identical to GET /CFPackages/{id})
 # Re-importable via `import case --file`, or feed-able to any CASE-conformant editor.
@@ -246,6 +258,13 @@ uv run python cli.py import csv --tenant {uuid} --file framework.csv --doc-title
 uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework.csv
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile opensalt
 
+# OpenSALT Excel (.xlsx) インポート — OpenSALT の完全交換形式（CF Doc / CF Item /
+# CF Association の 3 シート）。階層は smartLevel で表現され、CFItemType /
+# educationLevel も保持される（OpenSALT の CSV では落ちる項目）。
+# 稼働中の OpenSALT で動作確認済（アイテム・階層・item type が往復する）。
+uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
+uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framework.xlsx
+
 # 外部CASEインポート (v1.1対応、v1.0はPhase 2、upsert)。--url / --file のどちらか一方を指定する。
 # --url:  CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
 # --file: ローカルの CFPackage JSON ファイル（ネットワーク取得なし、永続化処理は --url と同じ）。
@@ -261,6 +280,11 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.csv --profile opensalt
 # --profile: "custom"（デフォルト）/ "opensalt"
 #            不正な値 → エラー終了（「Invalid profile: '{value}'. Valid values: custom, opensalt」）
+
+# OpenSALT Excel (.xlsx) エクスポート — OpenSALT の Excel インポーターが取り込める
+# 3 シート構成。smartLevel で階層を表現し、CFItemType / educationLevel を含む。
+# isChildOf は CF Association シートには重複出力しない。
+uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
 
 # CASE CFPackage JSON エクスポート（出力は GET /CFPackages/{id} と同一のバイト列）
 # import case --file で再取り込みするか、任意の CASE 準拠エディタへ受け渡せる
