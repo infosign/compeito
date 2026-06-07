@@ -220,3 +220,105 @@ class TestSlugRouting:
         # contains no tenant-URL strings — what we're really verifying is that
         # the slug route resolves at all. (URL-form tests for emitted URIs
         # belong to integration tests that have items / documents in the DB.)
+
+
+# ---------------------------------------------------------------------------
+# Sticky navigation: the URL form the user requested (UUID or slug) is
+# preserved in every nav href / hx-get URL in the rendered page, so the URL
+# bar doesn't drift mid-session.
+# ---------------------------------------------------------------------------
+
+
+class TestStickyNav:
+    """Both URL forms address the same tenant; the rendered page's nav links
+    inherit the form used in the request URL."""
+
+    CONFTEST_TENANT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    SLUG = "sticky-tenant"
+
+    async def _attach_slug(self, db_session: AsyncSession):
+        """Add a slug to the conftest tenant so both URL forms become valid."""
+        existing = await db_session.get(Tenant, self.CONFTEST_TENANT_ID)
+        existing.slug = self.SLUG
+        await db_session.flush()
+
+    async def test_tenant_page_via_uuid_keeps_uuid_in_nav(self, db_session: AsyncSession, db_client, sample_document):
+        await self._attach_slug(db_session)
+
+        resp = await db_client.get(f"/{self.CONFTEST_TENANT_ID}/")
+        assert resp.status_code == 200
+        # The doc list link should use UUID form (matches request URL form).
+        assert f"/{self.CONFTEST_TENANT_ID}/cftree/doc/{sample_document.identifier}" in resp.text
+        # Slug must NOT leak into nav on a UUID-requested page.
+        assert f"/{self.SLUG}/cftree/doc/" not in resp.text
+
+    async def test_tenant_page_via_slug_keeps_slug_in_nav(self, db_session: AsyncSession, db_client, sample_document):
+        await self._attach_slug(db_session)
+
+        resp = await db_client.get(f"/{self.SLUG}/")
+        assert resp.status_code == 200
+        # The doc list link should use slug form.
+        assert f"/{self.SLUG}/cftree/doc/{sample_document.identifier}" in resp.text
+        # UUID-form nav must NOT appear on a slug-requested page.
+        assert f"/{self.CONFTEST_TENANT_ID}/cftree/doc/" not in resp.text
+
+    async def test_uri_detail_via_uuid_keeps_uuid_in_nav(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        sample_document,  # creates the canonical 11111111-... tenant
+    ):
+        """A UUID permalink keeps nav UUID-form even when the tenant has a slug."""
+        # Add a slug to the conftest tenant so we have both forms to choose from.
+        existing = await db_session.get(Tenant, uuid.UUID("11111111-1111-1111-1111-111111111111"))
+        existing.slug = "sticky-existing"
+        await db_session.flush()
+
+        resp = await db_client.get(f"/11111111-1111-1111-1111-111111111111/uri/{sample_document.identifier}")
+        assert resp.status_code == 200
+        # Breadcrumb / nav should stay UUID-form.
+        assert 'href="/11111111-1111-1111-1111-111111111111/"' in resp.text
+        assert 'href="/sticky-existing/' not in resp.text
+        # Permalink display field (canonical) MUST be UUID regardless of request form.
+        assert "11111111-1111-1111-1111-111111111111/uri/" in resp.text
+
+    async def test_uri_detail_via_slug_keeps_slug_in_nav(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        sample_document,
+    ):
+        """The slug form propagates through nav links on the rendered page."""
+        existing = await db_session.get(Tenant, uuid.UUID("11111111-1111-1111-1111-111111111111"))
+        existing.slug = "sticky-existing"
+        await db_session.flush()
+
+        resp = await db_client.get(f"/sticky-existing/uri/{sample_document.identifier}")
+        assert resp.status_code == 200
+        # Breadcrumb / nav should stay slug-form.
+        assert 'href="/sticky-existing/"' in resp.text
+        assert 'href="/11111111-1111-1111-1111-111111111111/"' not in resp.text
+        # Canonical permalink display still UUID even when accessed via slug.
+        assert "11111111-1111-1111-1111-111111111111/uri/" in resp.text
+
+    async def test_uri_detail_permalink_field_is_always_uuid(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        sample_document,
+    ):
+        """The displayed permalink (copy-paste field) is canonical UUID. This
+        is the load-bearing claim for OBF compatibility — verify it explicitly
+        for both request forms."""
+        existing = await db_session.get(Tenant, uuid.UUID("11111111-1111-1111-1111-111111111111"))
+        existing.slug = "perma-check"
+        await db_session.flush()
+
+        for path in (
+            f"/11111111-1111-1111-1111-111111111111/uri/{sample_document.identifier}",
+            f"/perma-check/uri/{sample_document.identifier}",
+        ):
+            resp = await db_client.get(path)
+            assert resp.status_code == 200
+            assert "11111111-1111-1111-1111-111111111111/uri/" in resp.text
+            assert f"perma-check/uri/{sample_document.identifier}" not in resp.text
