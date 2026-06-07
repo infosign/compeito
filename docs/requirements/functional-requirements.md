@@ -24,6 +24,8 @@
 | FR-2.9 | Non-GET requests (POST/PUT/DELETE/PATCH) on CASE API paths return 405 Method Not Allowed | 1 |
 | FR-2.10 | Nullable fields are included in responses as `null` (`exclude_none=False`). CASE v1.1 allows either inclusion or omission; we always include for consistency | 1 |
 | FR-2.11 | Provide CFRubric API endpoints | 2 |
+| FR-2.12 | Provide the CASE v1.1 Service Discovery endpoint at `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`, returning the official OpenAPI 3 schema as static JSON | 3 |
+| FR-2.13 | Persist and emit the CASE v1.1 optional fields `notes` (CFItem / CFAssociation / CFDocument), `alternativeLabel` (CFItem), and `extensions` (all resources) | 3 |
 
 ## FR-3: Validation
 
@@ -127,6 +129,15 @@
 | FR-12.2 | Semantic search over competencies using vector embeddings | 3 |
 | FR-12.3 | Automatic cross-framework mapping suggestions | 3 |
 
+(Discovery endpoint and CASE v1.1 optional fields belong to the CASE API surface and are tracked as FR-2.12 / FR-2.13 above.)
+
+## Non-goals (explicitly out of scope)
+
+| ID | Item | Rationale |
+|----|------|-----------|
+| NG-1 | Write API (POST / PUT / DELETE on CASE endpoints) | compeito is a read-only CASE publisher to be paired with an external editor (OpenCASE / OpenSALT / our CLI). Edits flow through CLI / import paths, not the public API. The 405 on non-GET (FR-2.9) is policy, not placeholder. See [phases.md](phases.md#non-goals-explicitly-out-of-scope) |
+| NG-2 | Authentication / authorization on the CASE Provider API (OAuth, Bearer, Keycloak, RBAC) | CASE API is public by default. Private tenants rely on URL secrecy (FR-1.3). Admin-side authenticated access is handled by [compeito-aws](https://github.com/infosign/compeito-aws), not in compeito's CASE API surface |
+
 ---
 
 # 機能要件（日本語）
@@ -155,6 +166,8 @@
 | FR-2.9 | CASE API パスへの非GETリクエスト（POST/PUT/DELETE/PATCH）には 405 Method Not Allowed を返す | 1 |
 | FR-2.10 | null 許容フィールドはレスポンスに `null` として含める（`exclude_none=False`）。CASE v1.1 仕様は含めるか省略するかを許容するが、本システムでは一貫性のため常に含める方針とする | 1 |
 | FR-2.11 | CFRubric API エンドポイントを提供する | 2 |
+| FR-2.12 | CASE v1.1 Service Discovery エンドポイントを `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で提供し、公式 OpenAPI 3 スキーマを静的 JSON として返す | 3 |
+| FR-2.13 | CASE v1.1 オプションフィールド `notes`（CFItem / CFAssociation / CFDocument）、`alternativeLabel`（CFItem）、`extensions`（全リソース）を DB に永続化し API レスポンスに含める | 3 |
 
 ## FR-3: バリデーション
 
@@ -257,3 +270,12 @@
 | FR-12.1 | isChildOf 以外の CFAssociation（isPeerOf, exactMatchOf 等）の CSV インポート/エクスポートに対応する | 3 |
 | FR-12.2 | コンピテンシーの意味検索をベクトル埋め込みで提供する | 3 |
 | FR-12.3 | フレームワーク間の自動マッピング提案機能を提供する | 3 |
+
+（Discovery エンドポイントと CASE v1.1 オプションフィールドは CASE API サーフェスに属するため、上記 FR-2.12 / FR-2.13 として管理する）
+
+## Non-goals（明示的な対象外）
+
+| ID | 項目 | 理由 |
+|----|------|------|
+| NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goalsexplicitly-out-of-scope) を参照 |
+| NG-2 | CASE Provider API の認証 / 認可（OAuth、Bearer、Keycloak、RBAC 等） | CASE API はデフォルトで公開。private テナントは URL の秘匿性で保護する（FR-1.3）。管理用途で認証付きアクセスが必要な場合は [compeito-aws](https://github.com/infosign/compeito-aws) の Admin API レイヤーが担い、compeito 自身が露出する CASE API サーフェスでは扱わない |
