@@ -24,10 +24,10 @@
 | ~~C. score が int → float~~ | **解消** | ~~28~~ → 0 | `CASEBaseSchema` に整数値の float を int として emit する serializer を追加 |
 | ~~D. CFDocument に CFPackageURI 欠落~~ | **解消** | ~~1~~ → 0 | `CFPckgDocumentDType` に CFPackageURI を emit するよう変更 |
 | E. LinkURI.title の表現差 | 未対応 | 37 | OpenCASE は literal type label（`"Document"` / `"CFPackage"`）を emit、compeito は実際の title を emit |
-| F. CFItemURI の denormalized URI 不一致 | 未対応 | 7 | CFRubricCriterion.CFItemURI.uri が source と一致しない（compeito は被リンク CFItem.uri から再構築） |
+| ~~F. CFItemURI の denormalized URI 不一致~~ | **解消** | ~~7~~ → 0 | `cf_rubric_criteria.cf_item_uri_source` 列を追加し、source の CFItemURI.uri を verbatim 保存。export 時は被リンク CFItem.uri より優先 |
 | G. CFDocument.CFPackageURI.uri 不保持 | 未対応 | 1 | CFPackage import 時に source の CFPackageURI.uri を捨てている（compeito 側で BASE_URL から組み立て直す） |
 
-合計 45 件。
+合計 38 件。
 
 ### ~~A. URI 書き換え~~（概ね解消、残 8 件は F / G に分離）
 
@@ -58,15 +58,9 @@ OpenCASE は LinkURI の `title` を、リンク種別を示す literal（`"Docu
 
 **対応案**: round-trip 優先なら compeito も LinkURI.title を type label（`"Document"`、`"CFPackage"` 等）に揃える。ただし compeito の standalone CFItem / CFAssociation レスポンスにも影響するため、Web UI / 既存テストの互換性を併せて検討する。
 
-### F. CFRubricCriterion.CFItemURI.uri が source と一致しない（7 件、1 パス）
+### ~~F. CFRubricCriterion.CFItemURI.uri が source と一致しない~~（解消済）
 
-| 件数 | パス |
-|------|------|
-| 7 | `CFRubrics[*].CFRubricCriteria[*].CFItemURI.uri` |
-
-CFRubricCriterion は CFItem への参照（`CFItemURI`）を持つが、現実装では `cf_item_id`（FK）のみを DB に保存し、export 時に被リンク CFItem の `uri` フィールドから LinkURI を再構築する。source の CFItemURI.uri と CFItem.uri が一致していないケース（実際の fixture でも発生）では、re-export 時に source の CFItemURI.uri が失われる。
-
-**対応案**: `cf_rubric_criteria` テーブルに source の CFItemURI.uri を保持する列（例: `cf_item_uri_source`）を追加し、export 時はそれを優先、無ければ被リンク CFItem.uri から再構築、という二段フォールバック。マイグレーション + 既存データ移行が必要。
+`cf_rubric_criteria` テーブルに `cf_item_uri_source TEXT NULL` 列を追加（マイグレーション `0054ee62f823`）。CFPackage import 時に source の `CFItemURI.uri` を verbatim 保存し、export 時はそれを優先、無ければ被リンク CFItem.uri にフォールバック。これで OpenCASE の「denormalized LinkURI を再解決しない」挙動と一致するため、round-trip が壊れない。
 
 ### G. CFDocument.CFPackageURI.uri が source と一致しない（1 件、1 パス）
 

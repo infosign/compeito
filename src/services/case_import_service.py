@@ -1418,8 +1418,9 @@ async def _import_rubric_criteria(
             report.warnings,
         )
 
-        # Resolve CFItemURI FK
+        # Resolve CFItemURI FK + preserve source uri verbatim (round-trip cat F).
         cf_item_id: uuid.UUID | None = None
+        cf_item_uri_source: str | None = None
         cf_item_uri = crit_data.get("CFItemURI")
         if cf_item_uri and isinstance(cf_item_uri, dict):
             item_ident = cf_item_uri.get("identifier")
@@ -1429,6 +1430,9 @@ async def _import_rubric_criteria(
                     report.warnings.append(
                         f"CFRubricCriterion '{crit_ident_str}': CFItem '{item_ident}' not found, set to null"
                     )
+            src_uri = cf_item_uri.get("uri")
+            if isinstance(src_uri, str) and src_uri.strip():
+                cf_item_uri_source = src_uri
 
         # Parse rubricId
         rubric_id_str = crit_data.get("rubricId")
@@ -1455,6 +1459,7 @@ async def _import_rubric_criteria(
                 existing_crit.position = crit_data["position"]
             if cf_item_uri:
                 existing_crit.cf_item_id = cf_item_id
+                existing_crit.cf_item_uri_source = cf_item_uri_source
             if rubric_id_val is not None:
                 existing_crit.rubric_id = rubric_id_val
             existing_crit.last_change_date_time = crit_ldt
@@ -1466,6 +1471,7 @@ async def _import_rubric_criteria(
                 identifier=crit_ident_uuid,
                 uri=_resolve_uri(crit_data, tenant_id, crit_ident_uuid),
                 cf_item_id=cf_item_id,
+                cf_item_uri_source=cf_item_uri_source,
                 rubric_id=rubric_id_val,
                 category=crit_data.get("category"),
                 description=crit_data.get("description"),
