@@ -73,3 +73,73 @@ OpenCASE は LinkURI の `title` を、リンク種別を示す literal（`"Docu
 将来 fixture を enrich（OpenCASE で `notes` / `alternativeLabel` / `extensions` 等のフィールドを追加投入、CFAssociation の非 isChildOf type、追加の CFConcept / CFLicense / CFAssociationGrouping）して新たな差分が出たら、同じ手順でカテゴリ追加 → 解消、を繰り返す。
 
 OpenCASE 上でフレームワークをさらに enrich（`conceptKeywordsURI` / `licenseURI` / non-isChildOf associationType / CFConcept / CFLicense / CFAssociationGrouping 等）して fixture を更新したい場合は、enrich 後の CFPackage を `GET /ims/case/v1p1/CFPackages/{id}` で再取得し `tests/fixtures/opencase_round_trip_baseline.json` を差し替える。
+
+---
+
+# OpenSALT round-trip（調査結果・方針保留）
+
+OpenCASE round-trip 完了を受け、次は OpenSALT round-trip を同じ playbook で実施しようとした。\
+着手にあたり OpenSALT (`opensalt/opensalt` の `develop` ブランチ = 4.0.0-dev) を Docker で起動し、import/export 経路をソースコードで精査したところ、**当初計画の前提「OpenSALT から CSV export してベースラインにする」が成立しないことが判明した**。実装には踏み込まず、まず調査結果を記録する。
+
+## OpenSALT の入出力形式（4.0.0-dev / develop 時点）
+
+| 形式 | Import | Export | 出典 |
+|------|--------|--------|------|
+| **Excel (.xlsx)** | ✅ 完全 | ✅ 完全 | `core/src/Service/ExcelImport.php` / `ExcelExport.php`、`/salt/excel/import`（POST）/ `/cfdoc/{id}/excel`（GET） |
+| **CSV** | △ 限定 | ❌ **未実装** | import: `core/src/Service/GithubImport.php`、`/cf/github/import`（POST）。export: `core/templates/framework/cf_package/export.csv.twig` は中身がプレースホルダ文のみ |
+| **CASE JSON** | ✅ | ✅（**v1.0**） | `/salt/case/import`（POST）/ `/cfpackage/doc/{id}.json`。export は `generate-package => 'v1p0'` 固定 |
+
+### 1. OpenSALT は CSV を export できない
+
+`CfPackageController::export` は `_format=csv` を受理するが、レンダリング先の `export.csv.twig` は
+
+```twig
+<p>This should export a CSV version of the Competency Framework document. ...</p>
+```
+
+というスタブで、CSV を生成しない。よって **計画 step 3「OpenSALT から CSV export → `opensalt_round_trip_baseline.csv`」は実行不能**。
+
+### 2. OpenSALT の本命の完全交換形式は Excel (.xlsx) 3 シート
+
+`ExcelImport` / `ExcelExport` は同一の 3 シート構成で往復する。これが OpenSALT が全フィールドを保持できる唯一の表形式。
+
+- **CF Doc** シート（1 行目ヘッダ・2 行目データ、列 A–P）: `identifier, creator, title, lastChangeDate, officialSourceURL, publisher, description, subject(`\|` 区切り), language, version, adoptionStatus, statusStartDate, statusEndDate, licenseTitle, licenseText, notes`
+- **CF Item** シート（列 A–L、データは 2 行目以降）: `identifier, fullStatement, humanCodingScheme, smartLevel, listEnumeration, abbreviatedStatement, conceptKeywords, notes, language, educationLevel, CFItemType, license`。**階層は `smartLevel`（`1` / `1.1` / `1.1.1` …）で表現**し、最終セグメントが親内 sequence。13 列目以降は AdditionalField（custom field）
+- **CF Association** シート（列 A–J）: `identifier, originNodeURI, originNodeIdentifier, originNodeHumanCodingScheme, associationType, destinationNodeURI, destinationNodeIdentifier, destinationNodeHumanCodingScheme, associationGroupIdentifier, associationGroupName`。`isChildOf` は CF Item の smartLevel から自動生成されるため、ここでの CHILD_OF 行は重複時スキップ
+
+### 3. OpenSALT の CSV import は限定的で compeito の CSV と非互換
+
+`GithubImport::saveCSVGithubDocument`（`/cf/github/import` の実体）が取り込むのは次のみ:
+
+```
+fullStatement(必須), identifier, humanCodingScheme, abbreviatedStatement,
+conceptKeywords, language, notes, sequenceNumber, isChildOf,
+（association 系）isPartOf, replacedBy, exemplar, precedes, isPeerOf,
+hasSkillLevel, isRelatedTo
+```
+
+- **`CFItemType` / `educationLevel` / `listEnumeration` を取り込まない**（Excel import との大きな差）。CSV では item type と学年が失われる
+- `isChildOf` は**親の `humanCodingScheme` で照合**する（`humanCodingScheme → 行 index` のマップ）。空なら humanCodingScheme をドット記法（`1.1` の末尾を落として `1`）で親を導出、見つからなければ top-level
+- compeito の OpenSALT 形式 CSV（`csv_export_service.export_opensalt_csv`）との非互換が 2 点:
+  1. 先頭に `#identifier,...` 等の **`#`metadata 行**を出すが、OpenSALT は CSV の **1 行目を無条件にヘッダ扱い**するため、そのまま渡すと壊れる
+  2. `Is Child Of` 列に**親の identifier（UUID）**を出すが、OpenSALT は humanCodingScheme で照合するため一致せず、さらに compeito の humanCodingScheme（`CS-A-1` 等のハイフン区切り）にはドットが無いため親が導出できず、**全アイテムが top-level に潰れる**
+
+`docs/reference/opensalt-csv-format.md`（2026-03-12 調査）が記載していた「CSV importer が認識する 19 フィールド」はクライアント側 JS（`core/assets/js/lsdoc/index.js`）の話で、サーバ側 `GithubImport` が実際に保存するのは上記サブセットである点に注意。
+
+## 含意（round-trip の faithful なターゲット）
+
+- 「OpenSALT UI で設定できる項目を満遍なく埋めたフレームワークを往復させる」faithful な経路は **Excel (.xlsx)** である。CSV では item type / 学年 / 階層が落ちるため、満遍ない round-trip は CSV では閉じない
+- 一方 **compeito は CSV しか喋れない**（OpenSALT 形式 export = CSV、xlsx 非対応）。よって OpenSALT との完全な round-trip には **compeito 側に OpenSALT-Excel (.xlsx) の import/export を追加する**必要がある。これは [phases.md](../requirements/phases.md) Phase 3 の "Improved OpenSALT compatibility" の具体的中身に相当する
+- CASE JSON 経由は OpenSALT の export が v1.0 固定でバージョン非対称（v1p0 → v1p1 正規化の検証にはなるが、OpenCASE round-trip と大部分が重複する）
+
+## OpenSALT Docker セットアップ（調査時の構成・再現用）
+
+`opensalt/opensalt` を clone し `develop`（4.0.0-dev）で起動した。要点:
+
+- ビルド済みイメージ `opensalt/opensalt:web-4.x` / `db-4.x` が Docker Hub にあるため、`./core` からの composer/yarn ビルドは不要（`docker compose pull db web`）
+- 既定の `docker-compose.yml` は MySQL 8.0 + FrankenPHP/Symfony + Caddy に加え、ベクトル検索用の `qdrant` / `t2v`（huggingface text-embeddings-inference）と `scheduler` を含む。CSV/Excel round-trip にこれらは不要なので、`docker-compose.override.yml` で web の `depends_on` を `!override` で db のみにし、`qdrant`/`t2v`/`scheduler` を `profiles: ["full"]` に退避して既定起動から外した（`depends_on` はマージされるため `!override` が必要）
+- `cp .env.dist .env` → データ/キャッシュディレクトリを `chmod 777` → `docker compose up -d` → `bin/console doctrine:migrations:migrate` → `salt:group:add` / `salt:user:add <user> <group> --password=... --role=super-user`（**group は位置引数で必須**）
+
+## 状態
+
+**調査済・方針保留**。実装（fixture 作成・テスト追加・compeito の xlsx 対応）には未着手。round-trip の方針（Excel 採用 / CSV 片方向 / CASE JSON）は別途決定する。
