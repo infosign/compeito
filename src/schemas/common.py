@@ -72,3 +72,19 @@ class CASEBaseSchema(BaseModel):
         if v is None:
             return None
         return v.strftime("%Y-%m-%d")
+
+    @field_serializer("score", "weight", check_fields=False)
+    @classmethod
+    def serialize_int_or_float(cls, v: float | None) -> int | float | None:
+        """Emit whole-number floats as int (round-trip parity with OpenCASE).
+
+        DB columns are float, but rubric scores / weights are commonly authored
+        as integers (e.g., 5). OpenCASE and other CASE-conformant clients emit
+        these as int. Without this serializer, compeito would convert 5 to 5.0,
+        breaking byte-for-byte round-trip even though the numeric values match.
+        """
+        if v is None:
+            return None
+        if isinstance(v, float) and v.is_integer():
+            return int(v)
+        return v
