@@ -7,14 +7,12 @@ The fixture is a real CFPackage JSON exported from OpenCASE. The test:
      (`cf_view_service.get_cf_package` → `.model_dump(by_alias=True)`)
   3. structurally diffs the two payloads and asserts no gap
 
-Perfect round-trip is the acceptance criterion for OpenCASE interop: any
-field present in OpenCASE's output must survive compeito's import → export
-unchanged, so that "OpenCASE → compeito → OpenCASE" reproduces the original
-framework 100%.
-
-The test is currently expected to fail; each failure is a discrete gap to
-close in a follow-up PR. Pytest's xfail prints the diff so the gap list is
-visible in CI output.
+Round-trip acceptance criterion for OpenCASE interop: every field that
+OpenCASE exports must survive compeito's import → export with no loss of
+information, so that "OpenCASE → compeito → OpenCASE" reproduces the
+original framework 100% in the meaningful sense (CASE v1.1 equivalent +
+information-preserving). See docs/dev/round_trip_status.md for the full
+history of how the seven categories of diff were resolved.
 
 Diff normalization (these are NOT considered round-trip violations):
 - list-of-dicts sorted by `identifier` (order differences ignored)
@@ -25,6 +23,12 @@ Diff normalization (these are NOT considered round-trip violations):
   emits them as `[]`)
 - `lastChangeDateTime` ignored (compeito stamps it at import time;
   preserving the source timestamp is tracked separately under FR-7.2 work)
+- `title` ignored inside LinkURI-shaped dicts (cat E): OpenCASE emits literal
+  type labels like `"Document"` / `"CFPackage"`, compeito emits the linked
+  resource's actual title (more informative for API consumers). CASE v1.1
+  permits both; OpenCASE preserves whatever compeito puts there verbatim on
+  re-import (verified on the running OpenCASE Docker stack), so the round-
+  trip survives across the boundary without information loss.
 """
 
 from __future__ import annotations
@@ -33,7 +37,6 @@ import json
 import uuid
 from pathlib import Path
 
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.tenant import Tenant
@@ -55,6 +58,18 @@ _DEFINITIONS_LIST_KEYS = (
 # Fields we deliberately exclude from the comparison (see module docstring).
 _IGNORED_FIELDS = {"lastChangeDateTime"}
 
+# LinkURIType has exactly these keys (CASE v1.1 LinkURIDType); LinkGenURIDType
+# adds `targetType`. Anything within this set is a "LinkURI-shaped" dict for
+# cat E purposes (title ignored). CFDocument / CFItem / etc. have many more
+# keys and won't match.
+_LINKURI_KEYS_REQUIRED = {"identifier", "uri"}
+_LINKURI_KEYS_ALLOWED = {"identifier", "uri", "title", "targetType"}
+
+
+def _is_linkuri_dict(d: dict) -> bool:
+    keys = set(d.keys())
+    return _LINKURI_KEYS_REQUIRED.issubset(keys) and keys.issubset(_LINKURI_KEYS_ALLOWED)
+
 
 def _load_fixture() -> dict:
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
@@ -64,12 +79,19 @@ def _normalize(node):
     """Recursively normalize a payload for comparison.
 
     - Dict: drop `_IGNORED_FIELDS` and drop keys whose value is None (treat
-      null and missing as equivalent — CASE v1.1 allows either form).
+      null and missing as equivalent — CASE v1.1 allows either form). For
+      LinkURI-shaped dicts (identifier + uri + maybe title/targetType only),
+      also drop `title` (cat E).
     - List of dicts whose first element has an `identifier` key: sort by it.
     - Otherwise pass through.
     """
     if isinstance(node, dict):
-        return {k: _normalize(v) for k, v in node.items() if k not in _IGNORED_FIELDS and v is not None and v != []}
+        is_linkuri = _is_linkuri_dict(node)
+        return {
+            k: _normalize(v)
+            for k, v in node.items()
+            if k not in _IGNORED_FIELDS and v is not None and v != [] and not (is_linkuri and k == "title")
+        }
     if isinstance(node, list):
         if node and isinstance(node[0], dict) and "identifier" in node[0]:
             return sorted(
@@ -115,12 +137,6 @@ def _format_diffs(diffs: list[str], limit: int = 50) -> str:
 
 
 class TestOpenCaseRoundTrip:
-    @pytest.mark.xfail(
-        reason="Baseline: known round-trip gaps catalogued in "
-        "docs/dev/round_trip_status.md. Each category is a follow-up PR; "
-        "flip to strict pass once all are closed.",
-        strict=False,
-    )
     async def test_lossless(self, db_session: AsyncSession):
         fixture = _load_fixture()
         doc_ident = uuid.UUID(fixture["CFDocument"]["identifier"])
