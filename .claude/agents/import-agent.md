@@ -105,7 +105,7 @@ python cli.py import csv --tenant {uuid} --file framework.csv
 
 - **isChildOf**: ドキュメント内の既存 isChildOf association を全削除し、CSV の IsChildOf 列から再作成する
 - **それ以外** (exactMatchOf, isPeerOf 等): **保持する**（削除しない）
-- 外部CASEインポート (case-url) の場合: CFPackage に全種類含まれるため、全 association を入れ替える
+- 外部CASEインポート (import case) の場合: CFPackage に全種類含まれるため、全 association を入れ替える
 - **Phase 1 制限**: CSV からは isChildOf のみ作成可能。他の association 型の作成・編集は Phase 3 で対応
 
 ### 削除アイテムの扱い
@@ -135,7 +135,7 @@ python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework_v2.cs
 
 エクスポート形式:
 - デフォルト（独自形式）: `Identifier` 列にUUIDを出力、そのままimportに使用可能
-- `--format opensalt`: UUID列なしのOpenSALT Import Children互換形式 (Phase 2)
+- `--profile opensalt`: UUID列なしのOpenSALT Import Children互換形式 (Phase 2)
 
 ### デフォルトエクスポート形式の仕様
 

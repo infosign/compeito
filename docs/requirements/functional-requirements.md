@@ -83,7 +83,7 @@
 | FR-8.1 | Export in the custom format (including Identifier, parentIdentifier, sequenceNumber) | 1 |
 | FR-8.2 | Sort rows in tree depth-first order (sequence_number → human_coding_scheme → identifier) | 1 |
 | FR-8.3 | Emit metadata rows (`#title`, `#version`, etc.) | 1 |
-| FR-8.4 | Export in OpenSALT-compatible format (`--format opensalt`) | 2 |
+| FR-8.4 | Export in OpenSALT-compatible format (`--profile opensalt`) | 2 |
 
 ## FR-9: Web UI
 
@@ -106,7 +106,7 @@
 | FR-10.1 | Tenant management commands: create, list, update, delete | 1 |
 | FR-10.2 | Framework management commands: list, delete | 1 |
 | FR-10.3 | CSV import command (`import csv`) | 1 |
-| FR-10.4 | External CASE source import command (`import case-url`) | 1 |
+| FR-10.4 | External CASE source import command (`import case`) | 1 |
 | FR-10.5 | CSV export command (`export csv`) | 1 |
 | FR-10.6 | DB migration command (`db migrate`) | 1 |
 | FR-10.7 | Connect directly to the DB via `DATABASE_URL` env var or `.env` file | 1 |
@@ -225,7 +225,7 @@
 | FR-8.1 | 独自形式でエクスポートする（Identifier・parentIdentifier・sequenceNumber を含む） | 1 |
 | FR-8.2 | ツリーの depth-first 順にソートする（sequence_number → human_coding_scheme → identifier） | 1 |
 | FR-8.3 | メタデータ行（`#title`, `#version` 等）を出力する | 1 |
-| FR-8.4 | OpenSALT互換形式でエクスポートする（`--format opensalt`） | 2 |
+| FR-8.4 | OpenSALT互換形式でエクスポートする（`--profile opensalt`） | 2 |
 
 ## FR-9: Web UI
 
@@ -248,7 +248,7 @@
 | FR-10.1 | テナント管理（create, list, update, delete）コマンドを提供する | 1 |
 | FR-10.2 | フレームワーク管理（list, delete）コマンドを提供する | 1 |
 | FR-10.3 | CSVインポート（`import csv`）コマンドを提供する | 1 |
-| FR-10.4 | 外部CASEソースインポート（`import case-url`）コマンドを提供する | 1 |
+| FR-10.4 | 外部CASEソースインポート（`import case`）コマンドを提供する | 1 |
 | FR-10.5 | CSVエクスポート（`export csv`）コマンドを提供する | 1 |
 | FR-10.6 | DBマイグレーション（`db migrate`）コマンドを提供する | 1 |
 | FR-10.7 | `DATABASE_URL` 環境変数または `.env` ファイルから直接DB接続する | 1 |
