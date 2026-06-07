@@ -37,6 +37,25 @@ def _build_uri(tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
     return f"{settings.base_url}/{tenant_id}/uri/{identifier}"
 
 
+def _resolve_uri(source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
+    """Return the source CFPackage's `uri` if present, else build a compeito-native URI.
+
+    Per FR-7.2, CFPackage import must preserve external URIs and identifiers
+    as-is — clients (OpenCASE, OpenSALT, OBF, …) may have stored the source
+    `uri` and we mustn't rewrite it. If the source dict lacks a `uri` (or it's
+    blank), fall back to compeito's own scheme so the resource still has a
+    routable URI.
+
+    Note: CSV import (`csv_import_service`) intentionally bypasses this and
+    always calls `_build_uri()` directly — CSV rows don't carry a URI column,
+    so resources created from CSV get compeito-native URIs.
+    """
+    src_uri = source.get("uri")
+    if isinstance(src_uri, str) and src_uri.strip():
+        return src_uri
+    return _build_uri(tenant_id, identifier)
+
+
 @dataclass
 class CaseImportReport:
     document_title: str = ""
@@ -428,7 +447,7 @@ async def _upsert_definition(
 
     # Common fields
     field_map = {
-        "uri": _build_uri(tenant_id, ident_uuid),
+        "uri": _resolve_uri(data, tenant_id, ident_uuid),
         "title": title,
         "description": data.get("description"),
         "last_change_date_time": ldt,
@@ -472,7 +491,7 @@ async def _upsert_definition(
             elif db_col in ("uri", "title", "last_change_date_time"):
                 # Required fields
                 if db_col == "uri":
-                    kwargs[db_col] = _build_uri(tenant_id, ident_uuid)
+                    kwargs[db_col] = _resolve_uri(data, tenant_id, ident_uuid)
                 elif db_col == "title":
                     kwargs[db_col] = title
                 elif db_col == "last_change_date_time":
@@ -480,7 +499,7 @@ async def _upsert_definition(
 
         # Ensure required fields
         if "uri" not in kwargs or not kwargs["uri"]:
-            kwargs["uri"] = _build_uri(tenant_id, ident_uuid)
+            kwargs["uri"] = _resolve_uri(data, tenant_id, ident_uuid)
         if "title" not in kwargs:
             kwargs["title"] = title
         if "last_change_date_time" not in kwargs:
@@ -779,7 +798,7 @@ def _create_document(
         id=uuid.uuid4(),
         tenant_id=tenant_id,
         identifier=ident,
-        uri=_build_uri(tenant_id, ident),
+        uri=_resolve_uri(data, tenant_id, ident),
         title=data["title"].strip(),
         creator=creator,
         publisher=data.get("publisher"),
@@ -807,8 +826,8 @@ def _update_document(
 ) -> None:
     warnings = report.warnings
 
-    # Rewrite URI to local BASE_URL
-    doc.uri = _build_uri(tenant_id, doc.identifier)
+    # Preserve source URI when present (FR-7.2); fall back to compeito-native URI.
+    doc.uri = _resolve_uri(data, tenant_id, doc.identifier)
     if data.get("title"):
         doc.title = data["title"].strip()
     if "creator" in data:
@@ -1073,7 +1092,7 @@ async def _import_items(
                 old_ident = str(old_doc.identifier) if old_doc else "unknown"
                 report.warnings.append(f"Item '{ident_str}' moved from document '{old_ident}' to current document")
             existing.cf_document_id = doc.id
-            existing.uri = _build_uri(tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(item_data, tenant_id, ident_uuid)
             if fs:
                 existing.full_statement = fs
             if item_data.get("humanCodingScheme") is not None:
@@ -1111,7 +1130,7 @@ async def _import_items(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_build_uri(tenant_id, ident_uuid),
+                uri=_resolve_uri(item_data, tenant_id, ident_uuid),
                 full_statement=fs,
                 human_coding_scheme=item_data.get("humanCodingScheme"),
                 abbreviated_statement=item_data.get("abbreviatedStatement"),
@@ -1164,18 +1183,16 @@ async def _import_associations(
         origin = assoc_data["originNodeURI"]
         dest = assoc_data["destinationNodeURI"]
 
-        # Rewrite node URIs to local BASE_URL
+        # Preserve source node URIs when present (FR-7.2); fall back to a
+        # compeito-native URI only if the source omits `uri` AND we have a
+        # valid identifier to build one from.
         origin_ident_str = origin.get("identifier", "")
-        origin_node_uri = (
-            _build_uri(tenant_id, uuid.UUID(str(origin_ident_str)))
-            if _is_valid_uuid(str(origin_ident_str))
-            else origin.get("uri", "")
+        origin_node_uri = origin.get("uri") or (
+            _build_uri(tenant_id, uuid.UUID(str(origin_ident_str))) if _is_valid_uuid(str(origin_ident_str)) else ""
         )
         dest_ident_str = dest.get("identifier", "")
-        dest_node_uri = (
-            _build_uri(tenant_id, uuid.UUID(str(dest_ident_str)))
-            if _is_valid_uuid(str(dest_ident_str))
-            else dest.get("uri", "")
+        dest_node_uri = dest.get("uri") or (
+            _build_uri(tenant_id, uuid.UUID(str(dest_ident_str))) if _is_valid_uuid(str(dest_ident_str)) else ""
         )
 
         seq = _parse_sequence_number(
@@ -1222,7 +1239,7 @@ async def _import_associations(
                     f"CFAssociation '{ident_str}' moved from document '{old_ident}' to current document"
                 )
             existing.cf_document_id = doc.id
-            existing.uri = _build_uri(tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(assoc_data, tenant_id, ident_uuid)
             if assoc_data.get("associationType") is not None:
                 existing.association_type = assoc_data["associationType"]
             existing.origin_node_identifier = origin.get("identifier", "")
@@ -1243,7 +1260,7 @@ async def _import_associations(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_build_uri(tenant_id, ident_uuid),
+                uri=_resolve_uri(assoc_data, tenant_id, ident_uuid),
                 association_type=assoc_data["associationType"],
                 origin_node_identifier=origin.get("identifier", ""),
                 origin_node_uri=origin_node_uri,
@@ -1343,7 +1360,7 @@ async def _import_rubrics(
 
         if existing is not None:
             existing.cf_document_id = doc.id
-            existing.uri = _build_uri(tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(rubric_data, tenant_id, ident_uuid)
             if rubric_data.get("title") is not None:
                 existing.title = rubric_data["title"]
             if rubric_data.get("description") is not None:
@@ -1357,7 +1374,7 @@ async def _import_rubrics(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_build_uri(tenant_id, ident_uuid),
+                uri=_resolve_uri(rubric_data, tenant_id, ident_uuid),
                 title=rubric_data.get("title"),
                 description=rubric_data.get("description"),
                 last_change_date_time=ldt,
@@ -1427,7 +1444,7 @@ async def _import_rubric_criteria(
 
         if existing_crit is not None:
             existing_crit.cf_rubric_id = rubric.id
-            existing_crit.uri = _build_uri(tenant_id, crit_ident_uuid)
+            existing_crit.uri = _resolve_uri(crit_data, tenant_id, crit_ident_uuid)
             if crit_data.get("category") is not None:
                 existing_crit.category = crit_data["category"]
             if crit_data.get("description") is not None:
@@ -1447,7 +1464,7 @@ async def _import_rubric_criteria(
                 id=uuid.uuid4(),
                 cf_rubric_id=rubric.id,
                 identifier=crit_ident_uuid,
-                uri=_build_uri(tenant_id, crit_ident_uuid),
+                uri=_resolve_uri(crit_data, tenant_id, crit_ident_uuid),
                 cf_item_id=cf_item_id,
                 rubric_id=rubric_id_val,
                 category=crit_data.get("category"),
@@ -1510,7 +1527,7 @@ async def _import_rubric_criterion_levels(
 
         if existing_level is not None:
             existing_level.cf_rubric_criterion_id = criterion.id
-            existing_level.uri = _build_uri(tenant_id, level_ident_uuid)
+            existing_level.uri = _resolve_uri(level_data, tenant_id, level_ident_uuid)
             if level_data.get("description") is not None:
                 existing_level.description = level_data["description"]
             if level_data.get("quality") is not None:
@@ -1530,7 +1547,7 @@ async def _import_rubric_criterion_levels(
                 cf_rubric_criterion_id=criterion.id,
                 rubric_criterion_id=rc_id_val,
                 identifier=level_ident_uuid,
-                uri=_build_uri(tenant_id, level_ident_uuid),
+                uri=_resolve_uri(level_data, tenant_id, level_ident_uuid),
                 description=level_data.get("description"),
                 quality=level_data.get("quality"),
                 score=level_data.get("score"),
