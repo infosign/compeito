@@ -11,7 +11,7 @@ from src.database import Base
 class CFRubricCriterion(Base):
     __tablename__ = "cf_rubric_criteria"
     __table_args__ = (
-        UniqueConstraint("identifier", name="uq_cf_rubric_criteria_identifier"),
+        UniqueConstraint("cf_rubric_id", "identifier", name="uq_cf_rubric_criteria_rubric_identifier"),
         Index("ix_cf_rubric_criteria_rubric", "cf_rubric_id"),
         Index("ix_cf_rubric_criteria_identifier", "identifier"),
     )
