@@ -37,6 +37,11 @@ class CFDocument(Base):
     subject_uri: Mapped[dict | None] = mapped_column(JSONB)
     notes: Mapped[str | None] = mapped_column(Text)
     extensions: Mapped[dict | None] = mapped_column(JSONB)
+    # CFPackage-level / CFDefinitions-level extensions (CASE v1.1). A package is a
+    # document-centered view in compeito, so the container-level `extensions` for
+    # CFPackage and CFDefinitions are stored on the owning document.
+    package_extensions: Mapped[dict | None] = mapped_column(JSONB)
+    definitions_extensions: Mapped[dict | None] = mapped_column(JSONB)
     # Verbatim source CFPackageURI.uri (round-trip cat G). When this CFDocument
     # was imported via CFPackage JSON, the source's `CFPackageURI.uri` is
     # captured here so re-export reproduces it instead of synthesizing a

@@ -34,6 +34,7 @@ ITYPE = "30000000-0000-0000-0000-000000000001"
 def _pkg() -> dict:
     return {
         "CFPackage": {
+            "extensions": {"pkgExt": "p"},
             "CFDocument": {
                 "identifier": DOC,
                 "uri": f"https://example.com/uri/{DOC}",
@@ -75,6 +76,7 @@ def _pkg() -> dict:
                 }
             ],
             "CFDefinitions": {
+                "extensions": {"defExt": "d"},
                 "CFItemTypes": [
                     {
                         "identifier": ITYPE,
@@ -84,7 +86,7 @@ def _pkg() -> dict:
                         "extensions": {"typeExt": "x"},
                         "lastChangeDateTime": "2025-01-01T00:00:00Z",
                     }
-                ]
+                ],
             },
         }
     }
@@ -122,6 +124,9 @@ class TestCaseJsonRoundTrip:
         assert pitem["extensions"] == {"itemExt": 1}
         itype = pd["CFDefinitions"]["CFItemTypes"][0]
         assert itype["extensions"] == {"typeExt": "x"}
+        # Container-level extensions (CFPackage / CFDefinitions).
+        assert pd["extensions"] == {"pkgExt": "p"}
+        assert pd["CFDefinitions"]["extensions"] == {"defExt": "d"}
 
 
 class TestCustomCsvRoundTrip:
@@ -174,3 +179,32 @@ class TestXlsxRoundTripNotes:
         assert item.model_dump(by_alias=True)["notes"] == "item notes"
         doc = await case_query_service.get_cf_document(db_session, t2, uuid.UUID(DOC))
         assert doc.model_dump(by_alias=True)["notes"] == "doc level notes"
+
+
+class TestStrictPackageMode:
+    """GET /CFPackages/{id}?strict=1 omits the package-context-only properties
+    (CFDocument.CFPackageURI, CFItems[].CFDocumentURI) for official-schema
+    conformance; the default response keeps them (OpenCASE/OpenSALT interop)."""
+
+    async def test_strict_omits_package_context_uris(self, db_session: AsyncSession, db_client):
+        db_session.add(Tenant(id=TENANT_ID, name="T", is_private=False))
+        await db_session.flush()
+        await import_case_from_dict(db_session, TENANT_ID, _pkg())
+        await db_session.flush()
+
+        # Default: package-context URIs present.
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFPackages/{DOC}")
+        assert r.status_code == 200
+        body = r.json()
+        assert "CFPackageURI" in body["CFDocument"]
+        assert all("CFDocumentURI" in it for it in body["CFItems"])
+
+        # Strict: those keys are stripped.
+        rs = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFPackages/{DOC}?strict=1")
+        assert rs.status_code == 200
+        sb = rs.json()
+        assert "CFPackageURI" not in sb["CFDocument"]
+        assert all("CFDocumentURI" not in it for it in sb["CFItems"])
+        # Real fields still present.
+        assert sb["CFDocument"]["title"] == "Notes Doc"
+        assert sb["extensions"] == {"pkgExt": "p"}

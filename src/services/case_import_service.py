@@ -711,11 +711,18 @@ async def import_case_from_dict(
     report.document_title = doc.title
     report.document_identifier = str(doc.identifier)
 
+    # Container-level extensions (CFPackage / CFDefinitions). A package is a
+    # document-centered view in compeito, so these are stored on the document.
+    cf_defs = pkg.get("CFDefinitions", {}) or {}
+    if pkg.get("extensions") is not None:
+        doc.package_extensions = pkg.get("extensions")
+    if cf_defs.get("extensions") is not None:
+        doc.definitions_extensions = cf_defs.get("extensions")
+
     # Step 4: CFDefinitions — imported BEFORE resolving the document's
     # licenseURI so that a CFLicense defined within this same package is
     # already present. (Resolving first would emit a spurious "CFLicense not
     # found" warning on initial import even though the FK is set correctly.)
-    cf_defs = pkg.get("CFDefinitions", {}) or {}
     await _import_definitions(session, tenant_id, cf_defs, now, report)
     await session.flush()
 

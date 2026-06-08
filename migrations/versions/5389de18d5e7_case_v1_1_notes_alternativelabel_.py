@@ -11,6 +11,9 @@ CASE v1.1 情報モデルに存在するが compeito が未保存だった標準
 - extensions (JSONB): 全エンティティ（v1.1 で "added to all classes"）。
   CFRubricCriterionLevel の extensions は仕様上 array だが、object/array 双方を
   保持できる JSONB で受ける。
+- package_extensions / definitions_extensions (JSONB): cf_documents のみ。
+  CFPackage / CFDefinitions コンテナ単位の extensions を、document 中心ビューの
+  所有 document 行に保存する。
 
 すべて nullable。既存データへの影響なし。
 """
@@ -52,9 +55,15 @@ def upgrade() -> None:
     op.add_column("cf_items", sa.Column("alternative_label", sa.Text(), nullable=True))
     for table in _EXTENSION_TABLES:
         op.add_column(table, sa.Column("extensions", JSONB(), nullable=True))
+    # Container-level extensions (CFPackage / CFDefinitions) — stored on the
+    # owning document since a package is a document-centered view in compeito.
+    op.add_column("cf_documents", sa.Column("package_extensions", JSONB(), nullable=True))
+    op.add_column("cf_documents", sa.Column("definitions_extensions", JSONB(), nullable=True))
 
 
 def downgrade() -> None:
+    op.drop_column("cf_documents", "definitions_extensions")
+    op.drop_column("cf_documents", "package_extensions")
     for table in _EXTENSION_TABLES:
         op.drop_column(table, "extensions")
     op.drop_column("cf_items", "alternative_label")

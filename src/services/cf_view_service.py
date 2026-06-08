@@ -231,6 +231,7 @@ def _build_definitions(
         CFConcepts=cf_concepts,
         CFLicenses=cf_licenses,
         CFAssociationGroupings=cf_association_groupings,
+        extensions=doc.definitions_extensions,
     )
     # If all None → return None (no CFDefinitions key)
     serialized = defs.model_dump(by_alias=True)
@@ -308,4 +309,5 @@ async def get_cf_package(
         CFAssociations=[association_to_pckg_schema(a) for a in assocs],
         CFDefinitions=_build_definitions(doc, items, assocs, subjects),
         CFRubrics=[rubric_to_schema(r) for r in rubrics],
+        extensions=doc.package_extensions,
     )
