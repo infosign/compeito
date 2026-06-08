@@ -51,7 +51,7 @@
     "err_env_required": "DATABASE_URL must be set",
     "err_invalid_uuid": "Invalid UUID format: '{value}'",
     "err_private_public_exclusive": "--private and --public are mutually exclusive",
-    "err_update_requires_option": "At least one of --name, --private, or --public is required",
+    "err_update_requires_option": "At least one of --name, --private, --public, --slug, or --clear-slug is required",
     "err_tenant_not_found": "Tenant not found: '{value}'",
     "err_doc_not_found": "Document not found: '{value}'",
     "err_file_not_found": "File not found: '{value}'",

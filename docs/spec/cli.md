@@ -154,7 +154,7 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--file` is not readable (permissions, etc.) → exit ("Cannot read file: '{filepath}'", code 1)
 - `--file` output path is not writable (directory missing, permissions) → exit ("Cannot write file: '{filepath}'", code 1)
 - CSV import: file is not valid UTF-8 → exit ("CSV file is not valid UTF-8", code 1)
-- `tenant update` with none of `--name` / `--private` / `--public` / `--slug` / `--clear-slug` → exit (code 1). (The current message text lists only `--name` / `--private` / `--public`.)
+- `tenant update` with none of `--name` / `--private` / `--public` / `--slug` / `--clear-slug` → exit ("At least one of --name, --private, --public, --slug, or --clear-slug is required", code 1)
 
 ## CSV import defaults
 
@@ -353,7 +353,7 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--file` で指定したファイルが読み取れない（パーミッションエラー等） → エラー終了（「Cannot read file: '{filepath}'」、終了コード 1）
 - `--file` で指定した出力先に書き込めない（ディレクトリが存在しない、パーミッションエラー等） → エラー終了（「Cannot write file: '{filepath}'」、終了コード 1）
 - CSVインポート時、ファイルが UTF-8 としてデコードできない → エラー終了（「CSV file is not valid UTF-8」、終了コード 1）
-- `tenant update` に `--name` / `--private` / `--public` / `--slug` / `--clear-slug` のいずれも指定されていない → エラー終了（終了コード 1）。（現在のメッセージ文言は `--name` / `--private` / `--public` のみを列挙している）
+- `tenant update` に `--name` / `--private` / `--public` / `--slug` / `--clear-slug` のいずれも指定されていない → エラー終了（「--name、--private、--public、--slug、--clear-slugのいずれかを指定してください」、終了コード 1）
 
 ## CSVインポートのデフォルト動作
 
