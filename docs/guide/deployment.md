@@ -131,7 +131,7 @@ certbot updates the Nginx config to enable HTTPS redirect and auto-renewal.
 docker compose -f docker-compose.prod.yml up -d
 
 # Migrate
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 
 # Create a tenant
 docker compose -f docker-compose.prod.yml exec app uv run python cli.py tenant create --name "University A"
@@ -242,7 +242,7 @@ git pull
 docker compose -f docker-compose.prod.yml up -d --build
 
 # Run migrations if any
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 ```
 
 ## 9. Server migration (with hostname change)
@@ -254,7 +254,7 @@ Restoring a backup carries the data over. If the public hostname changes, you mu
 ```bash
 # 1. Start and migrate on the new server
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 
 # 2. Restore the backup
 docker compose -f docker-compose.prod.yml exec -T db psql -U case case < backup.sql
@@ -436,7 +436,7 @@ certbot が Nginx 設定を自動更新し、HTTPS リダイレクトと証明�
 docker compose -f docker-compose.prod.yml up -d
 
 # マイグレーション
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 
 # テナント作成
 docker compose -f docker-compose.prod.yml exec app uv run python cli.py tenant create --name "大学A"
@@ -547,7 +547,7 @@ git pull
 docker compose -f docker-compose.prod.yml up -d --build
 
 # マイグレーションがあれば実行
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 ```
 
 ## 9. サーバー引越し（ホスト名変更あり）
@@ -559,7 +559,7 @@ docker compose -f docker-compose.prod.yml exec app alembic upgrade head
 ```bash
 # 1. 新サーバーで起動・マイグレーション
 docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+docker compose -f docker-compose.prod.yml exec app uv run alembic upgrade head
 
 # 2. バックアップをリストア
 docker compose -f docker-compose.prod.yml exec -T db psql -U case case < backup.sql

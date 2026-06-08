@@ -150,11 +150,11 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--tenant` UUID does not exist → exit ("Tenant not found: '{uuid}'", code 1)
 - `--doc` value is not a UUID → exit ("Invalid UUID format: '{value}'", code 1)
 - `--doc` UUID is not found within the specified tenant → exit ("Document not found: '{uuid}'", code 1)
-- `--file` path does not exist → exit ("File not found: '{filepath}'", code 1)
+- `--file` path does not exist → for `import csv` / `export *`, exit ("File not found: '{filepath}'", code 1). For `import case` / `import xlsx` / `import rubric` (which use Click's `Path(exists=True)`), Click rejects it with a usage error (code 2) before the command runs.
 - `--file` is not readable (permissions, etc.) → exit ("Cannot read file: '{filepath}'", code 1)
 - `--file` output path is not writable (directory missing, permissions) → exit ("Cannot write file: '{filepath}'", code 1)
 - CSV import: file is not valid UTF-8 → exit ("CSV file is not valid UTF-8", code 1)
-- `tenant update` with none of `--name` / `--private` / `--public` → exit ("At least one of --name, --private, or --public is required", code 1)
+- `tenant update` with none of `--name` / `--private` / `--public` / `--slug` / `--clear-slug` → exit (code 1). (The current message text lists only `--name` / `--private` / `--public`.)
 
 ## CSV import defaults
 
@@ -349,11 +349,11 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--tenant` の UUID が存在しない → エラー終了（「Tenant not found: '{uuid}'」、終了コード 1）
 - `--doc` の値が UUID 形式でない → エラー終了（「Invalid UUID format: '{value}'」、終了コード 1）
 - `--doc` の UUID が指定テナント内に存在しない → エラー終了（「Document not found: '{uuid}'」、終了コード 1）
-- `--file` で指定したファイルが存在しない → エラー終了（「File not found: '{filepath}'」、終了コード 1）
+- `--file` で指定したファイルが存在しない → `import csv` / `export *` ではエラー終了（「File not found: '{filepath}'」、終了コード 1）。`import case` / `import xlsx` / `import rubric`（Click の `Path(exists=True)` を使用）ではコマンド実行前に Click の usage error（終了コード 2）で弾かれる
 - `--file` で指定したファイルが読み取れない（パーミッションエラー等） → エラー終了（「Cannot read file: '{filepath}'」、終了コード 1）
 - `--file` で指定した出力先に書き込めない（ディレクトリが存在しない、パーミッションエラー等） → エラー終了（「Cannot write file: '{filepath}'」、終了コード 1）
 - CSVインポート時、ファイルが UTF-8 としてデコードできない → エラー終了（「CSV file is not valid UTF-8」、終了コード 1）
-- `tenant update` に `--name` / `--private` / `--public` のいずれも指定されていない → エラー終了（「At least one of --name, --private, or --public is required」、終了コード 1）
+- `tenant update` に `--name` / `--private` / `--public` / `--slug` / `--clear-slug` のいずれも指定されていない → エラー終了（終了コード 1）。（現在のメッセージ文言は `--name` / `--private` / `--public` のみを列挙している）
 
 ## CSVインポートのデフォルト動作
 

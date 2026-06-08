@@ -122,7 +122,7 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 - `filter` — predicates `field <op> value` where op ∈ `=` `!=` `>` `>=` `<` `<=` `~` (`~` = case-insensitive contains, string fields only), joined by a single `AND` or `OR` (mixing both → 400). String values are single-quoted (`title='Math'`); dates `YYYY-MM-DD`. String `=` / `!=` are **case-insensitive** (per the REST binding's Unicode Collation guidance); ordering comparisons stay case-sensitive. `subject` (JSONB array) is filterable: `subject~'x'` = any element contains `x`; `subject='x'` = array contains the exact element. Invalid field/value/predicate → 400 (`invalid_selection_field`).
 - `fields` — comma-separated CFDocument field names; the response objects are projected to exactly those keys. Unknown field → 400 (`invalid_selection_field`). NOTE: the REST binding prose says an unknown field should return the full record (and only a *blank* field is `invalid_selection_field`); similarly it says an unknown `sort` should fall back to the default order. compeito intentionally returns 400 in both cases (typos are visible to the client). This is an intentional divergence (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7).
 - These are currently implemented for `GET /CFDocuments` only (the only listing endpoint the CASE v1.1 OpenAPI defines these params on); the extension listing endpoints (`CFItemTypes`, etc.) accept `limit`/`offset` only.
-- Note: served only by the dynamic API. compeito-aws static publishing bakes the default (unsorted/unfiltered/full) listing; sort/filter/fields require dynamic serving.
+- Note: served only by the dynamic API. A static-publishing deployment bakes the default (unsorted/unfiltered/full) listing, so sort/filter/fields require dynamic serving.
 **`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header. The `Link` pagination headers (next/prev/first/last) are not implemented (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5).
 Default sort order: every listing endpoint sorts by `identifier ASC` to guarantee deterministic ordering and avoid duplicates / gaps across pages.
 Scope: every listing endpoint returns all tenant rows (no document filtering). `CFDocuments` returns every document in the tenant. `CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` return every lookup in the tenant. `CFItems/{id}/associations` searches all documents in the tenant (see the validation section). CFDefinitions inside CFPackage is narrowed to definitions referenced from the document, but listing endpoints are not narrowed.
@@ -226,8 +226,8 @@ JOIN on `cf_concept_id` and use the CFConcept's `{title, identifier, uri}`. When
 **Internal fields hidden from API responses:**
 `cf_item.depth` is internal (used to render the tree view) and does not exist in CASE v1.1, so it is excluded from every API response (CFItem standalone and within CFPackage). Exclude it in the Pydantic schemas.
 
-**CASE v1.1 fields omitted in Phase 1:**
-`notes` (CFDocument / CFItem / CFAssociation), `alternativeLabel` (CFItem), and `extensions` (common, v1.1 new) are not persisted (see db-schema.md). These fields are **not** included in the Pydantic schemas (no API output — they are outside the `exclude_none=False` policy). They are optional in CASE v1.1, so omitting them does not affect compliance. Phase 2 will add the columns and the Pydantic fields (returning `null` when empty).
+**CASE v1.1 optional fields `notes` / `alternativeLabel` / `extensions`:**
+`notes` (CFDocument / CFItem / CFAssociation), `alternativeLabel` (CFItem), and `extensions` (all resources + container-level `CFPackage.extensions` / `CFDefinitions.extensions`) are persisted and round-trip through CASE JSON import/export and the API responses. They are in the Pydantic schemas and emitted as `null` when empty (per the `exclude_none=False` policy). See db-schema.md and import-logic.md.
 
 ## Error response format
 
@@ -449,7 +449,7 @@ CASE v1.1準拠。全一覧エンドポイントに `limit`(デフォルト100, 
 - `filter` — `field <op> value`（op = `=` `!=` `>` `>=` `<` `<=` `~`、`~` は大小無視の contains で文字列フィールドのみ）を単一の `AND` か `OR` で結合（混在は 400）。文字列値は単一引用符（`title='Math'`）、日付は `YYYY-MM-DD`。文字列の `=` / `!=` は**大小無視**（REST binding の Unicode Collation 指針に準拠）。ordering 比較（`>` 等）は大小区別のまま。`subject`（JSONB 配列）もフィルタ可能: `subject~'x'` = いずれかの要素が `x` を含む、`subject='x'` = 配列が `x` という要素を含む。不正なフィールド/値/述語 → 400（`invalid_selection_field`）
 - `fields` — カンマ区切りの CFDocument フィールド名。レスポンスを指定キーのみに射影。未知フィールド → 400（`invalid_selection_field`）。注: REST binding の散文では未知フィールドは全件返す（空フィールドのみ `invalid_selection_field`）、未知 `sort` は既定順にフォールバックする、とされる。compeito は両ケースとも意図的に 400 を返す（typo をクライアントに可視化）。意図的差異（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7 参照）
 - 現状 `GET /CFDocuments` のみ（公式 OpenAPI がこれらを定義する唯一の list エンドポイント）。拡張 list エンドポイント（`CFItemTypes` 等）は `limit`/`offset` のみ
-- 動的 API でのみ提供。compeito-aws の静的公開は既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
+- 動的 API でのみ提供。静的公開のデプロイでは既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
 **`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。`Link` ページネーションヘッダー（next/prev/first/last）は未実装（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5 参照）。
 デフォルトソート順: 全一覧エンドポイントは `identifier ASC` で並べる（決定的な順序を保証し、ページ間の重複・欠落を防ぐ）。
 スコープ: 全一覧エンドポイントはテナント内の全件を返す（ドキュメントでフィルタリングしない）。`CFDocuments` はテナント内の全ドキュメント、`CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` はテナント内の全 lookup リソースを返す。`CFItems/{id}/associations` はテナント内の全ドキュメントを横断して検索する（api-spec.md バリデーション節参照）。CFPackage 内の CFDefinitions はドキュメントから参照されている定義のみに絞り込むが、一覧APIは絞り込まない。
@@ -554,8 +554,8 @@ DB の `subject` JSONB カラム（文字列配列）と `subject_uri` JSONB カ
 **API レスポンスに含めない内部フィールド:**
 `cf_item.depth` は内部用フィールド（ツリービューの描画用）であり、CASE v1.1 仕様に存在しないため、全 API レスポンス（CFItem, CFPackage 内の CFItems）に含めない。Pydantic スキーマで除外すること。
 
-**Phase 1 で省略する CASE v1.1 フィールド:**
-`notes`（CFDocument / CFItem / CFAssociation）、`alternativeLabel`（CFItem）、`extensions`（全リソース共通、v1.1 新規）は DB に保存しない（db-schema.md 参照）。これらのフィールドは Pydantic スキーマに**含めない**（API レスポンスに一切出力しない。`exclude_none=False` ポリシーの対象外）。CASE v1.1 ではこれらは任意フィールドであり、省略しても準拠性に影響しない。Phase 2 でカラム追加時に Pydantic スキーマにも追加し、`null` として出力されるようにする。
+**CASE v1.1 任意フィールド `notes` / `alternativeLabel` / `extensions`:**
+`notes`（CFDocument / CFItem / CFAssociation）、`alternativeLabel`（CFItem）、`extensions`（全リソース + コンテナレベルの `CFPackage.extensions` / `CFDefinitions.extensions`）は永続化され、CASE JSON の import/export および API レスポンスで往復する。Pydantic スキーマに含まれ、空の場合は `null` として出力される（`exclude_none=False` ポリシー）。db-schema.md / import-logic.md 参照。
 
 ## エラーレスポンス形式
 
