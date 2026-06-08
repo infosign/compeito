@@ -226,8 +226,8 @@ JOIN on `cf_concept_id` and use the CFConcept's `{title, identifier, uri}`. When
 **Internal fields hidden from API responses:**
 `cf_item.depth` is internal (used to render the tree view) and does not exist in CASE v1.1, so it is excluded from every API response (CFItem standalone and within CFPackage). Exclude it in the Pydantic schemas.
 
-**CASE v1.1 fields omitted in Phase 1:**
-`notes` (CFDocument / CFItem / CFAssociation), `alternativeLabel` (CFItem), and `extensions` (common, v1.1 new) are not persisted (see db-schema.md). These fields are **not** included in the Pydantic schemas (no API output — they are outside the `exclude_none=False` policy). They are optional in CASE v1.1, so omitting them does not affect compliance. Phase 2 will add the columns and the Pydantic fields (returning `null` when empty).
+**CASE v1.1 optional fields `notes` / `alternativeLabel` / `extensions`:**
+`notes` (CFDocument / CFItem / CFAssociation), `alternativeLabel` (CFItem), and `extensions` (all resources + container-level `CFPackage.extensions` / `CFDefinitions.extensions`) are persisted and round-trip through CASE JSON import/export and the API responses. They are in the Pydantic schemas and emitted as `null` when empty (per the `exclude_none=False` policy). See db-schema.md and import-logic.md.
 
 ## Error response format
 
@@ -554,8 +554,8 @@ DB の `subject` JSONB カラム（文字列配列）と `subject_uri` JSONB カ
 **API レスポンスに含めない内部フィールド:**
 `cf_item.depth` は内部用フィールド（ツリービューの描画用）であり、CASE v1.1 仕様に存在しないため、全 API レスポンス（CFItem, CFPackage 内の CFItems）に含めない。Pydantic スキーマで除外すること。
 
-**Phase 1 で省略する CASE v1.1 フィールド:**
-`notes`（CFDocument / CFItem / CFAssociation）、`alternativeLabel`（CFItem）、`extensions`（全リソース共通、v1.1 新規）は DB に保存しない（db-schema.md 参照）。これらのフィールドは Pydantic スキーマに**含めない**（API レスポンスに一切出力しない。`exclude_none=False` ポリシーの対象外）。CASE v1.1 ではこれらは任意フィールドであり、省略しても準拠性に影響しない。Phase 2 でカラム追加時に Pydantic スキーマにも追加し、`null` として出力されるようにする。
+**CASE v1.1 任意フィールド `notes` / `alternativeLabel` / `extensions`:**
+`notes`（CFDocument / CFItem / CFAssociation）、`alternativeLabel`（CFItem）、`extensions`（全リソース + コンテナレベルの `CFPackage.extensions` / `CFDefinitions.extensions`）は永続化され、CASE JSON の import/export および API レスポンスで往復する。Pydantic スキーマに含まれ、空の場合は `null` として出力される（`exclude_none=False` ポリシー）。db-schema.md / import-logic.md 参照。
 
 ## エラーレスポンス形式
 
