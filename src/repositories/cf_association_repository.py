@@ -23,6 +23,34 @@ async def get_cf_association_by_identifier(
     return result.scalar_one_or_none()
 
 
+async def list_outgoing_related(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    origin_identifier: str,
+) -> list[CFAssociation]:
+    """Outgoing non-isChildOf associations from an item, for the detail page.
+
+    isChildOf is the tree hierarchy (shown in the tree view), so it is excluded
+    here. The CFAssociationGrouping is eager-loaded so the detail page can group
+    related links by it (e.g. Essential / Optional). Ordered by sequence number
+    then destination title for a stable display.
+    """
+    result = await session.execute(
+        select(CFAssociation)
+        .options(joinedload(CFAssociation.association_grouping))
+        .where(
+            CFAssociation.tenant_id == tenant_id,
+            CFAssociation.origin_node_identifier == origin_identifier,
+            CFAssociation.association_type != "isChildOf",
+        )
+        .order_by(
+            CFAssociation.sequence_number.nulls_last(),
+            CFAssociation.destination_node_title,
+        )
+    )
+    return list(result.scalars().unique().all())
+
+
 async def list_associations_for_item(
     session: AsyncSession,
     tenant_id: uuid.UUID,
