@@ -110,6 +110,15 @@ async def list_cf_documents(
     return [document_to_schema(tenant_id, doc) for doc in docs]
 
 
+async def count_cf_documents(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    filter_clause=None,
+) -> int:
+    return await cf_document_repository.count_cf_documents(session, tenant_id, filter_clause=filter_clause)
+
+
 # ---------------------------------------------------------------------------
 # CFItem
 # ---------------------------------------------------------------------------
