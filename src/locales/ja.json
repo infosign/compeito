@@ -42,6 +42,8 @@
     "f_education_level": "教育段階",
     "f_concept_keywords": "コンセプトキーワード",
     "f_concept_keywords_uri": "コンセプトキーワード URI",
+    "f_related": "関連",
+    "related_other": "その他",
     "f_subject": "教科",
     "f_subject_uri": "教科 URI",
     "f_license_uri": "ライセンス URI",
