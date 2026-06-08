@@ -1262,3 +1262,32 @@ class TestUriDetailRelatedGroupsAndChips:
         # Concept keywords as chips: each list element present, NOT space-split.
         assert "ski lift mechanic" in resp.text
         assert "alpine ops" in resp.text
+
+
+class TestUriDetailNotesAltLabel:
+    async def test_item_notes_and_alt_label_rendered(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        ident = uuid.uuid4()
+        db_session.add(
+            CFItem(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=ident,
+                uri="https://example.com/item",
+                full_statement="Stmt",
+                alternative_label="alt label value",
+                notes="some notes value",
+                last_change_date_time=NOW,
+                depth=0,
+            )
+        )
+        await db_session.flush()
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        assert "alt label value" in resp.text
+        assert "some notes value" in resp.text

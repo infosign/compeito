@@ -25,6 +25,9 @@ class CFItemDType(CASEBaseSchema):
     status_start_date: date | None = Field(default=None, alias="statusStartDate")
     status_end_date: date | None = Field(default=None, alias="statusEndDate")
     list_enumeration: str | None = Field(default=None, alias="listEnumeration")
+    alternative_label: str | None = Field(default=None, alias="alternativeLabel")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
@@ -33,10 +36,12 @@ class CFPckgItemDType(CASEBaseSchema):
     """CFItem within CFPackage.
 
     Includes `CFDocumentURI` so that the OpenCASE → compeito → OpenCASE
-    round-trip preserves the field (OpenCASE emits it inside CFPackage too).
-    The CASE v1.1 spec permits this — the document is at the top of the
-    package, but echoing the link on each item is allowed and aids parsing
-    by clients that walk items independently.
+    round-trip preserves the field (OpenCASE / OpenSALT emit it inside CFPackage
+    too). NOTE: the official CASE v1.1 OpenAPI schema for CFPckgItemDType uses
+    `additionalProperties: false` and does NOT list `CFDocumentURI`, so strict
+    schema validation of package output would reject it. compeito echoes it by
+    default for real-world interop; request `?strict=1` on GET /CFPackages/{id}
+    to omit it (and CFDocument.CFPackageURI) for strict conformance.
     """
 
     identifier: str
@@ -56,5 +61,8 @@ class CFPckgItemDType(CASEBaseSchema):
     status_start_date: date | None = Field(default=None, alias="statusStartDate")
     status_end_date: date | None = Field(default=None, alias="statusEndDate")
     list_enumeration: str | None = Field(default=None, alias="listEnumeration")
+    alternative_label: str | None = Field(default=None, alias="alternativeLabel")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

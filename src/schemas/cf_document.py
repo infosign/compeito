@@ -25,6 +25,8 @@ class CFDocumentDType(CASEBaseSchema):
     official_source_url: str | None = Field(default=None, alias="officialSourceURL")
     subject: list[str] | None = None
     subject_uri: list[LinkURIType] | None = Field(default=None, alias="subjectURI")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_package_uri: LinkURIType = Field(alias="CFPackageURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
@@ -33,10 +35,12 @@ class CFPckgDocumentDType(CASEBaseSchema):
     """CFDocument within CFPackage.
 
     Includes `CFPackageURI` so that the OpenCASE → compeito → OpenCASE
-    round-trip preserves the field (OpenCASE emits it inside CFPackage too).
-    The CASE v1.1 spec permits this — the link is redundant inside a package
-    you already fetched, but echoing it preserves the round-trip and gives
-    clients a stable handle to re-fetch the package.
+    round-trip preserves the field (OpenCASE / OpenSALT emit it inside CFPackage
+    too). NOTE: the official CASE v1.1 OpenAPI schema for CFPckgDocumentDType
+    uses `additionalProperties: false` and does NOT list `CFPackageURI`, so
+    strict schema validation of package output would reject it. compeito echoes
+    it by default for real-world interop; request `?strict=1` on
+    GET /CFPackages/{id} to omit it for strict conformance.
     """
 
     identifier: str
@@ -56,5 +60,7 @@ class CFPckgDocumentDType(CASEBaseSchema):
     official_source_url: str | None = Field(default=None, alias="officialSourceURL")
     subject: list[str] | None = None
     subject_uri: list[LinkURIType] | None = Field(default=None, alias="subjectURI")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_package_uri: LinkURIType = Field(alias="CFPackageURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

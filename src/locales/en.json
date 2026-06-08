@@ -38,6 +38,8 @@
     "f_full_statement": "Full Statement",
     "f_human_coding_scheme": "Human Coding Scheme",
     "f_abbreviated_statement": "Abbreviated Statement",
+    "f_alternative_label": "Alternative Label",
+    "f_notes": "Notes",
     "f_cf_item_type": "CFItem Type",
     "f_education_level": "Education Level",
     "f_concept_keywords": "Concept Keywords",

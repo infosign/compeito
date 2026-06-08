@@ -12,4 +12,5 @@ class CFConceptDType(CASEBaseSchema):
     description: str | None = None
     keywords: str | None = None
     hierarchy_code: str | None = Field(default=None, alias="hierarchyCode")
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
