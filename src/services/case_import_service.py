@@ -707,7 +707,19 @@ async def import_case_from_dict(
         session.add(doc)
         await session.flush()
 
-    # Resolve document licenseURI FK
+    report.document_title = doc.title
+    report.document_identifier = str(doc.identifier)
+
+    # Step 4: CFDefinitions — imported BEFORE resolving the document's
+    # licenseURI so that a CFLicense defined within this same package is
+    # already present. (Resolving first would emit a spurious "CFLicense not
+    # found" warning on initial import even though the FK is set correctly.)
+    cf_defs = pkg.get("CFDefinitions", {}) or {}
+    await _import_definitions(session, tenant_id, cf_defs, now, report)
+    await session.flush()
+
+    # Resolve document licenseURI FK (definitions now exist; warn only on a
+    # genuine miss).
     license_uri = cf_doc_data.get("licenseURI")
     if license_uri and isinstance(license_uri, dict):
         lic_ident = license_uri.get("identifier")
@@ -719,22 +731,6 @@ async def import_case_from_dict(
                 report.warnings.append(f"CFDocument '{ext_ident}': CFLicense '{lic_ident}' not found, set to null")
                 if not is_update:
                     doc.cf_license_id = None
-
-    report.document_title = doc.title
-    report.document_identifier = str(doc.identifier)
-
-    # Step 4: CFDefinitions
-    cf_defs = pkg.get("CFDefinitions", {}) or {}
-    await _import_definitions(session, tenant_id, cf_defs, now, report)
-    await session.flush()
-
-    # Re-resolve document licenseURI FK (definitions may have been created)
-    if license_uri and isinstance(license_uri, dict):
-        lic_ident = license_uri.get("identifier")
-        if lic_ident:
-            fk = await _resolve_fk_by_identifier(session, tenant_id, CFLicense, lic_ident)
-            if fk is not None:
-                doc.cf_license_id = fk
 
     # Step 5: CFItems
     cf_items = pkg.get("CFItems", []) or []
