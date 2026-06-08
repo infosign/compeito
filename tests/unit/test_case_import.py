@@ -1865,7 +1865,7 @@ class TestLicenseUriInitialImport:
     """Initial CASE import where CFDocument.licenseURI references a CFLicense
     defined in the same package's CFDefinitions must link the FK WITHOUT a
     spurious 'CFLicense not found' warning (definitions are now imported before
-    the document licenseURI is resolved). Regression for ESCO PoC handoff."""
+    the document licenseURI is resolved)."""
 
     async def test_no_spurious_license_warning_on_initial_import(self, db_session: AsyncSession, tenant: Tenant):
         LIC = "4444aaaa-0000-0000-0000-000000000099"

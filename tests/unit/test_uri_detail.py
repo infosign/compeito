@@ -1187,7 +1187,7 @@ class TestUriCrossTenantCriterion:
 class TestUriDetailRelatedGroupsAndChips:
     """Item detail page: outgoing related associations are grouped by
     CFAssociationGrouping (Essential / Optional), and concept keywords render
-    as one chip per list element (ESCO PoC UI feedback)."""
+    as one chip per list element."""
 
     async def test_related_grouped_and_concept_chips(
         self,
