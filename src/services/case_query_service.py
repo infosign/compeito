@@ -100,8 +100,13 @@ async def list_cf_documents(
     tenant_id: uuid.UUID,
     limit: int = 100,
     offset: int = 0,
+    *,
+    filter_clause=None,
+    order_by=None,
 ) -> list[CFDocumentDType]:
-    docs = await cf_document_repository.list_cf_documents(session, tenant_id, limit, offset)
+    docs = await cf_document_repository.list_cf_documents(
+        session, tenant_id, limit, offset, filter_clause=filter_clause, order_by=order_by
+    )
     return [document_to_schema(tenant_id, doc) for doc in docs]
 
 
