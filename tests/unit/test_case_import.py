@@ -1859,3 +1859,45 @@ class TestRubricTenantIsolation:
         )
         assert len(a_levels) == 1
         _ = LEVEL  # identifier reused across tenants; existence asserted above
+
+
+class TestLicenseUriInitialImport:
+    """Initial CASE import where CFDocument.licenseURI references a CFLicense
+    defined in the same package's CFDefinitions must link the FK WITHOUT a
+    spurious 'CFLicense not found' warning (definitions are now imported before
+    the document licenseURI is resolved). Regression for an external PoC handoff."""
+
+    async def test_no_spurious_license_warning_on_initial_import(self, db_session: AsyncSession, tenant: Tenant):
+        LIC = "4444aaaa-0000-0000-0000-000000000099"
+        pkg = _make_cf_package(
+            definitions={
+                "CFLicenses": [
+                    {
+                        "identifier": LIC,
+                        "uri": f"https://example.com/uri/{LIC}",
+                        "title": "CC BY 4.0",
+                        "licenseText": "Creative Commons",
+                        "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                    }
+                ]
+            },
+        )
+        pkg["CFPackage"]["CFDocument"]["licenseURI"] = {
+            "identifier": LIC,
+            "uri": f"https://example.com/uri/{LIC}",
+            "title": "CC BY 4.0",
+        }
+
+        report = await import_case_from_dict(db_session, tenant.id, pkg)
+        await db_session.flush()
+
+        # No spurious "CFLicense ... not found" warning.
+        assert not any("CFLicense" in w and "not found" in w for w in report.warnings), report.warnings
+
+        # FK is actually linked.
+        doc = (
+            await db_session.execute(
+                select(CFDocument).where(CFDocument.identifier == uuid.UUID(report.document_identifier))
+            )
+        ).scalar_one()
+        assert doc.cf_license_id is not None
