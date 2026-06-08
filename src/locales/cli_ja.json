@@ -51,7 +51,7 @@
     "err_env_required": "DATABASE_URLを設定してください",
     "err_invalid_uuid": "不正なUUID形式: '{value}'",
     "err_private_public_exclusive": "--privateと--publicは同時に指定できません",
-    "err_update_requires_option": "--name、--private、--publicのいずれかを指定してください",
+    "err_update_requires_option": "--name、--private、--public、--slug、--clear-slugのいずれかを指定してください",
     "err_tenant_not_found": "テナントが見つかりません: '{value}'",
     "err_doc_not_found": "ドキュメントが見つかりません: '{value}'",
     "err_file_not_found": "ファイルが見つかりません: '{value}'",
