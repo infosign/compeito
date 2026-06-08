@@ -29,7 +29,7 @@
 |----|-------------|-------|
 | NFR-4.1 | CASE API is exposed without authentication | Per CASE v1.1 (read-only) |
 | NFR-4.2 | Private-tenant non-disclosure relies on URL secrecy | UUID unguessability |
-| NFR-4.3 | OAuth 2.0 Bearer Token authentication is offered as an option | Phase 3 |
+| NFR-4.3 | compeito itself does not provide authentication on the CASE Provider API | Out of scope (see NG-2 in functional-requirements.md / phases.md). Authenticated admin access, when needed, lives in a separate deployment/management layer |
 
 ## NFR-5: Caching
 
@@ -54,7 +54,7 @@
 
 | ID | Requirement | Notes |
 |----|-------------|-------|
-| NFR-7.1 | Lambda standard logs are emitted to CloudWatch Logs | |
+| NFR-7.1 | Standard logs are emitted to stdout/stderr via the container log driver | Collected by whatever the deployment uses (e.g., `docker logs`, or a hosted log sink) |
 | NFR-7.2 | Import results (created/updated/skipped/warnings) are logged | CLI: rich tables; API: JSON |
 | NFR-7.3 | CSV import warnings include row numbers | |
 | NFR-7.4 | CLI uses the `rich` library for tables, progress bars, and colored output | UX |
@@ -128,7 +128,7 @@
 |----|------|------|
 | NFR-4.1 | CASE API は認証なしで公開する | CASE v1.1 仕様上、読み取り専用 |
 | NFR-4.2 | private テナントの非公開はURL自体の秘匿性で実現する | UUIDの推測困難性に依拠 |
-| NFR-4.3 | OAuth 2.0 Bearer Token 認証をオプションで提供する | Phase 3 |
+| NFR-4.3 | compeito 自身は CASE Provider API に認証を提供しない | スコープ外（functional-requirements.md / phases.md の NG-2 参照）。認証付きの管理アクセスが必要な場合は、別途のデプロイ/管理レイヤーが担う |
 
 ## NFR-5: キャッシュ
 
@@ -153,7 +153,7 @@
 
 | ID | 要件 | 備考 |
 |----|------|------|
-| NFR-7.1 | Lambda の標準ログを CloudWatch Logs に出力する | |
+| NFR-7.1 | 標準ログを stdout/stderr にコンテナログドライバ経由で出力する | デプロイ環境のログ基盤（`docker logs` やホスト型ログ収集等）で収集する |
 | NFR-7.2 | インポート結果（created/updated/skipped/warnings）をログに出力する | CLI: rich テーブル、API: JSON |
 | NFR-7.3 | CSVインポートの警告は行番号付きで出力する | |
 | NFR-7.4 | CLI は rich ライブラリでテーブル・プログレスバー・カラー出力する | UX向上 |

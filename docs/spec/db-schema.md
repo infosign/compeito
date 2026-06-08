@@ -33,6 +33,7 @@ All `TIMESTAMP` columns are `TIMESTAMPTZ` (`TIMESTAMP WITH TIME ZONE`). PostgreS
 ```
 id: UUID PK  ← the UUID used in the public URL /{tenant-uuid}/
 name: VARCHAR NOT NULL
+slug: VARCHAR(64) NULLABLE UNIQUE  ← optional URL alias; CHECK '^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$'. The UUID stays canonical; the slug is a Web UI / share-link convenience (see cli.md / web-ui.md)
 is_private: BOOLEAN NOT NULL DEFAULT false
 created_at: TIMESTAMP NOT NULL DEFAULT now()
 ```
@@ -58,9 +59,13 @@ status_end_date: DATE
 official_source_url: VARCHAR
 subject: JSONB           -- string array, e.g., ["Math", "Science"]
 subject_uri: JSONB       -- LinkURI object array, e.g., [{"title":"Math","identifier":"uuid","uri":"https://..."}]
+cf_package_uri_source: TEXT  -- source CFPackageURI.uri preserved verbatim for round-trip (FR-7.2); rebuilt into a LinkURI at emit time
+package_extensions: JSONB    -- v1.1 container-level CFPackage.extensions (stored on the document; see "CASE v1.1 standard fields" below)
+definitions_extensions: JSONB -- v1.1 container-level CFDefinitions.extensions
 last_change_date_time: TIMESTAMP NOT NULL
 UNIQUE(tenant_id, identifier)
 ```
+(`notes`, `extensions` are common v1.1 fields documented under "CASE v1.1 standard fields" below.)
 
 **Note**: `UNIQUE(tenant_id, identifier)` automatically creates a composite B-tree index, so a standalone `INDEX(tenant_id)` is unnecessary (covered by the leading column of the UNIQUE). A standalone `INDEX(identifier)` is also unnecessary (all queries are tenant-scoped and use `UNIQUE(tenant_id, identifier)`). The same applies to the tables below.
 
@@ -265,6 +270,7 @@ PostgreSQL は TIMESTAMPTZ を内部的に UTC で保存する。APIレスポン
 ```
 id: UUID PK  ← 公開URL /{tenant-uuid}/ に使われるUUID
 name: VARCHAR NOT NULL
+slug: VARCHAR(64) NULLABLE UNIQUE  ← 任意の URL 別名。CHECK '^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$'。canonical な識別子は UUID で、slug は Web UI / 共有リンク用の利便機能（cli.md / web-ui.md 参照）
 is_private: BOOLEAN NOT NULL DEFAULT false
 created_at: TIMESTAMP NOT NULL DEFAULT now()
 ```
@@ -290,9 +296,13 @@ status_end_date: DATE
 official_source_url: VARCHAR
 subject: JSONB           -- 文字列配列 ["数学", "理科"]
 subject_uri: JSONB       -- LinkURIオブジェクト配列 [{"title":"数学","identifier":"uuid","uri":"https://..."}]
+cf_package_uri_source: TEXT  -- source の CFPackageURI.uri を verbatim 保持（round-trip 用、FR-7.2）。emit 時に LinkURI に再構築
+package_extensions: JSONB    -- v1.1 コンテナレベルの CFPackage.extensions（ドキュメント行に保存。下記「CASE v1.1 標準フィールド」参照）
+definitions_extensions: JSONB -- v1.1 コンテナレベルの CFDefinitions.extensions
 last_change_date_time: TIMESTAMP NOT NULL
 UNIQUE(tenant_id, identifier)
 ```
+（`notes`, `extensions` は v1.1 共通フィールドで、下記「CASE v1.1 標準フィールド」で説明する。）
 
 **注意**: `UNIQUE(tenant_id, identifier)` が B-tree 複合インデックスを自動作成するため、`INDEX(tenant_id)` 単独インデックスは不要（UNIQUE の先頭カラムでカバーされる）。`INDEX(identifier)` 単独インデックスも不要（全クエリがテナントスコープで `UNIQUE(tenant_id, identifier)` を使用する）。以下のテーブル定義でも同様。
 
