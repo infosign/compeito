@@ -1182,3 +1182,83 @@ class TestUriCrossTenantCriterion:
         assert lvl_a.resource.id == level_a.id
         lvl_b = await uri_service.find_resource_by_identifier(db_session, TENANT_B, level_ident)
         assert lvl_b is not None and lvl_b.resource.id == level_b.id
+
+
+class TestUriDetailRelatedGroupsAndChips:
+    """Item detail page: outgoing related associations are grouped by
+    CFAssociationGrouping (Essential / Optional), and concept keywords render
+    as one chip per list element (ESCO PoC UI feedback)."""
+
+    async def test_related_grouped_and_concept_chips(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        occ = uuid.uuid4()
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=occ,
+            uri="https://example.com/occ",
+            full_statement="ski lift operator",
+            concept_keywords=["ski lift mechanic", "alpine ops"],
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        essential = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/g/ess",
+            title="Essential skill",
+            last_change_date_time=NOW,
+        )
+        optional = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/g/opt",
+            title="Optional skill",
+            last_change_date_time=NOW,
+        )
+        db_session.add_all([essential, optional])
+        await db_session.flush()
+
+        def _assoc(dest_title, grouping):
+            dest = uuid.uuid4()
+            return CFAssociation(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=uuid.uuid4(),
+                uri=f"https://example.com/a/{dest}",
+                association_type="isRelatedTo",
+                origin_node_uri=item.uri,
+                origin_node_identifier=str(occ),
+                destination_node_uri=f"https://example.com/uri/{dest}",
+                destination_node_identifier=str(dest),
+                destination_node_title=dest_title,
+                cf_association_grouping_id=grouping.id,
+                last_change_date_time=NOW,
+            )
+
+        db_session.add_all(
+            [
+                _assoc("install lift controller", essential),
+                _assoc("lift safety legislation", optional),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{occ}")
+        assert resp.status_code == 200
+        # Grouping headings + related skill names.
+        assert "Essential skill" in resp.text
+        assert "Optional skill" in resp.text
+        assert "install lift controller" in resp.text
+        assert "lift safety legislation" in resp.text
+        # Concept keywords as chips: each list element present, NOT space-split.
+        assert "ski lift mechanic" in resp.text
+        assert "alpine ops" in resp.text
