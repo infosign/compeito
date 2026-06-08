@@ -17,7 +17,7 @@
 | FR-2.2 | The CFPackage endpoint returns CFDocument, CFItems, CFAssociations, and CFDefinitions in one response | 1 |
 | FR-2.3 | CFPackage always includes CFItems / CFAssociations as arrays (empty if no data). CFDefinitions is omitted entirely when empty | 1 |
 | FR-2.4 | All listing endpoints support pagination via `limit` (default 100, max 500) and `offset` (default 0, max 100000) | 1 |
-| FR-2.5 | `sort` / `orderBy` / `filter` / `fields` parameters are ignored (no error) | 1 |
+| FR-2.5 | `GET /CFDocuments` supports `sort` / `orderBy` / `filter` / `fields` (IMS/OneRoster-style; invalid values → 400) and emits the `X-Total-Count` header. The other listing endpoints accept only `limit` / `offset`. See [api-spec.md](../spec/api-spec.md) and the [conformance backlog](../dev/case-v1p1-conformance-backlog.md) | 3 |
 | FR-2.6 | Error responses use the CASE v1.1 `imsx_StatusInfo` shape | 1 |
 | FR-2.7 | LinkURI types (CFPackageURI, CFDocumentURI, etc.) are returned as composite objects `{title, identifier, uri}` | 1 |
 | FR-2.8 | Requests to `/ims/case/v1p0/` are 301-redirected to `/ims/case/v1p1/` | 1 |
@@ -105,10 +105,12 @@
 |----|-------------|-------|
 | FR-10.1 | Tenant management commands: create, list, update, delete | 1 |
 | FR-10.2 | Framework management commands: list, delete | 1 |
-| FR-10.3 | CSV import command (`import csv`) | 1 |
-| FR-10.4 | External CASE source import command (`import case`) | 1 |
-| FR-10.5 | CSV export command (`export csv`) | 1 |
+| FR-10.3 | CSV import command (`import csv`, profile auto/custom/opensalt/simple) | 1 |
+| FR-10.4 | External CASE source import command (`import case`, `--file` / `--url`) | 1 |
+| FR-10.5 | CSV export command (`export csv`, profile custom/opensalt) and CASE JSON export (`export case`) | 1 |
 | FR-10.6 | DB migration command (`db migrate`) | 1 |
+| FR-10.8 | OpenSALT Excel (.xlsx) import / export commands (`import xlsx` / `export xlsx`) | 3 |
+| FR-10.11 | Rubric CSV import / export commands (`import rubric` / `export rubric`) | 2 |
 | FR-10.7 | Connect directly to the DB via `DATABASE_URL` env var or `.env` file | 1 |
 | FR-10.9 | Delete commands prompt for confirmation; `--force` skips the prompt | 1 |
 | FR-10.10 | CLI uses the `rich` library for tables, progress bars, and colored output | 1 |
@@ -129,14 +131,14 @@
 | FR-12.2 | Semantic search over competencies using vector embeddings | 3 |
 | FR-12.3 | Automatic cross-framework mapping suggestions | 3 |
 
-(Discovery endpoint and CASE v1.1 optional fields belong to the CASE API surface and are tracked as FR-2.12 / FR-2.13 above.)
+(Discovery endpoint and CASE v1.1 optional fields belong to the CASE API surface and are tracked as FR-2.12 / FR-2.13 above. OpenSALT Excel round-trip — the concrete realization of "improved OpenSALT compatibility" — shipped as FR-10.8.)
 
 ## Non-goals (explicitly out of scope)
 
 | ID | Item | Rationale |
 |----|------|-----------|
 | NG-1 | Write API (POST / PUT / DELETE on CASE endpoints) | compeito is a read-only CASE publisher to be paired with an external editor (OpenCASE / OpenSALT / our CLI). Edits flow through CLI / import paths, not the public API. The 405 on non-GET (FR-2.9) is policy, not placeholder. See [phases.md](phases.md#non-goals-explicitly-out-of-scope) |
-| NG-2 | Authentication / authorization on the CASE Provider API (OAuth, Bearer, Keycloak, RBAC) | CASE API is public by default. Private tenants rely on URL secrecy (FR-1.3). Admin-side authenticated access is handled by [compeito-aws](https://github.com/infosign/compeito-aws), not in compeito's CASE API surface |
+| NG-2 | Authentication / authorization on the CASE Provider API (OAuth, Bearer, Keycloak, RBAC) | CASE API is public by default. Private tenants rely on URL secrecy (FR-1.3). Admin-side authenticated access, when needed, is the responsibility of a separate deployment/management layer, not compeito's CASE API surface |
 
 ---
 
@@ -159,7 +161,7 @@
 | FR-2.2 | CFPackage エンドポイントで、CFDocument・CFItems・CFAssociations・CFDefinitions を一括返却する | 1 |
 | FR-2.3 | CFPackage の CFItems・CFAssociations はデータがなくても空配列として常に含める。CFDefinitions はデータがなければ省略する | 1 |
 | FR-2.4 | 全一覧エンドポイントに `limit`（デフォルト100, 最大500）/ `offset`（デフォルト0, 最大100000）のページネーションを実装する | 1 |
-| FR-2.5 | `sort` / `orderBy` / `filter` / `fields` パラメータは無視する（エラーにしない） | 1 |
+| FR-2.5 | `GET /CFDocuments` は `sort` / `orderBy` / `filter` / `fields`（IMS/OneRoster 形式。不正値は 400）をサポートし、`X-Total-Count` ヘッダーを返す。他の一覧エンドポイントは `limit` / `offset` のみ受け付ける。詳細は [api-spec.md](../spec/api-spec.md) と [conformance backlog](../dev/case-v1p1-conformance-backlog.md) を参照 | 3 |
 | FR-2.6 | エラーレスポンスは CASE v1.1 の imsx_StatusInfo 形式で返す | 1 |
 | FR-2.7 | LinkURI型（CFPackageURI, CFDocumentURI 等）は `{title, identifier, uri}` の複合オブジェクトで返す | 1 |
 | FR-2.8 | `/ims/case/v1p0/` パスへのリクエストを `/ims/case/v1p1/` に301リダイレクトする | 1 |
@@ -247,10 +249,12 @@
 |----|------|-------|
 | FR-10.1 | テナント管理（create, list, update, delete）コマンドを提供する | 1 |
 | FR-10.2 | フレームワーク管理（list, delete）コマンドを提供する | 1 |
-| FR-10.3 | CSVインポート（`import csv`）コマンドを提供する | 1 |
-| FR-10.4 | 外部CASEソースインポート（`import case`）コマンドを提供する | 1 |
-| FR-10.5 | CSVエクスポート（`export csv`）コマンドを提供する | 1 |
+| FR-10.3 | CSVインポート（`import csv`、profile auto/custom/opensalt/simple）コマンドを提供する | 1 |
+| FR-10.4 | 外部CASEソースインポート（`import case`、`--file` / `--url`）コマンドを提供する | 1 |
+| FR-10.5 | CSVエクスポート（`export csv`、profile custom/opensalt）および CASE JSON エクスポート（`export case`）コマンドを提供する | 1 |
 | FR-10.6 | DBマイグレーション（`db migrate`）コマンドを提供する | 1 |
+| FR-10.8 | OpenSALT Excel (.xlsx) インポート/エクスポート（`import xlsx` / `export xlsx`）コマンドを提供する | 3 |
+| FR-10.11 | ルーブリック CSV インポート/エクスポート（`import rubric` / `export rubric`）コマンドを提供する | 2 |
 | FR-10.7 | `DATABASE_URL` 環境変数または `.env` ファイルから直接DB接続する | 1 |
 | FR-10.9 | 削除コマンドは確認プロンプトを表示し、`--force` でスキップ可能とする | 1 |
 | FR-10.10 | rich ライブラリでテーブル・プログレスバー・カラー出力を行う | 1 |
@@ -271,11 +275,11 @@
 | FR-12.2 | コンピテンシーの意味検索をベクトル埋め込みで提供する | 3 |
 | FR-12.3 | フレームワーク間の自動マッピング提案機能を提供する | 3 |
 
-（Discovery エンドポイントと CASE v1.1 オプションフィールドは CASE API サーフェスに属するため、上記 FR-2.12 / FR-2.13 として管理する）
+（Discovery エンドポイントと CASE v1.1 オプションフィールドは CASE API サーフェスに属するため、上記 FR-2.12 / FR-2.13 として管理する。「OpenSALT 互換性の改善」の具体的な実現である OpenSALT Excel round-trip は FR-10.8 として提供済み）
 
 ## Non-goals（明示的な対象外）
 
 | ID | 項目 | 理由 |
 |----|------|------|
 | NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goalsexplicitly-out-of-scope) を参照 |
-| NG-2 | CASE Provider API の認証 / 認可（OAuth、Bearer、Keycloak、RBAC 等） | CASE API はデフォルトで公開。private テナントは URL の秘匿性で保護する（FR-1.3）。管理用途で認証付きアクセスが必要な場合は [compeito-aws](https://github.com/infosign/compeito-aws) の Admin API レイヤーが担い、compeito 自身が露出する CASE API サーフェスでは扱わない |
+| NG-2 | CASE Provider API の認証 / 認可（OAuth、Bearer、Keycloak、RBAC 等） | CASE API はデフォルトで公開。private テナントは URL の秘匿性で保護する（FR-1.3）。管理用途で認証付きアクセスが必要な場合は、別途のデプロイ/管理レイヤーが担い、compeito 自身が露出する CASE API サーフェスでは扱わない |
