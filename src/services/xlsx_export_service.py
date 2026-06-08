@@ -19,11 +19,12 @@ Column layouts mirror OpenSALT's ``ExcelExport.php`` / ``ExcelImport.php``:
   destinationNodeIdentifier, destinationNodeHumanCodingScheme,
   associationGroupIdentifier, associationGroupName
 
-Known gaps vs. CASE (documented in round_trip_status.md): compeito has no
-``notes`` column on CFItem/CFDocument, so those cells are emitted empty. The
-hierarchy is expressed via ``smartLevel`` (so isChildOf associations are NOT
-repeated in the CF Association sheet); ``smartLevel`` segments are 1-based
-sibling positions.
+``notes`` (CFItem col H / CF Doc col P) is now populated from the CASE v1.1
+``notes`` field. ``alternativeLabel`` / ``extensions`` have no column in the
+OpenSALT Excel layout, so they are not exported here (they round-trip via CASE
+JSON instead). The hierarchy is expressed via ``smartLevel`` (so isChildOf
+associations are NOT repeated in the CF Association sheet); ``smartLevel``
+segments are 1-based sibling positions.
 """
 
 from __future__ import annotations
@@ -168,7 +169,7 @@ async def export_xlsx(
             str(doc.status_end_date) if doc.status_end_date else "",
             lic.title if lic else "",
             (lic.license_text or "") if lic else "",
-            "",  # notes — not stored on CFDocument
+            doc.notes or "",  # notes (CASE v1.1 CFDocument.notes)
         ]
     )
 
@@ -185,7 +186,7 @@ async def export_xlsx(
                 item.list_enumeration or "",
                 item.abbreviated_statement or "",
                 _jsonb_list_to_csv(item.concept_keywords),
-                "",  # notes — not stored on CFItem
+                item.notes or "",  # notes (CASE v1.1 CFItem.notes)
                 item.language or "",
                 _jsonb_list_to_csv(item.education_level),
                 item.item_type.title if item.item_type else "",

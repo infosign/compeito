@@ -38,6 +38,8 @@
     "f_full_statement": "内容",
     "f_human_coding_scheme": "コード",
     "f_abbreviated_statement": "短縮名",
+    "f_alternative_label": "代替ラベル",
+    "f_notes": "ノート",
     "f_cf_item_type": "アイテム種別",
     "f_education_level": "教育段階",
     "f_concept_keywords": "コンセプトキーワード",
