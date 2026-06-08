@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
-from src.repositories import cf_rubric_repository
+from src.repositories import cf_association_repository, cf_rubric_repository
 from src.services import tenant_service, tree_service, uri_service
 
 router = APIRouter()
@@ -284,13 +284,29 @@ async def uri_detail(
             redirect_url = f"/{tenant}/ims/case/v1p1/{api_path}/{res_uuid}"
             return RedirectResponse(url=redirect_url, status_code=303)
 
-    # Fetch rubrics for CFDocument, referring criteria for CFItem
+    # Fetch rubrics for CFDocument, referring criteria + related associations for CFItem
     rubrics = []
     referring_criteria = []
+    related_groups: list[dict] = []
     if result.resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, result.resource.id)
     elif result.resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, result.resource.id)
+        # Outgoing non-isChildOf associations, grouped by CFAssociationGrouping
+        # (e.g. Essential / Optional). Ungrouped ones fall into a None bucket.
+        assocs = await cf_association_repository.list_outgoing_related(
+            session, tenant_obj.id, str(result.resource.identifier)
+        )
+        buckets: dict[str | None, dict] = {}
+        order: list[str | None] = []
+        for a in assocs:
+            g = a.association_grouping
+            key = str(g.identifier) if g else None
+            if key not in buckets:
+                buckets[key] = {"title": (g.title if g else None), "items": []}
+                order.append(key)
+            buckets[key]["items"].append(a)
+        related_groups = [buckets[k] for k in order]
 
     # Build page title per spec
     if result.resource_type == "CFItem":
@@ -316,6 +332,7 @@ async def uri_detail(
             "page_title": page_title,
             "rubrics": rubrics,
             "referring_criteria": referring_criteria,
+            "related_groups": related_groups,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "t": t,
             "lang": lang,
