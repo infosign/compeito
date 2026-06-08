@@ -133,3 +133,54 @@ class TestFields:
         docs = r.json()["CFDocuments"]
         assert [d["title"] for d in docs] == ["Cherry Framework", "Banana Framework"]
         assert all(set(d.keys()) == {"title"} for d in docs)
+
+
+class TestTotalCountAndExtras:
+    async def test_x_total_count_unfiltered(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?limit=1")
+        assert r.status_code == 200
+        assert len(r.json()["CFDocuments"]) == 1
+        assert r.headers["X-Total-Count"] == "3"
+
+    async def test_x_total_count_filtered(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?filter=creator='Alice'")
+        assert r.headers["X-Total-Count"] == "2"
+
+    async def test_equality_case_insensitive(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        # lowercase value matches the stored 'Alice' (binding: case-insensitive).
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?filter=creator='alice'")
+        assert {d["title"] for d in r.json()["CFDocuments"]} == {"Banana Framework", "Cherry Framework"}
+        assert r.headers["X-Total-Count"] == "2"
+
+    async def test_subject_filter(self, db_session: AsyncSession, db_client):
+        db_session.add(Tenant(id=TENANT_ID, name="T", is_private=False))
+        await db_session.flush()
+        db_session.add(
+            CFDocument(
+                id=uuid.uuid4(),
+                tenant_id=TENANT_ID,
+                identifier=uuid.UUID("aaaa0000-0000-0000-0000-0000000000ff"),
+                uri="https://example.com/uri/ff",
+                title="Science Doc",
+                subject=["Science", "Mathematics"],
+                last_change_date_time=LCT,
+            )
+        )
+        await db_session.flush()
+        # contains (case-insensitive)
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?filter=subject~'science'")
+        assert [d["title"] for d in r.json()["CFDocuments"]] == ["Science Doc"]
+        # exact element
+        r2 = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?filter=subject='Mathematics'")
+        assert [d["title"] for d in r2.json()["CFDocuments"]] == ["Science Doc"]
+        # non-match
+        r3 = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?filter=subject='History'")
+        assert r3.json()["CFDocuments"] == []
+
+    async def test_sort_by_subject_rejected(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?sort=subject")
+        assert r.status_code == 400

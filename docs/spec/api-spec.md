@@ -119,11 +119,11 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 `CFPackages/{id}` is not paginated. Per spec, the CFItems / CFAssociations / CFDefinitions inside CFPackage are returned in full. **Note**: the API Gateway payload limit is 10MB. Large documents (10,000+ items) may exceed it; API Gateway returns 502 in that case. If needed, consider going through the Lambda Function URL (Phase 2+).
 **`sort` / `orderBy` / `filter` / `fields`** (CASE v1.1, IMS/OneRoster-style) are implemented for **`GET /CFDocuments`** (applied at the SQL level, before pagination, so they are correct across pages):
 - `sort` — a CFDocument scalar field name (`identifier`, `uri`, `title`, `creator`, `publisher`, `description`, `frameworkType`, `caseVersion`, `language`, `version`, `adoptionStatus`, `statusStartDate`, `statusEndDate`, `officialSourceURL`, `notes`, `lastChangeDateTime`). `orderBy` = `asc` (default) | `desc`. Invalid `sort` / `orderBy` → 400 (`invalid_sort_field`).
-- `filter` — predicates `field <op> value` where op ∈ `=` `!=` `>` `>=` `<` `<=` `~` (`~` = case-insensitive contains, string fields only), joined by a single `AND` or `OR` (mixing both → 400). String values are single-quoted (`title='Math'`); dates `YYYY-MM-DD`. Invalid field/value/predicate → 400 (`invalid_selection_field`).
-- `fields` — comma-separated CFDocument field names; the response objects are projected to exactly those keys. Unknown field → 400 (`invalid_selection_field`).
+- `filter` — predicates `field <op> value` where op ∈ `=` `!=` `>` `>=` `<` `<=` `~` (`~` = case-insensitive contains, string fields only), joined by a single `AND` or `OR` (mixing both → 400). String values are single-quoted (`title='Math'`); dates `YYYY-MM-DD`. String `=` / `!=` are **case-insensitive** (per the REST binding's Unicode Collation guidance); ordering comparisons stay case-sensitive. `subject` (JSONB array) is filterable: `subject~'x'` = any element contains `x`; `subject='x'` = array contains the exact element. Invalid field/value/predicate → 400 (`invalid_selection_field`).
+- `fields` — comma-separated CFDocument field names; the response objects are projected to exactly those keys. Unknown field → 400 (`invalid_selection_field`). NOTE: the REST binding prose says an unknown field should return the full record (and only a *blank* field is `invalid_selection_field`); similarly it says an unknown `sort` should fall back to the default order. compeito intentionally returns 400 in both cases (typos are visible to the client). This is an intentional divergence (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7).
 - These are currently implemented for `GET /CFDocuments` only (the only listing endpoint the CASE v1.1 OpenAPI defines these params on); the extension listing endpoints (`CFItemTypes`, etc.) accept `limit`/`offset` only.
 - Note: served only by the dynamic API. compeito-aws static publishing bakes the default (unsorted/unfiltered/full) listing; sort/filter/fields require dynamic serving.
-Total count is not included in the response. CASE v1.1 OpenAPI defines `X-Total-Count` and `links` (next, last, first, prev) for `GET /CFDocuments`; we do not implement them in Phase 1 (Phase 2 will revisit).
+**`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header. The `Link` pagination headers (next/prev/first/last) are not implemented (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5).
 Default sort order: every listing endpoint sorts by `identifier ASC` to guarantee deterministic ordering and avoid duplicates / gaps across pages.
 Scope: every listing endpoint returns all tenant rows (no document filtering). `CFDocuments` returns every document in the tenant. `CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` return every lookup in the tenant. `CFItems/{id}/associations` searches all documents in the tenant (see the validation section). CFDefinitions inside CFPackage is narrowed to definitions referenced from the document, but listing endpoints are not narrowed.
 
@@ -296,7 +296,7 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
 3. **Invalid UUID → 400:** CASE v1.1 lumps invalid UUIDs into 404; we split into 400 (see validation section).
 4. **`limit=0` accepted:** OpenAPI says `minimum: 1`, but we accept it and return an empty array (see pagination section).
 5. **Pagination extended:** OpenAPI defines `limit` / `offset` etc. only on `GET /CFDocuments`; we extend them to every listing endpoint.
-6. **`X-Total-Count` / `links` headers omitted:** not implemented in Phase 1 (see pagination section).
+6. **`Link` pagination headers omitted:** `X-Total-Count` is implemented on `GET /CFDocuments`; the RFC 8288 `Link` headers (next/prev/first/last) are not (see pagination section and [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5).
 7. **Emitting `targetType: null`:** OpenAPI's anyOf does not permit null, but we include it for practical reasons (see LinkURI section).
 8. **Tenant prefix:** `/{tenant}/ims/case/v1p1/` is an extension to support multi-tenancy (not in the CASE v1.1 spec).
 9. **Service Discovery endpoint:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` returns the official OpenAPI 3 schema as static JSON. No tenant prefix. `Cache-Control: public, max-age=86400` (the schema is release-pinned). FR-2.12.
@@ -446,11 +446,11 @@ CASE v1.1準拠。全一覧エンドポイントに `limit`(デフォルト100, 
 `CFPackages/{id}` はページネーション対象外。CASE v1.1 仕様に従い、CFPackage 内の CFItems・CFAssociations・CFDefinitions は全件を返す。**注意**: API Gateway のレスポンスペイロード上限は 10MB。大規模ドキュメント（10,000+ アイテム）ではこの制限に達する可能性がある。制限超過時は API Gateway が 502 を返す。必要に応じて Lambda Function URL 経由での直接アクセスを検討する（Phase 2 以降）。
 **`sort` / `orderBy` / `filter` / `fields`**（CASE v1.1、IMS/OneRoster 形式）を **`GET /CFDocuments`** で実装する（SQL レベルでページネーション前に適用するためページ跨ぎでも正しい）:
 - `sort` — CFDocument のスカラーフィールド名（`identifier`/`uri`/`title`/`creator`/`publisher`/`description`/`frameworkType`/`caseVersion`/`language`/`version`/`adoptionStatus`/`statusStartDate`/`statusEndDate`/`officialSourceURL`/`notes`/`lastChangeDateTime`）。`orderBy` = `asc`（既定）| `desc`。不正な `sort`/`orderBy` → 400（`invalid_sort_field`）
-- `filter` — `field <op> value`（op = `=` `!=` `>` `>=` `<` `<=` `~`、`~` は大小無視の contains で文字列フィールドのみ）を単一の `AND` か `OR` で結合（混在は 400）。文字列値は単一引用符（`title='Math'`）、日付は `YYYY-MM-DD`。不正なフィールド/値/述語 → 400（`invalid_selection_field`）
-- `fields` — カンマ区切りの CFDocument フィールド名。レスポンスを指定キーのみに射影。未知フィールド → 400（`invalid_selection_field`）
+- `filter` — `field <op> value`（op = `=` `!=` `>` `>=` `<` `<=` `~`、`~` は大小無視の contains で文字列フィールドのみ）を単一の `AND` か `OR` で結合（混在は 400）。文字列値は単一引用符（`title='Math'`）、日付は `YYYY-MM-DD`。文字列の `=` / `!=` は**大小無視**（REST binding の Unicode Collation 指針に準拠）。ordering 比較（`>` 等）は大小区別のまま。`subject`（JSONB 配列）もフィルタ可能: `subject~'x'` = いずれかの要素が `x` を含む、`subject='x'` = 配列が `x` という要素を含む。不正なフィールド/値/述語 → 400（`invalid_selection_field`）
+- `fields` — カンマ区切りの CFDocument フィールド名。レスポンスを指定キーのみに射影。未知フィールド → 400（`invalid_selection_field`）。注: REST binding の散文では未知フィールドは全件返す（空フィールドのみ `invalid_selection_field`）、未知 `sort` は既定順にフォールバックする、とされる。compeito は両ケースとも意図的に 400 を返す（typo をクライアントに可視化）。意図的差異（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7 参照）
 - 現状 `GET /CFDocuments` のみ（公式 OpenAPI がこれらを定義する唯一の list エンドポイント）。拡張 list エンドポイント（`CFItemTypes` 等）は `limit`/`offset` のみ
 - 動的 API でのみ提供。compeito-aws の静的公開は既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
-レスポンスに総件数は含めない。CASE v1.1 OpenAPI スキーマでは `GET /CFDocuments` に `X-Total-Count` レスポンスヘッダーと `links`（next, last, first, prev）が定義されているが、本システムでは Phase 1 では実装しない（Phase 2 で検討）。
+**`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。`Link` ページネーションヘッダー（next/prev/first/last）は未実装（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5 参照）。
 デフォルトソート順: 全一覧エンドポイントは `identifier ASC` で並べる（決定的な順序を保証し、ページ間の重複・欠落を防ぐ）。
 スコープ: 全一覧エンドポイントはテナント内の全件を返す（ドキュメントでフィルタリングしない）。`CFDocuments` はテナント内の全ドキュメント、`CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` はテナント内の全 lookup リソースを返す。`CFItems/{id}/associations` はテナント内の全ドキュメントを横断して検索する（api-spec.md バリデーション節参照）。CFPackage 内の CFDefinitions はドキュメントから参照されている定義のみに絞り込むが、一覧APIは絞り込まない。
 
@@ -624,7 +624,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 3. **invalid UUID → 400:** CASE v1.1 では invalid UUID も 404 に含むが、本システムでは 400 に分離（上記バリデーション節参照）
 4. **`limit=0` の許容:** OpenAPI は `minimum: 1` だが、本システムでは空配列を返す有効リクエストとして扱う（上記ページネーション節参照）
 5. **ページネーション拡張:** OpenAPI では `limit`/`offset` 等は `GET /CFDocuments` のみに定義。本システムでは全一覧エンドポイントに適用する独自拡張
-6. **`X-Total-Count` / `links` ヘッダー省略:** Phase 1 では実装しない（上記ページネーション節参照）
+6. **`Link` ヘッダー省略:** `X-Total-Count` は `GET /CFDocuments` で実装済み。RFC 8288 の `Link` ヘッダー（next/prev/first/last）は未実装（上記ページネーション節および [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5 参照）
 7. **`targetType: null` の出力:** OpenAPI の anyOf 定義上 null は有効値でないが、実運用上必要なため null を含める（上記 LinkURI 型節参照）
 8. **テナントプレフィックス:** `/{tenant}/ims/case/v1p1/` パスは CASE v1.1 仕様にない独自拡張（マルチテナント対応）
 9. **Service Discovery エンドポイント:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で公式 OpenAPI 3 スキーマを静的 JSON として返す。テナントプレフィックスなし。`Cache-Control: public, max-age=86400`（スキーマはリリース固定）。FR-2.12
