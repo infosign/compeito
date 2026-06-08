@@ -77,6 +77,8 @@ def document_to_schema(tenant_id: uuid.UUID, doc: CFDocument) -> CFDocumentDType
         officialSourceURL=doc.official_source_url,
         subject=doc.subject,
         subjectURI=_build_subject_uri_list(doc.subject_uri),
+        notes=doc.notes,
+        extensions=doc.extensions,
         CFPackageURI=_build_cf_package_uri(tenant_id, doc),
         lastChangeDateTime=doc.last_change_date_time,
     )
@@ -143,6 +145,9 @@ def item_to_schema(item: CFItem) -> CFItemDType:
         fullStatement=item.full_statement,
         humanCodingScheme=item.human_coding_scheme,
         abbreviatedStatement=item.abbreviated_statement,
+        alternativeLabel=item.alternative_label,
+        notes=item.notes,
+        extensions=item.extensions,
         conceptKeywords=item.concept_keywords,
         conceptKeywordsURI=_build_concept_keywords_uri(item),
         educationLevel=item.education_level,
@@ -213,6 +218,8 @@ def association_to_schema(assoc: CFAssociation) -> CFAssociationDType:
         destinationNodeURI=_build_destination_node_uri(assoc),
         sequenceNumber=assoc.sequence_number,
         CFAssociationGroupingURI=_build_association_grouping_uri(assoc),
+        notes=assoc.notes,
+        extensions=assoc.extensions,
         CFDocumentURI=_build_document_uri(assoc.cf_document),
         lastChangeDateTime=assoc.last_change_date_time,
     )
@@ -227,6 +234,8 @@ def association_to_pckg_schema(assoc: CFAssociation) -> CFPckgAssociationDType:
         destinationNodeURI=_build_destination_node_uri(assoc),
         sequenceNumber=assoc.sequence_number,
         CFAssociationGroupingURI=_build_association_grouping_uri(assoc),
+        notes=assoc.notes,
+        extensions=assoc.extensions,
         lastChangeDateTime=assoc.last_change_date_time,
     )
 
@@ -268,6 +277,7 @@ def _item_type_to_schema(obj) -> CFItemTypeDType:
         description=obj.description,
         typeCode=obj.type_code,
         hierarchyCode=obj.hierarchy_code,
+        extensions=obj.extensions,
         lastChangeDateTime=obj.last_change_date_time,
     )
 
@@ -280,6 +290,7 @@ def _concept_to_schema(obj) -> CFConceptDType:
         description=obj.description,
         keywords=obj.keywords,
         hierarchyCode=obj.hierarchy_code,
+        extensions=obj.extensions,
         lastChangeDateTime=obj.last_change_date_time,
     )
 
@@ -291,6 +302,7 @@ def _subject_to_schema(obj) -> CFSubjectDType:
         title=obj.title,
         description=obj.description,
         hierarchyCode=obj.hierarchy_code,
+        extensions=obj.extensions,
         lastChangeDateTime=obj.last_change_date_time,
     )
 
@@ -302,6 +314,7 @@ def _license_to_schema(obj) -> CFLicenseDType:
         title=obj.title,
         description=obj.description,
         licenseText=obj.license_text,
+        extensions=obj.extensions,
         lastChangeDateTime=obj.last_change_date_time,
     )
 
@@ -312,6 +325,7 @@ def _association_grouping_to_schema(obj) -> CFAssociationGroupingDType:
         uri=obj.uri,
         title=obj.title,
         description=obj.description,
+        extensions=obj.extensions,
         lastChangeDateTime=obj.last_change_date_time,
     )
 
@@ -471,6 +485,7 @@ def _rubric_criterion_level_to_schema(level) -> CFRubricCriterionLevelDType:
         feedback=level.feedback,
         position=level.position,
         rubricCriterionId=str(level.rubric_criterion_id) if level.rubric_criterion_id else None,
+        extensions=level.extensions,
         lastChangeDateTime=level.last_change_date_time,
     )
 
@@ -507,6 +522,7 @@ def _rubric_criterion_to_schema(criterion) -> CFRubricCriterionDType:
         weight=criterion.weight,
         position=criterion.position,
         rubricId=str(criterion.rubric_id) if criterion.rubric_id else None,
+        extensions=criterion.extensions,
         lastChangeDateTime=criterion.last_change_date_time,
         CFRubricCriterionLevels=cf_levels,
     )
@@ -527,6 +543,7 @@ def rubric_to_schema(rubric) -> CFRubricDType:
         uri=rubric.uri,
         title=rubric.title,
         description=rubric.description,
+        extensions=rubric.extensions,
         lastChangeDateTime=rubric.last_change_date_time,
         CFRubricCriteria=cf_criteria,
     )

@@ -151,7 +151,7 @@ hasSkillLevel, isRelatedTo
 
 ### 既知のギャップ
 
-- compeito は CFItem/CFDocument に `notes` 列を持たないため、`notes` セルは空で出力し import 時は無視する
+- ~~compeito は CFItem/CFDocument に `notes` 列を持たないため `notes` セルは空~~ → **解消**: CASE v1.1 の `notes` を CFItem/CFDocument/CFAssociation に実装済み。xlsx でも CFItem(H)/CFDoc(P) の `notes` を入出力する（OpenSALT 列準拠）。`alternativeLabel`/`extensions` は OpenSALT Excel に列が無いため xlsx 対象外（CASE JSON で往復）
 - OpenSALT の Excel import は CF Doc の identifier をシートから設定せず**新規採番**する（`ExcelImport::saveDoc` の identifier 設定がコメントアウト）。そのため OpenSALT 側の doc UUID は投入値と変わる（items の identifier は保持される）
 - smartLevel は 1-based 兄弟位置で再採番するため、compeito の sequenceNumber（10, 20 …）は xlsx 往復で 1, 2 … に変わる（OpenSALT は smartLevel を再計算するモデルなので相互運用上は問題ない）
 

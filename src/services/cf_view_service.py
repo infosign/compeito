@@ -49,6 +49,8 @@ def _pckg_document_to_schema(doc: CFDocument, tenant_id: uuid.UUID) -> CFPckgDoc
         officialSourceURL=doc.official_source_url,
         subject=doc.subject,
         subjectURI=_build_subject_uri_list(doc.subject_uri),
+        notes=doc.notes,
+        extensions=doc.extensions,
         CFPackageURI=_build_cf_package_uri(tenant_id, doc),
         lastChangeDateTime=doc.last_change_date_time,
     )
@@ -61,6 +63,9 @@ def _pckg_item_to_schema(item: CFItem, doc_uri: LinkURIType) -> CFPckgItemDType:
         fullStatement=item.full_statement,
         humanCodingScheme=item.human_coding_scheme,
         abbreviatedStatement=item.abbreviated_statement,
+        alternativeLabel=item.alternative_label,
+        notes=item.notes,
+        extensions=item.extensions,
         conceptKeywords=item.concept_keywords,
         conceptKeywordsURI=_build_concept_keywords_uri(item),
         educationLevel=item.education_level,
@@ -134,6 +139,7 @@ def _build_definitions(
                     description=it.description,
                     typeCode=it.type_code,
                     hierarchyCode=it.hierarchy_code,
+                    extensions=it.extensions,
                     lastChangeDateTime=it.last_change_date_time,
                 )
                 for it in item_types_seen.values()
@@ -153,6 +159,7 @@ def _build_definitions(
                     description=c.description,
                     keywords=c.keywords,
                     hierarchyCode=c.hierarchy_code,
+                    extensions=c.extensions,
                     lastChangeDateTime=c.last_change_date_time,
                 )
                 for c in concepts_seen.values()
@@ -171,6 +178,7 @@ def _build_definitions(
                     title=lic.title,
                     description=lic.description,
                     licenseText=lic.license_text,
+                    extensions=lic.extensions,
                     lastChangeDateTime=lic.last_change_date_time,
                 )
                 for lic in licenses_seen.values()
@@ -189,6 +197,7 @@ def _build_definitions(
                     title=s.title,
                     description=s.description,
                     hierarchyCode=s.hierarchy_code,
+                    extensions=s.extensions,
                     lastChangeDateTime=s.last_change_date_time,
                 )
                 for s in subjects
@@ -206,6 +215,7 @@ def _build_definitions(
                     uri=g.uri,
                     title=g.title,
                     description=g.description,
+                    extensions=g.extensions,
                     lastChangeDateTime=g.last_change_date_time,
                 )
                 for g in groupings_seen.values()
@@ -221,6 +231,7 @@ def _build_definitions(
         CFConcepts=cf_concepts,
         CFLicenses=cf_licenses,
         CFAssociationGroupings=cf_association_groupings,
+        extensions=doc.definitions_extensions,
     )
     # If all None → return None (no CFDefinitions key)
     serialized = defs.model_dump(by_alias=True)
@@ -298,4 +309,5 @@ async def get_cf_package(
         CFAssociations=[association_to_pckg_schema(a) for a in assocs],
         CFDefinitions=_build_definitions(doc, items, assocs, subjects),
         CFRubrics=[rubric_to_schema(r) for r in rubrics],
+        extensions=doc.package_extensions,
     )

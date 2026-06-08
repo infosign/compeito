@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,10 +12,13 @@ router = APIRouter()
 
 CACHE_CONTROL = "public, max-age=3600"
 
+_TRUTHY = {"1", "true", "yes", "on"}
+
 
 @router.get("/{tenant}/ims/case/v1p1/CFPackages/{id}")
 async def get_cf_package(
     id: str,
+    request: Request,
     tenant_obj: Tenant = Depends(require_tenant),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
@@ -27,4 +30,16 @@ async def get_cf_package(
     # CFItems, CFAssociations, CFDefinitions, CFRubrics at the top level. No
     # "CFPackage" wrapper (matches the spec and reference servers like OpenSALT).
     content = package.model_dump(by_alias=True)
+
+    # Strict-conformance mode (?strict=1): the official package schema uses
+    # additionalProperties:false and the package-context types (CFPckgDocument /
+    # CFPckgItem) do NOT include CFPackageURI / CFDocumentURI. By default compeito
+    # echoes them (OpenCASE / OpenSALT emit them too, which keeps the round-trip
+    # lossless), but a strict validator would reject the extra keys — so strip
+    # them when strict output is requested.
+    if request.query_params.get("strict", "").lower() in _TRUTHY:
+        content.get("CFDocument", {}).pop("CFPackageURI", None)
+        for item in content.get("CFItems", []):
+            item.pop("CFDocumentURI", None)
+
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

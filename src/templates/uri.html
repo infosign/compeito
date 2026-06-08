@@ -202,6 +202,8 @@
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
         {{ optional_field(t("f_human_coding_scheme"), resource.human_coding_scheme) }}
         {{ optional_field(t("f_abbreviated_statement"), resource.abbreviated_statement) }}
+        {{ optional_field(t("f_alternative_label"), resource.alternative_label) }}
+        {{ optional_field(t("f_notes"), resource.notes) }}
         {% if resource.item_type %}
             {{ nested_resource(t("f_cf_item_type"), resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
         {% endif %}
@@ -269,6 +271,7 @@
         {{ optional_field(t("f_creator"), resource.creator) }}
         {{ optional_field(t("f_publisher"), resource.publisher) }}
         {{ optional_field(t("f_description"), resource.description) }}
+        {{ optional_field(t("f_notes"), resource.notes) }}
         {{ optional_field(t("f_language"), resource.language) }}
         {{ optional_field(t("f_version"), resource.version) }}
         {% if resource.adoption_status %}
@@ -340,6 +343,7 @@
         {% if resource.association_grouping %}
             {{ nested_resource(t("f_cf_association_grouping_uri"), resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
         {% endif %}
+        {{ optional_field(t("f_notes"), resource.notes) }}
         {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
     </dl>
