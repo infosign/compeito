@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -30,6 +30,7 @@ class CFRubricCriterionLevel(Base):
     score: Mapped[float | None] = mapped_column(Float)
     feedback: Mapped[str | None] = mapped_column(Text)
     position: Mapped[int | None] = mapped_column(Integer)
+    extensions: Mapped[dict | None] = mapped_column(JSONB)
     last_change_date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     cf_rubric_criterion = relationship("CFRubricCriterion", back_populates="levels")

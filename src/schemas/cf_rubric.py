@@ -14,6 +14,8 @@ class CFRubricCriterionLevelDType(CASEBaseSchema):
     feedback: str | None = None
     position: int | None = None
     rubric_criterion_id: str | None = Field(default=None, alias="rubricCriterionId")
+    # CASE v1.1: CFRubricCriterionLevel.extensions is an array of objects.
+    extensions: list[dict] | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
 
@@ -26,6 +28,7 @@ class CFRubricCriterionDType(CASEBaseSchema):
     weight: float | None = None
     position: int | None = None
     rubric_id: str | None = Field(default=None, alias="rubricId")
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
     cf_rubric_criterion_levels: list[CFRubricCriterionLevelDType] | None = Field(
         default=None, alias="CFRubricCriterionLevels"
@@ -37,5 +40,6 @@ class CFRubricDType(CASEBaseSchema):
     uri: str
     title: str | None = None
     description: str | None = None
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
     cf_rubric_criteria: list[CFRubricCriterionDType] | None = Field(default=None, alias="CFRubricCriteria")

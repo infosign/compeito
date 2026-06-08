@@ -35,6 +35,8 @@ class CFDocument(Base):
     official_source_url: Mapped[str | None] = mapped_column(String)
     subject: Mapped[dict | None] = mapped_column(JSONB)
     subject_uri: Mapped[dict | None] = mapped_column(JSONB)
+    notes: Mapped[str | None] = mapped_column(Text)
+    extensions: Mapped[dict | None] = mapped_column(JSONB)
     # Verbatim source CFPackageURI.uri (round-trip cat G). When this CFDocument
     # was imported via CFPackage JSON, the source's `CFPackageURI.uri` is
     # captured here so re-export reproduces it instead of synthesizing a

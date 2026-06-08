@@ -25,6 +25,9 @@ class CFItemDType(CASEBaseSchema):
     status_start_date: date | None = Field(default=None, alias="statusStartDate")
     status_end_date: date | None = Field(default=None, alias="statusEndDate")
     list_enumeration: str | None = Field(default=None, alias="listEnumeration")
+    alternative_label: str | None = Field(default=None, alias="alternativeLabel")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
@@ -56,5 +59,8 @@ class CFPckgItemDType(CASEBaseSchema):
     status_start_date: date | None = Field(default=None, alias="statusStartDate")
     status_end_date: date | None = Field(default=None, alias="statusEndDate")
     list_enumeration: str | None = Field(default=None, alias="listEnumeration")
+    alternative_label: str | None = Field(default=None, alias="alternativeLabel")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

@@ -38,6 +38,8 @@ class _ExportItem:
         "education_level",
         "concept_keywords",
         "abbreviated_statement",
+        "alternative_label",
+        "notes",
         "language",
         "list_enumeration",
         "license_title",
@@ -55,6 +57,8 @@ class _ExportItem:
         self.education_level = _jsonb_list_to_csv(item.education_level)
         self.concept_keywords = _jsonb_list_to_csv(item.concept_keywords)
         self.abbreviated_statement = item.abbreviated_statement or ""
+        self.alternative_label = item.alternative_label or ""
+        self.notes = item.notes or ""
         self.language = item.language or ""
         self.list_enumeration = item.list_enumeration or ""
         self.license_title = item.license.title if item.license else ""
@@ -246,6 +250,8 @@ HEADER = [
     "educationLevel",
     "conceptKeywords",
     "abbreviatedStatement",
+    "alternativeLabel",
+    "notes",
     "language",
     "listEnumeration",
     "license",
@@ -293,6 +299,8 @@ async def export_csv(
                 ei.education_level,
                 ei.concept_keywords,
                 ei.abbreviated_statement,
+                ei.alternative_label,
+                ei.notes,
                 ei.language,
                 ei.list_enumeration,
                 ei.license_title,
@@ -313,6 +321,7 @@ OPENSALT_HEADER = [
     "Full Statement",
     "Human Coding Scheme",
     "Abbreviated Statement",
+    "Notes",
     "Concept Keywords",
     "Education Level",
     "CF Item Type",
@@ -359,6 +368,7 @@ async def export_opensalt_csv(
                 ei.full_statement,
                 ei.human_coding_scheme,
                 ei.abbreviated_statement,
+                ei.notes,
                 ei.concept_keywords,
                 ei.education_level,
                 ei.cf_item_type_title,
@@ -397,6 +407,8 @@ def _write_metadata(writer: csv.writer, doc: CFDocument) -> None:
         writer.writerow(["#publisher", doc.publisher])
     if doc.description:
         writer.writerow(["#description", doc.description])
+    if doc.notes:
+        writer.writerow(["#notes", doc.notes])
     if doc.language:
         writer.writerow(["#language", doc.language])
     if doc.adoption_status:

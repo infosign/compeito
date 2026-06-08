@@ -16,6 +16,8 @@ class CFAssociationDType(CASEBaseSchema):
     sequence_number: int | None = Field(default=None, alias="sequenceNumber")
     cf_association_grouping_uri: LinkURIType | None = Field(default=None, alias="CFAssociationGroupingURI")
     cf_document_uri: LinkURIType = Field(alias="CFDocumentURI")
+    notes: str | None = None
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
 
@@ -29,4 +31,6 @@ class CFPckgAssociationDType(CASEBaseSchema):
     destination_node_uri: LinkGenURIDType = Field(alias="destinationNodeURI")
     sequence_number: int | None = Field(default=None, alias="sequenceNumber")
     cf_association_grouping_uri: LinkURIType | None = Field(default=None, alias="CFAssociationGroupingURI")
+    notes: str | None = None
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

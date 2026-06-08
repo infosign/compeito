@@ -10,4 +10,5 @@ class CFAssociationGroupingDType(CASEBaseSchema):
     uri: str
     title: str
     description: str | None = None
+    extensions: dict | None = None
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")

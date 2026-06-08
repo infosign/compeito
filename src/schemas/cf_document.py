@@ -25,6 +25,8 @@ class CFDocumentDType(CASEBaseSchema):
     official_source_url: str | None = Field(default=None, alias="officialSourceURL")
     subject: list[str] | None = None
     subject_uri: list[LinkURIType] | None = Field(default=None, alias="subjectURI")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_package_uri: LinkURIType = Field(alias="CFPackageURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
 
@@ -56,5 +58,7 @@ class CFPckgDocumentDType(CASEBaseSchema):
     official_source_url: str | None = Field(default=None, alias="officialSourceURL")
     subject: list[str] | None = None
     subject_uri: list[LinkURIType] | None = Field(default=None, alias="subjectURI")
+    notes: str | None = None
+    extensions: dict | None = None
     cf_package_uri: LinkURIType = Field(alias="CFPackageURI")
     last_change_date_time: datetime = Field(alias="lastChangeDateTime")
