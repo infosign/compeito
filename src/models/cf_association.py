@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -39,6 +39,8 @@ class CFAssociation(Base):
     cf_association_grouping_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("cf_association_groupings.id", ondelete="SET NULL")
     )
+    notes: Mapped[str | None] = mapped_column(Text)
+    extensions: Mapped[dict | None] = mapped_column(JSONB)
     last_change_date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     tenant = relationship("Tenant", back_populates="cf_associations")

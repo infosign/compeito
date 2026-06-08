@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -23,6 +23,7 @@ class CFConcept(Base):
     uri: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    extensions: Mapped[dict | None] = mapped_column(JSONB)
     last_change_date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     keywords: Mapped[str | None] = mapped_column(String)
     hierarchy_code: Mapped[str | None] = mapped_column(String)

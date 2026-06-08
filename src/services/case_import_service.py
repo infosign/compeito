@@ -471,6 +471,7 @@ async def _upsert_definition(
         "uri": _resolve_uri(data, tenant_id, ident_uuid),
         "title": title,
         "description": data.get("description"),
+        "extensions": data.get("extensions"),
         "last_change_date_time": ldt,
     }
 
@@ -710,11 +711,18 @@ async def import_case_from_dict(
     report.document_title = doc.title
     report.document_identifier = str(doc.identifier)
 
+    # Container-level extensions (CFPackage / CFDefinitions). A package is a
+    # document-centered view in compeito, so these are stored on the document.
+    cf_defs = pkg.get("CFDefinitions", {}) or {}
+    if pkg.get("extensions") is not None:
+        doc.package_extensions = pkg.get("extensions")
+    if cf_defs.get("extensions") is not None:
+        doc.definitions_extensions = cf_defs.get("extensions")
+
     # Step 4: CFDefinitions — imported BEFORE resolving the document's
     # licenseURI so that a CFLicense defined within this same package is
     # already present. (Resolving first would emit a spurious "CFLicense not
     # found" warning on initial import even though the FK is set correctly.)
-    cf_defs = pkg.get("CFDefinitions", {}) or {}
     await _import_definitions(session, tenant_id, cf_defs, now, report)
     await session.flush()
 
@@ -830,6 +838,8 @@ def _create_document(
         official_source_url=data.get("officialSourceURL"),
         subject=data.get("subject"),
         subject_uri=data.get("subjectURI"),
+        notes=data.get("notes"),
+        extensions=data.get("extensions"),
         cf_package_uri_source=_extract_link_uri_source(data.get("CFPackageURI")),
         last_change_date_time=ldt,
     )
@@ -873,6 +883,10 @@ def _update_document(
         doc.framework_type = data["frameworkType"]
     if data.get("caseVersion") is not None:
         doc.case_version = data["caseVersion"]
+    if data.get("notes") is not None:
+        doc.notes = data["notes"]
+    if data.get("extensions") is not None:
+        doc.extensions = data["extensions"]
 
     lang = data.get("language")
     if lang is not None:
@@ -1122,6 +1136,12 @@ async def _import_items(
                 existing.human_coding_scheme = item_data["humanCodingScheme"]
             if item_data.get("abbreviatedStatement") is not None:
                 existing.abbreviated_statement = item_data["abbreviatedStatement"]
+            if item_data.get("alternativeLabel") is not None:
+                existing.alternative_label = item_data["alternativeLabel"]
+            if item_data.get("notes") is not None:
+                existing.notes = item_data["notes"]
+            if item_data.get("extensions") is not None:
+                existing.extensions = item_data["extensions"]
             if item_data.get("listEnumeration") is not None:
                 existing.list_enumeration = item_data["listEnumeration"]
             if lang is not None:
@@ -1157,6 +1177,9 @@ async def _import_items(
                 full_statement=fs,
                 human_coding_scheme=item_data.get("humanCodingScheme"),
                 abbreviated_statement=item_data.get("abbreviatedStatement"),
+                alternative_label=item_data.get("alternativeLabel"),
+                notes=item_data.get("notes"),
+                extensions=item_data.get("extensions"),
                 list_enumeration=item_data.get("listEnumeration"),
                 language=lang,
                 education_level=item_data.get("educationLevel"),
@@ -1275,6 +1298,10 @@ async def _import_associations(
             existing.destination_node_target_type = dest.get("targetType")
             existing.sequence_number = seq
             existing.cf_association_grouping_id = grouping_id
+            if assoc_data.get("notes") is not None:
+                existing.notes = assoc_data["notes"]
+            if assoc_data.get("extensions") is not None:
+                existing.extensions = assoc_data["extensions"]
             existing.last_change_date_time = ldt
             report.associations_updated += 1
         else:
@@ -1295,6 +1322,8 @@ async def _import_associations(
                 destination_node_target_type=dest.get("targetType"),
                 sequence_number=seq,
                 cf_association_grouping_id=grouping_id,
+                notes=assoc_data.get("notes"),
+                extensions=assoc_data.get("extensions"),
                 last_change_date_time=ldt,
             )
             session.add(assoc)
@@ -1388,6 +1417,8 @@ async def _import_rubrics(
                 existing.title = rubric_data["title"]
             if rubric_data.get("description") is not None:
                 existing.description = rubric_data["description"]
+            if rubric_data.get("extensions") is not None:
+                existing.extensions = rubric_data["extensions"]
             existing.last_change_date_time = ldt
             rubric = existing
             report.rubrics_updated += 1
@@ -1400,6 +1431,7 @@ async def _import_rubrics(
                 uri=_resolve_uri(rubric_data, tenant_id, ident_uuid),
                 title=rubric_data.get("title"),
                 description=rubric_data.get("description"),
+                extensions=rubric_data.get("extensions"),
                 last_change_date_time=ldt,
             )
             session.add(rubric)
@@ -1489,6 +1521,8 @@ async def _import_rubric_criteria(
                 existing_crit.cf_item_uri_source = cf_item_uri_source
             if rubric_id_val is not None:
                 existing_crit.rubric_id = rubric_id_val
+            if crit_data.get("extensions") is not None:
+                existing_crit.extensions = crit_data["extensions"]
             existing_crit.last_change_date_time = crit_ldt
             criterion = existing_crit
         else:
@@ -1504,6 +1538,7 @@ async def _import_rubric_criteria(
                 description=crit_data.get("description"),
                 weight=crit_data.get("weight"),
                 position=crit_data.get("position"),
+                extensions=crit_data.get("extensions"),
                 last_change_date_time=crit_ldt,
             )
             session.add(criterion)
@@ -1575,6 +1610,8 @@ async def _import_rubric_criterion_levels(
                 existing_level.position = level_data["position"]
             if rc_id_val is not None:
                 existing_level.rubric_criterion_id = rc_id_val
+            if level_data.get("extensions") is not None:
+                existing_level.extensions = level_data["extensions"]
             existing_level.last_change_date_time = level_ldt
         else:
             level = CFRubricCriterionLevel(
@@ -1588,6 +1625,7 @@ async def _import_rubric_criterion_levels(
                 score=level_data.get("score"),
                 feedback=level_data.get("feedback"),
                 position=level_data.get("position"),
+                extensions=level_data.get("extensions"),
                 last_change_date_time=level_ldt,
             )
             session.add(level)

@@ -13,8 +13,10 @@ hierarchy carried by ``smartLevel`` is translated into the custom format's
 non-isChildOf associations are then imported in a dedicated second pass
 (isChildOf is already materialised from smartLevel, so it is skipped here).
 
-Known gaps (documented in round_trip_status.md): compeito has no ``notes``
-column on CFItem/CFDocument, so the ``notes`` cells are ignored.
+``notes`` (CF Item col H / CF Doc col P) is imported into the CASE v1.1
+``notes`` field. ``alternativeLabel`` / ``extensions`` have no column in the
+OpenSALT Excel layout, so they are not read here (they round-trip via CASE JSON
+instead).
 """
 
 from __future__ import annotations
@@ -58,7 +60,7 @@ _DOC_META_BY_COL = {
     12: "status_end_date",
     13: "license",  # licenseTitle
     # 14: licenseText — not representable in custom #license row
-    # 15: notes — not stored on CFDocument
+    15: "notes",  # CASE v1.1 CFDocument.notes → "#notes" metadata row
 }
 
 # CF Item sheet column indices (mirrors xlsx_export_service.CF_ITEM_HEADER).
@@ -69,7 +71,7 @@ _ITEM_SMART_LEVEL = 3
 _ITEM_LIST_ENUM = 4
 _ITEM_ABBREV = 5
 _ITEM_CONCEPT_KEYWORDS = 6
-# 7: notes — not stored
+_ITEM_NOTES = 7
 _ITEM_LANGUAGE = 8
 _ITEM_EDUCATION_LEVEL = 9
 _ITEM_CF_ITEM_TYPE = 10
@@ -142,6 +144,8 @@ def _build_custom_csv(doc_row: list[str], item_rows: list[list[str]]) -> bytes:
                 r[_ITEM_EDUCATION_LEVEL],  # educationLevel
                 r[_ITEM_CONCEPT_KEYWORDS],  # conceptKeywords
                 r[_ITEM_ABBREV],  # abbreviatedStatement
+                "",  # alternativeLabel (no column in OpenSALT Excel)
+                r[_ITEM_NOTES],  # notes (OpenSALT CF Item col H)
                 r[_ITEM_LANGUAGE],  # language
                 r[_ITEM_LIST_ENUM],  # listEnumeration
                 "",  # license (document-level)

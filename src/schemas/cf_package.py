@@ -24,6 +24,7 @@ class CFDefinitionsDType(CASEBaseSchema):
     cf_association_groupings: list[CFAssociationGroupingDType] | None = Field(
         default=None, alias="CFAssociationGroupings"
     )
+    extensions: dict | None = None
 
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
@@ -40,6 +41,8 @@ class CFDefinitionsDType(CASEBaseSchema):
             value = getattr(self, attr)
             if value:
                 result[alias] = [item.model_dump(by_alias=True) for item in value]
+        if self.extensions:
+            result["extensions"] = self.extensions
         return result
 
 
@@ -51,6 +54,7 @@ class CFPackageDType(CASEBaseSchema):
     cf_associations: list[CFPckgAssociationDType] = Field(alias="CFAssociations")
     cf_definitions: CFDefinitionsDType | None = Field(default=None, alias="CFDefinitions")
     cf_rubrics: list[CFRubricDType] = Field(default_factory=list, alias="CFRubrics")
+    extensions: dict | None = None
 
     @model_serializer
     def serialize_model(self) -> dict[str, Any]:
@@ -64,4 +68,6 @@ class CFPackageDType(CASEBaseSchema):
             if definitions:
                 result["CFDefinitions"] = definitions
         result["CFRubrics"] = [r.model_dump(by_alias=True) for r in self.cf_rubrics]
+        if self.extensions:
+            result["extensions"] = self.extensions
         return result

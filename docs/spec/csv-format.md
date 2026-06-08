@@ -51,7 +51,7 @@ Lines starting with `#` may appear at the top of the file (optional). The rule a
 - `#version`: CFDocument version. If `--doc-version` is given on the CLI, the CLI flag wins.
 - `#subject`: subject(s). Multiple values can be comma-separated (e.g., `#subject,Japanese,Geography`). cf_subject lookups are auto-generated. Each value is trimmed; trimmed-empty values are filtered (e.g., `#subject,Japanese,,Geography` → `["Japanese", "Geography"]`).
 - `#license`: license name (e.g., `CC BY 4.0`). A cf_license lookup is auto-generated and linked via `cf_license_id`. Same title-based lookup pattern as `CFItemType`.
-- Others (`#creator`, `#publisher`, `#description`, `#language`, `#adoption_status`, `#official_source_url`, `#status_start_date`, `#status_end_date`): mapped to the corresponding CFDocument field. These are **single-value fields**: only the 2nd field (after CSV parsing) is used as the value (3rd and onward are ignored). To include commas, quote the value with `"` (e.g., `#description,"Information I, II"`). `#status_start_date` / `#status_end_date` must be in `YYYY-MM-DD` form.
+- Others (`#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#official_source_url`, `#status_start_date`, `#status_end_date`): mapped to the corresponding CFDocument field (`#notes` → CASE v1.1 CFDocument.notes). These are **single-value fields**: only the 2nd field (after CSV parsing) is used as the value (3rd and onward are ignored). To include commas, quote the value with `"` (e.g., `#description,"Information I, II"`). `#status_start_date` / `#status_end_date` must be in `YYYY-MM-DD` form.
 - Metadata rows must appear before the header row. `#` lines after the header are treated as data rows (in the custom format they're parsed as `Identifier`, and rejected by UUID validation).
 - Duplicate keys: the last value wins, and a warning is emitted ("Duplicate metadata key '#xxx', overwriting previous value"). `#subject` follows the same rule (overwrite, not merge).
 - Unknown keys are ignored (a warning is emitted: "Unknown metadata key '#xxx', ignored").
@@ -71,6 +71,8 @@ Lines starting with `#` may appear at the top of the file (optional). The rule a
 | educationLevel | — | Education levels, comma-separated (e.g., "09,10,11,12") |
 | conceptKeywords | — | Keywords, comma-separated (e.g., "analysis,evaluation") |
 | abbreviatedStatement | — | Abbreviated form |
+| alternativeLabel | — | CASE v1.1 CFItem.alternativeLabel |
+| notes | — | CASE v1.1 CFItem.notes (free-form long text) |
 | language | — | Language code (e.g., "en"). Blank → inherits the document's language |
 | listEnumeration | — | Enumeration text |
 | license | — | License name (e.g., "CC BY 4.0"). Lookup is auto-generated |
@@ -109,6 +111,7 @@ A format intended for interoperability with OpenSALT CSV imports. It is not full
 | Full Statement | fullStatement |
 | Human Coding Scheme | humanCodingScheme |
 | Abbreviated Statement | abbreviatedStatement |
+| Notes | notes |
 | Concept Keywords | conceptKeywords (comma-separated) |
 | Education Level | educationLevel (comma-separated) |
 | CF Item Type | CFItemType |

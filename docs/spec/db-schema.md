@@ -216,11 +216,11 @@ last_change_date_time: TIMESTAMP NOT NULL
 INDEX(cf_rubric_criterion_id), INDEX(identifier)
 ```
 
-### CASE v1.1 fields omitted in Phase 1
-The following fields exist in CASE v1.1 but are rarely used in practice; we omit them in Phase 1. Columns may be added in Phase 2 as needed.
-- `notes: TEXT` — common to CFDocument / CFItem / CFAssociation. Free-form notes. (CFAssociation's `notes` is new in v1.1.)
-- `alternativeLabel: VARCHAR` — CFItem only. Alternative label.
-- `extensions` — common to all resources (v1.1 new). Free-form extension data. Values present in external imports are lost in Phase 1.
+### CASE v1.1 standard fields (notes / alternativeLabel / extensions)
+These CASE v1.1 fields are stored and round-trip through CASE JSON import/export and the API:
+- `notes: TEXT` — on `cf_documents`, `cf_items`, `cf_associations` (CFAssociation's `notes` is new in v1.1). Also carried by the OpenSALT CSV/xlsx formats (CFItem / CFDocument).
+- `alternative_label: TEXT` (`alternativeLabel`) — `cf_items` only.
+- `extensions: JSONB` — on **all** entity tables (v1.1 "added to all classes"). Free-form extension object (array on CFRubricCriterionLevel). Carried in CASE JSON only (no column in the CSV/xlsx formats).
 
 ---
 
@@ -451,9 +451,8 @@ last_change_date_time: TIMESTAMP NOT NULL
 INDEX(cf_rubric_criterion_id), INDEX(identifier)
 ```
 
-### Phase 1 で省略する CASE v1.1 フィールド
-以下のフィールドは CASE v1.1 仕様に存在するが、実運用での使用頻度が低いため Phase 1 では省略する。
-Phase 2 以降で必要に応じてカラムを追加する。
-- `notes: TEXT` — CFDocument / CFItem / CFAssociation 共通。自由記述メモ（CFAssociation の notes は v1.1 新規フィールド）
-- `alternativeLabel: VARCHAR` — CFItem のみ。代替ラベル
-- `extensions` — 全リソース共通（v1.1 新規）。拡張データを格納する任意フィールド。外部インポート時に extensions が含まれている場合、Phase 1 では値が失われる
+### CASE v1.1 標準フィールド（notes / alternativeLabel / extensions）
+以下の CASE v1.1 フィールドは保存され、CASE JSON の import/export・API で往復する:
+- `notes: TEXT` — `cf_documents` / `cf_items` / `cf_associations`（CFAssociation の notes は v1.1 新規）。OpenSALT の CSV/xlsx 形式でも CFItem / CFDocument が保持する
+- `alternative_label: TEXT`（`alternativeLabel`） — `cf_items` のみ
+- `extensions: JSONB` — **全**エンティティテーブル（v1.1 で全クラスに追加）。自由形式の拡張オブジェクト（CFRubricCriterionLevel のみ配列）。CASE JSON でのみ往復（CSV/xlsx には列が無い）

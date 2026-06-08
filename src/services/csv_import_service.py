@@ -60,6 +60,8 @@ class ParsedRow:
     education_level: list[str] | None = None
     concept_keywords: list[str] | None = None
     abbreviated_statement: str | None = None
+    alternative_label: str | None = None
+    notes: str | None = None
     language: str | None = None
     list_enumeration: str | None = None
     license: str | None = None
@@ -183,6 +185,7 @@ _KNOWN_META_KEYS = {
     "status_start_date",
     "status_end_date",
     "subject",
+    "notes",
 }
 
 
@@ -328,6 +331,16 @@ def _parse_custom_rows(
         if abst is not None:
             present.add("abbreviated_statement")
 
+        # alternativeLabel
+        alt_label = _get_cell(row, col_map, "alternativelabel").strip() or None
+        if alt_label is not None:
+            present.add("alternative_label")
+
+        # notes
+        notes_raw = _get_cell(row, col_map, "notes").strip() or None
+        if notes_raw is not None:
+            present.add("notes")
+
         # language
         lang = _get_cell(row, col_map, "language").strip() or None
         if lang is not None:
@@ -376,6 +389,8 @@ def _parse_custom_rows(
                 education_level=el,
                 concept_keywords=ck,
                 abbreviated_statement=abst,
+                alternative_label=alt_label,
+                notes=notes_raw,
                 language=lang,
                 list_enumeration=le,
                 license=lic,
@@ -502,6 +517,11 @@ def _parse_opensalt_rows(
         if abst is not None:
             present.add("abbreviated_statement")
 
+        # Notes (OpenSALT CFItem.notes)
+        notes_raw = _get_cell(row, col_map, "notes").strip() or None
+        if notes_raw is not None:
+            present.add("notes")
+
         # Language
         lang = _get_cell(row, col_map, "language").strip() or None
         if lang is not None:
@@ -524,6 +544,7 @@ def _parse_opensalt_rows(
                 education_level=el,
                 concept_keywords=ck,
                 abbreviated_statement=abst,
+                notes=notes_raw,
                 language=lang,
                 _present_fields=present,
             )
@@ -868,6 +889,10 @@ async def _upsert_item(
             existing.concept_keywords = pr.concept_keywords
         if "abbreviated_statement" in pr._present_fields:
             existing.abbreviated_statement = pr.abbreviated_statement
+        if "alternative_label" in pr._present_fields:
+            existing.alternative_label = pr.alternative_label
+        if "notes" in pr._present_fields:
+            existing.notes = pr.notes
         if "language" in pr._present_fields:
             existing.language = pr.language
         if "list_enumeration" in pr._present_fields:
@@ -898,6 +923,8 @@ async def _upsert_item(
             education_level=pr.education_level,
             concept_keywords=pr.concept_keywords,
             abbreviated_statement=pr.abbreviated_statement,
+            alternative_label=pr.alternative_label,
+            notes=pr.notes,
             language=pr.language if pr.language else doc.language,
             list_enumeration=pr.list_enumeration,
             cf_item_type_id=item_type_id,
@@ -1276,6 +1303,8 @@ async def import_csv(
             doc.publisher = metadata["publisher"]
         if metadata.get("description"):
             doc.description = metadata["description"]
+        if metadata.get("notes"):
+            doc.notes = metadata["notes"]
         if meta_language:
             doc.language = meta_language
         if meta_adoption is not None and meta_adoption != "":
@@ -1323,6 +1352,8 @@ async def import_csv(
                 doc.publisher = metadata["publisher"]
             if metadata.get("description"):
                 doc.description = metadata["description"]
+            if metadata.get("notes"):
+                doc.notes = metadata["notes"]
             if meta_language:
                 doc.language = meta_language
             if meta_adoption is not None and meta_adoption != "":
@@ -1348,6 +1379,7 @@ async def import_csv(
                 creator=metadata.get("creator") or None,
                 publisher=metadata.get("publisher") or None,
                 description=metadata.get("description") or None,
+                notes=metadata.get("notes") or None,
                 language=meta_language,
                 adoption_status=meta_adoption if meta_adoption else None,
                 official_source_url=metadata.get("official_source_url") or None,
@@ -1373,6 +1405,7 @@ async def import_csv(
             creator=metadata.get("creator") or None,
             publisher=metadata.get("publisher") or None,
             description=metadata.get("description") or None,
+            notes=metadata.get("notes") or None,
             language=meta_language,
             adoption_status=meta_adoption if meta_adoption else None,
             official_source_url=metadata.get("official_source_url") or None,
