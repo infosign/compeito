@@ -19,7 +19,7 @@ import re
 import uuid
 from datetime import datetime
 
-from sqlalchemy import and_, or_
+from sqlalchemy import Text, and_, func, or_
 
 from src.models.cf_document import CFDocument
 from src.schemas.cf_document import CFDocumentDType
@@ -57,6 +57,8 @@ _CFDOC_FIELDS: dict[str, tuple] = {
     "officialSourceURL": (CFDocument.official_source_url, "str"),
     "notes": (CFDocument.notes, "str"),
     "lastChangeDateTime": (CFDocument.last_change_date_time, "datetime"),
+    # subject is a JSONB array of strings (special-cased in _predicate).
+    "subject": (CFDocument.subject, "array"),
 }
 
 # Valid `fields` values = all CFDocument output keys (aliases).
@@ -72,7 +74,8 @@ def parse_sort(sort: str | None, order_by: str | None):
     if not sort:
         return None
     entry = _CFDOC_FIELDS.get(sort)
-    if entry is None:
+    if entry is None or entry[1] == "array":
+        # Array fields (subject) are not meaningfully sortable.
         raise QueryParamError("invalid_sort_field", f"Invalid sort field: '{sort}'")
     col = entry[0]
     return col.desc() if order_by == "desc" else col.asc()
@@ -109,6 +112,17 @@ def _predicate(token: str):
     if entry is None:
         raise QueryParamError("invalid_selection_field", f"Invalid filter field: '{field}'")
     col, kind = entry
+
+    # subject: JSONB array of strings. `~` = any element contains (case-
+    # insensitive, text-level); `=` = array contains the exact element.
+    if kind == "array":
+        value = _coerce(raw, "str")
+        if op == "~":
+            return func.cast(col, Text).ilike(f"%{value}%")
+        if op == "=":
+            return col.contains([value])
+        raise QueryParamError("invalid_selection_field", f"Operator '{op}' not supported on field '{field}'")
+
     if op == "~":
         # contains (case-insensitive). Only meaningful for text columns.
         if kind != "str":
@@ -117,6 +131,11 @@ def _predicate(token: str):
     val = _coerce(raw, kind)
     if op in (">", "<", ">=", "<=") and kind == "uuid":
         raise QueryParamError("invalid_selection_field", f"Operator '{op}' not supported on field '{field}'")
+    # String equality / inequality are case-insensitive per the CASE REST
+    # binding (Unicode Collation). Ordering comparisons stay as-is.
+    if kind == "str" and op in ("=", "!="):
+        lhs, rhs = func.lower(col), func.lower(val)
+        return lhs == rhs if op == "=" else lhs != rhs
     return {
         "=": col == val,
         "!=": col != val,

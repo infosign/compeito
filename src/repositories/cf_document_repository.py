@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -42,3 +42,19 @@ async def list_cf_documents(
     stmt = stmt.order_by(order_by if order_by is not None else CFDocument.identifier)
     result = await session.execute(stmt.limit(limit).offset(offset))
     return list(result.scalars().unique().all())
+
+
+async def count_cf_documents(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    filter_clause=None,
+) -> int:
+    """Total CFDocuments for a tenant (after `filter_clause`, before pagination).
+
+    Used for the `X-Total-Count` response header on GET /CFDocuments.
+    """
+    stmt = select(func.count()).select_from(CFDocument).where(CFDocument.tenant_id == tenant_id)
+    if filter_clause is not None:
+        stmt = stmt.where(filter_clause)
+    return int((await session.execute(stmt)).scalar_one())
