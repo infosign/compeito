@@ -40,13 +40,19 @@ async def list_cf_documents(
     limit = min(limit, 500)
     offset = min(offset, 100000)
 
+    # X-Total-Count: total matching the (optional) filter, before pagination.
+    total = await case_query_service.count_cf_documents(session, tenant_obj.id, filter_clause=filter_clause)
+
     docs = await case_query_service.list_cf_documents(
         session, tenant_obj.id, limit, offset, filter_clause=filter_clause, order_by=order_by
     )
     content = {
         "CFDocuments": [case_query_params.project_fields(doc.model_dump(by_alias=True), field_list) for doc in docs]
     }
-    return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
+    return JSONResponse(
+        content=content,
+        headers={"Cache-Control": CACHE_CONTROL, "X-Total-Count": str(total)},
+    )
 
 
 @router.get("/{tenant}/ims/case/v1p1/CFDocuments/{id}")
