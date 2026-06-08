@@ -42,6 +42,8 @@
     "f_education_level": "Education Level",
     "f_concept_keywords": "Concept Keywords",
     "f_concept_keywords_uri": "Concept Keywords URI",
+    "f_related": "Related",
+    "related_other": "Other",
     "f_subject": "Subject",
     "f_subject_uri": "Subject URI",
     "f_license_uri": "License URI",

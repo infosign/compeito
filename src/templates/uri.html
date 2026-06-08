@@ -111,6 +111,19 @@
 {% endif %}
 {% endmacro %}
 
+{# Renders each list element as its own chip/badge (one chip per element — list
+   items like "ski lift mechanic" are single keywords, not space-split). #}
+{% macro chips_field(label, arr) %}
+{% if arr and arr|length > 0 %}
+<div>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dd class="mt-1 flex flex-wrap gap-1">
+        {% for v in arr %}<span class="inline-block px-2 py-0.5 text-xs bg-stone-100 text-stone-700 rounded">{{ v }}</span>{% endfor %}
+    </dd>
+</div>
+{% endif %}
+{% endmacro %}
+
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
@@ -193,7 +206,7 @@
             {{ nested_resource(t("f_cf_item_type"), resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
         {% endif %}
         {{ array_field(t("f_education_level"), resource.education_level) }}
-        {{ array_field(t("f_concept_keywords"), resource.concept_keywords) }}
+        {{ chips_field(t("f_concept_keywords"), resource.concept_keywords) }}
         {% if resource.concept %}
             {{ nested_resource(t("f_concept_keywords_uri"), resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
         {% endif %}
@@ -216,6 +229,26 @@
                     </li>
                     {% endfor %}
                 </ul>
+            </dd>
+        </div>
+        {% endif %}
+        {% if related_groups %}
+        <div>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_related") }}</dt>
+            <dd class="text-gray-800 mt-1 space-y-3">
+                {% for grp in related_groups %}
+                <div>
+                    <div class="text-sm font-semibold text-stone-600">{{ grp.title or t("related_other") }}</div>
+                    <ul class="ml-4 mt-1 space-y-1">
+                        {% for a in grp["items"] %}
+                        <li>
+                            <a href="/{{ tenant_url }}/uri/{{ a.destination_node_identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ a.destination_node_title or a.destination_node_identifier }}</a>
+                            {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
             </dd>
         </div>
         {% endif %}
