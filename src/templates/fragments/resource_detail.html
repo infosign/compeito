@@ -288,9 +288,11 @@
         {% endif %}
         {{ extensions_block(t("f_extensions"), resource.extensions) }}
     </dl>
+    {% if not in_pane %}
     <div class="mt-6">
-        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
+    {% endif %}
 
     {# ========== CFDocument ========== #}
     {% elif resource_type == "CFDocument" %}
@@ -343,9 +345,11 @@
         {{ extensions_block(t("f_package_extensions"), resource.package_extensions) }}
         {{ extensions_block(t("f_definitions_extensions"), resource.definitions_extensions) }}
     </dl>
+    {% if not in_pane %}
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
+    {% endif %}
 
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
@@ -492,9 +496,11 @@
         </div>
         {% endif %}
     {% endif %}
+    {% if not in_pane %}
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
+    {% endif %}
 
     {# ========== CFRubricCriterion ========== #}
     {% elif resource_type == "CFRubricCriterion" %}
@@ -543,7 +549,7 @@
             {% if resource.cf_item %}
             <a href="/{{ tenant_url }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
-            {% if doc %}
+            {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>
@@ -574,7 +580,7 @@
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
             <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
-            {% if doc %}
+            {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>

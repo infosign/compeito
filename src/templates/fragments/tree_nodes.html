@@ -4,11 +4,13 @@
    pane. Uses: nodes, tenant_url, doc_identifier, selected_item. #}
 {% for node in nodes %}
 {% set is_sel = selected_item and node.item.identifier == selected_item.identifier %}
-{% set label_attrs %}href="/{{ tenant_url }}/uri/{{ node.item.identifier }}"
+{% set item_url = "/" ~ tenant_url ~ "/cftree/doc/" ~ doc_identifier ~ "/item/" ~ node.item.identifier|string %}
+{% set label_attrs %}href="{{ item_url }}"
        class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
        hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
        hx-target="#detail-pane"
        hx-swap="innerHTML"
+       hx-push-url="{{ item_url }}"
        hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"{% endset %}
 {% set label_body %}{% if node.item.item_type %}<span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>{% endif %}{% if node.item.human_coding_scheme %}<span class="font-medium">{{ node.item.human_coding_scheme }}</span> {% endif %}<span>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>{% endset %}
 {% set sel_classes = "bg-violet-50 ring-1 ring-inset ring-violet-200" if is_sel else "hover:bg-stone-100" %}

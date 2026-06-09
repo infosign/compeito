@@ -514,6 +514,48 @@ class TestTreeViewPage:
         # Rendered via native <details> (JS-free expand/collapse).
         assert "<details" in resp.text
 
+    async def test_tree_node_links_use_path_form_and_push_url(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Tree node links point to the path-form item URL and push it (so the
+        URL syncs and is shareable/static-bakeable)."""
+        item = _make_item(tenant, sample_document, full_statement="Node X")
+        db_session.add(item)
+        db_session.add(_make_is_child_of(sample_document, item.identifier, sample_document.identifier, seq=1))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        item_url = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{item.identifier}"
+        assert f'href="{item_url}"' in resp.text
+        assert f'hx-push-url="{item_url}"' in resp.text
+
+    async def test_item_path_route_reconstructs_view(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The path-form item URL SSRs the full page: tree + the item's full
+        detail in the pane (shareable / reloadable / back-button safe)."""
+        root = _make_item(tenant, sample_document, full_statement="Root sibling", hcs="R")
+        target = _make_item(tenant, sample_document, full_statement="Target item deep", hcs="T")
+        db_session.add_all([root, target])
+        db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, target.identifier, root.identifier, seq=1))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{target.identifier}")
+        assert resp.status_code == 200
+        # Pane shows the target's full detail (permalink + API URL).
+        assert f"/ims/case/v1p1/CFItems/{target.identifier}" in resp.text
+        # Tree is still present (sibling/root node rendered).
+        assert "Root sibling" in resp.text
+
     async def test_html_title(
         self,
         db_session: AsyncSession,
@@ -817,6 +859,25 @@ class TestDetailFragment:
             f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}",
         )
         assert resp.headers["cache-control"] == "public, max-age=86400"
+
+    async def test_pane_hides_show_in_tree(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The right pane is already inside the tree, so the redundant
+        "Show in tree" link is hidden (in_pane). It still appears on the
+        standalone /uri/ page."""
+        item = _make_item(tenant, sample_document, full_statement="Pane item")
+        db_session.add(item)
+        await db_session.flush()
+
+        pane = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}")
+        assert "ツリーで表示" not in pane.text  # hidden in pane
+        standalone = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
+        assert "ツリーで表示" in standalone.text  # shown on the standalone page
 
     async def test_pane_shows_full_detail(
         self,
