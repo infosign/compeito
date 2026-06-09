@@ -22,6 +22,12 @@
             src: url('/static/fonts/quicksand-700.woff2') format('woff2');
         }
         [data-tree-item] { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+        /* Tree: native <details> expand/collapse (no JS). Hide the default
+           marker and rotate our own triangle when open. */
+        details > summary.tree-summary { list-style: none; }
+        details > summary.tree-summary::-webkit-details-marker { display: none; }
+        .tree-tri { transition: transform 0.15s ease; }
+        details[open] > summary > .tree-tri { transform: rotate(90deg); }
         .logo-text {
             font-family: 'Quicksand', sans-serif;
             background: linear-gradient(to right, #8B5CF6, #EC4899, #F59E0B, #10B981, #0EA5E9);
