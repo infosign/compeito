@@ -143,6 +143,23 @@ async def _related_groups(session: AsyncSession, tenant_id, item_identifier) -> 
     return [buckets[k] for k in order]
 
 
+async def _detail_extras(session: AsyncSession, tenant_id, resource_type: str, resource) -> dict:
+    """Extra context the resource-detail card needs beyond the resource itself:
+    rubrics (CFDocument), referring criteria + related groupings (CFItem).
+    Shared by the standalone /uri/ page and the tree right-pane fragment so both
+    render identical full detail.
+    """
+    rubrics: list = []
+    referring_criteria: list = []
+    related_groups: list[dict] = []
+    if resource_type == "CFDocument":
+        rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
+    elif resource_type == "CFItem":
+        referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, resource.id)
+        related_groups = await _related_groups(session, tenant_id, resource.identifier)
+    return {"rubrics": rubrics, "referring_criteria": referring_criteria, "related_groups": related_groups}
+
+
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------
@@ -239,6 +256,18 @@ async def tree_view(
     # Fetch rubrics for this document (shown in right pane default view)
     rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
 
+    # On deep-link (?item=), SSR the right pane with that item's full detail
+    # (relationship-loaded), so the pane reconstructs without an HTMX round-trip.
+    selected_detail = None
+    referring_criteria: list = []
+    related_groups: list[dict] = []
+    if selected_item is not None:
+        selected_detail = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
+        if selected_detail is not None:
+            extras = await _detail_extras(session, tenant_obj.id, "CFItem", selected_detail)
+            referring_criteria = extras["referring_criteria"]
+            related_groups = extras["related_groups"]
+
     response = templates.TemplateResponse(
         request,
         "cftree.html",
@@ -248,6 +277,12 @@ async def tree_view(
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
+            # Full-detail pane context (used by the shared partial when an item
+            # is deep-linked). `resource` is the relationship-loaded item.
+            "resource": selected_detail,
+            "resource_type": "CFItem" if selected_detail is not None else None,
+            "referring_criteria": referring_criteria,
+            "related_groups": related_groups,
             # Sticky URL segment: preserves the form the user requested (UUID
             # or slug) so nav links don't drift the URL bar mid-session.
             # Permalink / API URL strings rendered in the page use `tenant.id`
@@ -310,15 +345,7 @@ async def uri_detail(
             redirect_url = f"/{tenant}/ims/case/v1p1/{api_path}/{res_uuid}"
             return RedirectResponse(url=redirect_url, status_code=303)
 
-    # Fetch rubrics for CFDocument, referring criteria + related associations for CFItem
-    rubrics = []
-    referring_criteria = []
-    related_groups: list[dict] = []
-    if result.resource_type == "CFDocument":
-        rubrics = await cf_rubric_repository.list_by_document(session, result.resource.id)
-    elif result.resource_type == "CFItem":
-        referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, result.resource.id)
-        related_groups = await _related_groups(session, tenant_obj.id, result.resource.identifier)
+    extras = await _detail_extras(session, tenant_obj.id, result.resource_type, result.resource)
 
     # Build page title per spec
     if result.resource_type == "CFItem":
@@ -342,9 +369,9 @@ async def uri_detail(
             "resource": result.resource,
             "doc": result.doc,
             "page_title": page_title,
-            "rubrics": rubrics,
-            "referring_criteria": referring_criteria,
-            "related_groups": related_groups,
+            "rubrics": extras["rubrics"],
+            "referring_criteria": extras["referring_criteria"],
+            "related_groups": extras["related_groups"],
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "t": t,
             "lang": lang,
@@ -444,16 +471,22 @@ async def detail_fragment(
     if selected_item is None:
         return _error_fragment(404, t("error_item_not_found"))
 
-    # Same grouped "Related" associations as the full detail page, so users can
-    # see e.g. Essential / Optional links without leaving the tree pane.
-    related_groups = await _related_groups(session, tenant_obj.id, selected_item.identifier)
+    # The pane renders the SAME full-detail card as the standalone /uri/ page
+    # (shared partial), so the right pane is the complete view — no round-trip
+    # to /uri/ needed just to see all fields.
+    extras = await _detail_extras(session, tenant_obj.id, "CFItem", selected_item)
 
     response = templates.TemplateResponse(
         request,
         "fragments/detail.html",
         {
-            "selected_item": selected_item,
-            "related_groups": related_groups,
+            "resource": selected_item,
+            "resource_type": "CFItem",
+            "doc": doc,
+            "tenant": tenant_obj,
+            "rubrics": extras["rubrics"],
+            "referring_criteria": extras["referring_criteria"],
+            "related_groups": extras["related_groups"],
             # Sticky URL segment: matches the form the user requested so nav
             # links don't drift the URL bar mid-session.
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
