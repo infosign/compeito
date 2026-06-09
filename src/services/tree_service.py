@@ -393,6 +393,19 @@ async def _get_idents_with_children(
     return {row[0] for row in result.all()}
 
 
+async def items_in_doc(session: AsyncSession, doc_id: uuid.UUID, identifiers) -> set[str]:
+    """Return the subset of `identifiers` (strings) that are CFItems in this
+    document. Used to decide which in-pane links can navigate within the tree
+    (same-doc items) vs link out (cross-doc / non-item targets)."""
+    uuids = _strs_to_uuids(list(identifiers))
+    if not uuids:
+        return set()
+    result = await session.execute(
+        select(CFItem.identifier).where(CFItem.cf_document_id == doc_id, CFItem.identifier.in_(uuids))
+    )
+    return {str(r[0]) for r in result.all()}
+
+
 async def _resolve_selected_item(
     session: AsyncSession,
     doc_id: uuid.UUID,
