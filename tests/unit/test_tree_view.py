@@ -1815,3 +1815,48 @@ class TestRubricsTree:
         resp = await db_client.get(f"{base}/detail/{item.identifier}")
         assert resp.status_code == 200
         assert f'hx-push-url="{base}/item/{crit.identifier}"' in resp.text
+
+
+class TestAssociationNodeLinks:
+    """Stage 5 D: CFAssociation origin/destination nodes are classified like the
+    related list — in-doc items navigate in-pane, external refs link out."""
+
+    NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    async def test_association_nodes_classified(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        ext = uuid.uuid4()
+        ext_uri = f"https://other.example.org/uri/{ext}"
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            origin_node_title="Origin item",
+            destination_node_uri=ext_uri,
+            destination_node_identifier=str(ext),
+            destination_node_title="External thing",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        base = f"/{tenant.id}/cftree/doc/{sample_document.identifier}"
+        resp = await db_client.get(f"{base}/detail/{assoc.identifier}")
+        assert resp.status_code == 200
+        # Origin is an in-doc item → in-pane nav.
+        assert f'hx-push-url="{base}/item/{origin.identifier}"' in resp.text
+        # Destination is external → link out in a new tab.
+        assert ext_uri in resp.text
+        assert 'target="_blank"' in resp.text
