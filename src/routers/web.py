@@ -247,7 +247,7 @@ async def tree_view(
     # Parse optional ?item= parameter (ignore if invalid)
     selected_ident = _parse_uuid(item) if item else None
 
-    root_nodes, orphan_nodes, selected_item = await tree_service.build_ssr_tree(
+    root_nodes, orphan_nodes, selected_item = await tree_service.build_full_tree(
         session,
         doc,
         selected_ident,
