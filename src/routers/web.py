@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
-from src.repositories import cf_association_repository, cf_rubric_repository
+from src.repositories import cf_association_repository, cf_item_repository, cf_rubric_repository
 from src.services import cf_view_service, tenant_service, tree_service, uri_service
 
 router = APIRouter()
@@ -176,8 +176,12 @@ async def _detail_extras(
     referring_criteria: list = []
     related_groups: list[dict] = []
     # Identifiers of related targets that are items in this document's tree → can
-    # navigate in-pane within the current tree (others link out; see Stage 5).
+    # navigate in-pane within the current tree.
     related_in_doc: set[str] = set()
+    # Related targets that are CFItems in *another* document of this tenant →
+    # {identifier: {"doc_identifier", "doc_title"}} so the link can switch the
+    # tree to that document. Anything in neither set is external → link out.
+    related_other_doc: dict[str, dict] = {}
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFItem":
@@ -189,11 +193,24 @@ async def _detail_extras(
             # Order each related group into the tree's display order and learn
             # which dests are in-tree items (→ in-pane navigation).
             related_in_doc = tree_service.sort_related_by_tree_order(related_groups, tree_index or {})
+            # Classify the remaining dests: same-tenant items in another document
+            # (→ tree switch) vs external/unresolvable (→ link out).
+            other_dests = {
+                a.destination_node_identifier
+                for grp in related_groups
+                for a in grp["items"]
+                if a.destination_node_identifier not in related_in_doc
+            }
+            if other_dests:
+                doc_map = await cf_item_repository.map_identifiers_to_documents(session, tenant_id, other_dests)
+                cur = str(doc.identifier) if doc is not None else None
+                related_other_doc = {k: v for k, v in doc_map.items() if v["doc_identifier"] != cur}
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
         "related_groups": related_groups,
         "related_in_doc": related_in_doc,
+        "related_other_doc": related_other_doc,
     }
 
 
@@ -304,6 +321,7 @@ async def _render_tree_page(
     referring_criteria: list = []
     related_groups: list[dict] = []
     related_in_doc: set[str] = set()
+    related_other_doc: dict[str, dict] = {}
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
@@ -352,6 +370,7 @@ async def _render_tree_page(
                 referring_criteria = extras["referring_criteria"]
                 related_groups = extras["related_groups"]
                 related_in_doc = extras["related_in_doc"]
+                related_other_doc = extras["related_other_doc"]
 
     response = templates.TemplateResponse(
         request,
@@ -376,6 +395,7 @@ async def _render_tree_page(
             "referring_criteria": referring_criteria,
             "related_groups": related_groups,
             "related_in_doc": related_in_doc,
+            "related_other_doc": related_other_doc,
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: preserves the form the user requested (UUID
@@ -495,6 +515,7 @@ async def uri_detail(
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
             "related_in_doc": extras["related_in_doc"],
+            "related_other_doc": extras["related_other_doc"],
             # Standalone page (not the tree pane): show the "Show in tree" link.
             "in_pane": False,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
@@ -585,6 +606,7 @@ async def _pane_fragment_response(
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
             "related_in_doc": extras["related_in_doc"],
+            "related_other_doc": extras["related_other_doc"],
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: matches the form the user requested so nav
