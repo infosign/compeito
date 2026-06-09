@@ -102,15 +102,27 @@
    when there's no document context. The target is assumed to be a node in the
    current document's tree (e.g. an in-doc definition the resource references —
    item type / concept / license / association grouping). #}
-{% macro def_nav(ident, title) -%}
-{%- if in_pane and doc -%}
+{% macro def_nav(ident, title, in_doc=True) -%}
+{%- if in_doc and in_pane and doc -%}
 <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ ident }}" class="text-violet-600 hover:text-violet-800"
    hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ ident }}" hx-target="#detail-pane" hx-swap="innerHTML"
    hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ ident }}">{{ title }}</a>
-{%- elif doc -%}
-<a href="/{{ tenant_url }}/uri/{{ ident }}" class="text-violet-600 hover:text-violet-800">{{ title }}</a>
 {%- else -%}
-{{ title }}
+<a href="/{{ tenant_url }}/uri/{{ ident }}" class="text-violet-600 hover:text-violet-800">{{ title }}</a>
+{%- endif -%}
+{%- endmacro %}
+
+{# Button-styled variant of def_nav (e.g. the "back to item" action button):
+   in-pane HTMX nav when the target is a node in the current document's tree,
+   otherwise a full-page link to its /uri/ permalink. #}
+{% macro nav_button(ident, label, in_doc=True) -%}
+{%- set _cls = "inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors" -%}
+{%- if in_doc and in_pane and doc -%}
+<a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ ident }}" class="{{ _cls }}"
+   hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ ident }}" hx-target="#detail-pane" hx-swap="innerHTML"
+   hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ ident }}">{{ label }}</a>
+{%- else -%}
+<a href="/{{ tenant_url }}/uri/{{ ident }}" class="{{ _cls }}">{{ label }}</a>
 {%- endif -%}
 {%- endmacro %}
 
@@ -146,11 +158,11 @@
 {% endif %}
 {% endmacro %}
 
-{% macro linked_resource(label, link_url, link_text, ident, uri) %}
+{% macro linked_resource(label, link_url, link_text, ident, uri, nav_in_doc=False) %}
 <div>
     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-        <div>{{ sub_label(t("f_title")) }}<a href="{{ link_url }}" class="text-violet-600 hover:text-violet-800">{{ link_text }}</a></div>
+        <div>{{ sub_label(t("f_title")) }}{% if nav_in_doc and in_pane and doc %}{{ def_nav(ident, link_text) }}{% else %}<a href="{{ link_url }}" class="text-violet-600 hover:text-violet-800">{{ link_text }}</a>{% endif %}</div>
         <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
         {{ nested_uri(t("f_uri"), uri) }}
     </dd>
@@ -277,7 +289,8 @@
                 <ul class="ml-4 mt-1 space-y-1">
                     {% for crit in referring_criteria %}
                     <li>
-                        <a href="/{{ tenant_url }}/uri/{{ crit.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}</a>
+                        {% set crit_label %}{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}{% endset %}
+                        {{ def_nav(crit.identifier, crit_label, crit.cf_rubric and doc and crit.cf_rubric.cf_document_id == doc.id) }}
                         {% if crit.cf_rubric %}<span class="text-stone-500 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
                     </li>
                     {% endfor %}
@@ -559,7 +572,7 @@
         {{ optional_field(t("f_category"), resource.category) }}
         {{ optional_field(t("f_description"), resource.description) }}
         {% if resource.cf_item %}
-            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant_url ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri) }}
+            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant_url ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri, doc and resource.cf_item.cf_document_id == doc.id) }}
         {% endif %}
         {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
         {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
@@ -570,7 +583,7 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent") }}</dt>
             <dd class="text-gray-800">
-                <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric.title or resource.cf_rubric.identifier }}</a>
+                {{ def_nav(resource.cf_rubric.identifier, resource.cf_rubric.title or resource.cf_rubric.identifier) }}
             </dd>
         </div>
         {% endif %}
@@ -587,7 +600,7 @@
                     {% if lv.score is not none %}<span class="text-stone-500">({{ t("f_score") }}: {{ lv.score }})</span>{% endif %}
                     {% if lv.description %}<div>{{ lv.description }}</div>{% endif %}
                     {% if lv.feedback %}<div class="text-xs text-stone-500 italic">{{ lv.feedback }}</div>{% endif %}
-                    <div class="text-xs"><a href="/{{ tenant_url }}/uri/{{ lv.identifier }}" class="text-violet-600 hover:text-violet-800">{{ lv.identifier }}</a></div>
+                    <div class="text-xs">{{ def_nav(lv.identifier, lv.quality or lv.identifier) }}</div>
                 </div>
                 {% endfor %}
             </div>
@@ -597,7 +610,7 @@
         {% endif %}
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_item %}
-            <a href="/{{ tenant_url }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            {{ nav_button(resource.cf_item.identifier, t("view_linked_item"), doc and resource.cf_item.cf_document_id == doc.id) }}
             {% endif %}
             {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -620,7 +633,7 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
             <dd class="text-gray-800">
-                <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.identifier }}" class="text-violet-600 hover:text-violet-800">{{ resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier }}</a>
+                {{ def_nav(resource.cf_rubric_criterion.identifier, resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier) }}
             </dd>
         </div>
         {% endif %}
@@ -628,7 +641,7 @@
     </dl>
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
-            <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
+            {{ nav_button(resource.cf_rubric_criterion.cf_item.identifier, t("view_linked_item"), doc and resource.cf_rubric_criterion.cf_item.cf_document_id == doc.id) }}
             {% endif %}
             {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
