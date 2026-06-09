@@ -221,7 +221,10 @@
    top-level object is rendered flat (no border); nesting gets the indented
    border treatment from ext_value. #}
 {% macro extensions_block(label, ext) %}
-{% if ext %}
+{# Hide only when truly absent: null, empty string, empty object, or empty
+   array. Falsy-but-present scalars (0, false) ARE shown as text. #}
+{% set _empty = (ext is none) or (ext is string and ext == "") or ((ext is mapping or (ext is sequence and ext is not string)) and ext | length == 0) %}
+{% if not _empty %}
 <div>
     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 text-sm">

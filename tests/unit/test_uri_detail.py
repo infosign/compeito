@@ -468,6 +468,67 @@ class TestUriDetailPage:
         assert resp.status_code == 200
         assert "拡張データ" not in resp.text
 
+    async def test_extensions_falsy_scalar_shown(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A present-but-falsy scalar (0 / false) is shown as text, not hidden."""
+        for raw, needle in (({"flag": False}, "false"), ({"n": 0}, "0")):
+            ident = uuid.uuid4()
+            item = CFItem(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=ident,
+                uri=f"https://example.com/{ident}",
+                full_statement="Item with falsy extension value",
+                last_change_date_time=NOW,
+                depth=0,
+                extensions=raw,
+            )
+            db_session.add(item)
+            await db_session.flush()
+
+            resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+            assert resp.status_code == 200
+            assert "拡張データ" in resp.text
+            assert needle in resp.text
+
+    async def test_cf_document_extensions_variants_rendered(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+    ):
+        """CFDocument shows extensions plus container-level
+        package_extensions / definitions_extensions as separate sections."""
+        ident = uuid.uuid4()
+        doc = CFDocument(
+            tenant_id=tenant.id,
+            identifier=ident,
+            uri=f"https://example.com/doc/{ident}",
+            title="Doc with container extensions",
+            last_change_date_time=NOW,
+            extensions={"docKey": "docVal"},
+            package_extensions={"pkgKey": "pkgVal"},
+            definitions_extensions={"defKey": "defVal"},
+        )
+        db_session.add(doc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # Three distinct section labels (ja locale).
+        assert "拡張データ" in resp.text
+        assert "パッケージ拡張データ" in resp.text
+        assert "定義拡張データ" in resp.text
+        # Each section's value.
+        assert "docVal" in resp.text
+        assert "pkgVal" in resp.text
+        assert "defVal" in resp.text
+
     async def test_cf_association_page(
         self,
         db_session: AsyncSession,
