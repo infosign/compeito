@@ -64,7 +64,7 @@ class TestGetTranslator:
             "document_details",
             "no_items",
             "show_in_tree",
-            "return_to_top",
+            "go_to_top_page",
             "details",
             "error_bad_request",
             "error_not_found",
