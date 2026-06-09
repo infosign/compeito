@@ -160,8 +160,9 @@ async def _detail_extras(session: AsyncSession, tenant_id, resource_type: str, r
     elif resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, resource.id)
         related_groups = await _related_groups(session, tenant_id, resource.identifier)
-        dest_idents = {a.destination_node_identifier for grp in related_groups for a in grp["items"]}
-        related_in_doc = await tree_service.items_in_doc(session, resource.cf_document_id, dest_idents)
+        # Order each related group like the tree (dest item's hcs natsort) and
+        # learn which dests are same-doc items (→ in-pane navigation).
+        related_in_doc = await tree_service.sort_related_by_tree_order(session, resource.cf_document_id, related_groups)
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
