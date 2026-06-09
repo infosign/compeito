@@ -512,9 +512,9 @@
         </div>
         {% endif %}
     {% endif %}
-    {% if not in_pane %}
+    {% if doc and not in_pane %}
     <div class="mt-6">
-        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+        <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
     </div>
     {% endif %}
 
@@ -566,7 +566,7 @@
             <a href="/{{ tenant_url }}/uri/{{ resource.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
             {% if doc and not in_pane %}
-            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>
 
@@ -597,7 +597,7 @@
             <a href="/{{ tenant_url }}/uri/{{ resource.cf_rubric_criterion.cf_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_linked_item") }}</a>
             {% endif %}
             {% if doc and not in_pane %}
-            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
             {% endif %}
         </div>
 

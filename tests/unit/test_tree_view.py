@@ -1554,3 +1554,18 @@ class TestRubricsTree:
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
         assert resp.status_code == 200
         assert "ルーブリック" not in resp.text
+
+    async def test_standalone_show_in_tree_selects_rubric_part(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The standalone /uri/ page's "Show in tree" link targets the node's
+        own /item/{id} so the tree selects it (not just the document root)."""
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, sample_document)
+        for part in (rubric, crit, level):
+            resp = await db_client.get(f"/{tenant.id}/uri/{part.identifier}")
+            assert resp.status_code == 200
+            assert f"/cftree/doc/{sample_document.identifier}/item/{part.identifier}" in resp.text
