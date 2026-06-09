@@ -403,6 +403,140 @@ class TestUriDetailPage:
         assert "ツリーで表示" in resp.text
         assert "CFPackage API" in resp.text
 
+    async def test_cf_item_extensions_rendered(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Free-form `extensions` are rendered on the detail page, dispatching
+        on JSON type: nested object, scalar-array chips, and http(s) link."""
+        ident = uuid.uuid4()
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/item",
+            full_statement="Item with extensions",
+            last_change_date_time=NOW,
+            depth=0,
+            extensions={
+                "skillType": "competence",
+                "altLabels": {"fr": "aptitude"},
+                "broaderUris": ["uri:a", "uri:b"],
+                "source": "https://example.org/skill/123",
+            },
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # Section label (ja locale) + keys + values across the type variants.
+        assert "拡張データ" in resp.text
+        assert "skillType" in resp.text
+        assert "competence" in resp.text
+        assert "altLabels" in resp.text and "aptitude" in resp.text  # nested object
+        assert "uri:a" in resp.text and "uri:b" in resp.text  # scalar-array chips
+        # http(s) value becomes a clickable link
+        assert 'href="https://example.org/skill/123"' in resp.text
+
+    async def test_extensions_absent_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """No extensions section is emitted when the field is null/empty."""
+        ident = uuid.uuid4()
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/item2",
+            full_statement="Item without extensions",
+            last_change_date_time=NOW,
+            depth=0,
+            extensions=None,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        assert "拡張データ" not in resp.text
+
+    async def test_extensions_falsy_scalar_shown(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A present-but-falsy scalar (0 / false) is shown as text, not hidden.
+
+        Assertions tie the key cell to the value span so they can't be satisfied
+        by incidental "0"/"false" substrings elsewhere in the HTML (CSS, etc.).
+        """
+        for raw, key, value_html in (
+            ({"flag": False}, "flag", ">false</span>"),
+            ({"count": 0}, "count", ">0</span>"),
+        ):
+            ident = uuid.uuid4()
+            item = CFItem(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=ident,
+                uri=f"https://example.com/{ident}",
+                full_statement="Item with falsy extension value",
+                last_change_date_time=NOW,
+                depth=0,
+                extensions=raw,
+            )
+            db_session.add(item)
+            await db_session.flush()
+
+            resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+            assert resp.status_code == 200
+            assert "拡張データ" in resp.text
+            assert f">{key}</div>" in resp.text  # key cell
+            assert value_html in resp.text  # value span
+
+    async def test_cf_document_extensions_variants_rendered(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+    ):
+        """CFDocument shows extensions plus container-level
+        package_extensions / definitions_extensions as separate sections."""
+        ident = uuid.uuid4()
+        doc = CFDocument(
+            tenant_id=tenant.id,
+            identifier=ident,
+            uri=f"https://example.com/doc/{ident}",
+            title="Doc with container extensions",
+            last_change_date_time=NOW,
+            extensions={"docKey": "docVal"},
+            package_extensions={"pkgKey": "pkgVal"},
+            definitions_extensions={"defKey": "defVal"},
+        )
+        db_session.add(doc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # Three distinct section labels (ja locale).
+        assert "拡張データ" in resp.text
+        assert "パッケージ拡張データ" in resp.text
+        assert "定義拡張データ" in resp.text
+        # Each section's value.
+        assert "docVal" in resp.text
+        assert "pkgVal" in resp.text
+        assert "defVal" in resp.text
+
     async def test_cf_association_page(
         self,
         db_session: AsyncSession,
