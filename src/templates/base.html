@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}COMPEITO{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/static/vendor/htmx-2.0.4.min.js"></script>
     <style>
+        /* Self-hosted Quicksand 700 (logo wordmark only). SIL Open Font License. */
+        @font-face {
+            font-family: 'Quicksand';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('/static/fonts/quicksand-700.woff2') format('woff2');
+        }
         [data-tree-item] { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
         .logo-text {
             font-family: 'Quicksand', sans-serif;
