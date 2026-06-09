@@ -20,6 +20,13 @@ router = APIRouter()
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
 
+# Tailwind is built into a local stylesheet at image-build time (no external CDN
+# in production). When that built file is absent — e.g. native local dev without
+# a build step — base.html falls back to the Tailwind Play CDN so styling still
+# works with zero setup. Evaluated once at startup.
+_TAILWIND_CSS = Path(__file__).resolve().parent.parent / "static" / "css" / "app.css"
+templates.env.globals["tailwind_local"] = _TAILWIND_CSS.is_file()
+
 CACHE_CONTROL = "public, max-age=3600"
 CACHE_CONTROL_FRAGMENT = "public, max-age=86400"
 
