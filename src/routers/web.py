@@ -182,8 +182,19 @@ async def _detail_extras(
     # {identifier: {"doc_identifier", "doc_title"}} so the link can switch the
     # tree to that document. Anything in neither set is external → link out.
     related_other_doc: dict[str, dict] = {}
+    # CFAssociation origin/destination node classification (same 3 buckets as the
+    # related list): in-doc items navigate in-pane, other-doc items switch trees,
+    # the rest are external.
+    assoc_node_in_doc: set[str] = set()
+    assoc_node_other_doc: dict[str, dict] = {}
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
+    elif resource_type == "CFAssociation":
+        idents = {resource.origin_node_identifier, resource.destination_node_identifier}
+        doc_map = await cf_item_repository.map_identifiers_to_documents(session, tenant_id, idents)
+        cur = str(doc.identifier) if doc is not None else None
+        assoc_node_in_doc = {k for k, v in doc_map.items() if v["doc_identifier"] == cur}
+        assoc_node_other_doc = {k: v for k, v in doc_map.items() if v["doc_identifier"] != cur}
     elif resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, resource.id)
         related_groups = await _related_groups(session, tenant_id, resource.identifier)
@@ -211,6 +222,8 @@ async def _detail_extras(
         "related_groups": related_groups,
         "related_in_doc": related_in_doc,
         "related_other_doc": related_other_doc,
+        "assoc_node_in_doc": assoc_node_in_doc,
+        "assoc_node_other_doc": assoc_node_other_doc,
     }
 
 
@@ -396,6 +409,10 @@ async def _render_tree_page(
             "related_groups": related_groups,
             "related_in_doc": related_in_doc,
             "related_other_doc": related_other_doc,
+            # Associations aren't tree-selected here; keep keys defined for the
+            # shared partial's CFAssociation branch.
+            "assoc_node_in_doc": set(),
+            "assoc_node_other_doc": {},
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: preserves the form the user requested (UUID
@@ -516,6 +533,8 @@ async def uri_detail(
             "related_groups": extras["related_groups"],
             "related_in_doc": extras["related_in_doc"],
             "related_other_doc": extras["related_other_doc"],
+            "assoc_node_in_doc": extras["assoc_node_in_doc"],
+            "assoc_node_other_doc": extras["assoc_node_other_doc"],
             # Standalone page (not the tree pane): show the "Show in tree" link.
             "in_pane": False,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
@@ -607,6 +626,8 @@ async def _pane_fragment_response(
             "related_groups": extras["related_groups"],
             "related_in_doc": extras["related_in_doc"],
             "related_other_doc": extras["related_other_doc"],
+            "assoc_node_in_doc": extras["assoc_node_in_doc"],
+            "assoc_node_other_doc": extras["assoc_node_other_doc"],
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: matches the form the user requested so nav

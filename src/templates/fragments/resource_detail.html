@@ -126,6 +126,21 @@
 {%- endif -%}
 {%- endmacro %}
 
+{# Classify a node reference (e.g. an association's origin/destination) into the
+   same buckets as the related list: in-doc → in-pane nav, same-tenant other doc
+   → tree switch, external http(s) → link out, otherwise plain text. #}
+{% macro classified_ref(ident, label, uri, in_doc, other) -%}
+{%- if in_doc -%}
+{{ def_nav(ident, label, True) }}
+{%- elif other -%}
+<a href="/{{ tenant_url }}/cftree/doc/{{ other.doc_identifier }}/item/{{ ident }}" class="text-violet-600 hover:text-violet-800" title="{{ other.doc_title }}">{{ label }}</a><span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
+{%- elif uri and (uri.startswith("http://") or uri.startswith("https://")) -%}
+<a href="{{ uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800">{{ label }}</a><span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
+{%- else -%}
+{{ label }}
+{%- endif -%}
+{%- endmacro %}
+
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
     <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
@@ -425,7 +440,7 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_origin_node_uri") }}</dt>
             <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.origin_node_title }}</div>{% endif %}
+                {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.origin_node_identifier, resource.origin_node_title, resource.origin_node_uri, resource.origin_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.origin_node_identifier)) }}</div>{% endif %}
                 <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
                 {{ nested_uri(t("f_uri"), resource.origin_node_uri) }}
                 {% if resource.origin_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.origin_node_target_type }}</div>{% endif %}
@@ -434,7 +449,7 @@
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_destination_node_uri") }}</dt>
             <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ resource.destination_node_title }}</div>{% endif %}
+                {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.destination_node_identifier, resource.destination_node_title, resource.destination_node_uri, resource.destination_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.destination_node_identifier)) }}</div>{% endif %}
                 <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
                 {{ nested_uri(t("f_uri"), resource.destination_node_uri) }}
                 {% if resource.destination_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.destination_node_target_type }}</div>{% endif %}
