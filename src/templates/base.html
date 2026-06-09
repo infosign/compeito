@@ -58,11 +58,25 @@
     document.addEventListener('DOMContentLoaded', function() { formatLocalDates(); });
     document.addEventListener('htmx:afterSettle', function(evt) { formatLocalDates(evt.detail.elt); });
 
+    // Center a tree node within the scrollable tree container, but ONLY when it
+    // is currently off-screen. Scrolls the container alone (not the window).
+    // Already-visible nodes are left untouched — so selecting a node you just
+    // clicked (e.g. a leaf already on screen) doesn't jump the tree; only an
+    // off-screen target (a related link, or a deep node on direct load) moves.
+    function revealInTree(el) {
+        var pane = document.getElementById('tree-scroll');
+        if (!pane || !pane.contains(el)) return;
+        var er = el.getBoundingClientRect();
+        var pr = pane.getBoundingClientRect();
+        if (er.top >= pr.top && er.bottom <= pr.bottom) return;  // already visible
+        pane.scrollTop += (er.top - pr.top) - (pr.height - er.height) / 2;
+    }
+
     // Tree ↔ pane sync: select a tree node by item id — open its ancestor
-    // <details>, highlight it, and scroll it into view. No-op if the node
+    // <details>, highlight it, and reveal it if off-screen. No-op if the node
     // isn't in the current tree (e.g. a cross-document link). Called from
-    // in-pane navigation (hx-on::after-swap) so following a related link
-    // keeps the tree in step with the pane.
+    // in-pane navigation so following a related link keeps the tree in step
+    // with the pane.
     function selectTreeNode(id) {
         var el = document.querySelector('[data-item-id="' + id + '"]');
         if (!el) return;
@@ -73,7 +87,7 @@
             e.classList.remove('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
         });
         el.classList.add('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
-        el.scrollIntoView({ block: 'center' });
+        revealInTree(el);
     }
 
     // After a detail fragment is swapped into the pane (tree node OR pane-
@@ -101,12 +115,7 @@
         for (var p = el.parentElement && el.parentElement.closest('details'); p; p = p.parentElement && p.parentElement.closest('details')) {
             p.open = true;
         }
-        requestAnimationFrame(function() {
-            var er = el.getBoundingClientRect();
-            var pr = pane.getBoundingClientRect();
-            if (er.top >= pr.top && er.bottom <= pr.bottom) return;  // already visible
-            pane.scrollTop += (er.top - pr.top) - (pr.height - er.height) / 2;
-        });
+        requestAnimationFrame(function() { revealInTree(el); });
     });
 
     // Expanding a node whose children fall below the tree's visible area: nudge
