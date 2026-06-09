@@ -258,17 +258,23 @@ async def _render_tree_page(
     # Fetch rubrics for this document (shown in right pane default view)
     rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
 
-    # On deep-link (?item=), SSR the right pane with that item's full detail
-    # (relationship-loaded), so the pane reconstructs without an HTMX round-trip.
-    selected_detail = None
+    # Right-pane content (SSR via the shared partial): the deep-linked item's
+    # full detail when ?item= / /item/ selects one, otherwise the document
+    # itself. Either way the pane reconstructs without an HTMX round-trip.
     referring_criteria: list = []
     related_groups: list[dict] = []
+    pane_resource = None
     if selected_item is not None:
-        selected_detail = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
-        if selected_detail is not None:
-            extras = await _detail_extras(session, tenant_obj.id, "CFItem", selected_detail)
-            referring_criteria = extras["referring_criteria"]
-            related_groups = extras["related_groups"]
+        pane_resource = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
+    if pane_resource is not None:
+        pane_type = "CFItem"
+        extras = await _detail_extras(session, tenant_obj.id, "CFItem", pane_resource)
+        referring_criteria = extras["referring_criteria"]
+        related_groups = extras["related_groups"]
+    else:
+        # No item selected → the document is the pane's content (its root view).
+        pane_resource = doc
+        pane_type = "CFDocument"
 
     response = templates.TemplateResponse(
         request,
@@ -279,10 +285,10 @@ async def _render_tree_page(
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
-            # Full-detail pane context (used by the shared partial when an item
-            # is deep-linked). `resource` is the relationship-loaded item.
-            "resource": selected_detail,
-            "resource_type": "CFItem" if selected_detail is not None else None,
+            # Full-detail pane context (shared partial). `resource` is the
+            # relationship-loaded item, or the document when nothing is selected.
+            "resource": pane_resource,
+            "resource_type": pane_type,
             "referring_criteria": referring_criteria,
             "related_groups": related_groups,
             # Rendered inside the tree → hide the redundant "Show in tree" link.
@@ -500,21 +506,26 @@ async def detail_fragment(
     if item_uuid is None:
         return HTMLResponse("", status_code=400)
 
-    selected_item = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
-    if selected_item is None:
-        return _error_fragment(404, t("error_item_not_found"))
-
     # The pane renders the SAME full-detail card as the standalone /uri/ page
-    # (shared partial), so the right pane is the complete view — no round-trip
-    # to /uri/ needed just to see all fields.
-    extras = await _detail_extras(session, tenant_obj.id, "CFItem", selected_item)
+    # (shared partial), so the right pane is the complete view. The document
+    # itself can be shown (its identifier passed as {item_id}); otherwise an item.
+    if item_uuid == doc.identifier:
+        resource = doc
+        resource_type = "CFDocument"
+    else:
+        resource = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
+        if resource is None:
+            return _error_fragment(404, t("error_item_not_found"))
+        resource_type = "CFItem"
+
+    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource)
 
     response = templates.TemplateResponse(
         request,
         "fragments/detail.html",
         {
-            "resource": selected_item,
-            "resource_type": "CFItem",
+            "resource": resource,
+            "resource_type": resource_type,
             "doc": doc,
             "tenant": tenant_obj,
             "rubrics": extras["rubrics"],
