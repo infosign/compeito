@@ -215,15 +215,17 @@ async def tenant_page(
     return response
 
 
-@router.get("/{tenant}/cftree/doc/{doc_id}", response_class=HTMLResponse)
-async def tree_view(
+async def _render_tree_page(
     tenant: str,
     doc_id: str,
     request: Request,
-    item: str = Query(default=None),
-    session: AsyncSession = Depends(get_session),
+    item: str | None,
+    session: AsyncSession,
 ) -> HTMLResponse:
-    """Tree view page (SSR depth 0-1 + HTMX lazy load)."""
+    """Render the full tree page, optionally with `item` selected (its full
+    detail SSR'd into the right pane). Shared by the query-string route
+    (`?item=`) and the path route (`/item/{id}`); the path form is what
+    in-tree navigation pushes (static-bakeable — one object per item)."""
     lang = _get_lang(request)
     t = get_translator(lang)
     # Resolve tenant (UUID or slug)
@@ -283,6 +285,8 @@ async def tree_view(
             "resource_type": "CFItem" if selected_detail is not None else None,
             "referring_criteria": referring_criteria,
             "related_groups": related_groups,
+            # Rendered inside the tree → hide the redundant "Show in tree" link.
+            "in_pane": True,
             # Sticky URL segment: preserves the form the user requested (UUID
             # or slug) so nav links don't drift the URL bar mid-session.
             # Permalink / API URL strings rendered in the page use `tenant.id`
@@ -295,6 +299,33 @@ async def tree_view(
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
+
+
+@router.get("/{tenant}/cftree/doc/{doc_id}", response_class=HTMLResponse)
+async def tree_view(
+    tenant: str,
+    doc_id: str,
+    request: Request,
+    item: str = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """Tree view page. `?item=` selects an item (kept for back-compat)."""
+    return await _render_tree_page(tenant, doc_id, request, item, session)
+
+
+@router.get("/{tenant}/cftree/doc/{doc_id}/item/{item_id}", response_class=HTMLResponse)
+async def tree_view_item(
+    tenant: str,
+    doc_id: str,
+    item_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """Tree view with an item selected via the URL path. This is the canonical,
+    shareable, static-bakeable form that in-tree navigation pushes; opening /
+    reloading / sharing it reconstructs the tree (expanded to the item) + the
+    item's full detail in the pane via SSR."""
+    return await _render_tree_page(tenant, doc_id, request, item_id, session)
 
 
 @router.get("/{tenant}/uri/{resource_id}", response_class=HTMLResponse)
@@ -372,6 +403,8 @@ async def uri_detail(
             "rubrics": extras["rubrics"],
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
+            # Standalone page (not the tree pane): show the "Show in tree" link.
+            "in_pane": False,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
             "t": t,
             "lang": lang,
@@ -487,6 +520,8 @@ async def detail_fragment(
             "rubrics": extras["rubrics"],
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
+            # Rendered inside the tree → hide the redundant "Show in tree" link.
+            "in_pane": True,
             # Sticky URL segment: matches the form the user requested so nav
             # links don't drift the URL bar mid-session.
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
