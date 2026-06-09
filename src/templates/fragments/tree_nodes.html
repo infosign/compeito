@@ -1,50 +1,31 @@
-{# Renders a list of TreeNodes. Uses: nodes, tenant_url, doc_identifier, selected_item, depth #}
+{# Renders TreeNodes as a nested <details> tree — full SSR, no lazy loading.
+   Expand/collapse is native <details> (no JS, no server round-trip). The label
+   is a real <a href> (works without JS) with HTMX layered on to swap the detail
+   pane. Uses: nodes, tenant_url, doc_identifier, selected_item. #}
 {% for node in nodes %}
-<div class="mt-1">
-    <div class="flex items-center group py-1.5 px-2 rounded
-        {% if selected_item and node.item.identifier == selected_item.identifier %}bg-violet-50 ring-1 ring-inset ring-violet-200{% else %}hover:bg-stone-100{% endif %}"
-        data-tree-item>
-        {# Expand/collapse icon #}
-        {% if node.has_children %}
-            {% if node.is_expanded %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
-                onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▼</button>
-            {% else %}
-            <button class="w-5 h-5 flex-shrink-0 text-violet-500 hover:text-violet-700 cursor-pointer"
-                hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
-                hx-target="#ch-{{ node.item.identifier }}"
-                hx-swap="innerHTML"
-                hx-trigger="click once"
-                onclick="var ch=document.getElementById('ch-{{ node.item.identifier }}'); ch.classList.toggle('hidden'); this.textContent=ch.classList.contains('hidden')?'▶':'▼'">▶</button>
-            {% endif %}
-        {% else %}
-            <span class="w-5 h-5 flex-shrink-0 text-violet-200 text-center">●</span>
-        {% endif %}
-
-        {# Item content - HTMX swaps detail pane; mobile scrolls to it #}
-        <a href="/{{ tenant_url }}/uri/{{ node.item.identifier }}"
-           class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
-           hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
-           hx-target="#detail-pane"
-           hx-swap="innerHTML"
-           hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"
-           onclick="document.querySelectorAll('[data-tree-item]').forEach(el => {el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200'); el.classList.add('hover:bg-stone-100')}); this.closest('[data-tree-item]').classList.remove('hover:bg-stone-100'); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">
-            {% if node.item.item_type %}
-            <span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>
-            {% endif %}
-            {% if node.item.human_coding_scheme %}
-            <span class="font-medium">{{ node.item.human_coding_scheme }}</span>
-            {% endif %}
-            <span>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>
-        </a>
+{% set is_sel = selected_item and node.item.identifier == selected_item.identifier %}
+{% set label_attrs %}href="/{{ tenant_url }}/uri/{{ node.item.identifier }}"
+       class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
+       hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
+       hx-target="#detail-pane"
+       hx-swap="innerHTML"
+       hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"{% endset %}
+{% set label_body %}{% if node.item.item_type %}<span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>{% endif %}{% if node.item.human_coding_scheme %}<span class="font-medium">{{ node.item.human_coding_scheme }}</span> {% endif %}<span>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>{% endset %}
+{% set sel_classes = "bg-violet-50 ring-1 ring-inset ring-violet-200" if is_sel else "hover:bg-stone-100" %}
+{% if node.has_children %}
+<details class="mt-1"{% if node.is_expanded %} open{% endif %}>
+    <summary data-tree-item class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer {{ sel_classes }}">
+        <span class="tree-tri w-5 h-5 flex-shrink-0 text-violet-500 select-none text-center">▶</span>
+        <a {{ label_attrs }} onclick="event.stopPropagation(); document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200')); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">{{ label_body }}</a>
+    </summary>
+    <div class="ml-4">
+        {% with nodes=node.children %}{% include "fragments/tree_nodes.html" %}{% endwith %}
     </div>
-    {# Children container #}
-    <div id="ch-{{ node.item.identifier }}" class="tree-children ml-4 {% if not node.is_expanded %}hidden{% endif %}">
-        {% if node.children %}
-            {% with nodes=node.children %}
-                {% include "fragments/tree_nodes.html" %}
-            {% endwith %}
-        {% endif %}
-    </div>
+</details>
+{% else %}
+<div data-tree-item class="mt-1 flex items-center py-1.5 px-2 rounded {{ sel_classes }}">
+    <span class="w-5 h-5 flex-shrink-0 text-violet-200 text-center select-none">●</span>
+    <a {{ label_attrs }} onclick="document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200')); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">{{ label_body }}</a>
 </div>
+{% endif %}
 {% endfor %}
