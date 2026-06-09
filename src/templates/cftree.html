@@ -27,6 +27,7 @@
 {% endblock %}
 
 {% block content %}
+{% from "fragments/tree_node_macros.html" import branch_summary, leaf %}
 <div class="flex flex-col md:flex-row gap-6">
     {# Left pane: tree (shorter on mobile so detail pane peeks below) #}
     <div id="tree-scroll" class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]"{% if selected_ident %} data-selected-item="{{ selected_ident }}"{% endif %}>
@@ -94,6 +95,49 @@
                             {% endfor %}
                         </div>
                     </details>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+            {# Rubrics: CFRubric -> Criterion -> Level as nested navigable nodes.
+               Collapsed by default; auto-opens to the selected node's path. #}
+            {% if rubrics %}
+            <details class="mt-2 pt-2 border-t border-stone-100"{% if rubrics_section_open %} open{% endif %}>
+                <summary class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer hover:bg-stone-100">
+                    <span class="tree-tri w-5 h-5 flex-shrink-0 text-stone-400 select-none text-center">▶</span>
+                    <span class="ml-1 text-sm font-semibold text-stone-600">{{ t("rubrics") }}</span>
+                </summary>
+                <div class="ml-4">
+                    {% for r in rubrics %}
+                    {% set r_label = r.title or r.identifier|string %}
+                    {% if r.criteria %}
+                    <details class="mt-1"{% if r.identifier|string in open_rubric_ids %} open{% endif %}>
+                        {{ branch_summary(tenant_url, doc.identifier, r.identifier, r_label, selected_ident) }}
+                        <div class="ml-4">
+                            {% for c in r.criteria %}
+                            {# category alone is often shared across criteria; append the
+                               description so sibling criteria are distinguishable. #}
+                            {% set c_label %}{% if c.category and c.description %}{{ c.category }}：{{ c.description[:30] }}{% if c.description|length > 30 %}…{% endif %}{% elif c.category %}{{ c.category }}{% elif c.description %}{{ c.description[:40] }}{% if c.description|length > 40 %}…{% endif %}{% else %}{{ c.identifier }}{% endif %}{% endset %}
+                            {% if c.levels %}
+                            <details class="mt-1"{% if c.identifier|string in open_rubric_ids %} open{% endif %}>
+                                {{ branch_summary(tenant_url, doc.identifier, c.identifier, c_label, selected_ident) }}
+                                <div class="ml-4">
+                                    {% for lv in c.levels %}
+                                    {% set lv_label = lv.quality or (("#" ~ lv.position) if lv.position is not none else lv.identifier|string) %}
+                                    {{ leaf(tenant_url, doc.identifier, lv.identifier, lv_label, selected_ident) }}
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% else %}
+                            {{ leaf(tenant_url, doc.identifier, c.identifier, c_label, selected_ident) }}
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% else %}
+                    {{ leaf(tenant_url, doc.identifier, r.identifier, r_label, selected_ident) }}
                     {% endif %}
                     {% endfor %}
                 </div>
