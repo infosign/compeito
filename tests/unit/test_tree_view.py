@@ -1074,6 +1074,55 @@ class TestDetailFragment:
         # Not in-pane nav: no push-url to an /item/ path for the external target.
         assert f"/cftree/doc/{sample_document.identifier}/item/{external_dest}" not in resp.text
 
+    async def test_related_items_sorted_by_tree_key(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Related items render in the tree's order (hcs natural sort), not by
+        association title. SK.2 (< SK.10 naturally) comes before SK.10 even
+        though its title sorts later."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin")
+        # Titles chosen so title-order (Alpha < Beta) is the OPPOSITE of hcs-order.
+        late = _make_item(tenant, sample_document, full_statement="Alpha skill", hcs="SK.10")
+        early = _make_item(tenant, sample_document, full_statement="Beta skill", hcs="SK.2")
+        db_session.add_all([origin, late, early])
+        await db_session.flush()
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/e",
+            title="Essential skill",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        for dest in (late, early):
+            db_session.add(
+                CFAssociation(
+                    tenant_id=tenant.id,
+                    cf_document_id=sample_document.id,
+                    identifier=uuid.uuid4(),
+                    uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                    association_type="isRelatedTo",
+                    origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+                    origin_node_identifier=str(origin.identifier),
+                    destination_node_uri=f"https://example.com/uri/{dest.identifier}",
+                    destination_node_identifier=str(dest.identifier),
+                    destination_node_title=dest.full_statement,
+                    cf_association_grouping_id=grouping.id,
+                    last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                )
+            )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # hcs natsort: SK.2 (Beta) before SK.10 (Alpha) — opposite of title order.
+        assert resp.text.index("Beta skill") < resp.text.index("Alpha skill")
+
     async def test_missing_item_404(
         self,
         db_session: AsyncSession,
