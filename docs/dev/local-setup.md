@@ -62,6 +62,13 @@ The `app` service in `docker-compose.yml` receives `DATABASE_URL=postgresql+asyn
 - **Test DB**: `conftest.py` `DELETE`s all tables after each test for rollback-like behavior.
 - **CI**: GitHub Actions starts the DB with `docker compose up -d db` before running `uv run pytest`. The same sequence runs locally.
 - **`LANG`**: the CLI switches its display language based on `LANG`. Tests assume English output, so an autouse fixture in `tests/unit/test_cli.py` forces `LANG=C`.
+- **Tailwind CSS**: the production Docker image builds `src/static/css/app.css` (standalone Tailwind binary, no Node). Native dev (`uv run uvicorn`) has no built CSS, so `base.html` automatically falls back to the Tailwind Play CDN — styling works with zero setup. To preview the production (built, CDN-free) CSS locally, build it yourself and it will be picked up on the next server start:
+  ```bash
+  # download the standalone binary for your OS/arch from
+  # https://github.com/tailwindlabs/tailwindcss/releases (v3.4.17), then:
+  ./tailwindcss -i tailwind/input.css -o src/static/css/app.css --minify
+  ```
+  The output is git-ignored (never committed).
 
 ---
 
@@ -129,3 +136,10 @@ docker compose exec app uv run pytest                 # テスト
 - **テスト DB**: `conftest.py` がテストごとに全テーブルを `DELETE` してロールバック相当の挙動を実現
 - **CI**: GitHub Actions で `docker compose up -d db` してから `uv run pytest` を実行する（同じ手順がローカルでも再現できる）
 - **`LANG` 環境変数**: CLI は `LANG` を見て表示言語を切り替える。テストは英語前提のため `tests/unit/test_cli.py` の autouse fixture で `LANG=C` を強制している
+- **Tailwind CSS**: 本番 Docker イメージは `src/static/css/app.css` をビルドする（standalone Tailwind バイナリ、Node 不要）。ネイティブ開発（`uv run uvicorn`）ではビルド済み CSS が無いため、`base.html` が自動で Tailwind Play CDN にフォールバックする（ゼロ設定でスタイルが効く）。本番相当（ビルド済み・CDN非依存）の CSS をローカルで確認したい場合は自分でビルドすれば次回起動時に拾われる:
+  ```bash
+  # https://github.com/tailwindlabs/tailwindcss/releases (v3.4.17) から
+  # OS/arch 別の standalone バイナリを取得し:
+  ./tailwindcss -i tailwind/input.css -o src/static/css/app.css --minify
+  ```
+  出力は git 管理対象外（コミットしない）。

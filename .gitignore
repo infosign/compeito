@@ -45,3 +45,6 @@ seed/*.csv
 !seed/001r.csv
 .collaborator
 .claude/scheduled_tasks.lock
+
+# Tailwind build output (generated at Docker image-build time; not committed)
+src/static/css/
