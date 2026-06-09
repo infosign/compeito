@@ -299,10 +299,16 @@
                                class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
                                title="{{ related_other_doc[dest].doc_title }}">{{ dest_label }}</a>
                             <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
-                            {% else %}
-                            {# External / unresolvable reference → link out in a new tab. #}
+                            {% elif a.destination_node_uri and (a.destination_node_uri.startswith("http://") or a.destination_node_uri.startswith("https://")) %}
+                            {# External / unresolvable reference → link out in a new tab.
+                               Only http(s) is linkified; other schemes (javascript:, data:)
+                               from external CASE data are rendered as plain text below. #}
                             <a href="{{ a.destination_node_uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
                             <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
+                            {% else %}
+                            {# Unresolvable with an unsafe/empty URI scheme → not clickable. #}
+                            <span class="text-gray-800 text-sm">{{ dest_label }}</span>
+                            <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}</span>
                             {% endif %}
                             {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
                         </li>

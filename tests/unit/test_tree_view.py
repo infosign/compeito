@@ -1079,6 +1079,40 @@ class TestDetailFragment:
         # Not a tree switch / in-pane nav.
         assert f"/cftree/doc/{sample_document.identifier}/item/{external_dest}" not in resp.text
 
+    async def test_related_link_unsafe_scheme_not_clickable(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """An external destination URI with a non-http(s) scheme (e.g.
+        javascript:) is NOT linkified — rendered as plain text instead."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        external_dest = uuid.uuid4()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri="javascript:alert(1)",
+            destination_node_identifier=str(external_dest),
+            destination_node_title="Sketchy ref",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert "Sketchy ref" in resp.text  # shown as plain text
+        assert "javascript:" not in resp.text  # never emitted as an href
+
     async def test_related_link_other_doc_switches_tree(
         self,
         db_session: AsyncSession,
