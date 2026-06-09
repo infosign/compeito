@@ -117,6 +117,25 @@ def _error_fragment(status_code: int, message: str) -> HTMLResponse:
     )
 
 
+async def _related_groups(session: AsyncSession, tenant_id, item_identifier) -> list[dict]:
+    """Outgoing non-isChildOf associations grouped by CFAssociationGrouping
+    (e.g. Essential / Optional). Ungrouped associations fall into a None bucket.
+    Shared by the full detail page (`uri_detail`) and the tree detail fragment
+    (`detail_fragment`) so both render the same grouped "Related" block.
+    """
+    assocs = await cf_association_repository.list_outgoing_related(session, tenant_id, str(item_identifier))
+    buckets: dict[str | None, dict] = {}
+    order: list[str | None] = []
+    for a in assocs:
+        g = a.association_grouping
+        key = str(g.identifier) if g else None
+        if key not in buckets:
+            buckets[key] = {"title": (g.title if g else None), "items": []}
+            order.append(key)
+        buckets[key]["items"].append(a)
+    return [buckets[k] for k in order]
+
+
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------
@@ -292,21 +311,7 @@ async def uri_detail(
         rubrics = await cf_rubric_repository.list_by_document(session, result.resource.id)
     elif result.resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, result.resource.id)
-        # Outgoing non-isChildOf associations, grouped by CFAssociationGrouping
-        # (e.g. Essential / Optional). Ungrouped ones fall into a None bucket.
-        assocs = await cf_association_repository.list_outgoing_related(
-            session, tenant_obj.id, str(result.resource.identifier)
-        )
-        buckets: dict[str | None, dict] = {}
-        order: list[str | None] = []
-        for a in assocs:
-            g = a.association_grouping
-            key = str(g.identifier) if g else None
-            if key not in buckets:
-                buckets[key] = {"title": (g.title if g else None), "items": []}
-                order.append(key)
-            buckets[key]["items"].append(a)
-        related_groups = [buckets[k] for k in order]
+        related_groups = await _related_groups(session, tenant_obj.id, result.resource.identifier)
 
     # Build page title per spec
     if result.resource_type == "CFItem":
@@ -432,11 +437,16 @@ async def detail_fragment(
     if selected_item is None:
         return _error_fragment(404, t("error_item_not_found"))
 
+    # Same grouped "Related" associations as the full detail page, so users can
+    # see e.g. Essential / Optional links without leaving the tree pane.
+    related_groups = await _related_groups(session, tenant_obj.id, selected_item.identifier)
+
     response = templates.TemplateResponse(
         request,
         "fragments/detail.html",
         {
             "selected_item": selected_item,
+            "related_groups": related_groups,
             # Sticky URL segment: matches the form the user requested so nav
             # links don't drift the URL bar mid-session.
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),

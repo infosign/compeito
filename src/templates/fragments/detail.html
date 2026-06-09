@@ -47,6 +47,26 @@
     </div>
     {% endif %}
 </dl>
+{% if related_groups %}
+<div class="mt-4">
+    <h3 class="text-xs font-semibold text-stone-500 uppercase mb-1">{{ t("f_related") }}</h3>
+    <div class="space-y-3">
+        {% for grp in related_groups %}
+        <div>
+            <div class="text-sm font-semibold text-stone-600">{{ grp.title or t("related_other") }}</div>
+            <ul class="ml-4 mt-1 space-y-1">
+                {% for a in grp["items"] %}
+                <li>
+                    <a href="/{{ tenant_url }}/uri/{{ a.destination_node_identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ a.destination_node_title or a.destination_node_identifier }}</a>
+                    {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 <div class="mt-4">
     <a href="/{{ tenant_url }}/uri/{{ selected_item.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("details_view") }}</a>
 </div>
