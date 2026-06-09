@@ -1123,6 +1123,115 @@ class TestDetailFragment:
         # hcs natsort: SK.2 (Beta) before SK.10 (Alpha) — opposite of title order.
         assert resp.text.index("Beta skill") < resp.text.index("Alpha skill")
 
+    async def test_related_items_sequence_number_overrides_hcs(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """When related items are tree children, their isChildOf sequence_number
+        is the tree's primary key and must win over hcs (matches the tree order).
+        seq: A=1, B=2 but hcs: A=SK.10, B=SK.2 → tree shows A before B."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin")
+        a = _make_item(tenant, sample_document, full_statement="Skill A", hcs="SK.10")
+        b = _make_item(tenant, sample_document, full_statement="Skill B", hcs="SK.2")
+        db_session.add_all([origin, a, b])
+        await db_session.flush()
+        # A and B are tree children of the document with seq 1 and 2.
+        db_session.add(_make_is_child_of(sample_document, a.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, b.identifier, sample_document.identifier, seq=2))
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/e",
+            title="Essential skill",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        for dest in (b, a):  # add in reverse to prove sorting isn't insertion order
+            db_session.add(
+                CFAssociation(
+                    tenant_id=tenant.id,
+                    cf_document_id=sample_document.id,
+                    identifier=uuid.uuid4(),
+                    uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                    association_type="isRelatedTo",
+                    origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+                    origin_node_identifier=str(origin.identifier),
+                    destination_node_uri=f"https://example.com/uri/{dest.identifier}",
+                    destination_node_identifier=str(dest.identifier),
+                    destination_node_title=dest.full_statement,
+                    cf_association_grouping_id=grouping.id,
+                    last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                )
+            )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # seq 1 (A) before seq 2 (B), even though hcs SK.2 (B) < SK.10 (A).
+        assert resp.text.index("Skill A") < resp.text.index("Skill B")
+
+    async def test_related_items_ordered_by_full_tree_path(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Cross-branch ordering follows the full root→node path, not the item's
+        own sibling seq. branchY (root seq=1) > branchX (root seq=2); childA is
+        under branchX with its own seq=1, childB under branchY with seq=99. The
+        tree shows branchY's subtree first → B before A, even though A's own
+        seq (1) < B's own seq (99)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin")
+        branch_x = _make_item(tenant, sample_document, full_statement="Branch X")
+        branch_y = _make_item(tenant, sample_document, full_statement="Branch Y")
+        child_a = _make_item(tenant, sample_document, full_statement="Child A")
+        child_b = _make_item(tenant, sample_document, full_statement="Child B")
+        db_session.add_all([origin, branch_x, branch_y, child_a, child_b])
+        await db_session.flush()
+        # Roots under the document: Y first (seq 1), X second (seq 2).
+        db_session.add(_make_is_child_of(sample_document, branch_x.identifier, sample_document.identifier, seq=2))
+        db_session.add(_make_is_child_of(sample_document, branch_y.identifier, sample_document.identifier, seq=1))
+        # A under X (own seq 1); B under Y (own seq 99).
+        db_session.add(_make_is_child_of(sample_document, child_a.identifier, branch_x.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, child_b.identifier, branch_y.identifier, seq=99))
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/e",
+            title="Essential skill",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        for dest in (child_a, child_b):
+            db_session.add(
+                CFAssociation(
+                    tenant_id=tenant.id,
+                    cf_document_id=sample_document.id,
+                    identifier=uuid.uuid4(),
+                    uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                    association_type="isRelatedTo",
+                    origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+                    origin_node_identifier=str(origin.identifier),
+                    destination_node_uri=f"https://example.com/uri/{dest.identifier}",
+                    destination_node_identifier=str(dest.identifier),
+                    destination_node_title=dest.full_statement,
+                    cf_association_grouping_id=grouping.id,
+                    last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+                )
+            )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Full-path order: branchY (root seq 1) subtree first → Child B before Child A.
+        assert resp.text.index("Child B") < resp.text.index("Child A")
+
     async def test_missing_item_404(
         self,
         db_session: AsyncSession,

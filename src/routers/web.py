@@ -143,16 +143,22 @@ async def _related_groups(session: AsyncSession, tenant_id, item_identifier) -> 
     return [buckets[k] for k in order]
 
 
-async def _detail_extras(session: AsyncSession, tenant_id, resource_type: str, resource) -> dict:
+async def _detail_extras(
+    session: AsyncSession, tenant_id, resource_type: str, resource, doc=None, tree_index=None
+) -> dict:
     """Extra context the resource-detail card needs beyond the resource itself:
     rubrics (CFDocument), referring criteria + related groupings (CFItem).
     Shared by the standalone /uri/ page and the tree right-pane fragment so both
     render identical full detail.
+
+    For a CFItem, each related group is ordered into the tree's display order
+    via `tree_index` (an item→DFS-position map). Callers that already built the
+    tree pass it; otherwise it's built here from `doc`.
     """
     rubrics: list = []
     referring_criteria: list = []
     related_groups: list[dict] = []
-    # Identifiers of related targets that are CFItems in the SAME document → can
+    # Identifiers of related targets that are items in this document's tree → can
     # navigate in-pane within the current tree (others link out; see Stage 5).
     related_in_doc: set[str] = set()
     if resource_type == "CFDocument":
@@ -160,9 +166,12 @@ async def _detail_extras(session: AsyncSession, tenant_id, resource_type: str, r
     elif resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, resource.id)
         related_groups = await _related_groups(session, tenant_id, resource.identifier)
-        # Order each related group like the tree (dest item's hcs natsort) and
-        # learn which dests are same-doc items (→ in-pane navigation).
-        related_in_doc = await tree_service.sort_related_by_tree_order(session, resource.cf_document_id, related_groups)
+        if related_groups:
+            if tree_index is None and doc is not None:
+                tree_index = await tree_service.doc_tree_index(session, doc)
+            # Order each related group into the tree's display order and learn
+            # which dests are in-tree items (→ in-pane navigation).
+            related_in_doc = tree_service.sort_related_by_tree_order(related_groups, tree_index or {})
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
@@ -280,7 +289,15 @@ async def _render_tree_page(
         pane_resource = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
     if pane_resource is not None:
         pane_type = "CFItem"
-        extras = await _detail_extras(session, tenant_obj.id, "CFItem", pane_resource)
+        # Reuse the tree we just built for the related-list ordering.
+        extras = await _detail_extras(
+            session,
+            tenant_obj.id,
+            "CFItem",
+            pane_resource,
+            doc,
+            tree_service.dfs_index(root_nodes, orphan_nodes),
+        )
         referring_criteria = extras["referring_criteria"]
         related_groups = extras["related_groups"]
         related_in_doc = extras["related_in_doc"]
@@ -396,7 +413,7 @@ async def uri_detail(
             redirect_url = f"/{tenant}/ims/case/v1p1/{api_path}/{res_uuid}"
             return RedirectResponse(url=redirect_url, status_code=303)
 
-    extras = await _detail_extras(session, tenant_obj.id, result.resource_type, result.resource)
+    extras = await _detail_extras(session, tenant_obj.id, result.resource_type, result.resource, result.doc)
 
     # Build page title per spec
     if result.resource_type == "CFItem":
@@ -501,7 +518,7 @@ async def _pane_fragment_response(
     """Render the shared full-detail card as a right-pane HTMX fragment."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource)
+    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc)
     response = templates.TemplateResponse(
         request,
         "fragments/detail.html",

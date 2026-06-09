@@ -393,44 +393,60 @@ async def _get_idents_with_children(
     return {row[0] for row in result.all()}
 
 
-async def sort_related_by_tree_order(session: AsyncSession, doc_id: uuid.UUID, groups: list[dict]) -> set[str]:
-    """Sort each related group's items to match the tree's ordering and return
-    the set of destination identifiers that are CFItems in this document.
-
-    Same-document destinations are ordered by the same key the tree uses
-    (`human_coding_scheme` natural sort, NULL last → title → identifier) and
-    come first; cross-document / external destinations (no local item) fall
-    back to title/identifier and sort after. Used so the pane's "Related" list
-    reads in the same order as the tree, and to gate in-pane navigation
-    (same-doc → navigate in tree; else link out).
+def dfs_index(root_nodes: list[TreeNode], orphan_nodes: list[TreeNode]) -> dict[str, int]:
+    """Map each item identifier to its position in the tree's depth-first
+    display order (root nodes then orphans, each already `_child_sort_key`
+    sorted). This is the exact on-screen tree order, so sorting other lists by
+    it reproduces the tree's full-path ordering. Multi-parent items take their
+    topmost (first-encountered) position.
     """
-    dests = {a.destination_node_identifier for g in groups for a in g["items"]}
-    uuids = _strs_to_uuids(list(dests))
-    hcs_by_ident: dict[str, str | None] = {}
-    if uuids:
-        rows = (
-            await session.execute(
-                select(CFItem.identifier, CFItem.human_coding_scheme).where(
-                    CFItem.cf_document_id == doc_id, CFItem.identifier.in_(uuids)
-                )
-            )
-        ).all()
-        hcs_by_ident = {str(i): h for i, h in rows}
+    index: dict[str, int] = {}
+
+    def _walk(nodes: list[TreeNode]) -> None:
+        for n in nodes:
+            ident = str(n.item.identifier)
+            if ident not in index:
+                index[ident] = len(index)
+            _walk(n.children)
+
+    _walk(root_nodes)
+    _walk(orphan_nodes)
+    return index
+
+
+async def doc_tree_index(session: AsyncSession, doc: CFDocument) -> dict[str, int]:
+    """Build the document's tree and return its DFS display-order index."""
+    root_nodes, orphan_nodes, _ = await build_full_tree(session, doc)
+    return dfs_index(root_nodes, orphan_nodes)
+
+
+def sort_related_by_tree_order(groups: list[dict], tree_index: dict[str, int]) -> set[str]:
+    """Sort each related group's items into the tree's display order and return
+    the destination identifiers that are items in this document's tree.
+
+    `tree_index` maps an item identifier → its tree DFS position (from
+    `dfs_index` / `doc_tree_index`). Same-document destinations are ordered by
+    that position (exact tree order, full root→node path) and come first;
+    cross-document / external destinations (not in the tree) sort after, by
+    title then identifier. Lets the pane's "Related" list read in the same
+    order as the tree and gates in-pane navigation (in-tree → navigate; else
+    link out).
+    """
 
     def _key(a) -> tuple:
-        ident = a.destination_node_identifier
-        in_doc = ident in hcs_by_ident
-        hcs = hcs_by_ident.get(ident)
-        return (
-            (0,) if in_doc else (1,),  # same-doc items first
-            (0, _natsort_key(hcs)) if hcs else (1, ()),  # hcs natsort, NULL last
-            a.destination_node_title or "",
-            ident,
-        )
+        ident = str(a.destination_node_identifier)
+        if ident in tree_index:
+            return (0, tree_index[ident], "", "")
+        return (1, 0, a.destination_node_title or "", ident)
 
     for g in groups:
         g["items"].sort(key=_key)
-    return set(hcs_by_ident.keys())
+    return {
+        str(a.destination_node_identifier)
+        for g in groups
+        for a in g["items"]
+        if str(a.destination_node_identifier) in tree_index
+    }
 
 
 async def _resolve_selected_item(
