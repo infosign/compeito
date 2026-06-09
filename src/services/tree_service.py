@@ -393,17 +393,44 @@ async def _get_idents_with_children(
     return {row[0] for row in result.all()}
 
 
-async def items_in_doc(session: AsyncSession, doc_id: uuid.UUID, identifiers) -> set[str]:
-    """Return the subset of `identifiers` (strings) that are CFItems in this
-    document. Used to decide which in-pane links can navigate within the tree
-    (same-doc items) vs link out (cross-doc / non-item targets)."""
-    uuids = _strs_to_uuids(list(identifiers))
-    if not uuids:
-        return set()
-    result = await session.execute(
-        select(CFItem.identifier).where(CFItem.cf_document_id == doc_id, CFItem.identifier.in_(uuids))
-    )
-    return {str(r[0]) for r in result.all()}
+async def sort_related_by_tree_order(session: AsyncSession, doc_id: uuid.UUID, groups: list[dict]) -> set[str]:
+    """Sort each related group's items to match the tree's ordering and return
+    the set of destination identifiers that are CFItems in this document.
+
+    Same-document destinations are ordered by the same key the tree uses
+    (`human_coding_scheme` natural sort, NULL last → title → identifier) and
+    come first; cross-document / external destinations (no local item) fall
+    back to title/identifier and sort after. Used so the pane's "Related" list
+    reads in the same order as the tree, and to gate in-pane navigation
+    (same-doc → navigate in tree; else link out).
+    """
+    dests = {a.destination_node_identifier for g in groups for a in g["items"]}
+    uuids = _strs_to_uuids(list(dests))
+    hcs_by_ident: dict[str, str | None] = {}
+    if uuids:
+        rows = (
+            await session.execute(
+                select(CFItem.identifier, CFItem.human_coding_scheme).where(
+                    CFItem.cf_document_id == doc_id, CFItem.identifier.in_(uuids)
+                )
+            )
+        ).all()
+        hcs_by_ident = {str(i): h for i, h in rows}
+
+    def _key(a) -> tuple:
+        ident = a.destination_node_identifier
+        in_doc = ident in hcs_by_ident
+        hcs = hcs_by_ident.get(ident)
+        return (
+            (0,) if in_doc else (1,),  # same-doc items first
+            (0, _natsort_key(hcs)) if hcs else (1, ()),  # hcs natsort, NULL last
+            a.destination_node_title or "",
+            ident,
+        )
+
+    for g in groups:
+        g["items"].sort(key=_key)
+    return set(hcs_by_ident.keys())
 
 
 async def _resolve_selected_item(
