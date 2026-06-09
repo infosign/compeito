@@ -242,10 +242,15 @@ async def build_full_tree(
 
     # All items, mapped by identifier (item_type eager-loaded for the badge).
     item_rows = (
-        await session.execute(
-            select(CFItem).options(joinedload(CFItem.item_type)).where(CFItem.cf_document_id == doc_id)
+        (
+            await session.execute(
+                select(CFItem).options(joinedload(CFItem.item_type)).where(CFItem.cf_document_id == doc_id)
+            )
         )
-    ).scalars().unique().all()
+        .scalars()
+        .unique()
+        .all()
+    )
     items_by_ident = {str(i.identifier): i for i in item_rows}
 
     # Ancestor path of the deep-linked item → which <details> to open.

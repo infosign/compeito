@@ -411,9 +411,7 @@ class TestBuildFullTree:
         assert rn.is_expanded is True  # ancestor
         assert rn.children[0].is_expanded is True  # ancestor (child)
 
-    async def test_cycle_does_not_loop(
-        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
-    ):
+    async def test_cycle_does_not_loop(self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument):
         a = _make_item(tenant, sample_document, full_statement="A", hcs="A")
         b = _make_item(tenant, sample_document, full_statement="B", hcs="B")
         db_session.add_all([a, b])
