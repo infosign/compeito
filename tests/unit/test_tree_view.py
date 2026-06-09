@@ -1550,9 +1550,7 @@ class TestDefinitionsTree:
         db_session.add(item)
         await db_session.flush()
 
-        resp = await db_client.get(
-            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}"
-        )
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}")
         assert resp.status_code == 200
         # The item-type title links via in-pane HTMX nav to its tree node.
         item_url = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{it.identifier}"
