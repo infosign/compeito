@@ -113,6 +113,15 @@ Hide fields with no value (omit the whole row). "No value" means `null`, an empt
 
 **Security:** URL fields (`uri`, `officialSourceURL`, the `uri` field in LinkURIDType, etc.) are rendered as clickable links **only** when the scheme is `http:` / `https:`. Other schemes (e.g., `javascript:`, `data:`) are rendered as plain text (to prevent XSS). All text fields are HTML-escaped via Jinja2 autoescaping.
 
+**`extensions` display (all resource types):** `extensions` is a free-form JSONB payload where different frameworks store their own data, so it is rendered by recursively dispatching on the JSON value type:
+- object → key/value block (nested objects are indented)
+- array of scalars → chips/badges
+- array of objects → stacked blocks
+- string that is an `http:` / `https:` URL → clickable link (same scheme rule as above; other strings are plain text)
+- other scalar (number, boolean, etc.) → text
+
+The section is omitted entirely when `extensions` is `null` or empty. CFDocument additionally shows the container-level `package_extensions` (`CFPackage.extensions`) and `definitions_extensions` (`CFDefinitions.extensions`) as separate sections. The same `extensions` section appears on every resource type's detail page below.
+
 ### CFItem
 
 | Field | Required/Optional | Display |
@@ -135,6 +144,7 @@ Hide fields with no value (omit the whole row). "No value" means `null`, an empt
 | statusStartDate | optional | Date |
 | statusEndDate | optional | Date |
 | listEnumeration | optional | Text |
+| extensions | optional | Free-form (see "extensions display" above) |
 | "Show in tree" link | — | Navigates to `/{tenant}/cftree/doc/{doc-uuid}?item={item-uuid}`. The server computes the expand path from root to this item and SSR-renders the tree expanded through that node. When the item has multiple `isChildOf` parents, the association with the smallest `sequence_number` wins (NULL after non-NULL; tie-broken by `destination_node_identifier` lexicographic — same parent-selection rule as export). |
 
 ### CFDocument
@@ -160,6 +170,8 @@ Hide fields with no value (omit the whole row). "No value" means `null`, an empt
 | subject | optional | Array shown comma-separated |
 | subjectURI | optional | Each element nested (title, identifier, uri); array |
 | CFPackageURI | required | Nested (title, identifier, uri) |
+| extensions | optional | Free-form (see "extensions display" above) |
+| package_extensions / definitions_extensions | optional | Container-level extensions, each its own section |
 | "Show in tree" link | — | Navigates to the tree view's root |
 
 ### Lookup resources (CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping)
@@ -417,6 +429,15 @@ OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tail
 
 **セキュリティ:** URL として表示するフィールド（`uri`, `officialSourceURL`, LinkURIDType 内の `uri` 等）は、`http:` / `https:` スキームの場合のみクリック可能なリンクとして描画する。それ以外のスキーム（`javascript:`, `data:` 等）はプレーンテキストとして表示する（XSS 防止）。全テキストフィールドは Jinja2 の autoescaping で HTML エスケープする。
 
+**`extensions` の表示（全リソース種別共通）:** `extensions` は各フレームワークが独自データを格納する自由形式の JSONB であり、JSON の値の型に応じて再帰的に描き分ける:
+- object → キー/値ブロック（ネストした object はインデント）
+- スカラーの配列 → チップ/バッジ
+- object の配列 → 縦積みブロック
+- `http:` / `https:` の URL 文字列 → クリック可能なリンク（上記スキームルールと同一。それ以外の文字列はプレーンテキスト）
+- その他のスカラー（数値・真偽値等） → テキスト
+
+`extensions` が `null` または空の場合はセクションごと非表示。CFDocument はさらにコンテナレベルの `package_extensions`（`CFPackage.extensions`）と `definitions_extensions`（`CFDefinitions.extensions`）を別セクションで表示する。以下の各リソース種別の詳細ページに同じ `extensions` セクションが現れる。
+
 ### CFItem の場合
 
 | フィールド | 必須/任意 | 表示形式 |
@@ -439,6 +460,7 @@ OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tail
 | statusStartDate | 任意 | 日付 |
 | statusEndDate | 任意 | 日付 |
 | listEnumeration | 任意 | テキスト |
+| extensions | 任意 | 自由形式（上記「extensions の表示」参照） |
 | 「ツリーで表示」リンク | - | `/{tenant}/cftree/doc/{doc-uuid}?item={item-uuid}` へ遷移。サーバー側でルートからこのアイテムまでの展開パスを計算し、該当ノードまで展開済みのツリーをSSRで返す。アイテムが複数の isChildOf 親を持つ場合は、`sequence_number` が最小の association の親を選択する（NULL は非NULLの後に配置する。`sequence_number` が同じ場合は `destination_node_identifier` の辞書順で最初のもの。エクスポートの親選択ルールと同一） |
 
 ### CFDocument の場合
@@ -464,6 +486,8 @@ OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tail
 | subject | 任意 | 配列をカンマ区切りで表示 |
 | subjectURI | 任意 | 各要素のネスト表示（title, identifier, uri）。配列 |
 | CFPackageURI | 必須 | ネスト表示（title, identifier, uri） |
+| extensions | 任意 | 自由形式（上記「extensions の表示」参照） |
+| package_extensions / definitions_extensions | 任意 | コンテナレベルの extensions。それぞれ別セクション |
 | 「ツリーで表示」リンク | - | ツリービュートップへ遷移 |
 
 ### lookup リソースの場合（CFItemType, CFSubject, CFConcept, CFLicense, CFAssociationGrouping）
