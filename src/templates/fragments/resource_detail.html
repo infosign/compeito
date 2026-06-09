@@ -280,12 +280,14 @@
                         <li>
                             {% if in_pane and doc and dest in related_in_doc %}
                             {# Same-doc item → navigate within the tree (swap pane + sync tree + push URL). #}
+            {# Tree sync after swap is handled globally (htmx:afterSettle reads
+               the pushed /item/{id} URL) — robust since this link is inside the
+               swapped pane and is removed by the swap. #}
                             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
                                class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
                                hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ dest }}"
                                hx-target="#detail-pane" hx-swap="innerHTML"
-                               hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
-                               hx-on::after-swap="selectTreeNode('{{ dest }}')">{{ dest_label }}</a>
+                               hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}">{{ dest_label }}</a>
                             {% else %}
                             <a href="/{{ tenant_url }}/uri/{{ dest }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
                             {% endif %}

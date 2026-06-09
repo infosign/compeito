@@ -573,6 +573,19 @@ class TestTreeViewPage:
         # Header doc-name self-link pushes the tree-root URL.
         assert f'hx-push-url="/{tenant.id}/cftree/doc/{sample_document.identifier}"' in resp.text
 
+    async def test_tree_page_ships_sync_script(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The tree page carries the global tree↔pane sync (selectTreeNode +
+        the htmx:afterSettle listener that reads the pushed /item/ URL)."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert "function selectTreeNode" in resp.text
+        assert "htmx:afterSettle" in resp.text
+
     async def test_html_title(
         self,
         db_session: AsyncSession,
@@ -1009,11 +1022,11 @@ class TestDetailFragment:
         assert resp.status_code == 200
         assert "Essential" in resp.text  # grouping heading
         assert "Destination item" in resp.text  # related target title
-        # Same-doc related item → in-pane navigation (path-form URL + push-url +
-        # tree sync), NOT a full-page link to /uri/.
+        # Same-doc related item → in-pane navigation (path-form URL + push-url),
+        # NOT a full-page link to /uri/. (Tree sync runs from a global
+        # htmx:afterSettle listener in base.html, not inline on this link.)
         item_url = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{dest.identifier}"
         assert f'hx-push-url="{item_url}"' in resp.text
-        assert f"selectTreeNode('{dest.identifier}')" in resp.text
         assert f"/uri/{dest.identifier}" not in resp.text
 
     async def test_related_link_cross_doc_links_out(
@@ -1058,7 +1071,8 @@ class TestDetailFragment:
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
         assert resp.status_code == 200
         assert f"/uri/{external_dest}" in resp.text  # links out (full page)
-        assert f"selectTreeNode('{external_dest}')" not in resp.text
+        # Not in-pane nav: no push-url to an /item/ path for the external target.
+        assert f"/cftree/doc/{sample_document.identifier}/item/{external_dest}" not in resp.text
 
     async def test_missing_item_404(
         self,

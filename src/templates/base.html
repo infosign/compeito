@@ -75,6 +75,17 @@
         el.classList.add('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
         el.scrollIntoView({ block: 'center' });
     }
+
+    // After the right pane is swapped (item or pane-internal link), sync the
+    // tree to whatever the URL now points at. The URL is the source of truth —
+    // doing it here (not via hx-on on the link) is robust because the clicked
+    // link lives inside #detail-pane and is destroyed by the swap.
+    document.body.addEventListener('htmx:afterSettle', function(evt) {
+        var tgt = evt.detail && evt.detail.target;
+        if (!tgt || tgt.id !== 'detail-pane') return;
+        var m = window.location.pathname.match(/\/item\/([0-9a-fA-F-]{36})/);
+        if (m) selectTreeNode(m[1]);
+    });
     </script>
 </head>
 <body class="bg-stone-50 min-h-screen">
