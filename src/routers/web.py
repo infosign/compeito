@@ -45,6 +45,17 @@ _RESOURCE_TYPE_TO_API_PATH: dict[str, str] = {
     "CFRubric": "CFRubrics",
 }
 
+# Lookup resource types surfaced as tree nodes only via the "Definitions" section
+# (scoped to the definitions a document references). When one of these is selected
+# by id, it must belong to the current document's definitions — otherwise there is
+# no tree node for it and the "pane content == tree node" invariant breaks.
+_LOOKUP_RESOURCE_TYPES = frozenset({"CFItemType", "CFConcept", "CFSubject", "CFLicense", "CFAssociationGrouping"})
+
+
+def _definition_idents(definitions: dict) -> set[str]:
+    """Flatten `list_document_definitions` into a set of identifier strings."""
+    return {str(d.identifier) for group in definitions.values() for d in group}
+
 
 def _prefers_json(accept_header: str) -> bool:
     """Return True if the Accept header signals a JSON API consumer.
@@ -287,12 +298,24 @@ async def _render_tree_page(
     referring_criteria: list = []
     related_groups: list[dict] = []
     related_in_doc: set[str] = set()
+    # Which Definitions subgroup (if any) holds the selected node — so the
+    # template can auto-open that section/subgroup on a direct load/reload.
+    selected_def_group: str | None = None
     pane_resource = doc
     pane_type = "CFDocument"
     if selected_ident is not None:
         result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, selected_ident)
         if result is not None:
             pane_resource, pane_type = result.resource, result.resource_type
+            if pane_type in _LOOKUP_RESOURCE_TYPES:
+                # A lookup is only a tree node if this document references it.
+                sid = str(pane_resource.identifier)
+                for gkey, group in definitions.items():
+                    if any(str(d.identifier) == sid for d in group):
+                        selected_def_group = gkey
+                        break
+                if selected_def_group is None:
+                    return _error_response(request, 404, t("error_not_found"))
             if pane_type == "CFItem":
                 # Reuse the tree we just built for the related-list ordering.
                 extras = await _detail_extras(
@@ -319,6 +342,7 @@ async def _render_tree_page(
             # Selected resource id (str) for highlighting non-item tree nodes
             # (definitions / rubrics) whose detail is shown in the pane.
             "selected_ident": str(selected_ident) if selected_ident is not None else None,
+            "selected_def_group": selected_def_group,
             "definitions": definitions,
             # Full-detail pane context (shared partial). `resource` is the
             # relationship-loaded selected resource, or the document by default.
@@ -583,6 +607,14 @@ async def detail_fragment(
     result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, item_uuid)
     if result is None:
         return _error_fragment(404, t("error_item_not_found"))
+
+    # A lookup (definition) only has a tree node if THIS document references it.
+    # Reject lookups outside the doc's definitions so the pane never shows
+    # something absent from the tree.
+    if result.resource_type in _LOOKUP_RESOURCE_TYPES:
+        definitions = await cf_view_service.list_document_definitions(session, tenant_obj.id, doc)
+        if str(result.resource.identifier) not in _definition_idents(definitions):
+            return _error_fragment(404, t("error_item_not_found"))
 
     # The pane renders the SAME full-detail card as the standalone /uri/ page.
     return await _pane_fragment_response(

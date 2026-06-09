@@ -60,22 +60,22 @@
             {# Definitions: lookups referenced by this document, as navigable
                nodes. Collapsed by default; clicking a node shows it in the pane. #}
             {% set def_groups = [
-                (t("def_item_types"), definitions.item_types),
-                (t("def_concepts"), definitions.concepts),
-                (t("def_subjects"), definitions.subjects),
-                (t("def_licenses"), definitions.licenses),
-                (t("def_groupings"), definitions.groupings)
+                ("item_types", t("def_item_types"), definitions.item_types),
+                ("concepts", t("def_concepts"), definitions.concepts),
+                ("subjects", t("def_subjects"), definitions.subjects),
+                ("licenses", t("def_licenses"), definitions.licenses),
+                ("groupings", t("def_groupings"), definitions.groupings)
             ] %}
             {% if definitions.item_types or definitions.concepts or definitions.subjects or definitions.licenses or definitions.groupings %}
-            <details class="mt-2 pt-2 border-t border-stone-100">
+            <details class="mt-2 pt-2 border-t border-stone-100"{% if selected_def_group %} open{% endif %}>
                 <summary class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer hover:bg-stone-100">
                     <span class="tree-tri w-5 h-5 flex-shrink-0 text-stone-400 select-none text-center">▶</span>
                     <span class="ml-1 text-sm font-semibold text-stone-600">{{ t("definitions") }}</span>
                 </summary>
                 <div class="ml-4">
-                    {% for label, ditems in def_groups %}
+                    {% for key, label, ditems in def_groups %}
                     {% if ditems %}
-                    <details class="mt-1">
+                    <details class="mt-1"{% if selected_def_group == key %} open{% endif %}>
                         <summary class="tree-summary flex items-center py-1 px-2 rounded cursor-pointer hover:bg-stone-100">
                             <span class="tree-tri w-5 h-5 flex-shrink-0 text-stone-400 select-none text-center">▶</span>
                             <span class="ml-1 text-xs font-medium text-stone-500 uppercase">{{ label }}</span>

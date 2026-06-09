@@ -1352,12 +1352,72 @@ class TestDefinitionsTree:
         )
         db_session.add(it)
         await db_session.flush()
+        # Reference it from an item so it belongs to this document's definitions.
+        item = _make_item(tenant, sample_document, full_statement="Item with skill type")
+        item.cf_item_type_id = it.id
+        db_session.add(item)
+        await db_session.flush()
 
         # The generalized detail fragment resolves any resource type.
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{it.identifier}")
         assert resp.status_code == 200
         assert "Skill Type" in resp.text
         assert "ST" in resp.text  # type_code shown in the lookup detail
+
+    async def test_unreferenced_lookup_rejected_in_pane(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A lookup the document does NOT reference has no tree node, so the
+        detail fragment must 404 it (pane content == tree node invariant)."""
+        it = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/it3",
+            title="Orphan Type",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(it)
+        await db_session.flush()
+
+        # Fragment route → 404.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{it.identifier}")
+        assert resp.status_code == 404
+        # Full-page route (reload/share scenario) → 404 too.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{it.identifier}")
+        assert resp.status_code == 404
+
+    async def test_selected_definition_section_auto_opens(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Loading /item/{lookup} directly opens the Definitions section and the
+        lookup's type subgroup so the highlighted node is visible (not hidden in
+        a collapsed <details>)."""
+        it = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/it4",
+            title="Opened Type",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(it)
+        await db_session.flush()
+        item = _make_item(tenant, sample_document, full_statement="Item with opened type")
+        item.cf_item_type_id = it.id
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{it.identifier}")
+        assert resp.status_code == 200
+        # Both the Definitions section and the item-type subgroup carry `open`.
+        assert resp.text.count(" open>") >= 2
 
     async def test_no_definitions_section_when_empty(
         self,
