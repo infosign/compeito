@@ -736,13 +736,16 @@ class TestDetailFragment:
         )
         assert resp.headers["cache-control"] == "public, max-age=86400"
 
-    async def test_detail_link(
+    async def test_pane_shows_full_detail(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
+        """The right pane now renders the same full-detail card as /uri/ (shared
+        partial): it includes the permalink (/uri/{id}) and full-detail-only
+        fields like the API URL — not just the lightweight summary."""
         item = _make_item(tenant, sample_document, full_statement="Link test")
         db_session.add(item)
         await db_session.flush()
@@ -750,8 +753,11 @@ class TestDetailFragment:
         resp = await db_client.get(
             f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}",
         )
+        assert resp.status_code == 200
+        # Permalink to the standalone page is present (full-detail card).
         assert f"/uri/{item.identifier}" in resp.text
-        assert "詳細" in resp.text
+        # A field that only the full detail renders (CFItems API URL).
+        assert f"/ims/case/v1p1/CFItems/{item.identifier}" in resp.text
 
     async def test_shows_related_groupings(
         self,
