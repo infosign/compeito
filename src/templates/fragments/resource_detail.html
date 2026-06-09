@@ -217,7 +217,9 @@
 {% endmacro %}
 
 {# ========== Main content ========== #}
-<div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
+{# This partial renders only the inner content (no card wrapper). Callers
+   provide the card container: the tree view's #detail-pane and uri.html's
+   block both supply `bg-white rounded-lg shadow-sm border ... p-6`. #}
     <dl class="space-y-4">
 
     {# ========== CFItem ========== #}
@@ -613,4 +615,3 @@
         {% if resource.extensions is defined %}{{ extensions_block(t("f_extensions"), resource.extensions) }}{% endif %}
     </dl>
     {% endif %}
-</div>
