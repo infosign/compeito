@@ -127,7 +127,12 @@
     // a user just triggered. This skips toggle events some browsers (notably
     // iOS Safari) fire for initially-`open` <details> on page load — which would
     // otherwise scroll the tree on first paint.
-    var lastTreeInteraction = 0;
+    // -Infinity (not 0): performance.now() is measured from navigation start, so
+    // an initial 0 leaves `now - 0` small (< 700ms) right after load and the gate
+    // would pass — letting iOS Safari's load-time toggle scroll the tree. With
+    // -Infinity the untouched state is always "too long ago" → suppressed until a
+    // real pointerdown/keydown inside the tree sets a recent timestamp.
+    var lastTreeInteraction = -Infinity;
     ['pointerdown', 'keydown'].forEach(function(t) {
         document.addEventListener(t, function(evt) {
             if (evt.target.closest && evt.target.closest('#tree-scroll')) {
