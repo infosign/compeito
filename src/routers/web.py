@@ -51,6 +51,12 @@ _RESOURCE_TYPE_TO_API_PATH: dict[str, str] = {
 # no tree node for it and the "pane content == tree node" invariant breaks.
 _LOOKUP_RESOURCE_TYPES = frozenset({"CFItemType", "CFConcept", "CFSubject", "CFLicense", "CFAssociationGrouping"})
 
+# Rubric resource types surfaced as tree nodes via the "Rubrics" section
+# (CFRubric -> CFRubricCriterion -> CFRubricCriterionLevel). Like lookups, a
+# selected one must belong to the current document's rubrics — otherwise it has
+# no tree node and the "pane content == tree node" invariant breaks.
+_RUBRIC_RESOURCE_TYPES = frozenset({"CFRubric", "CFRubricCriterion", "CFRubricCriterionLevel"})
+
 
 def _definition_idents(definitions: dict) -> set[str]:
     """Flatten `list_document_definitions` into a set of identifier strings."""
@@ -301,6 +307,10 @@ async def _render_tree_page(
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
+    # Rubrics section: whether to open it, and which rubric/criterion <details>
+    # are on the path to the selected node (so it's visible on a direct load).
+    rubrics_section_open = False
+    open_rubric_ids: set[str] = set()
     pane_resource = doc
     pane_type = "CFDocument"
     if selected_ident is not None:
@@ -316,6 +326,19 @@ async def _render_tree_page(
                         break
                 if selected_def_group is None:
                     return _error_response(request, 404, t("error_not_found"))
+            elif pane_type in _RUBRIC_RESOURCE_TYPES:
+                # A rubric part is only a tree node if it belongs to this doc.
+                if result.doc is None or str(result.doc.identifier) != str(doc.identifier):
+                    return _error_response(request, 404, t("error_not_found"))
+                rubrics_section_open = True
+                # Open the ancestor rubric / criterion <details> so the selected
+                # node isn't hidden in a collapsed branch.
+                if pane_type == "CFRubricCriterion":
+                    open_rubric_ids.add(str(pane_resource.cf_rubric.identifier))
+                elif pane_type == "CFRubricCriterionLevel":
+                    crit = pane_resource.cf_rubric_criterion
+                    open_rubric_ids.add(str(crit.identifier))
+                    open_rubric_ids.add(str(crit.cf_rubric.identifier))
             if pane_type == "CFItem":
                 # Reuse the tree we just built for the related-list ordering.
                 extras = await _detail_extras(
@@ -343,6 +366,8 @@ async def _render_tree_page(
             # (definitions / rubrics) whose detail is shown in the pane.
             "selected_ident": str(selected_ident) if selected_ident is not None else None,
             "selected_def_group": selected_def_group,
+            "rubrics_section_open": rubrics_section_open,
+            "open_rubric_ids": open_rubric_ids,
             "definitions": definitions,
             # Full-detail pane context (shared partial). `resource` is the
             # relationship-loaded selected resource, or the document by default.
@@ -614,6 +639,10 @@ async def detail_fragment(
     if result.resource_type in _LOOKUP_RESOURCE_TYPES:
         definitions = await cf_view_service.list_document_definitions(session, tenant_obj.id, doc)
         if str(result.resource.identifier) not in _definition_idents(definitions):
+            return _error_fragment(404, t("error_item_not_found"))
+    # A rubric part only has a tree node if it belongs to THIS document.
+    elif result.resource_type in _RUBRIC_RESOURCE_TYPES:
+        if result.doc is None or str(result.doc.identifier) != str(doc.identifier):
             return _error_fragment(404, t("error_item_not_found"))
 
     # The pane renders the SAME full-detail card as the standalone /uri/ page.

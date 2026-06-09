@@ -11,6 +11,8 @@ from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_rubric import CFRubric
+from src.models.cf_rubric_criterion import CFRubricCriterion
+from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.tenant import Tenant
 from src.services import tree_service
 
@@ -1430,3 +1432,140 @@ class TestDefinitionsTree:
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
         assert resp.status_code == 200
         assert "定義" not in resp.text
+
+
+class TestRubricsTree:
+    """Stage 4b: rubrics appear as nested navigable tree nodes (CFRubric ->
+    Criterion -> Level), shown in the right pane via the detail fragment."""
+
+    NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    async def _make_rubric_tree(self, db_session, tenant, doc):
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=doc.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/r",
+            title="Assessment Rubric",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+        crit = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/c",
+            category="Clarity",
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(crit)
+        await db_session.flush()
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=crit.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/l",
+            quality="Excellent",
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+        return rubric, crit, level
+
+    async def test_rubrics_section_lists_rubric_criteria_levels(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, sample_document)
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        assert "ルーブリック" in resp.text  # Rubrics section heading (ja)
+        assert "Assessment Rubric" in resp.text
+        assert "Clarity" in resp.text  # criterion category as node label
+        assert "Excellent" in resp.text  # level quality as node label
+        # Navigable as tree nodes (path-form URLs).
+        assert f"/cftree/doc/{sample_document.identifier}/item/{rubric.identifier}" in resp.text
+        assert f"/cftree/doc/{sample_document.identifier}/item/{level.identifier}" in resp.text
+
+    async def test_rubric_part_rendered_in_pane(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, sample_document)
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{crit.identifier}")
+        assert resp.status_code == 200
+        assert "Clarity" in resp.text
+
+    async def test_selected_rubric_part_auto_opens_path(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Loading /item/{level} opens the Rubrics section + the ancestor rubric
+        and criterion <details> so the selected node isn't hidden."""
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, sample_document)
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{level.identifier}")
+        assert resp.status_code == 200
+        # Section + rubric + criterion all carry `open`.
+        assert resp.text.count(" open>") >= 3
+
+    async def test_rubric_part_from_other_doc_rejected(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A rubric part belonging to another document has no node in this tree,
+        so both the fragment and full-page routes 404 it."""
+        other = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/other",
+            title="Other Doc",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(other)
+        await db_session.flush()
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, other)
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{crit.identifier}")
+        assert resp.status_code == 404
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{level.identifier}")
+        assert resp.status_code == 404
+
+    async def test_no_rubrics_section_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A document with no rubrics shows no Rubrics tree section."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        assert "ルーブリック" not in resp.text
+
+    async def test_standalone_show_in_tree_selects_rubric_part(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The standalone /uri/ page's "Show in tree" link targets the node's
+        own /item/{id} so the tree selects it (not just the document root)."""
+        rubric, crit, level = await self._make_rubric_tree(db_session, tenant, sample_document)
+        for part in (rubric, crit, level):
+            resp = await db_client.get(f"/{tenant.id}/uri/{part.identifier}")
+            assert resp.status_code == 200
+            assert f"/cftree/doc/{sample_document.identifier}/item/{part.identifier}" in resp.text
