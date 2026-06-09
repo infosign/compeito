@@ -122,11 +122,26 @@
     // the container so the first children show (otherwise the triangle just
     // rotates and the children stay off-screen). No-op when already fully
     // visible. Capture phase because the native `toggle` event doesn't bubble.
+    //
+    // Gate on a recent user interaction inside the tree: only nudge for toggles
+    // a user just triggered. This skips toggle events some browsers (notably
+    // iOS Safari) fire for initially-`open` <details> on page load — which would
+    // otherwise scroll the tree on first paint.
+    var lastTreeInteraction = 0;
+    ['pointerdown', 'keydown'].forEach(function(t) {
+        document.addEventListener(t, function(evt) {
+            if (evt.target.closest && evt.target.closest('#tree-scroll')) {
+                lastTreeInteraction = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+            }
+        }, true);
+    });
     document.addEventListener('toggle', function(evt) {
         var d = evt.target;
         if (!(d instanceof HTMLDetailsElement) || !d.open) return;
         var pane = d.closest('#tree-scroll');
         if (!pane) return;
+        var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (now - lastTreeInteraction > 700) return;  // not a user-initiated expand
         requestAnimationFrame(function() {
             var dr = d.getBoundingClientRect();
             var pr = pane.getBoundingClientRect();
