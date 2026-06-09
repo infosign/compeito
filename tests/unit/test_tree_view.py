@@ -1527,6 +1527,37 @@ class TestDefinitionsTree:
         assert resp.status_code == 200
         assert "定義" not in resp.text
 
+    async def test_item_definition_reference_is_pane_nav(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """An item's definition reference (item type) is a clickable in-pane nav
+        link to that definition's tree node (not dead code text)."""
+        it = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/it",
+            title="Knowledge Type",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(it)
+        await db_session.flush()
+        item = _make_item(tenant, sample_document, full_statement="Item with a type")
+        item.cf_item_type_id = it.id
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}"
+        )
+        assert resp.status_code == 200
+        # The item-type title links via in-pane HTMX nav to its tree node.
+        item_url = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{it.identifier}"
+        assert f'hx-push-url="{item_url}"' in resp.text
+
 
 class TestRubricsTree:
     """Stage 4b: rubrics appear as nested navigable tree nodes (CFRubric ->
