@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_association import CFAssociation
+from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
@@ -751,6 +752,55 @@ class TestDetailFragment:
         )
         assert f"/uri/{item.identifier}" in resp.text
         assert "詳細" in resp.text
+
+    async def test_shows_related_groupings(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The tree detail pane shows outgoing non-isChildOf associations
+        grouped by CFAssociationGrouping (same block as the full detail page)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        dest = _make_item(tenant, sample_document, full_statement="Destination item")
+        db_session.add_all([origin, dest])
+        await db_session.flush()
+
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/essential",
+            title="Essential",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=f"https://example.com/uri/{dest.identifier}",
+            destination_node_identifier=str(dest.identifier),
+            destination_node_title="Destination item",
+            cf_association_grouping_id=grouping.id,
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}",
+        )
+        assert resp.status_code == 200
+        assert "Essential" in resp.text  # grouping heading
+        assert "Destination item" in resp.text  # related target title
+        assert f"/uri/{dest.identifier}" in resp.text  # link to the related item
 
     async def test_missing_item_404(
         self,
