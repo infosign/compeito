@@ -896,22 +896,48 @@ class TestDetailFragment:
         standalone = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
         assert "ツリーで表示" in standalone.text  # shown on the standalone page
 
-    async def test_detail_fragment_renders_document(
+    async def test_document_fragment_renders_document(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """The detail fragment renders the document itself when its identifier
-        is passed (used by the header doc-name self-link)."""
-        resp = await db_client.get(
-            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{sample_document.identifier}"
-        )
+        """The dedicated /document fragment renders the document's own detail
+        (used by the header doc-name self-link)."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/document")
         assert resp.status_code == 200
         assert sample_document.title in resp.text
         assert f"/ims/case/v1p1/CFPackages/{sample_document.identifier}" in resp.text
         assert "ツリーで表示" not in resp.text  # in pane → hidden
+
+    async def test_detail_fragment_item_wins_on_identifier_collision(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """If a CFItem shares the document's identifier (allowed — separate
+        tables), /detail/{id} must return the ITEM, not the document
+        (matches /uri/ item-before-document resolution)."""
+        item = _make_item(
+            tenant,
+            sample_document,
+            full_statement="Item sharing doc identifier",
+            identifier=sample_document.identifier,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{sample_document.identifier}"
+        )
+        assert resp.status_code == 200
+        # The item's full statement renders (item detail, not the document card).
+        assert "Item sharing doc identifier" in resp.text
+        # The CFItems API URL (item-only) is present; document-only fields aren't the focus.
+        assert f"/ims/case/v1p1/CFItems/{sample_document.identifier}" in resp.text
 
     async def test_pane_shows_full_detail(
         self,

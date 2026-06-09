@@ -35,7 +35,7 @@
                in the right pane (HTMX) and syncs the URL to the tree root. #}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}"
                class="font-medium text-gray-800 hover:text-violet-700 transition-colors{% if not selected_item %} text-violet-700{% endif %}"
-               hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ doc.identifier }}"
+               hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/document"
                hx-target="#detail-pane"
                hx-swap="innerHTML"
                hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}"

@@ -474,52 +474,19 @@ async def children_fragment(
     return response
 
 
-@router.get(
-    "/{tenant}/cftree/doc/{doc_id}/detail/{item_id}",
-    response_class=HTMLResponse,
-)
-async def detail_fragment(
-    tenant: str,
-    doc_id: str,
-    item_id: str,
+async def _pane_fragment_response(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession,
+    tenant: str,
+    tenant_obj,
+    doc,
+    resource,
+    resource_type: str,
 ) -> HTMLResponse:
-    """HTMX fragment: item detail for the right pane."""
+    """Render the shared full-detail card as a right-pane HTMX fragment."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    # Resolve tenant (UUID or slug)
-    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
-    if tenant_obj is None:
-        return _error_fragment(404, t("error_tenant_not_found"))
-
-    # Validate document
-    doc_uuid = _parse_uuid(doc_id)
-    if doc_uuid is None:
-        return _error_fragment(400, t("error_bad_request"))
-    doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
-    if doc is None:
-        return _error_fragment(404, t("error_document_not_found"))
-
-    # Validate item
-    item_uuid = _parse_uuid(item_id)
-    if item_uuid is None:
-        return HTMLResponse("", status_code=400)
-
-    # The pane renders the SAME full-detail card as the standalone /uri/ page
-    # (shared partial), so the right pane is the complete view. The document
-    # itself can be shown (its identifier passed as {item_id}); otherwise an item.
-    if item_uuid == doc.identifier:
-        resource = doc
-        resource_type = "CFDocument"
-    else:
-        resource = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
-        if resource is None:
-            return _error_fragment(404, t("error_item_not_found"))
-        resource_type = "CFItem"
-
     extras = await _detail_extras(session, tenant_obj.id, resource_type, resource)
-
     response = templates.TemplateResponse(
         request,
         "fragments/detail.html",
@@ -542,3 +509,67 @@ async def detail_fragment(
     )
     response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
     return response
+
+
+@router.get(
+    "/{tenant}/cftree/doc/{doc_id}/detail/{item_id}",
+    response_class=HTMLResponse,
+)
+async def detail_fragment(
+    tenant: str,
+    doc_id: str,
+    item_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """HTMX fragment: item detail for the right pane."""
+    t = get_translator(_get_lang(request))
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
+    if tenant_obj is None:
+        return _error_fragment(404, t("error_tenant_not_found"))
+
+    doc_uuid = _parse_uuid(doc_id)
+    if doc_uuid is None:
+        return _error_fragment(400, t("error_bad_request"))
+    doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
+    if doc is None:
+        return _error_fragment(404, t("error_document_not_found"))
+
+    item_uuid = _parse_uuid(item_id)
+    if item_uuid is None:
+        return HTMLResponse("", status_code=400)
+    item = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
+    if item is None:
+        return _error_fragment(404, t("error_item_not_found"))
+
+    # The pane renders the SAME full-detail card as the standalone /uri/ page.
+    return await _pane_fragment_response(request, session, tenant, tenant_obj, doc, item, "CFItem")
+
+
+@router.get(
+    "/{tenant}/cftree/doc/{doc_id}/document",
+    response_class=HTMLResponse,
+)
+async def document_fragment(
+    tenant: str,
+    doc_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """HTMX fragment: the document's own detail for the right pane. Separate
+    from /detail/{item_id} so it can never collide with a CFItem that happens
+    to share the document's identifier (identifier collisions are allowed —
+    `/uri/` resolves item-before-document)."""
+    t = get_translator(_get_lang(request))
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
+    if tenant_obj is None:
+        return _error_fragment(404, t("error_tenant_not_found"))
+
+    doc_uuid = _parse_uuid(doc_id)
+    if doc_uuid is None:
+        return _error_fragment(400, t("error_bad_request"))
+    doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
+    if doc is None:
+        return _error_fragment(404, t("error_document_not_found"))
+
+    return await _pane_fragment_response(request, session, tenant, tenant_obj, doc, doc, "CFDocument")
