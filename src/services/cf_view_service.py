@@ -5,8 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.models.cf_association import CFAssociation
+from src.models.cf_association_grouping import CFAssociationGrouping
+from src.models.cf_concept import CFConcept
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
+from src.models.cf_item_type import CFItemType
+from src.models.cf_license import CFLicense
 from src.models.cf_subject import CFSubject
 from src.repositories import cf_rubric_repository
 from src.schemas.cf_association_grouping import CFAssociationGroupingDType
@@ -311,3 +315,109 @@ async def get_cf_package(
         CFRubrics=[rubric_to_schema(r) for r in rubrics],
         extensions=doc.package_extensions,
     )
+
+
+async def list_document_definitions(session: AsyncSession, tenant_id: uuid.UUID, doc: CFDocument) -> dict:
+    """ORM lookup resources referenced by this document, grouped by type, for
+    the tree's "Definitions" section. Same "referenced by this doc" scope as the
+    CFPackage CFDefinitions. Each list is sorted by title then identifier (the
+    tree display order). Empty lists are returned for types with no references.
+    """
+
+    def _key(o) -> tuple:
+        return (o.title or "", str(o.identifier))
+
+    item_types = (
+        (
+            await session.execute(
+                select(CFItemType)
+                .join(CFItem, CFItem.cf_item_type_id == CFItemType.id)
+                .where(CFItem.cf_document_id == doc.id)
+                .distinct()
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    concepts = (
+        (
+            await session.execute(
+                select(CFConcept)
+                .join(CFItem, CFItem.cf_concept_id == CFConcept.id)
+                .where(CFItem.cf_document_id == doc.id)
+                .distinct()
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+    groupings = (
+        (
+            await session.execute(
+                select(CFAssociationGrouping)
+                .join(CFAssociation, CFAssociation.cf_association_grouping_id == CFAssociationGrouping.id)
+                .where(CFAssociation.cf_document_id == doc.id)
+                .distinct()
+            )
+        )
+        .scalars()
+        .unique()
+        .all()
+    )
+
+    # Licenses: the document's own + any referenced by its items.
+    lic_ids: set = set()
+    if doc.cf_license_id is not None:
+        lic_ids.add(doc.cf_license_id)
+    item_lic_rows = (
+        await session.execute(
+            select(CFItem.cf_license_id).where(CFItem.cf_document_id == doc.id, CFItem.cf_license_id.is_not(None))
+        )
+    ).all()
+    lic_ids.update(r[0] for r in item_lic_rows)
+    licenses: list = []
+    if lic_ids:
+        licenses = list((await session.execute(select(CFLicense).where(CFLicense.id.in_(lic_ids)))).scalars().all())
+
+    # Subjects: from the subject_uri JSON arrays on the document and its items.
+    subj_idents: set[str] = set()
+    if doc.subject_uri:
+        for su in doc.subject_uri:
+            if su.get("identifier"):
+                subj_idents.add(su["identifier"])
+    su_rows = (
+        await session.execute(
+            select(CFItem.subject_uri).where(CFItem.cf_document_id == doc.id, CFItem.subject_uri.is_not(None))
+        )
+    ).all()
+    for (suri,) in su_rows:
+        for su in suri or []:
+            if su.get("identifier"):
+                subj_idents.add(su["identifier"])
+    subjects: list = []
+    subj_uuids: list = []
+    for sid in subj_idents:
+        try:
+            subj_uuids.append(uuid.UUID(sid))
+        except (ValueError, AttributeError):
+            pass
+    if subj_uuids:
+        subjects = list(
+            (
+                await session.execute(
+                    select(CFSubject).where(CFSubject.tenant_id == tenant_id, CFSubject.identifier.in_(subj_uuids))
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    return {
+        "item_types": sorted(item_types, key=_key),
+        "concepts": sorted(concepts, key=_key),
+        "subjects": sorted(subjects, key=_key),
+        "licenses": sorted(licenses, key=_key),
+        "groupings": sorted(groupings, key=_key),
+    }
