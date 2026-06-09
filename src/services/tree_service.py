@@ -397,16 +397,19 @@ async def sort_related_by_tree_order(session: AsyncSession, doc_id: uuid.UUID, g
     """Sort each related group's items to match the tree's ordering and return
     the set of destination identifiers that are CFItems in this document.
 
-    Same-document destinations are ordered by the same key the tree uses
-    (`human_coding_scheme` natural sort, NULL last → title → identifier) and
-    come first; cross-document / external destinations (no local item) fall
-    back to title/identifier and sort after. Used so the pane's "Related" list
-    reads in the same order as the tree, and to gate in-pane navigation
-    (same-doc → navigate in tree; else link out).
+    Same-document destinations use the **same key as the tree**
+    (`_child_sort_key`): `sequence_number` ASC (NULL last) → `human_coding_scheme`
+    natural sort (NULL last) → identifier; and come first. The `sequence_number`
+    is the item's isChildOf order within the document (min seq, NULL last — same
+    parent-selection rule as the tree). Cross-document / external destinations
+    (no local item) fall back to title/identifier and sort after. Used so the
+    pane's "Related" list reads in the same order as the tree, and to gate
+    in-pane navigation (same-doc → navigate in tree; else link out).
     """
-    dests = {a.destination_node_identifier for g in groups for a in g["items"]}
-    uuids = _strs_to_uuids(list(dests))
+    dests = [str(a.destination_node_identifier) for g in groups for a in g["items"]]
+    uuids = _strs_to_uuids(dests)
     hcs_by_ident: dict[str, str | None] = {}
+    seq_by_ident: dict[str, int | None] = {}
     if uuids:
         rows = (
             await session.execute(
@@ -416,15 +419,34 @@ async def sort_related_by_tree_order(session: AsyncSession, doc_id: uuid.UUID, g
             )
         ).all()
         hcs_by_ident = {str(i): h for i, h in rows}
+        # isChildOf sequence_number per dest (the item's tree order). Keep the
+        # min seq (NULL last) when an item has multiple isChildOf — same rule
+        # the tree uses for ordering siblings.
+        seq_rows = (
+            await session.execute(
+                select(CFAssociation.origin_node_identifier, CFAssociation.sequence_number).where(
+                    CFAssociation.cf_document_id == doc_id,
+                    CFAssociation.association_type == "isChildOf",
+                    CFAssociation.origin_node_identifier.in_(dests),
+                )
+            )
+        ).all()
+        for origin, seq in seq_rows:
+            if origin not in seq_by_ident:
+                seq_by_ident[origin] = seq
+            elif seq is not None and (seq_by_ident[origin] is None or seq < seq_by_ident[origin]):
+                seq_by_ident[origin] = seq
 
     def _key(a) -> tuple:
         ident = a.destination_node_identifier
         in_doc = ident in hcs_by_ident
+        seq = seq_by_ident.get(ident)
         hcs = hcs_by_ident.get(ident)
         return (
             (0,) if in_doc else (1,),  # same-doc items first
+            (0, seq) if seq is not None else (1, 0),  # seq ASC, NULL last (tree's 1st key)
             (0, _natsort_key(hcs)) if hcs else (1, ()),  # hcs natsort, NULL last
-            a.destination_node_title or "",
+            a.destination_node_title or "",  # tail (mainly orders cross-doc)
             ident,
         )
 
