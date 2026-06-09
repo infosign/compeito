@@ -1031,19 +1031,20 @@ class TestDetailFragment:
         assert f'hx-push-url="{item_url}"' in resp.text
         assert f"/uri/{dest.identifier}" not in resp.text
 
-    async def test_related_link_cross_doc_links_out(
+    async def test_related_link_external_links_out(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """A related target that is NOT a CFItem in this document (cross-doc /
-        external) keeps the full-page /uri/ link (Stage 5 will switch trees)."""
+        """A related target that resolves to no CFItem in this tenant is external:
+        link out to its stored URI in a new tab with an "external" badge."""
         origin = _make_item(tenant, sample_document, full_statement="Origin item")
         db_session.add(origin)
         await db_session.flush()
-        external_dest = uuid.uuid4()  # not a CFItem in this doc
+        external_dest = uuid.uuid4()  # not a CFItem in this tenant
+        external_uri = f"https://other.example.org/uri/{external_dest}"
         grouping = CFAssociationGrouping(
             tenant_id=tenant.id,
             identifier=uuid.uuid4(),
@@ -1061,7 +1062,7 @@ class TestDetailFragment:
             association_type="isRelatedTo",
             origin_node_uri=f"https://example.com/uri/{origin.identifier}",
             origin_node_identifier=str(origin.identifier),
-            destination_node_uri=f"https://example.com/uri/{external_dest}",
+            destination_node_uri=external_uri,
             destination_node_identifier=str(external_dest),
             destination_node_title="External skill",
             cf_association_grouping_id=grouping.id,
@@ -1072,9 +1073,102 @@ class TestDetailFragment:
 
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
         assert resp.status_code == 200
-        assert f"/uri/{external_dest}" in resp.text  # links out (full page)
-        # Not in-pane nav: no push-url to an /item/ path for the external target.
+        assert external_uri in resp.text  # links out to the stored URI
+        assert 'target="_blank"' in resp.text
+        assert "外部" in resp.text  # external badge (ja)
+        # Not a tree switch / in-pane nav.
         assert f"/cftree/doc/{sample_document.identifier}/item/{external_dest}" not in resp.text
+
+    async def test_related_link_unsafe_scheme_not_clickable(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """An external destination URI with a non-http(s) scheme (e.g.
+        javascript:) is NOT linkified — rendered as plain text instead."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        external_dest = uuid.uuid4()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri="javascript:alert(1)",
+            destination_node_identifier=str(external_dest),
+            destination_node_title="Sketchy ref",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert "Sketchy ref" in resp.text  # shown as plain text
+        assert "javascript:" not in resp.text  # never emitted as an href
+
+    async def test_related_link_other_doc_switches_tree(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A related target that is a CFItem in ANOTHER document of the same
+        tenant links to that document's tree (switch) with a badge."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/other-fw",
+            title="Other Framework",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(other)
+        await db_session.flush()
+        dest = _make_item(tenant, other, full_statement="Cross-doc skill")
+        db_session.add(dest)
+        await db_session.flush()
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/x",
+            title="Essential",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=f"https://example.com/uri/{dest.identifier}",
+            destination_node_identifier=str(dest.identifier),
+            destination_node_title="Cross-doc skill",
+            cf_association_grouping_id=grouping.id,
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Links to the OTHER document's tree (switch), selecting the dest item.
+        assert f"/cftree/doc/{other.identifier}/item/{dest.identifier}" in resp.text
+        assert "別フレームワーク" in resp.text  # other-framework badge (ja)
 
     async def test_related_items_sorted_by_tree_key(
         self,
