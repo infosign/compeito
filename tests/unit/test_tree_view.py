@@ -573,6 +573,19 @@ class TestTreeViewPage:
         # Header doc-name self-link pushes the tree-root URL.
         assert f'hx-push-url="/{tenant.id}/cftree/doc/{sample_document.identifier}"' in resp.text
 
+    async def test_tree_page_ships_sync_script(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The tree page carries the global tree↔pane sync (selectTreeNode +
+        the htmx:afterSettle listener that reads the pushed /item/ URL)."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert "function selectTreeNode" in resp.text
+        assert "htmx:afterSettle" in resp.text
+
     async def test_html_title(
         self,
         db_session: AsyncSession,
@@ -1009,7 +1022,57 @@ class TestDetailFragment:
         assert resp.status_code == 200
         assert "Essential" in resp.text  # grouping heading
         assert "Destination item" in resp.text  # related target title
-        assert f"/uri/{dest.identifier}" in resp.text  # link to the related item
+        # Same-doc related item → in-pane navigation (path-form URL + push-url),
+        # NOT a full-page link to /uri/. (Tree sync runs from a global
+        # htmx:afterSettle listener in base.html, not inline on this link.)
+        item_url = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{dest.identifier}"
+        assert f'hx-push-url="{item_url}"' in resp.text
+        assert f"/uri/{dest.identifier}" not in resp.text
+
+    async def test_related_link_cross_doc_links_out(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A related target that is NOT a CFItem in this document (cross-doc /
+        external) keeps the full-page /uri/ link (Stage 5 will switch trees)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        external_dest = uuid.uuid4()  # not a CFItem in this doc
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/x",
+            title="Essential",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isRelatedTo",
+            origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=f"https://example.com/uri/{external_dest}",
+            destination_node_identifier=str(external_dest),
+            destination_node_title="External skill",
+            cf_association_grouping_id=grouping.id,
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert f"/uri/{external_dest}" in resp.text  # links out (full page)
+        # Not in-pane nav: no push-url to an /item/ path for the external target.
+        assert f"/cftree/doc/{sample_document.identifier}/item/{external_dest}" not in resp.text
 
     async def test_missing_item_404(
         self,

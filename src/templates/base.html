@@ -57,6 +57,36 @@
     }
     document.addEventListener('DOMContentLoaded', function() { formatLocalDates(); });
     document.addEventListener('htmx:afterSettle', function(evt) { formatLocalDates(evt.detail.elt); });
+
+    // Tree ↔ pane sync: select a tree node by item id — open its ancestor
+    // <details>, highlight it, and scroll it into view. No-op if the node
+    // isn't in the current tree (e.g. a cross-document link). Called from
+    // in-pane navigation (hx-on::after-swap) so following a related link
+    // keeps the tree in step with the pane.
+    function selectTreeNode(id) {
+        var el = document.querySelector('[data-item-id="' + id + '"]');
+        if (!el) return;
+        for (var p = el.parentElement && el.parentElement.closest('details'); p; p = p.parentElement && p.parentElement.closest('details')) {
+            p.open = true;
+        }
+        document.querySelectorAll('[data-tree-item]').forEach(function(e) {
+            e.classList.remove('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
+        });
+        el.classList.add('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
+        el.scrollIntoView({ block: 'center' });
+    }
+
+    // After a detail fragment is swapped into the pane (tree node OR pane-
+    // internal related link), sync the tree to that item. Done globally on
+    // `document` (not on the link, which is inside the swapped pane and gets
+    // destroyed) and keyed off the HTMX request path `/detail/{id}` (robust —
+    // no dependency on hx-push-url timing).
+    document.addEventListener('htmx:afterSettle', function(evt) {
+        var cfg = evt.detail && evt.detail.requestConfig;
+        var path = (cfg && cfg.path) || (evt.detail && evt.detail.xhr && evt.detail.xhr.responseURL) || '';
+        var m = path.match(/\/detail\/([0-9a-fA-F-]{36})/);
+        if (m) selectTreeNode(m[1]);
+    });
     </script>
 </head>
 <body class="bg-stone-50 min-h-screen">
