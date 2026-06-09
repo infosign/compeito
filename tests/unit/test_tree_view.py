@@ -1299,3 +1299,74 @@ class TestDetailFragment:
         assert "Elementary" in resp.text
         assert "math" in resp.text
         assert "ja" in resp.text
+
+
+class TestDefinitionsTree:
+    """Stage 4a: definitions referenced by a document appear as navigable tree
+    nodes, and are shown in the right pane via the generalized detail fragment."""
+
+    NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    async def test_definitions_section_lists_referenced_lookups(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        it = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/it",
+            title="Knowledge Type",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(it)
+        await db_session.flush()
+        item = _make_item(tenant, sample_document, full_statement="Item with a type")
+        item.cf_item_type_id = it.id
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        assert "定義" in resp.text  # Definitions section heading (ja)
+        assert "Knowledge Type" in resp.text  # the item-type node
+        # Navigable as a tree item (path-form URL).
+        assert f"/cftree/doc/{sample_document.identifier}/item/{it.identifier}" in resp.text
+
+    async def test_definition_rendered_in_pane(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        it = CFItemType(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/it2",
+            title="Skill Type",
+            type_code="ST",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(it)
+        await db_session.flush()
+
+        # The generalized detail fragment resolves any resource type.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{it.identifier}")
+        assert resp.status_code == 200
+        assert "Skill Type" in resp.text
+        assert "ST" in resp.text  # type_code shown in the lookup detail
+
+    async def test_no_definitions_section_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A document with no referenced lookups shows no Definitions section."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        assert "定義" not in resp.text

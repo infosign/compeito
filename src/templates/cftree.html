@@ -56,6 +56,49 @@
             {% else %}
             <p class="text-stone-500 p-4">{{ t("no_items") }}</p>
             {% endif %}
+
+            {# Definitions: lookups referenced by this document, as navigable
+               nodes. Collapsed by default; clicking a node shows it in the pane. #}
+            {% set def_groups = [
+                (t("def_item_types"), definitions.item_types),
+                (t("def_concepts"), definitions.concepts),
+                (t("def_subjects"), definitions.subjects),
+                (t("def_licenses"), definitions.licenses),
+                (t("def_groupings"), definitions.groupings)
+            ] %}
+            {% if definitions.item_types or definitions.concepts or definitions.subjects or definitions.licenses or definitions.groupings %}
+            <details class="mt-2 pt-2 border-t border-stone-100">
+                <summary class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer hover:bg-stone-100">
+                    <span class="tree-tri w-5 h-5 flex-shrink-0 text-stone-400 select-none text-center">▶</span>
+                    <span class="ml-1 text-sm font-semibold text-stone-600">{{ t("definitions") }}</span>
+                </summary>
+                <div class="ml-4">
+                    {% for label, ditems in def_groups %}
+                    {% if ditems %}
+                    <details class="mt-1">
+                        <summary class="tree-summary flex items-center py-1 px-2 rounded cursor-pointer hover:bg-stone-100">
+                            <span class="tree-tri w-5 h-5 flex-shrink-0 text-stone-400 select-none text-center">▶</span>
+                            <span class="ml-1 text-xs font-medium text-stone-500 uppercase">{{ label }}</span>
+                        </summary>
+                        <div class="ml-4">
+                            {% for d in ditems %}
+                            <div data-tree-item data-item-id="{{ d.identifier }}" class="mt-1 flex items-center py-1.5 px-2 rounded {% if selected_ident == d.identifier|string %}bg-violet-50 ring-1 ring-inset ring-violet-200{% else %}hover:bg-stone-100{% endif %}">
+                                <span class="w-5 h-5 flex-shrink-0 text-stone-200 text-center select-none">●</span>
+                                <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ d.identifier }}"
+                                   class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
+                                   hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ d.identifier }}"
+                                   hx-target="#detail-pane" hx-swap="innerHTML"
+                                   hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ d.identifier }}"
+                                   onclick="document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200')); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">{{ d.title }}</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
         </div>
     </div>
 

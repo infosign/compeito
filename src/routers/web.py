@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
 from src.repositories import cf_association_repository, cf_rubric_repository
-from src.services import tenant_service, tree_service, uri_service
+from src.services import cf_view_service, tenant_service, tree_service, uri_service
 
 router = APIRouter()
 
@@ -275,36 +275,37 @@ async def _render_tree_page(
         selected_ident,
     )
 
-    # Fetch rubrics for this document (shown in right pane default view)
+    # Fetch rubrics + definitions for this document (right-pane default view +
+    # the tree's "Definitions" / "Rubrics" sections).
     rubrics = await cf_rubric_repository.list_by_document(session, doc.id)
+    definitions = await cf_view_service.list_document_definitions(session, tenant_obj.id, doc)
 
-    # Right-pane content (SSR via the shared partial): the deep-linked item's
-    # full detail when ?item= / /item/ selects one, otherwise the document
-    # itself. Either way the pane reconstructs without an HTMX round-trip.
+    # Right-pane content (SSR via the shared partial): the selected resource's
+    # full detail when ?item= / /item/ selects one (any resource type — item,
+    # definition, rubric), otherwise the document itself. Reconstructs without
+    # an HTMX round-trip.
     referring_criteria: list = []
     related_groups: list[dict] = []
     related_in_doc: set[str] = set()
-    pane_resource = None
-    if selected_item is not None:
-        pane_resource = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
-    if pane_resource is not None:
-        pane_type = "CFItem"
-        # Reuse the tree we just built for the related-list ordering.
-        extras = await _detail_extras(
-            session,
-            tenant_obj.id,
-            "CFItem",
-            pane_resource,
-            doc,
-            tree_service.dfs_index(root_nodes, orphan_nodes),
-        )
-        referring_criteria = extras["referring_criteria"]
-        related_groups = extras["related_groups"]
-        related_in_doc = extras["related_in_doc"]
-    else:
-        # No item selected → the document is the pane's content (its root view).
-        pane_resource = doc
-        pane_type = "CFDocument"
+    pane_resource = doc
+    pane_type = "CFDocument"
+    if selected_ident is not None:
+        result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, selected_ident)
+        if result is not None:
+            pane_resource, pane_type = result.resource, result.resource_type
+            if pane_type == "CFItem":
+                # Reuse the tree we just built for the related-list ordering.
+                extras = await _detail_extras(
+                    session,
+                    tenant_obj.id,
+                    "CFItem",
+                    pane_resource,
+                    result.doc or doc,
+                    tree_service.dfs_index(root_nodes, orphan_nodes),
+                )
+                referring_criteria = extras["referring_criteria"]
+                related_groups = extras["related_groups"]
+                related_in_doc = extras["related_in_doc"]
 
     response = templates.TemplateResponse(
         request,
@@ -315,8 +316,12 @@ async def _render_tree_page(
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
+            # Selected resource id (str) for highlighting non-item tree nodes
+            # (definitions / rubrics) whose detail is shown in the pane.
+            "selected_ident": str(selected_ident) if selected_ident is not None else None,
+            "definitions": definitions,
             # Full-detail pane context (shared partial). `resource` is the
-            # relationship-loaded item, or the document when nothing is selected.
+            # relationship-loaded selected resource, or the document by default.
             "resource": pane_resource,
             "resource_type": pane_type,
             "referring_criteria": referring_criteria,
@@ -571,12 +576,18 @@ async def detail_fragment(
     item_uuid = _parse_uuid(item_id)
     if item_uuid is None:
         return HTMLResponse("", status_code=400)
-    item = await tree_service.get_item_for_detail(session, doc.id, item_uuid)
-    if item is None:
+    # Resolve any resource type (item, definition lookup, rubric part) so the
+    # pane can show definitions/rubrics that are now tree nodes too. uri_service
+    # resolves item-before-document, so an item that shares the doc's identifier
+    # still wins here (the document has its own /document fragment route).
+    result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, item_uuid)
+    if result is None:
         return _error_fragment(404, t("error_item_not_found"))
 
     # The pane renders the SAME full-detail card as the standalone /uri/ page.
-    return await _pane_fragment_response(request, session, tenant, tenant_obj, doc, item, "CFItem")
+    return await _pane_fragment_response(
+        request, session, tenant, tenant_obj, result.doc or doc, result.resource, result.resource_type
+    )
 
 
 @router.get(
