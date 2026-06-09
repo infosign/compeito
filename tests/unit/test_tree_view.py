@@ -1555,6 +1555,70 @@ class TestRubricsTree:
         assert resp.status_code == 200
         assert "ルーブリック" not in resp.text
 
+    async def test_criteria_and_levels_sorted_by_position(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Criteria and levels render in position order (not DB return order),
+        matching the detail card's `sort(attribute='position,identifier')`."""
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/r",
+            title="Ordered Rubric",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+        # Insert out of position order so DB order != position order.
+        c_beta = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/cb",
+            category="Beta",
+            position=2,
+            last_change_date_time=self.NOW,
+        )
+        c_alpha = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/ca",
+            category="Alpha",
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add_all([c_beta, c_alpha])
+        await db_session.flush()
+        lv_hi = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=c_alpha.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/lh",
+            quality="ZZZ-high",
+            position=2,
+            last_change_date_time=self.NOW,
+        )
+        lv_lo = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=c_alpha.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/ll",
+            quality="AAA-low",
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add_all([lv_hi, lv_lo])
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        # Criteria: position 1 (Alpha) before position 2 (Beta).
+        assert resp.text.index("Alpha") < resp.text.index("Beta")
+        # Levels: position 1 (AAA-low) before position 2 (ZZZ-high).
+        assert resp.text.index("AAA-low") < resp.text.index("ZZZ-high")
+
     async def test_standalone_show_in_tree_selects_rubric_part(
         self,
         db_session: AsyncSession,
