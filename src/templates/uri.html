@@ -209,7 +209,7 @@
 {%- elif value is string and (value.startswith("http://") or value.startswith("https://")) -%}
     <a href="{{ value }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 break-all">{{ value }}</a>
 {%- elif value is boolean -%}
-    {{ "true" if value else "false" }}
+    <span class="break-words">{{ "true" if value else "false" }}</span>
 {%- elif value is none -%}
     <span class="text-stone-400">null</span>
 {%- else -%}

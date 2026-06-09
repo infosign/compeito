@@ -475,8 +475,15 @@ class TestUriDetailPage:
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """A present-but-falsy scalar (0 / false) is shown as text, not hidden."""
-        for raw, needle in (({"flag": False}, "false"), ({"n": 0}, "0")):
+        """A present-but-falsy scalar (0 / false) is shown as text, not hidden.
+
+        Assertions tie the key cell to the value span so they can't be satisfied
+        by incidental "0"/"false" substrings elsewhere in the HTML (CSS, etc.).
+        """
+        for raw, key, value_html in (
+            ({"flag": False}, "flag", ">false</span>"),
+            ({"count": 0}, "count", ">0</span>"),
+        ):
             ident = uuid.uuid4()
             item = CFItem(
                 tenant_id=tenant.id,
@@ -494,7 +501,8 @@ class TestUriDetailPage:
             resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
             assert resp.status_code == 200
             assert "拡張データ" in resp.text
-            assert needle in resp.text
+            assert f">{key}</div>" in resp.text  # key cell
+            assert value_html in resp.text  # value span
 
     async def test_cf_document_extensions_variants_rendered(
         self,
