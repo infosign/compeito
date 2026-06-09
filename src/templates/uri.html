@@ -184,6 +184,65 @@
 {% endif %}
 {% endmacro %}
 
+{# Render a free-form `extensions` value, dispatching on its JSON type so any
+   framework's custom payload is readable: object -> indented key/value block,
+   array of scalars -> chips, array of objects -> stacked blocks, http(s)
+   string -> link, other scalar -> text. Recurses for nested structures. #}
+{% macro ext_value(value) %}
+{%- if value is mapping -%}
+    <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 ml-3 mt-0.5 pl-2 border-l border-stone-200">
+    {%- for k, v in value.items() %}
+        <div class="font-medium text-stone-500 break-all">{{ k }}</div>
+        <div class="text-gray-800 break-words min-w-0">{{ ext_value(v) }}</div>
+    {%- endfor %}
+    </div>
+{%- elif value is sequence and value is not string -%}
+    {%- set nss = namespace(scalar=true) -%}
+    {%- for it in value -%}{%- if it is mapping or (it is sequence and it is not string) -%}{%- set nss.scalar = false -%}{%- endif -%}{%- endfor -%}
+    {%- if value | length == 0 -%}
+        <span class="text-stone-400">[]</span>
+    {%- elif nss.scalar -%}
+        <span class="inline-flex flex-wrap gap-1 align-middle">{% for it in value %}<span class="inline-block px-2 py-0.5 text-xs bg-stone-100 text-stone-700 rounded">{{ it }}</span>{% endfor %}</span>
+    {%- else -%}
+        <div class="mt-0.5 space-y-1">{% for it in value %}<div>{{ ext_value(it) }}</div>{% endfor %}</div>
+    {%- endif -%}
+{%- elif value is string and (value.startswith("http://") or value.startswith("https://")) -%}
+    <a href="{{ value }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 break-all">{{ value }}</a>
+{%- elif value is boolean -%}
+    <span class="break-words">{{ "true" if value else "false" }}</span>
+{%- elif value is none -%}
+    <span class="text-stone-400">null</span>
+{%- else -%}
+    <span class="break-words">{{ value }}</span>
+{%- endif -%}
+{% endmacro %}
+
+{# Section wrapper for an `extensions` field. Skipped when empty / null. The
+   top-level object is rendered flat (no border); nesting gets the indented
+   border treatment from ext_value. #}
+{% macro extensions_block(label, ext) %}
+{# Hide only when truly absent: null, empty string, empty object, or empty
+   array. Falsy-but-present scalars (0, false) ARE shown as text. #}
+{% set _empty = (ext is none) or (ext is string and ext == "") or ((ext is mapping or (ext is sequence and ext is not string)) and ext | length == 0) %}
+{% if not _empty %}
+<div>
+    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dd class="text-gray-800 ml-4 mt-1 text-sm">
+    {%- if ext is mapping -%}
+        <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        {%- for k, v in ext.items() %}
+            <div class="font-medium text-stone-500 break-all">{{ k }}</div>
+            <div class="text-gray-800 break-words min-w-0">{{ ext_value(v) }}</div>
+        {%- endfor %}
+        </div>
+    {%- else -%}
+        {{ ext_value(ext) }}
+    {%- endif -%}
+    </dd>
+</div>
+{% endif %}
+{% endmacro %}
+
 {# ========== Main content ========== #}
 <div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
     <dl class="space-y-4">
@@ -254,6 +313,7 @@
             </dd>
         </div>
         {% endif %}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
     </dl>
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}?item={{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -306,6 +366,9 @@
             </dd>
         </div>
         {% endif %}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {{ extensions_block(t("f_package_extensions"), resource.package_extensions) }}
+        {{ extensions_block(t("f_definitions_extensions"), resource.definitions_extensions) }}
     </dl>
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -346,6 +409,7 @@
         {{ optional_field(t("f_notes"), resource.notes) }}
         {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
     </dl>
 
     {# ========== CFRubric ========== #}
@@ -359,6 +423,7 @@
         {{ optional_field(t("f_description"), resource.description) }}
         {{ effective_license(None, doc) }}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
     </dl>
 
     {# Rubric table/list display #}
@@ -480,6 +545,7 @@
             </dd>
         </div>
         {% endif %}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
         {# Levels list #}
         {% if resource.levels %}
         </dl>
@@ -529,6 +595,7 @@
             </dd>
         </div>
         {% endif %}
+        {{ extensions_block(t("f_extensions"), resource.extensions) }}
     </dl>
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
@@ -550,6 +617,7 @@
         {% if resource.keywords is defined %}{{ optional_field(t("f_keywords"), resource.keywords) }}{% endif %}
         {% if resource.license_text is defined %}{{ optional_field(t("f_license_text"), resource.license_text) }}{% endif %}
         {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+        {% if resource.extensions is defined %}{{ extensions_block(t("f_extensions"), resource.extensions) }}{% endif %}
     </dl>
     {% endif %}
 </div>
