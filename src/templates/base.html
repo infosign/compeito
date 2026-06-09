@@ -87,6 +87,46 @@
         var m = path.match(/\/detail\/([0-9a-fA-F-]{36})/);
         if (m) selectTreeNode(m[1]);
     });
+
+    // On a full-page load of /item/{id}, the selected node is highlighted
+    // server-side but may sit below the fold of the scrollable tree. Center it
+    // within the tree container (scrolling the container only, not the window,
+    // so the page doesn't jump past the heading).
+    document.addEventListener('DOMContentLoaded', function() {
+        var pane = document.getElementById('tree-scroll');
+        var id = pane && pane.getAttribute('data-selected-item');
+        if (!id) return;
+        var el = pane.querySelector('[data-item-id="' + id + '"]');
+        if (!el) return;
+        for (var p = el.parentElement && el.parentElement.closest('details'); p; p = p.parentElement && p.parentElement.closest('details')) {
+            p.open = true;
+        }
+        requestAnimationFrame(function() {
+            var er = el.getBoundingClientRect();
+            var pr = pane.getBoundingClientRect();
+            if (er.top >= pr.top && er.bottom <= pr.bottom) return;  // already visible
+            pane.scrollTop += (er.top - pr.top) - (pr.height - er.height) / 2;
+        });
+    });
+
+    // Expanding a node whose children fall below the tree's visible area: nudge
+    // the container so the first children show (otherwise the triangle just
+    // rotates and the children stay off-screen). No-op when already fully
+    // visible. Capture phase because the native `toggle` event doesn't bubble.
+    document.addEventListener('toggle', function(evt) {
+        var d = evt.target;
+        if (!(d instanceof HTMLDetailsElement) || !d.open) return;
+        var pane = d.closest('#tree-scroll');
+        if (!pane) return;
+        requestAnimationFrame(function() {
+            var dr = d.getBoundingClientRect();
+            var pr = pane.getBoundingClientRect();
+            if (dr.bottom <= pr.bottom) return;  // children already visible
+            // Align bottoms, but never push the summary above the pane top.
+            var delta = Math.min(dr.bottom - pr.bottom, dr.top - pr.top);
+            if (delta > 0) pane.scrollBy({ top: delta, behavior: 'smooth' });
+        });
+    }, true);
     </script>
 </head>
 <body class="bg-stone-50 min-h-screen">

@@ -29,7 +29,7 @@
 {% block content %}
 <div class="flex flex-col md:flex-row gap-6">
     {# Left pane: tree (shorter on mobile so detail pane peeks below) #}
-    <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]">
+    <div id="tree-scroll" class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]"{% if selected_ident %} data-selected-item="{{ selected_ident }}"{% endif %}>
         <div class="p-4 border-b border-stone-200" data-tree-item>
             {# The document name selects itself: shows the document's full detail
                in the right pane (HTMX) and syncs the URL to the tree root. #}
