@@ -196,6 +196,104 @@ async def get_orphan_items(
     return nodes
 
 
+async def build_full_tree(
+    session: AsyncSession,
+    doc: CFDocument,
+    selected_item_ident: uuid.UUID | None = None,
+) -> tuple[list[TreeNode], list[TreeNode], CFItem | None]:
+    """Build the COMPLETE tree (all descendants) in one pass for full SSR.
+
+    Fetches every isChildOf association and item for the document once (no
+    N+1), assembles the nested tree in memory, and marks `is_expanded` so the
+    template renders `<details open>` for top-level nodes and the ancestor path
+    of a deep-linked `selected_item`. All nodes are present in the DOM, so the
+    `<details>` expand/collapse needs no JavaScript or server round-trip.
+
+    Returns (root_nodes, orphan_nodes, selected_item_or_None). Multi-parent
+    items appear under each parent (same as the lazy renderer); a per-path
+    visited set prevents infinite recursion on cyclic isChildOf data.
+    """
+    doc_id = doc.id
+    doc_ident = str(doc.identifier)
+
+    # All isChildOf edges in the document (origin = child, destination = parent).
+    assoc_rows = (
+        await session.execute(
+            select(
+                CFAssociation.origin_node_identifier,
+                CFAssociation.destination_node_identifier,
+                CFAssociation.sequence_number,
+            ).where(
+                CFAssociation.cf_document_id == doc_id,
+                CFAssociation.association_type == "isChildOf",
+            )
+        )
+    ).all()
+
+    children_by_parent: dict[str, dict[str, int | None]] = {}
+    origin_idents: set[str] = set()
+    for origin, dest, seq in assoc_rows:
+        origin_idents.add(origin)
+        kids = children_by_parent.setdefault(dest, {})
+        if origin not in kids:
+            kids[origin] = seq
+        elif seq is not None and (kids[origin] is None or seq < kids[origin]):
+            kids[origin] = seq  # keep min seq (NULL last)
+
+    # All items, mapped by identifier (item_type eager-loaded for the badge).
+    item_rows = (
+        await session.execute(
+            select(CFItem).options(joinedload(CFItem.item_type)).where(CFItem.cf_document_id == doc_id)
+        )
+    ).scalars().unique().all()
+    items_by_ident = {str(i.identifier): i for i in item_rows}
+
+    # Ancestor path of the deep-linked item → which <details> to open.
+    selected_item = None
+    expand_set: set[str] = set()
+    if selected_item_ident is not None:
+        selected_item = await _resolve_selected_item(session, doc_id, selected_item_ident)
+        if selected_item is not None:
+            sid = str(selected_item.identifier)
+            expand_set = set(await _get_ancestor_path(session, doc, sid))
+            expand_set.add(sid)
+
+    def build(parent_ident: str, depth: int, ancestry: frozenset[str]) -> list[TreeNode]:
+        kids = children_by_parent.get(parent_ident)
+        if not kids:
+            return []
+        nodes: list[TreeNode] = []
+        for child_ident, seq in kids.items():
+            if child_ident in ancestry:  # cycle guard (per path)
+                continue
+            item = items_by_ident.get(child_ident)
+            if item is None:
+                continue
+            node = TreeNode(item=item, seq=seq)
+            node.children = build(child_ident, depth + 1, ancestry | {child_ident})
+            node.has_children = bool(node.children)
+            # Open top level by default + the deep-linked ancestor path.
+            node.is_expanded = depth == 0 or child_ident in expand_set
+            nodes.append(node)
+        nodes.sort(key=_child_sort_key)
+        return nodes
+
+    root_nodes = build(doc_ident, 0, frozenset({doc_ident}))
+
+    # Orphans: depth-0 items that are a child of nothing (no isChildOf origin).
+    orphan_nodes: list[TreeNode] = []
+    for ident, item in items_by_ident.items():
+        if item.depth == 0 and ident not in origin_idents:
+            node = TreeNode(item=item, seq=None)
+            node.children = build(ident, 1, frozenset({doc_ident, ident}))
+            node.has_children = bool(node.children)
+            node.is_expanded = ident in expand_set
+            orphan_nodes.append(node)
+    orphan_nodes.sort(key=_child_sort_key)
+
+    return root_nodes, orphan_nodes, selected_item
+
+
 async def build_ssr_tree(
     session: AsyncSession,
     doc: CFDocument,

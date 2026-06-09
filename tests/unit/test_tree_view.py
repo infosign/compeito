@@ -368,6 +368,65 @@ class TestBuildSSRTree:
         assert mid_node.children[0].item.identifier == deep.identifier
 
 
+class TestBuildFullTree:
+    async def _three_levels(self, db_session, tenant, doc):
+        root = _make_item(tenant, doc, full_statement="Root node", hcs="R")
+        child = _make_item(tenant, doc, full_statement="Child node", hcs="C")
+        grand = _make_item(tenant, doc, full_statement="Grand node", hcs="G")
+        db_session.add_all([root, child, grand])
+        db_session.add(_make_is_child_of(doc, root.identifier, doc.identifier, seq=1))
+        db_session.add(_make_is_child_of(doc, child.identifier, root.identifier, seq=1))
+        db_session.add(_make_is_child_of(doc, grand.identifier, child.identifier, seq=1))
+        await db_session.flush()
+        return root, child, grand
+
+    async def test_builds_full_depth_in_one_pass(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        root, child, grand = await self._three_levels(db_session, tenant, sample_document)
+        roots, orphans, selected = await tree_service.build_full_tree(db_session, sample_document)
+        assert selected is None
+        assert len(roots) == 1
+        rn = roots[0]
+        assert rn.item.identifier == root.identifier
+        assert rn.is_expanded is True  # depth 0 open by default
+        assert rn.has_children
+        cn = rn.children[0]
+        assert cn.item.identifier == child.identifier
+        # The grandchild is present without any expansion query (full SSR).
+        assert cn.has_children
+        assert cn.children[0].item.identifier == grand.identifier
+        # Deeper-than-top levels are collapsed by default.
+        assert cn.is_expanded is False
+
+    async def test_deeplink_opens_ancestor_path(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        root, child, grand = await self._three_levels(db_session, tenant, sample_document)
+        roots, _, selected = await tree_service.build_full_tree(
+            db_session, sample_document, selected_item_ident=grand.identifier
+        )
+        assert selected is not None and selected.identifier == grand.identifier
+        rn = roots[0]
+        assert rn.is_expanded is True  # ancestor
+        assert rn.children[0].is_expanded is True  # ancestor (child)
+
+    async def test_cycle_does_not_loop(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        a = _make_item(tenant, sample_document, full_statement="A", hcs="A")
+        b = _make_item(tenant, sample_document, full_statement="B", hcs="B")
+        db_session.add_all([a, b])
+        # a is child of doc; a<->b cycle
+        db_session.add(_make_is_child_of(sample_document, a.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, b.identifier, a.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, a.identifier, b.identifier, seq=1))
+        await db_session.flush()
+        # Must terminate (per-path visited set), not recurse infinitely.
+        roots, _, _ = await tree_service.build_full_tree(db_session, sample_document)
+        assert len(roots) >= 1
+
+
 class TestGetItemForDetail:
     async def test_returns_item(
         self,
@@ -431,6 +490,31 @@ class TestTreeViewPage:
         )
         assert resp.status_code == 200
         assert "Root Item" in resp.text
+
+    async def test_full_tree_ssr_includes_deep_nodes(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Full SSR: a grandchild (depth 2) is present in the page HTML without
+        any expansion round-trip, rendered inside nested <details>."""
+        root = _make_item(tenant, sample_document, full_statement="Root R", hcs="R")
+        child = _make_item(tenant, sample_document, full_statement="Child C", hcs="C")
+        grand = _make_item(tenant, sample_document, full_statement="Grand G deep", hcs="G")
+        db_session.add_all([root, child, grand])
+        db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, child.identifier, root.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, grand.identifier, child.identifier, seq=1))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert resp.status_code == 200
+        # The deepest node is in the SSR HTML (no lazy load needed).
+        assert "Grand G deep" in resp.text
+        # Rendered via native <details> (JS-free expand/collapse).
+        assert "<details" in resp.text
 
     async def test_html_title(
         self,
