@@ -117,7 +117,9 @@
                         {{ branch_summary(tenant_url, doc.identifier, r.identifier, r_label, selected_ident) }}
                         <div class="ml-4">
                             {% for c in r.criteria %}
-                            {% set c_label = c.category or (c.description[:40] if c.description else c.identifier|string) %}
+                            {# category alone is often shared across criteria; append the
+                               description so sibling criteria are distinguishable. #}
+                            {% set c_label %}{% if c.category and c.description %}{{ c.category }}：{{ c.description[:30] }}{% if c.description|length > 30 %}…{% endif %}{% elif c.category %}{{ c.category }}{% elif c.description %}{{ c.description[:40] }}{% if c.description|length > 40 %}…{% endif %}{% else %}{{ c.identifier }}{% endif %}{% endset %}
                             {% if c.levels %}
                             <details class="mt-1"{% if c.identifier|string in open_rubric_ids %} open{% endif %}>
                                 {{ branch_summary(tenant_url, doc.identifier, c.identifier, c_label, selected_ident) }}
