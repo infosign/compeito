@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}COMPEITO{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    {% if tailwind_local %}
+    <link rel="stylesheet" href="/static/css/app.css">
+    {% else %}
+    {# Dev fallback: no built CSS present, use the Tailwind Play CDN (the production image builds /static/css/app.css and uses the branch above — no external CDN in production). #}
     <script src="https://cdn.tailwindcss.com"></script>
+    {% endif %}
     <script src="/static/vendor/htmx-2.0.4.min.js"></script>
     <style>
         /* Self-hosted Quicksand 700 (logo wordmark only). SIL Open Font License. */

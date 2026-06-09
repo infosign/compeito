@@ -22,7 +22,7 @@ Docker (FastAPI + uvicorn) → PostgreSQL
 | Tests | pytest + pytest-asyncio |
 | Package management | uv |
 | CLI rendering | rich (tables, progress bars, colored output) |
-| Web UI | Jinja2 + HTMX (self-hosted) + Tailwind CSS (CDN) |
+| Web UI | Jinja2 + HTMX (self-hosted) + Tailwind CSS (self-hosted; built at image-build time, CDN fallback in native dev) |
 
 ## Alembic migration strategy
 
@@ -103,7 +103,7 @@ Docker (FastAPI + uvicorn) → PostgreSQL
 | テスト | pytest + pytest-asyncio |
 | パッケージ管理 | uv |
 | CLI表示 | rich (テーブル・プログレスバー・カラー出力) |
-| Web UI | Jinja2 + HTMX (self-hosted) + Tailwind CSS (CDN) |
+| Web UI | Jinja2 + HTMX (self-hosted) + Tailwind CSS (self-hosted; built at image-build time, CDN fallback in native dev) |
 
 ## Alembicマイグレーション実行戦略
 
