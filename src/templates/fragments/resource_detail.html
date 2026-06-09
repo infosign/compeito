@@ -275,8 +275,20 @@
                     <div class="text-sm font-semibold text-stone-600">{{ grp.title or t("related_other") }}</div>
                     <ul class="ml-4 mt-1 space-y-1">
                         {% for a in grp["items"] %}
+                        {% set dest = a.destination_node_identifier %}
+                        {% set dest_label = a.destination_node_title or dest %}
                         <li>
-                            <a href="/{{ tenant_url }}/uri/{{ a.destination_node_identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ a.destination_node_title or a.destination_node_identifier }}</a>
+                            {% if in_pane and doc and dest in related_in_doc %}
+                            {# Same-doc item → navigate within the tree (swap pane + sync tree + push URL). #}
+                            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
+                               class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
+                               hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ dest }}"
+                               hx-target="#detail-pane" hx-swap="innerHTML"
+                               hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
+                               hx-on::after-swap="selectTreeNode('{{ dest }}')">{{ dest_label }}</a>
+                            {% else %}
+                            <a href="/{{ tenant_url }}/uri/{{ dest }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
+                            {% endif %}
                             {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
                         </li>
                         {% endfor %}

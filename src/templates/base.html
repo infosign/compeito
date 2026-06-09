@@ -57,6 +57,24 @@
     }
     document.addEventListener('DOMContentLoaded', function() { formatLocalDates(); });
     document.addEventListener('htmx:afterSettle', function(evt) { formatLocalDates(evt.detail.elt); });
+
+    // Tree ↔ pane sync: select a tree node by item id — open its ancestor
+    // <details>, highlight it, and scroll it into view. No-op if the node
+    // isn't in the current tree (e.g. a cross-document link). Called from
+    // in-pane navigation (hx-on::after-swap) so following a related link
+    // keeps the tree in step with the pane.
+    function selectTreeNode(id) {
+        var el = document.querySelector('[data-item-id="' + id + '"]');
+        if (!el) return;
+        for (var p = el.parentElement && el.parentElement.closest('details'); p; p = p.parentElement && p.parentElement.closest('details')) {
+            p.open = true;
+        }
+        document.querySelectorAll('[data-tree-item]').forEach(function(e) {
+            e.classList.remove('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
+        });
+        el.classList.add('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
+        el.scrollIntoView({ block: 'center' });
+    }
     </script>
 </head>
 <body class="bg-stone-50 min-h-screen">
