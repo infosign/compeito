@@ -610,7 +610,7 @@
         {% endif %}
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_item %}
-            {{ nav_button(resource.cf_item.identifier, t("show_linked_item"), doc and resource.cf_item.cf_document_id == doc.id) }}
+            {{ nav_button(resource.cf_item.identifier, t("view_linked_item"), doc and resource.cf_item.cf_document_id == doc.id) }}
             {% endif %}
             {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -641,7 +641,7 @@
     </dl>
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
-            {{ nav_button(resource.cf_rubric_criterion.cf_item.identifier, t("show_linked_item"), doc and resource.cf_rubric_criterion.cf_item.cf_document_id == doc.id) }}
+            {{ nav_button(resource.cf_rubric_criterion.cf_item.identifier, t("view_linked_item"), doc and resource.cf_rubric_criterion.cf_item.cf_document_id == doc.id) }}
             {% endif %}
             {% if doc and not in_pane %}
             <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
