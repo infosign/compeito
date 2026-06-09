@@ -152,12 +152,22 @@ async def _detail_extras(session: AsyncSession, tenant_id, resource_type: str, r
     rubrics: list = []
     referring_criteria: list = []
     related_groups: list[dict] = []
+    # Identifiers of related targets that are CFItems in the SAME document → can
+    # navigate in-pane within the current tree (others link out; see Stage 5).
+    related_in_doc: set[str] = set()
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFItem":
         referring_criteria = await cf_rubric_repository.list_criteria_by_item(session, resource.id)
         related_groups = await _related_groups(session, tenant_id, resource.identifier)
-    return {"rubrics": rubrics, "referring_criteria": referring_criteria, "related_groups": related_groups}
+        dest_idents = {a.destination_node_identifier for grp in related_groups for a in grp["items"]}
+        related_in_doc = await tree_service.items_in_doc(session, resource.cf_document_id, dest_idents)
+    return {
+        "rubrics": rubrics,
+        "referring_criteria": referring_criteria,
+        "related_groups": related_groups,
+        "related_in_doc": related_in_doc,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +273,7 @@ async def _render_tree_page(
     # itself. Either way the pane reconstructs without an HTMX round-trip.
     referring_criteria: list = []
     related_groups: list[dict] = []
+    related_in_doc: set[str] = set()
     pane_resource = None
     if selected_item is not None:
         pane_resource = await tree_service.get_item_for_detail(session, doc.id, selected_item.identifier)
@@ -271,6 +282,7 @@ async def _render_tree_page(
         extras = await _detail_extras(session, tenant_obj.id, "CFItem", pane_resource)
         referring_criteria = extras["referring_criteria"]
         related_groups = extras["related_groups"]
+        related_in_doc = extras["related_in_doc"]
     else:
         # No item selected → the document is the pane's content (its root view).
         pane_resource = doc
@@ -291,6 +303,7 @@ async def _render_tree_page(
             "resource_type": pane_type,
             "referring_criteria": referring_criteria,
             "related_groups": related_groups,
+            "related_in_doc": related_in_doc,
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: preserves the form the user requested (UUID
@@ -409,6 +422,7 @@ async def uri_detail(
             "rubrics": extras["rubrics"],
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
+            "related_in_doc": extras["related_in_doc"],
             # Standalone page (not the tree pane): show the "Show in tree" link.
             "in_pane": False,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
@@ -498,6 +512,7 @@ async def _pane_fragment_response(
             "rubrics": extras["rubrics"],
             "referring_criteria": extras["referring_criteria"],
             "related_groups": extras["related_groups"],
+            "related_in_doc": extras["related_in_doc"],
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: matches the form the user requested so nav
