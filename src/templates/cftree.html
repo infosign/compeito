@@ -30,9 +30,16 @@
 <div class="flex flex-col md:flex-row gap-6">
     {# Left pane: tree (shorter on mobile so detail pane peeks below) #}
     <div class="w-full md:w-1/2 lg:w-2/5 bg-white rounded-lg shadow-sm border border-stone-200 overflow-auto max-h-[50vh] md:max-h-[80vh]">
-        <div class="p-4 border-b border-stone-200">
-            <div class="font-medium text-gray-800">{{ doc.title }}</div>
-            <a href="/{{ tenant_url }}/uri/{{ doc.identifier }}" class="text-sm text-violet-600 hover:text-violet-800 transition-colors">{{ t("document_details") }}</a>
+        <div class="p-4 border-b border-stone-200" data-tree-item>
+            {# The document name selects itself: shows the document's full detail
+               in the right pane (HTMX) and syncs the URL to the tree root. #}
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}"
+               class="font-medium text-gray-800 hover:text-violet-700 transition-colors{% if not selected_item %} text-violet-700{% endif %}"
+               hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/document"
+               hx-target="#detail-pane"
+               hx-swap="innerHTML"
+               hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}"
+               onclick="document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200'));">{{ doc.title }}</a>
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
@@ -52,63 +59,13 @@
         </div>
     </div>
 
-    {# Right pane: detail (stacks below tree on mobile) #}
+    {# Right pane: detail (stacks below tree on mobile). Renders the shared
+       full-detail card — the selected item, or the document itself when none
+       is selected. #}
     <div id="detail-pane" class="w-full md:w-1/2 lg:w-3/5 bg-white rounded-lg shadow-sm border border-stone-200 p-6 md:overflow-y-auto md:max-h-[80vh]">
-        {% if resource %}
-            {% with tenant_url=tenant_url %}
-                {% include "fragments/detail.html" %}
-            {% endwith %}
-        {% else %}
-            {# Document info as default #}
-            {% macro copy_btn(text) %}
-            <button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-400 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            </button>
-            {% endmacro %}
-            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ doc.title }}</h2>
-            <dl class="space-y-3">
-                <div>
-                    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_identifier") }}</dt>
-                    <dd class="text-gray-800">{{ copy_btn(doc.identifier) }}<code class="text-sm">{{ doc.identifier }}</code></dd>
-                </div>
-                {# API URLs use the canonical tenant UUID (CASE clients store these as stable references). #}
-                {% set doc_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFDocuments/" ~ doc.identifier|string %}
-                <div>
-                    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_cf_documents_api") }}</dt>
-                    <dd class="text-gray-800">{{ copy_btn(doc_api_url) }}<code class="text-sm break-all">{{ doc_api_url }}</code></dd>
-                </div>
-                {% set pkg_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFPackages/" ~ doc.identifier|string %}
-                <div>
-                    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_cf_package_api") }}</dt>
-                    <dd class="text-gray-800">{{ copy_btn(pkg_api_url) }}<code class="text-sm break-all">{{ pkg_api_url }}</code></dd>
-                </div>
-                {% if doc.description %}
-                <div><dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_description") }}</dt><dd class="text-gray-800">{{ doc.description }}</dd></div>
-                {% endif %}
-                {% if doc.adoption_status %}
-                <div><dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_adoption_status") }}</dt><dd class="text-gray-800">{{ doc.adoption_status }}</dd></div>
-                {% endif %}
-                <div><dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_last_change_date_time") }}</dt><dd class="text-gray-800"><time datetime="{{ doc.last_change_date_time.isoformat() }}">{{ doc.last_change_date_time.isoformat() }}</time></dd></div>
-                {% if doc.version %}
-                <div><dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_version") }}</dt><dd class="text-gray-800">{{ doc.version }}</dd></div>
-                {% endif %}
-                {% if doc.language %}
-                <div><dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_language") }}</dt><dd class="text-gray-800">{{ doc.language }}</dd></div>
-                {% endif %}
-            </dl>
-            {% if rubrics %}
-            <div class="mt-6 pt-4 border-t border-stone-200">
-                <h3 class="text-sm font-semibold text-stone-600 mb-2">{{ t("rubrics") }}</h3>
-                <ul class="space-y-1">
-                    {% for rubric in rubrics %}
-                    <li>
-                        <a href="/{{ tenant_url }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-        {% endif %}
+        {% with tenant_url=tenant_url %}
+            {% include "fragments/detail.html" %}
+        {% endwith %}
     </div>
 </div>
 {% endblock %}
