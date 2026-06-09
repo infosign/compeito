@@ -1756,3 +1756,62 @@ class TestRubricsTree:
             resp = await db_client.get(f"/{tenant.id}/uri/{part.identifier}")
             assert resp.status_code == 200
             assert f"/cftree/doc/{sample_document.identifier}/item/{part.identifier}" in resp.text
+
+    async def test_rubric_cross_links_are_pane_nav(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Stage 5 B/F/G: rubric <-> item cross-links navigate in-pane when the
+        target is a node in the current document's tree."""
+        item = _make_item(tenant, sample_document, full_statement="Linked competency")
+        db_session.add(item)
+        await db_session.flush()
+        rubric = CFRubric(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/r",
+            title="Assessment Rubric",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(rubric)
+        await db_session.flush()
+        crit = CFRubricCriterion(
+            cf_rubric_id=rubric.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/c",
+            category="Clarity",
+            cf_item_id=item.id,
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(crit)
+        await db_session.flush()
+        level = CFRubricCriterionLevel(
+            cf_rubric_criterion_id=crit.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/l",
+            quality="Good",
+            position=1,
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(level)
+        await db_session.flush()
+
+        base = f"/{tenant.id}/cftree/doc/{sample_document.identifier}"
+        # Criterion pane: linked item (F) and parent rubric (F) are in-pane nav.
+        resp = await db_client.get(f"{base}/detail/{crit.identifier}")
+        assert resp.status_code == 200
+        assert f'hx-push-url="{base}/item/{item.identifier}"' in resp.text
+        assert f'hx-push-url="{base}/item/{rubric.identifier}"' in resp.text
+        # Level pane: parent criterion (G) is in-pane nav.
+        resp = await db_client.get(f"{base}/detail/{level.identifier}")
+        assert resp.status_code == 200
+        assert f'hx-push-url="{base}/item/{crit.identifier}"' in resp.text
+        # Item pane: referring criterion (B) is in-pane nav.
+        resp = await db_client.get(f"{base}/detail/{item.identifier}")
+        assert resp.status_code == 200
+        assert f'hx-push-url="{base}/item/{crit.identifier}"' in resp.text
