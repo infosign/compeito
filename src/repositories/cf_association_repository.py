@@ -95,11 +95,16 @@ async def list_associations_for_item(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     item_identifier: str,
-    limit: int = 100,
+    limit: int | None = None,
     offset: int = 0,
 ) -> list[CFAssociation]:
-    """Find all associations where the item is origin or destination (tenant-wide)."""
-    result = await session.execute(
+    """Find all associations where the item is origin or destination (tenant-wide).
+
+    `limit=None` (the default) returns the full set — the official CASE v1.1
+    CFItemAssociations contract has no pagination, so truncation must only
+    happen when a caller explicitly opts in.
+    """
+    query = (
         select(CFAssociation)
         .options(joinedload(CFAssociation.association_grouping))
         .where(
@@ -110,7 +115,9 @@ async def list_associations_for_item(
             ),
         )
         .order_by(CFAssociation.identifier)
-        .limit(limit)
         .offset(offset)
     )
+    if limit is not None:
+        query = query.limit(limit)
+    result = await session.execute(query)
     return list(result.scalars().unique().all())
