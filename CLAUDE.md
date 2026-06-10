@@ -94,8 +94,7 @@ compeito/
 │   │       ├── resource_detail.html  # 全リソース共通のフル詳細カード (マクロ群)
 │   │       ├── detail.html           # 右ペイン用 (resource_detail を include)
 │   │       ├── tree_nodes.html       # ツリー (ネスト <details>)
-│   │       ├── tree_node_macros.html # branch_summary / leaf マクロ (定義/ルーブリック節)
-│   │       └── children.html         # 子フラグメント (レガシー)
+│   │       └── tree_node_macros.html # branch_summary / leaf マクロ (定義/ルーブリック節)
 │   ├── services/                # ビジネスロジック (router → service → repository)
 │   │   ├── tenant_service.py
 │   │   ├── case_query_service.py    # CASE API 単一リソース取得・一覧取得
@@ -149,7 +148,7 @@ compeito/
 
   * 全テナント (public/private共通): `Cache-Control: public, max-age=3600`
 
-  * HTMXフラグメント (`/cftree/doc/*/children/*`, `/cftree/doc/*/detail/*`, `/cftree/doc/*/document`): `Cache-Control: public, max-age=86400`
+  * HTMXフラグメント (`/cftree/doc/*/detail/*`, `/cftree/doc/*/document`): `Cache-Control: public, max-age=86400`
 
 * **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は docs/spec/api-spec.md）
 

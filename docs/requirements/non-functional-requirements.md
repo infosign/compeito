@@ -36,7 +36,7 @@
 | ID | Requirement | Notes |
 |----|-------------|-------|
 | NFR-5.1 | All CASE API and Web UI (including the top `/`) responses set `Cache-Control: public, max-age=3600` | Public/private tenants alike. Exceptions: error responses (4xx/5xx) have no Cache-Control; v1p0→v1p1 redirects (301) also have none (per HTTP, 301 is cacheable by default; see api-spec.md). |
-| NFR-5.2 | HTMX fragments set `Cache-Control: public, max-age=86400` | `/cftree/doc/*/children/*` and `/cftree/doc/*/detail/*` |
+| NFR-5.2 | HTMX fragments set `Cache-Control: public, max-age=86400` | `/cftree/doc/*/detail/*` and `/cftree/doc/*/document` |
 | NFR-5.3 | Health check sets `Cache-Control: no-store` | Prevent caching |
 
 ## NFR-6: Data integrity
@@ -135,7 +135,7 @@
 | ID | 要件 | 備考 |
 |----|------|------|
 | NFR-5.1 | 全 CASE API・Web UI（トップページ `/` 含む）に `Cache-Control: public, max-age=3600` を設定する | public/private テナント共通。例外: エラーレスポンス（4xx/5xx）には Cache-Control を設定しない。v1p0→v1p1 リダイレクト（301）にも Cache-Control を設定しない（HTTP 仕様上 301 はデフォルトでキャッシュ可能。api-spec.md 参照） |
-| NFR-5.2 | HTMX フラグメントに `Cache-Control: public, max-age=86400` を設定する | `/cftree/doc/*/children/*` および `/cftree/doc/*/detail/*` |
+| NFR-5.2 | HTMX フラグメントに `Cache-Control: public, max-age=86400` を設定する | `/cftree/doc/*/detail/*` および `/cftree/doc/*/document` |
 | NFR-5.3 | ヘルスチェックに `Cache-Control: no-store` を設定する | キャッシュ防止 |
 
 ## NFR-6: データ整合性

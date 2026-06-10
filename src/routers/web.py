@@ -613,55 +613,6 @@ async def uri_detail(
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/{tenant}/cftree/doc/{doc_id}/children/{item_id}",
-    response_class=HTMLResponse,
-)
-async def children_fragment(
-    tenant: str,
-    doc_id: str,
-    item_id: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-) -> HTMLResponse:
-    """HTMX fragment: child items of {item_id}."""
-    lang = _get_lang(request)
-    t = get_translator(lang)
-    # Resolve tenant (UUID or slug)
-    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
-    if tenant_obj is None:
-        return _error_fragment(404, t("error_tenant_not_found"))
-
-    # Validate document
-    doc_uuid = _parse_uuid(doc_id)
-    if doc_uuid is None:
-        return _error_fragment(400, t("error_bad_request"))
-    doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
-    if doc is None:
-        return _error_fragment(404, t("error_document_not_found"))
-
-    # Validate item UUID format
-    item_uuid = _parse_uuid(item_id)
-    if item_uuid is None:
-        return HTMLResponse("", status_code=400)
-
-    # Get children (empty if item doesn't exist or belongs to another doc)
-    nodes = await tree_service.get_children(session, doc.id, str(item_uuid))
-    response = templates.TemplateResponse(
-        request,
-        "fragments/children.html",
-        {
-            "nodes": nodes,
-            # Sticky URL segment: matches the form the user requested so nav
-            # links don't drift the URL bar mid-session.
-            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
-            "doc_identifier": str(doc.identifier),
-        },
-    )
-    response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
-    return response
-
-
 async def _pane_fragment_response(
     request: Request,
     session: AsyncSession,
