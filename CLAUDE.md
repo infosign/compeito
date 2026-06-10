@@ -76,43 +76,51 @@ compeito/
 │   │   ├── cf_package.py
 │   │   └── cf_rubric.py              # Phase 2
 │   ├── routers/                 # FastAPI ルーター
-│   │   ├── web.py               # Web UI: /{tenant}/, /cftree/doc/*, /uri/{uuid}
-│   │   ├── index.py             # GET / テナント一覧
-│   │   ├── cf_documents.py
-│   │   ├── cf_items.py
-│   │   ├── cf_associations.py
-│   │   ├── cf_association_groupings.py
-│   │   ├── cf_item_types.py
-│   │   ├── cf_concepts.py
-│   │   ├── cf_subjects.py
-│   │   ├── cf_licenses.py
-│   │   ├── cf_packages.py
-│   │   └── cf_rubrics.py             # Phase 2
+│   │   ├── web.py               # Web UI: GET / , /{tenant}/, /cftree/doc/*, /uri/{uuid}
+│   │   ├── case_api.py          # CASE API ルーター (/{tenant}/ims/case/v1p1/)
+│   │   ├── discovery.py         # ディスカバリ (OpenAPI/well-known 等)
+│   │   ├── cf_documents.py / cf_items.py / cf_associations.py
+│   │   ├── cf_association_groupings.py / cf_item_types.py / cf_concepts.py
+│   │   ├── cf_subjects.py / cf_licenses.py / cf_packages.py
+│   │   └── cf_rubrics.py
 │   ├── templates/               # Jinja2 HTMLテンプレート
-│   │   ├── base.html            # 共通レイアウト
+│   │   ├── base.html            # 共通レイアウト (自己ホスト HTMX/フォント, Tailwind ローカル/CDN, ツリーJS)
 │   │   ├── index.html           # テナント一覧
 │   │   ├── tenant.html          # フレームワーク一覧
-│   │   ├── cftree.html          # ツリービュー
-│   │   ├── uri.html             # アイテム詳細
-│   │   └── error.html           # エラーページ (404/400/500)
+│   │   ├── cftree.html          # ツリービュー (左ツリー+右ペイン, 定義/ルーブリック節)
+│   │   ├── uri.html             # 単独詳細ページ (permalink)
+│   │   ├── error.html           # エラーページ (404/400/500)
+│   │   └── fragments/           # 共通パーシャル / HTMX フラグメント
+│   │       ├── resource_detail.html  # 全リソース共通のフル詳細カード (マクロ群)
+│   │       ├── detail.html           # 右ペイン用 (resource_detail を include)
+│   │       ├── tree_nodes.html       # ツリー (ネスト <details>)
+│   │       ├── tree_node_macros.html # branch_summary / leaf マクロ (定義/ルーブリック節)
+│   │       └── children.html         # 子フラグメント (レガシー)
 │   ├── services/                # ビジネスロジック (router → service → repository)
 │   │   ├── tenant_service.py
 │   │   ├── case_query_service.py    # CASE API 単一リソース取得・一覧取得
-│   │   ├── cf_view_service.py       # ツリービュー・アイテム詳細・CFPackage構築
-│   │   ├── csv_import_service.py
-│   │   ├── csv_export_service.py
-│   │   └── case_import_service.py
-│   └── repositories/            # DBアクセス層
-│       ├── tenant_repository.py
-│       ├── cf_document_repository.py
-│       ├── cf_item_repository.py
-│       ├── cf_association_repository.py
-│       ├── cf_association_grouping_repository.py
-│       ├── cf_item_type_repository.py
-│       ├── cf_concept_repository.py
-│       ├── cf_subject_repository.py
-│       └── cf_license_repository.py
+│   │   ├── case_query_params.py     # sort/orderBy/filter/fields パース共通
+│   │   ├── cf_view_service.py       # ツリービュー・詳細・CFPackage構築・list_document_definitions
+│   │   ├── tree_service.py          # build_full_tree / dfs_index / get_children
+│   │   ├── uri_service.py           # /uri/{id} の任意リソース解決
+│   │   ├── case_import_service.py
+│   │   ├── csv_import_service.py / csv_export_service.py
+│   │   ├── csv_rubric_import_service.py / csv_rubric_export_service.py
+│   │   └── xlsx_import_service.py / xlsx_export_service.py
+│   ├── repositories/            # DBアクセス層
+│   │   ├── tenant_repository.py
+│   │   ├── cf_document_repository.py
+│   │   ├── cf_item_repository.py        # map_identifiers_to_documents 含む
+│   │   ├── cf_association_repository.py
+│   │   ├── cf_rubric_repository.py
+│   │   └── cf_{association_grouping,item_type,concept,subject,license}_repository.py
+│   └── static/                  # 静的アセット (自己ホスト・外部CDN非依存)
+│       ├── vendor/              # htmx-2.0.4.min.js (+LICENSE)
+│       ├── fonts/               # quicksand-700.woff2 (+OFL)
+│       ├── css/                 # app.css (Dockerビルド時生成・非コミット)
+│       └── *.svg / *.png        # ロゴ・favicon
 ├── cli.py                       # CLI エントリーポイント
+├── tailwind/                    # tailwind/input.css (Docker で app.css にビルド)
 ├── migrations/                  # Alembic マイグレーション
 ├── tests/
 │   ├── unit/
@@ -141,7 +149,7 @@ compeito/
 
   * 全テナント (public/private共通): `Cache-Control: public, max-age=3600`
 
-  * HTMXフラグメント (`/cftree/doc/*/children/*`, `/cftree/doc/*/detail/*`): `Cache-Control: public, max-age=86400`
+  * HTMXフラグメント (`/cftree/doc/*/children/*`, `/cftree/doc/*/detail/*`, `/cftree/doc/*/document`): `Cache-Control: public, max-age=86400`
 
 * **エラー形式**: CASE API は imsx_StatusInfo 形式（詳細は docs/spec/api-spec.md）
 
