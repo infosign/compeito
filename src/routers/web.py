@@ -281,6 +281,50 @@ async def _detail_extras(
     }
 
 
+# Keys produced by `_detail_extras` that flow straight into the detail card.
+_DETAIL_EXTRAS_KEYS = (
+    "rubrics",
+    "referring_criteria",
+    "related_groups",
+    "related_in_doc",
+    "related_other_doc",
+    "assoc_node_in_doc",
+    "assoc_node_other_doc",
+    "hierarchy_upper",
+    "hierarchy_lower",
+)
+
+
+def _detail_pane_context(
+    extras: dict,
+    *,
+    tenant_obj,
+    resource,
+    resource_type: str,
+    doc,
+    in_pane: bool,
+    tenant_url: str,
+    t,
+    lang: str,
+) -> dict:
+    """Assemble the context the shared detail card (`fragments/resource_detail.html`)
+    needs. Single source of truth for the right-pane / standalone-page / tree-pane
+    render sites so a new detail field is wired in one place, not three.
+    `extras` is a `_detail_extras` result (or an equivalently-shaped dict)."""
+    ctx = {
+        "tenant": tenant_obj,
+        "resource": resource,
+        "resource_type": resource_type,
+        "doc": doc,
+        "in_pane": in_pane,
+        "tenant_url": tenant_url,
+        "t": t,
+        "lang": lang,
+    }
+    ctx.update({k: extras[k] for k in _DETAIL_EXTRAS_KEYS})
+    return ctx
+
+
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------
@@ -443,12 +487,40 @@ async def _render_tree_page(
                 hierarchy_upper = extras["hierarchy_upper"]
                 hierarchy_lower = extras["hierarchy_lower"]
 
-    response = templates.TemplateResponse(
-        request,
-        "cftree.html",
+    # Full-detail pane context (shared partial). `resource` is the
+    # relationship-loaded selected resource, or the document by default.
+    # `rubrics` here is the document's rubrics — dual-role: the pane's default
+    # CFDocument view *and* the tree's "Rubrics" section. Associations aren't
+    # tree-selected, so their node-set keys stay empty.
+    pane_extras = {
+        "rubrics": rubrics,
+        "referring_criteria": referring_criteria,
+        "related_groups": related_groups,
+        "related_in_doc": related_in_doc,
+        "related_other_doc": related_other_doc,
+        "assoc_node_in_doc": set(),
+        "assoc_node_other_doc": {},
+        "hierarchy_upper": hierarchy_upper,
+        "hierarchy_lower": hierarchy_lower,
+    }
+    ctx = _detail_pane_context(
+        pane_extras,
+        tenant_obj=tenant_obj,
+        resource=pane_resource,
+        resource_type=pane_type,
+        doc=doc,
+        # Rendered inside the tree → hide the redundant "Show in tree" link.
+        in_pane=True,
+        # Sticky URL segment: preserves the form the user requested (UUID or
+        # slug) so nav links don't drift the URL bar mid-session. Permalink /
+        # API URL strings rendered in the page use `tenant.id` directly
+        # (canonical UUID — stable across slug renames).
+        tenant_url=_tenant_url_segment(tenant, tenant_obj),
+        t=t,
+        lang=lang,
+    )
+    ctx.update(
         {
-            "tenant": tenant_obj,
-            "doc": doc,
             "root_nodes": root_nodes,
             "orphan_nodes": orphan_nodes,
             "selected_item": selected_item,
@@ -459,32 +531,9 @@ async def _render_tree_page(
             "rubrics_section_open": rubrics_section_open,
             "open_rubric_ids": open_rubric_ids,
             "definitions": definitions,
-            # Full-detail pane context (shared partial). `resource` is the
-            # relationship-loaded selected resource, or the document by default.
-            "resource": pane_resource,
-            "resource_type": pane_type,
-            "referring_criteria": referring_criteria,
-            "related_groups": related_groups,
-            "related_in_doc": related_in_doc,
-            "related_other_doc": related_other_doc,
-            "hierarchy_upper": hierarchy_upper,
-            "hierarchy_lower": hierarchy_lower,
-            # Associations aren't tree-selected here; keep keys defined for the
-            # shared partial's CFAssociation branch.
-            "assoc_node_in_doc": set(),
-            "assoc_node_other_doc": {},
-            # Rendered inside the tree → hide the redundant "Show in tree" link.
-            "in_pane": True,
-            # Sticky URL segment: preserves the form the user requested (UUID
-            # or slug) so nav links don't drift the URL bar mid-session.
-            # Permalink / API URL strings rendered in the page use `tenant.id`
-            # directly (canonical UUID — stable across slug renames).
-            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
-            "rubrics": rubrics,
-            "t": t,
-            "lang": lang,
-        },
+        }
     )
+    response = templates.TemplateResponse(request, "cftree.html", ctx)
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
 
@@ -582,27 +631,19 @@ async def uri_detail(
     response = templates.TemplateResponse(
         request,
         "uri.html",
-        {
-            "tenant": tenant_obj,
-            "resource_type": result.resource_type,
-            "resource": result.resource,
-            "doc": result.doc,
-            "page_title": page_title,
-            "rubrics": extras["rubrics"],
-            "referring_criteria": extras["referring_criteria"],
-            "related_groups": extras["related_groups"],
-            "related_in_doc": extras["related_in_doc"],
-            "related_other_doc": extras["related_other_doc"],
-            "assoc_node_in_doc": extras["assoc_node_in_doc"],
-            "assoc_node_other_doc": extras["assoc_node_other_doc"],
-            "hierarchy_upper": extras["hierarchy_upper"],
-            "hierarchy_lower": extras["hierarchy_lower"],
-            # Standalone page (not the tree pane): show the "Show in tree" link.
-            "in_pane": False,
-            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
-            "t": t,
-            "lang": lang,
-        },
+        # in_pane=False → standalone page shows the "Show in tree" link.
+        _detail_pane_context(
+            extras,
+            tenant_obj=tenant_obj,
+            resource=result.resource,
+            resource_type=result.resource_type,
+            doc=result.doc,
+            in_pane=False,
+            tenant_url=_tenant_url_segment(tenant, tenant_obj),
+            t=t,
+            lang=lang,
+        )
+        | {"page_title": page_title},
     )
     response.headers["Cache-Control"] = CACHE_CONTROL
     return response
@@ -626,32 +667,19 @@ async def _pane_fragment_response(
     lang = _get_lang(request)
     t = get_translator(lang)
     extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc)
-    response = templates.TemplateResponse(
-        request,
-        "fragments/detail.html",
-        {
-            "resource": resource,
-            "resource_type": resource_type,
-            "doc": doc,
-            "tenant": tenant_obj,
-            "rubrics": extras["rubrics"],
-            "referring_criteria": extras["referring_criteria"],
-            "related_groups": extras["related_groups"],
-            "related_in_doc": extras["related_in_doc"],
-            "related_other_doc": extras["related_other_doc"],
-            "assoc_node_in_doc": extras["assoc_node_in_doc"],
-            "assoc_node_other_doc": extras["assoc_node_other_doc"],
-            "hierarchy_upper": extras["hierarchy_upper"],
-            "hierarchy_lower": extras["hierarchy_lower"],
-            # Rendered inside the tree → hide the redundant "Show in tree" link.
-            "in_pane": True,
-            # Sticky URL segment: matches the form the user requested so nav
-            # links don't drift the URL bar mid-session.
-            "tenant_url": _tenant_url_segment(tenant, tenant_obj),
-            "t": t,
-            "lang": lang,
-        },
+    # in_pane=True → the redundant "Show in tree" link is hidden by the partial.
+    ctx = _detail_pane_context(
+        extras,
+        tenant_obj=tenant_obj,
+        resource=resource,
+        resource_type=resource_type,
+        doc=doc,
+        in_pane=True,
+        tenant_url=_tenant_url_segment(tenant, tenant_obj),
+        t=t,
+        lang=lang,
     )
+    response = templates.TemplateResponse(request, "fragments/detail.html", ctx)
     response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
     return response
 
