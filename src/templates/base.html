@@ -44,6 +44,15 @@
             evt.detail.isError = false;
         }
     });
+
+    // Copy-to-clipboard: delegated handler reading data-copy. The value lives in
+    // an HTML attribute (safely autoescaped), never inline JS — see copy_btn.
+    document.addEventListener('click', function(evt) {
+        var btn = evt.target.closest && evt.target.closest('.copy-btn');
+        if (!btn) return;
+        var text = btn.getAttribute('data-copy') || '';
+        if (navigator.clipboard) navigator.clipboard.writeText(text);
+    });
     function formatLocalDates(root) {
         (root || document).querySelectorAll('time[datetime]').forEach(function(el) {
             var d = new Date(el.getAttribute('datetime'));
