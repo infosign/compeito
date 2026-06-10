@@ -306,6 +306,15 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
 12. **CFDocument `creator` nullable:** required in CASE v1.1 OpenAPI (in the CFDocumentDType required list), but nullable in our DB to accommodate CSV imports that omit it. The API response can return `null`. External CFPackage import behavior: on create, missing / null / blank `creator` emits a warning and stores `null`; on update, missing / null retains the existing value silently, and a blank string emits a warning while still retaining the existing value (the existing `creator` is not overwritten with an empty string). Phase 2 will consider an empty-string default for Conformance.
 13. **Required lookup fields nullable:** `description` / `hierarchyCode` on CFItemType, `hierarchyCode` on CFSubject and CFConcept, and `licenseText` on CFLicense are treated as nullable (see "Compliance note for required lookup fields" above). `LinkGenURIDType.title` (origin/destination node) is likewise emitted as-is and may be `null`. This is a deliberate lenient-import / value-preservation policy: compeito ingests imperfect external data rather than rejecting it, so API output of these spec-"required" fields may be null/empty. Certification-grade strict output (fallback synthesis or import-time rejection) is a separate, future option.
 
+## Security posture
+
+Deliberate boundaries — read these before exposing compeito to untrusted callers.
+
+- **The CASE API and Web UI are unauthenticated and read-only.** Anyone who can reach the server can read every resource.
+- **A "private" tenant is *unlisted*, not *access-controlled*.** `is_private` only hides the tenant from the public index at `GET /`. Anyone who knows the tenant UUID (or slug) can still read all of its data via the Web UI tree and the CASE API. This is intentional. **Do not put confidential data in a "private" tenant expecting it to be protected** — privacy here means "not advertised," not "authenticated." Confidentiality must be enforced at a layer in front of compeito (network ACL, reverse-proxy auth, etc.).
+- **`import case --url` performs a server-side fetch of an operator-supplied URL** (follows redirects). It is an **operator / CLI-only** action and is **not exposed to untrusted callers** in this repository, so no SSRF IP-range filtering is applied — and intentionally so, because the legitimate use case includes importing from CASE tools on the internal network / `localhost`. **Any deployment that exposes import-by-URL to untrusted (even merely less-trusted) callers must add SSRF protection** at that boundary: resolve the host, reject private / loopback / link-local / cloud-metadata ranges, and re-check on each redirect hop.
+- **Output escaping:** templates rely on Jinja autoescape (HTML text + attribute contexts). Values are never interpolated into inline JavaScript; the copy-to-clipboard button reads from a `data-` attribute via a delegated handler (see `copy_btn` in `fragments/resource_detail.html`). External-data URLs are linkified only for `http(s)` schemes.
+
 ## Content negotiation
 
 - Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/children/*`, `/detail/*`) are HTML too.
@@ -634,6 +643,15 @@ CASE v1.1 情報モデルで定義されている標準値:
 11. **401/403 未実装:** CASE v1.1 OpenAPI で全エンドポイントに定義されているが、CASE API は public（認証不要）のため不要
 12. **CFDocument `creator` の nullable 化:** CASE v1.1 OpenAPI では `creator` は required（CFDocumentDType の required リストに含まれる）だが、CSV インポートで未指定のケースに対応するため DB では nullable。API レスポンスで `null` が返る可能性がある。外部 CASE CFPackage インポート時の挙動: 新規作成時に `creator` が欠落・null・空白文字列であれば警告を出力した上で `null` で保存する。更新時は欠落・null は既存値を保持（無警告）、空白文字列の場合は警告を出した上で既存値を保持する（既存 creator を空文字に上書きしない）。Phase 2 の Conformance テスト対応で空文字列デフォルト化を検討する
 13. **lookup リソースの required フィールドの nullable 化:** CFItemType の `description`/`hierarchyCode`、CFSubject の `hierarchyCode`、CFConcept の `hierarchyCode`、CFLicense の `licenseText` を nullable として扱う（上記「lookup リソースの必須フィールドに関する準拠性」節参照）
+
+## セキュリティ前提
+
+意図的な境界。非信頼な呼び出し元に compeito を開放する前に必ず確認すること。
+
+- **CASE API・Web UI は認証なし・読み取り専用。** サーバーに到達できる者は全リソースを読める。
+- **「private」テナントは*非掲載*であって*アクセス制御*ではない。** `is_private` は `GET /` の公開インデックスからテナントを隠すだけ。テナント UUID（または slug）を知っていれば、Web UI ツリーも CASE API も全データを読める。これは意図どおり。**「private だから保護される」と考えて機密データを置かないこと** — ここでの private は「広告しない」であって「認証する」ではない。機密性は compeito の前段（ネットワーク ACL、リバースプロキシ認証等）で担保する。
+- **`import case --url` は操作者指定 URL の server-side fetch**（リダイレクト追従）。これは**操作者 / CLI 専用**で、本リポジトリでは**非信頼な呼び出し元に開放していない**ため SSRF の IP レンジフィルタは適用していない。これは意図的で、正当なユースケースに「内部ネットワーク / `localhost` 上の CASE ツールからの取り込み」が含まれるため。**import-by-URL を非信頼（あるいは信頼度の低い）呼び出し元に開放する配備では、その境界で SSRF 対策を実装すること**: ホスト解決→private/loopback/link-local/クラウドメタデータ範囲を拒否→リダイレクト各ホップで再検査。
+- **出力エスケープ:** テンプレートは Jinja autoescape（HTML テキスト＋属性コンテキスト）に依存。値をインライン JavaScript に埋め込まない。コピーボタンは `data-` 属性を委譲ハンドラで読む（`fragments/resource_detail.html` の `copy_btn` 参照）。外部データ URL のリンク化は `http(s)` スキームのみ。
 
 ## コンテントネゴシエーション
 
