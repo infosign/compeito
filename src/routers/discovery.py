@@ -7,9 +7,8 @@ The schema file is shipped at `docs/reference/imscasev1p1_openapi3_v1p0.json`,
 which is the authoritative source already referenced by `docs/spec/
 architecture.md` and `docs/reference/case-v1p1-rest-binding.md`. We resolve the
 path from `__file__` so it works under the Docker deployment (`COPY . .`
-includes docs/) and editable installs (`pip install -e ../compeito` from
-compeito-aws). A future PyPI distribution would need package-data inclusion,
-which is out of scope here.
+includes docs/) and editable installs (`pip install -e .`). A future PyPI
+distribution would need package-data inclusion, which is out of scope here.
 """
 
 from __future__ import annotations
