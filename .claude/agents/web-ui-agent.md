@@ -56,9 +56,9 @@ src/templates/
 
 ### ツリービュー (cftree.html) — 最重要
 
-**2ペインレイアウト**:
-- 左ペイン: ツリーナビゲーション（モバイルではこれのみ表示）
-- 右ペイン (`#detail-pane`): リソース詳細
+**2ペインレイアウト** (`flex flex-col md:flex-row`):
+- デスクトップ (md 以上): 左にツリーナビゲーション、右にリソース詳細 (`#detail-pane`) の横並び
+- モバイル: 縦積み（ツリーが上、詳細ペインが下）。両方表示される
 
 **完全 SSR（遅延ロードしない）**:
 ツリーはネストした `<details>` で**全件サーバーサイドレンダリング**する。展開/折りたたみは
@@ -105,8 +105,8 @@ src/templates/
 
 ### モバイル対応
 
-- モバイル: ツリーペインのみ表示。アイテム選択で右ペインへ差し替え後、`#detail-pane` を自動スクロール。
-- デスクトップ: 2ペイン表示、左ツリーのクリックで右ペインを HTMX ロード。
+- モバイル: ツリーと詳細ペインを縦積み表示。アイテム選択で `#detail-pane` を差し替え、そこへ自動スクロール。
+- デスクトップ: 2ペイン横並び、左ツリーのクリックで右ペインを HTMX ロード。
 
 ## ルーター実装のポイント（web.py）
 
@@ -124,7 +124,8 @@ src/templates/
 - `tree_service.py` — `build_full_tree`（全件ツリー＋選択解決）, `dfs_index` / `doc_tree_index`,
   `get_children`, `sort_related_by_tree_order`, `get_document_for_tree`
 - `cf_view_service.py` — `list_document_definitions`, 詳細・CFPackage 構築
-- `uri_service.py` — `find_resource_by_identifier`（item → document → association → lookup → rubric 順）
+- `uri_service.py` — `find_resource_by_identifier`（解決順: CFItem → CFDocument → CFAssociation →
+  CFRubric → CFRubricCriterion → CFRubricCriterionLevel → lookups。identifier 衝突時はこの順で優先）
 
 ## Cache-Control
 
