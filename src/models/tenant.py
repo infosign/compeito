@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, String, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,10 @@ class Tenant(Base):
     # the UUID — the slug is a Web UI / share-link convenience only.
     slug: Mapped[str | None] = mapped_column(String(64), nullable=True)
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Optional manual display order for the public tenant list. Smaller = higher;
+    # NULL sinks below explicitly-ordered tenants (then name ASC). compeito-local
+    # display concern — not a CASE field.
+    display_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     @property

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +22,11 @@ class CFDocument(Base):
     identifier: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     uri: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
+    # Optional manual display order within the tenant's framework list. Smaller =
+    # higher; NULL sinks below explicitly-ordered docs (then title ASC). A
+    # compeito-local display concern — NOT a CASE field, so it is never emitted in
+    # CASE export nor overwritten on re-import.
+    display_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
     creator: Mapped[str | None] = mapped_column(String)
     publisher: Mapped[str | None] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
