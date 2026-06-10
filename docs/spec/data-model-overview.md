@@ -350,3 +350,23 @@ CFRubric「レポート評価ルーブリック」
 もし `CFRubric → CFItem` だと 1ルーブリック＝1アイテムしか結べず、観点ごとの対応を表現できない。
 `CFItemURI` は任意なので、特定アイテムに紐付かない総合的観点も作れ、同じアイテムを複数の
 ルーブリックの観点から測る**多対多**も自然に表せる。
+
+**12. 翻訳は「1項目の中の多言語」ではなく「項目どうしの関連」で表す**
+
+CFItem は `language` も `fullStatement` も**単数**。1つの項目に複数言語を詰める設計ではない。
+別言語版は **独立した CFItem（多くは別の CFDocument）として作り、`isTranslationOf` 関連で繋ぐ**
+（向きは origin が destination の翻訳）。
+
+```
+CFItem「Add two integers」  language=en
+CFItem「2つの整数を足す」    language=ja
+CFAssociation: 「2つの整数を足す」（origin）→ isTranslationOf → 「Add two integers」（destination）
+```
+
+翻訳すら「ノード内の変種」ではなく「ノード間の関係」で表すのが CASE 流。なお UI の表示言語
+（画面ラベルの en/ja 切替）と、この**コンテンツの言語**は別レイヤーの話なので混同しない。
+
+`isTranslationOf` はエンティティに付く属性ではなく `CFAssociation` の `associationType` 値。
+関連の両端に置けるのは **CFItem（個々の到達目標の翻訳）と CFDocument（FW 全体が別言語版の翻訳）の2粒度**
+で、lookup 系やルーブリックは端点にならない。両端は `LinkGenURIDType` なので別フレームワーク・
+外部システムの版も指せる。
