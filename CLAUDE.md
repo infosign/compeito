@@ -14,6 +14,8 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | ドキュメント                                           | 内容                                          |
 | ------------------------------------------------ | ------------------------------------------- |
 | docs/spec/architecture.md                        | システム構成・技術スタック・参照仕様                          |
+| docs/spec/case-overview.md                       | CASE 標準の入門（背景・データモデル/API・v1.0/v1.1差・設計方針）   |
+| docs/spec/data-model-overview.md                 | CASE データモデルの図解（関係図・〜URI規約・ルーブリック・つまずき集）   |
 | docs/spec/api-spec.md                            | CASE v1.1 APIエンドポイント・レスポンス形式・エラー形式・ページネーション |
 | docs/spec/api-examples.md                        | 各エンドポイントの具体的なJSON例・エラー例                     |
 | docs/spec/db-schema.md                           | DBスキーマ・テーブル定義・インデックス                        |
