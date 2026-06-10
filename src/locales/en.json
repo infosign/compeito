@@ -54,6 +54,8 @@
     "f_concept_keywords": "Concept Keywords",
     "f_concept_keywords_uri": "Concept Keywords URI",
     "f_related": "Related",
+    "f_hierarchy_upper": "Parent (other framework)",
+    "f_hierarchy_lower": "Child (other framework)",
     "related_other": "Other",
     "related_other_framework": "Other framework",
     "related_external": "External",

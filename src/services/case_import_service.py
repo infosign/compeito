@@ -139,6 +139,22 @@ def _is_valid_uuid(s: str) -> bool:
         return False
 
 
+def _normalize_node_identifier(value: str) -> str:
+    """Lowercase an association node identifier when it is a UUID.
+
+    CASE UUIDs are case-insensitive and `CFItem.identifier` (a UUID column) is
+    stored lowercase, but `origin_node_identifier` / `destination_node_identifier`
+    are String columns that keep whatever the source emitted. An external source
+    using uppercase (e.g. `D867...`) would then never string-match a CFItem's
+    lowercase identifier — breaking related/cross-document hierarchy resolution.
+    Normalize UUIDs to canonical lowercase; leave non-UUID external refs as-is.
+    """
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError, TypeError):
+        return value
+
+
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -1288,11 +1304,11 @@ async def _import_associations(
             existing.uri = _resolve_uri(assoc_data, tenant_id, ident_uuid)
             if assoc_data.get("associationType") is not None:
                 existing.association_type = assoc_data["associationType"]
-            existing.origin_node_identifier = origin.get("identifier", "")
+            existing.origin_node_identifier = _normalize_node_identifier(origin.get("identifier", ""))
             existing.origin_node_uri = origin_node_uri
             existing.origin_node_title = origin.get("title")
             existing.origin_node_target_type = origin.get("targetType")
-            existing.destination_node_identifier = dest.get("identifier", "")
+            existing.destination_node_identifier = _normalize_node_identifier(dest.get("identifier", ""))
             existing.destination_node_uri = dest_node_uri
             existing.destination_node_title = dest.get("title")
             existing.destination_node_target_type = dest.get("targetType")
@@ -1312,11 +1328,11 @@ async def _import_associations(
                 identifier=ident_uuid,
                 uri=_resolve_uri(assoc_data, tenant_id, ident_uuid),
                 association_type=assoc_data["associationType"],
-                origin_node_identifier=origin.get("identifier", ""),
+                origin_node_identifier=_normalize_node_identifier(origin.get("identifier", "")),
                 origin_node_uri=origin_node_uri,
                 origin_node_title=origin.get("title"),
                 origin_node_target_type=origin.get("targetType"),
-                destination_node_identifier=dest.get("identifier", ""),
+                destination_node_identifier=_normalize_node_identifier(dest.get("identifier", "")),
                 destination_node_uri=dest_node_uri,
                 destination_node_title=dest.get("title"),
                 destination_node_target_type=dest.get("targetType"),
