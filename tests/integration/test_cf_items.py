@@ -179,6 +179,39 @@ class TestGetCFItemAssociations:
         assert response.status_code == 400
         assert "invalid_uuid" in str(response.json()["imsx_codeMinor"])
 
+    async def test_default_returns_full_set_beyond_100(
+        self,
+        db_client: AsyncClient,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+        sample_item: CFItem,
+    ) -> None:
+        """The official CASE v1.1 contract has no pagination on this endpoint:
+        the default (no params) must return ALL associations. Regression for the
+        former default limit=100 that silently truncated large sets."""
+        for i in range(120):
+            db_session.add(
+                CFAssociation(
+                    id=uuid.uuid4(),
+                    tenant_id=sample_document.tenant_id,
+                    cf_document_id=sample_document.id,
+                    identifier=uuid.uuid4(),
+                    uri=f"https://example.com/uri/bulk-assoc-{i}",
+                    association_type="isRelatedTo",
+                    origin_node_identifier=str(sample_item.identifier),
+                    origin_node_uri=sample_item.uri,
+                    destination_node_identifier=str(uuid.uuid4()),
+                    destination_node_uri=f"https://example.com/uri/dest-{i}",
+                    last_change_date_time=datetime(2025, 10, 8, 12, 0, 0, tzinfo=timezone.utc),
+                )
+            )
+        await db_session.flush()
+
+        response = await db_client.get(f"{CASE_PATH}/CFItemAssociations/{ITEM_IDENTIFIER}")
+        assert response.status_code == 200
+        assert len(response.json()["CFAssociations"]) == 120
+
     async def test_pagination_limit(
         self,
         db_client: AsyncClient,

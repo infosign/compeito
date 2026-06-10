@@ -269,7 +269,7 @@ async def list_item_associations(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     item_identifier: str,
-    limit: int = 100,
+    limit: int | None = None,
     offset: int = 0,
 ) -> list[CFPckgAssociationDType]:
     assocs = await cf_association_repository.list_associations_for_item(
