@@ -305,7 +305,7 @@ def tenant_list(with_docs: bool):
 
         async with _get_session() as session:
             result = await session.execute(
-                select(Tenant).order_by(Tenant.name.asc(), Tenant.id.asc()),
+                select(Tenant).order_by(Tenant.display_order.asc().nulls_last(), Tenant.name.asc(), Tenant.id.asc()),
             )
             tenants = list(result.scalars().all())
 
@@ -345,7 +345,11 @@ def tenant_list(with_docs: bool):
                         .outerjoin(CFItem, CFItem.cf_document_id == CFDocument.id)
                         .where(CFDocument.tenant_id == tenant_obj.id)
                         .group_by(CFDocument.id)
-                        .order_by(CFDocument.title.asc(), CFDocument.identifier.asc())
+                        .order_by(
+                            CFDocument.display_order.asc().nulls_last(),
+                            CFDocument.title.asc(),
+                            CFDocument.identifier.asc(),
+                        )
                     )
                     docs_result = await session.execute(stmt)
                     docs = list(docs_result.all())
@@ -552,7 +556,9 @@ def doc_list(tenant_id: str):
                 .outerjoin(CFItem, CFItem.cf_document_id == CFDocument.id)
                 .where(CFDocument.tenant_id == tid)
                 .group_by(CFDocument.id)
-                .order_by(CFDocument.title.asc(), CFDocument.identifier.asc())
+                .order_by(
+                    CFDocument.display_order.asc().nulls_last(), CFDocument.title.asc(), CFDocument.identifier.asc()
+                )
             )
             docs_result = await session.execute(stmt)
             docs = list(docs_result.all())
