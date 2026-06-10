@@ -14,9 +14,12 @@ from src.models.tenant import Tenant
 
 
 async def list_public_tenants(session: AsyncSession) -> list[Tenant]:
-    """Return public tenants sorted by name ASC, id ASC."""
+    """Return public tenants. Manual `display_order` first (smaller = higher,
+    NULLs last), then name ASC, id ASC."""
     result = await session.execute(
-        select(Tenant).where(Tenant.is_private.is_(False)).order_by(Tenant.name.asc(), Tenant.id.asc())
+        select(Tenant)
+        .where(Tenant.is_private.is_(False))
+        .order_by(Tenant.display_order.asc().nulls_last(), Tenant.name.asc(), Tenant.id.asc())
     )
     return list(result.scalars().all())
 
@@ -55,7 +58,8 @@ async def list_documents_with_item_count(
     """Return documents with item and rubric counts for a tenant.
 
     Each dict has keys: doc (CFDocument), item_count (int), rubric_count (int).
-    Sorted by title ASC, identifier ASC.
+    Sorted by manual `display_order` (smaller = higher, NULLs last), then title
+    ASC, identifier ASC.
     """
     item_count_sub = (
         select(
@@ -82,7 +86,7 @@ async def list_documents_with_item_count(
         .outerjoin(item_count_sub, item_count_sub.c.cf_document_id == CFDocument.id)
         .outerjoin(rubric_count_sub, rubric_count_sub.c.cf_document_id == CFDocument.id)
         .where(CFDocument.tenant_id == tenant_id)
-        .order_by(CFDocument.title.asc(), CFDocument.identifier.asc())
+        .order_by(CFDocument.display_order.asc().nulls_last(), CFDocument.title.asc(), CFDocument.identifier.asc())
     )
     result = await session.execute(stmt)
     return [{"doc": row[0], "item_count": row[1], "rubric_count": row[2]} for row in result.all()]

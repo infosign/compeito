@@ -32,14 +32,16 @@ A static deployment (e.g., pre-rendering pages to S3 + CloudFront) must, for ten
 
 | Path | Description |
 |------|-------------|
-| GET / | Public tenant list. Tenant names (private tenants hidden). Sort: `name ASC, id ASC`. Each name links to `/{tenant-uuid}/`. If there are no public tenants, show "No public tenants". |
-| GET /{tenant-uuid}/ | Framework list: CFDocument title, lastChangeDateTime, item count (`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`). Sort: `title ASC, identifier ASC`. Each title links to `/{tenant-uuid}/cftree/doc/{doc-uuid}`. If no documents, show "No frameworks". |
+| GET / | Public tenant list. Tenant names (private tenants hidden). Sort: `display_order ASC NULLS LAST, name ASC, id ASC`. Each name links to `/{tenant-uuid}/`. If there are no public tenants, show "No public tenants". |
+| GET /{tenant-uuid}/ | Framework list: CFDocument title, lastChangeDateTime, item count (`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`). Sort: `display_order ASC NULLS LAST, title ASC, identifier ASC`. Each title links to `/{tenant-uuid}/cftree/doc/{doc-uuid}`. If no documents, show "No frameworks". |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | Tree view. The **full tree is server-rendered** with native `<details>` expand/collapse (no JS). `?item={uuid}` (back-compat) opens the path to that item and SSRs its detail in the right pane. |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/item/{item-uuid} | Same tree view with an item selected via the **URL path** — the canonical, shareable, static-bakeable form that in-tree navigation pushes (`hx-push-url`). Opening/reloading/sharing reconstructs the tree (expanded to the item) + the item's full detail via SSR. |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | HTML fragment of child items. **Legacy** — retained but unused by the UI now that the tree is fully SSR. |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | HTML fragment of an item's detail (for the HTMX right pane). |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/document | HTML fragment of the document's own detail (right pane). Separate from `/detail/{item}` to avoid identifier collisions. |
 | GET /{tenant-uuid}/uri/{uuid} | Resource detail page (HTML by default; **303 See Other** to the matching CASE API endpoint when the `Accept` header signals a JSON client — see [api-spec.md](api-spec.md#tenanturiuuid-content-negotiation)). |
+
+**Manual list ordering (`display_order`)**: both lists honor an optional `display_order` integer (on `tenants` / `cf_documents`) so an operator can pin/arrange entries without renaming. Smaller = higher; `NULL` (the default) sinks below all explicitly-ordered entries and then sorts alphabetically. It's a compeito-local display field — not a CASE field, never emitted in CASE export, and preserved on re-import. Set it via `cli.py tenant update --display-order N` / `--clear-order` and `cli.py doc update --display-order N` / `--clear-order` (see [cli.md](cli.md)).
 
 ## Tree view (`/cftree/doc/{doc-uuid}`)
 
@@ -351,8 +353,8 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 
 | Path | 説明 |
 |------|------|
-| GET / | 公開テナント一覧: テナント名の一覧（privateは非表示）。`name ASC, id ASC` でソート。各テナント名は `/{tenant-uuid}/` へのリンク。公開テナントが0件の場合は「公開テナントはありません」を表示 |
-| GET /{tenant-uuid}/ | フレームワーク一覧: CFDocumentのtitle, lastChangeDateTime, アイテム数（`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`）。`title ASC, identifier ASC` でソート。各ドキュメントのタイトルは `/{tenant-uuid}/cftree/doc/{doc-uuid}` へのリンク。ドキュメントが0件の場合は「フレームワークはありません」を表示 |
+| GET / | 公開テナント一覧: テナント名の一覧（privateは非表示）。`display_order ASC NULLS LAST, name ASC, id ASC` でソート。各テナント名は `/{tenant-uuid}/` へのリンク。公開テナントが0件の場合は「公開テナントはありません」を表示 |
+| GET /{tenant-uuid}/ | フレームワーク一覧: CFDocumentのtitle, lastChangeDateTime, アイテム数（`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`）。`display_order ASC NULLS LAST, title ASC, identifier ASC` でソート。各ドキュメントのタイトルは `/{tenant-uuid}/cftree/doc/{doc-uuid}` へのリンク。ドキュメントが0件の場合は「フレームワークはありません」を表示 |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | ツリービュー。**ツリー全体を SSR** し、ネイティブ `<details>` で開閉（JS不要）。`?item={uuid}`（後方互換）で当該アイテムまで開いて右ペインに詳細を SSR |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/item/{item-uuid} | アイテムを **URL パス**で選択したツリービュー。ツリー内ナビが push する正規・共有可能・静的に焼ける形式（`hx-push-url`）。直接開く/リロード/共有でツリー（当該アイテムまで展開）＋フル詳細を SSR 再構築 |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | 子アイテムHTMLフラグメント。**レガシー** — 全SSR化により UI では未使用（残置） |

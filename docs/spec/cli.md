@@ -37,11 +37,19 @@ uv run python cli.py doc list --tenant {tenant-uuid}
 # Tenant update
 # --private / --public are mutually exclusive (combining them is an error).
 # --slug / --clear-slug are mutually exclusive.
+# --display-order / --clear-order are mutually exclusive.
 uv run python cli.py tenant update --tenant {tenant-uuid} --name "New Name"
 uv run python cli.py tenant update --tenant {tenant-uuid} --private
 uv run python cli.py tenant update --tenant {tenant-uuid} --public
 uv run python cli.py tenant update --tenant {tenant-uuid} --slug ikenohata-u
 uv run python cli.py tenant update --tenant {tenant-uuid} --clear-slug
+# Manual list order: smaller = higher; NULL (default / --clear-order) sorts last (then alphabetical).
+uv run python cli.py tenant update --tenant {tenant-uuid} --display-order 10
+uv run python cli.py tenant update --tenant {tenant-uuid} --clear-order
+
+# Document update (display order only; --display-order / --clear-order mutually exclusive)
+uv run python cli.py doc update --tenant {tenant-uuid} --doc {doc-uuid} --display-order 10
+uv run python cli.py doc update --tenant {tenant-uuid} --doc {doc-uuid} --clear-order
 
 # Delete (confirmation prompt; --force skips it)
 uv run python cli.py tenant delete --tenant {tenant-uuid} [--force]
