@@ -297,6 +297,28 @@
         {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
         {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
         {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
+        {# Cross-document hierarchy (isChildOf parents/children in another framework).
+           Same-document hierarchy is in the tree; these surface the boundary. #}
+        {% if hierarchy_upper %}
+        <div>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_hierarchy_upper") }}</dt>
+            <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
+                {% for e in hierarchy_upper %}
+                <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
+                {% endfor %}
+            </ul></dd>
+        </div>
+        {% endif %}
+        {% if hierarchy_lower %}
+        <div>
+            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_hierarchy_lower") }}</dt>
+            <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
+                {% for e in hierarchy_lower %}
+                <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
+                {% endfor %}
+            </ul></dd>
+        </div>
+        {% endif %}
         {% if referring_criteria %}
         <div>
             <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_criteria") }}</dt>

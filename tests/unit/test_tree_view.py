@@ -1860,3 +1860,82 @@ class TestAssociationNodeLinks:
         # Destination is external → link out in a new tab.
         assert ext_uri in resp.text
         assert 'target="_blank"' in resp.text
+
+
+class TestCrossDocHierarchy:
+    """Cross-document isChildOf neighbors surface in the pane's 上位/下位(別FW)
+    sections, while same-document hierarchy stays in the tree only."""
+
+    NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    def _ischildof(self, tenant, owner_doc, child_ident, parent_ident):
+        return CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=owner_doc.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="isChildOf",
+            origin_node_uri=f"https://example.com/uri/{child_ident}",
+            origin_node_identifier=str(child_ident),
+            destination_node_uri=f"https://example.com/uri/{parent_ident}",
+            destination_node_identifier=str(parent_ident),
+            last_change_date_time=self.NOW,
+        )
+
+    async def test_cross_doc_parent_and_child_in_pane(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        parent = _make_item(tenant, sample_document, full_statement="Parent group", hcs="C7")
+        db_session.add(parent)
+        await db_session.flush()
+        other = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/sub-fw",
+            title="Sub framework",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(other)
+        await db_session.flush()
+        child = _make_item(tenant, other, full_statement="Child node", hcs="C71")
+        db_session.add(child)
+        await db_session.flush()
+        # Cross-document isChildOf: origin=child (in other doc), destination=parent.
+        db_session.add(self._ischildof(tenant, sample_document, child.identifier, parent.identifier))
+        await db_session.flush()
+
+        # Parent's pane → 下位（別FW） linking to the child's framework.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{parent.identifier}")
+        assert resp.status_code == 200
+        assert "下位" in resp.text
+        assert f"/cftree/doc/{other.identifier}/item/{child.identifier}" in resp.text
+
+        # Child's pane → 上位（別FW） linking back to the parent's framework.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{other.identifier}/detail/{child.identifier}")
+        assert resp.status_code == 200
+        assert "上位" in resp.text
+        assert f"/cftree/doc/{sample_document.identifier}/item/{parent.identifier}" in resp.text
+
+    async def test_same_doc_hierarchy_not_in_cross_section(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A same-document isChildOf child is in the tree, not the 下位(別FW) section."""
+        parent = _make_item(tenant, sample_document, full_statement="Parent")
+        child = _make_item(tenant, sample_document, full_statement="Same-doc child")
+        db_session.add_all([parent, child])
+        await db_session.flush()
+        db_session.add(self._ischildof(tenant, sample_document, child.identifier, parent.identifier))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{parent.identifier}")
+        assert resp.status_code == 200
+        assert "下位（別フレームワーク）" not in resp.text
