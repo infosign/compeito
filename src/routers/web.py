@@ -160,6 +160,54 @@ async def _related_groups(session: AsyncSession, tenant_id, item_identifier) -> 
     return [buckets[k] for k in order]
 
 
+async def _cross_doc_hierarchy(session: AsyncSession, tenant_id, item, doc) -> tuple[list[dict], list[dict]]:
+    """Cross-document isChildOf neighbors of a CFItem, for the pane's
+    "上位/下位 (別FW)" sections. The tree shows only same-document hierarchy, so
+    here we surface parents/children that live in *another* framework (or are
+    external). Same-document neighbors are skipped (already in the tree).
+
+    isChildOf direction: origin=child, destination=parent. So this item's
+    parents = destinations of isChildOf where it is the origin; its children =
+    origins of isChildOf where it is the destination. Returns (upper, lower),
+    each a list of ``{identifier, label, doc_identifier, doc_title, uri}``.
+    """
+    cur = str(doc.identifier) if doc is not None else None
+    parent_assocs = await cf_association_repository.list_ischildof_parents(session, tenant_id, str(item.identifier))
+    child_assocs = await cf_association_repository.list_ischildof_children(session, tenant_id, str(item.identifier))
+    idents = {a.destination_node_identifier for a in parent_assocs} | {a.origin_node_identifier for a in child_assocs}
+    item_map = await cf_item_repository.map_identifiers_to_items(session, tenant_id, idents)
+
+    def _entry(other_ident: str, node_title: str | None, node_uri: str | None) -> dict | None:
+        info = item_map.get(other_ident)
+        if info is not None:
+            if info["doc_identifier"] == cur:
+                return None  # same document → already a node in this tree
+            hcs = info.get("human_coding_scheme")
+            stmt = info.get("full_statement") or ""
+            label = (f"{hcs} {stmt}".strip() if hcs else stmt) or other_ident
+            return {
+                "identifier": other_ident,
+                "label": label[:100],
+                "doc_identifier": info["doc_identifier"],
+                "doc_title": info["doc_title"],
+                "uri": None,
+            }
+        # Not a local item → external reference (link out via the stored URI).
+        return {"identifier": other_ident, "label": node_title or other_ident, "doc_identifier": None, "uri": node_uri}
+
+    upper: list[dict] = []
+    for a in parent_assocs:
+        e = _entry(a.destination_node_identifier, a.destination_node_title, a.destination_node_uri)
+        if e is not None:
+            upper.append(e)
+    lower: list[dict] = []
+    for a in child_assocs:
+        e = _entry(a.origin_node_identifier, a.origin_node_title, a.origin_node_uri)
+        if e is not None:
+            lower.append(e)
+    return upper, lower
+
+
 async def _detail_extras(
     session: AsyncSession, tenant_id, resource_type: str, resource, doc=None, tree_index=None
 ) -> dict:
@@ -187,6 +235,9 @@ async def _detail_extras(
     # the rest are external.
     assoc_node_in_doc: set[str] = set()
     assoc_node_other_doc: dict[str, dict] = {}
+    # Cross-document isChildOf neighbors (parents / children in another framework).
+    hierarchy_upper: list[dict] = []
+    hierarchy_lower: list[dict] = []
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFAssociation":
@@ -216,6 +267,7 @@ async def _detail_extras(
                 doc_map = await cf_item_repository.map_identifiers_to_documents(session, tenant_id, other_dests)
                 cur = str(doc.identifier) if doc is not None else None
                 related_other_doc = {k: v for k, v in doc_map.items() if v["doc_identifier"] != cur}
+        hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
@@ -224,6 +276,8 @@ async def _detail_extras(
         "related_other_doc": related_other_doc,
         "assoc_node_in_doc": assoc_node_in_doc,
         "assoc_node_other_doc": assoc_node_other_doc,
+        "hierarchy_upper": hierarchy_upper,
+        "hierarchy_lower": hierarchy_lower,
     }
 
 
@@ -335,6 +389,8 @@ async def _render_tree_page(
     related_groups: list[dict] = []
     related_in_doc: set[str] = set()
     related_other_doc: dict[str, dict] = {}
+    hierarchy_upper: list[dict] = []
+    hierarchy_lower: list[dict] = []
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
@@ -384,6 +440,8 @@ async def _render_tree_page(
                 related_groups = extras["related_groups"]
                 related_in_doc = extras["related_in_doc"]
                 related_other_doc = extras["related_other_doc"]
+                hierarchy_upper = extras["hierarchy_upper"]
+                hierarchy_lower = extras["hierarchy_lower"]
 
     response = templates.TemplateResponse(
         request,
@@ -409,6 +467,8 @@ async def _render_tree_page(
             "related_groups": related_groups,
             "related_in_doc": related_in_doc,
             "related_other_doc": related_other_doc,
+            "hierarchy_upper": hierarchy_upper,
+            "hierarchy_lower": hierarchy_lower,
             # Associations aren't tree-selected here; keep keys defined for the
             # shared partial's CFAssociation branch.
             "assoc_node_in_doc": set(),
@@ -535,6 +595,8 @@ async def uri_detail(
             "related_other_doc": extras["related_other_doc"],
             "assoc_node_in_doc": extras["assoc_node_in_doc"],
             "assoc_node_other_doc": extras["assoc_node_other_doc"],
+            "hierarchy_upper": extras["hierarchy_upper"],
+            "hierarchy_lower": extras["hierarchy_lower"],
             # Standalone page (not the tree pane): show the "Show in tree" link.
             "in_pane": False,
             "tenant_url": _tenant_url_segment(tenant, tenant_obj),
@@ -628,6 +690,8 @@ async def _pane_fragment_response(
             "related_other_doc": extras["related_other_doc"],
             "assoc_node_in_doc": extras["assoc_node_in_doc"],
             "assoc_node_other_doc": extras["assoc_node_other_doc"],
+            "hierarchy_upper": extras["hierarchy_upper"],
+            "hierarchy_lower": extras["hierarchy_lower"],
             # Rendered inside the tree → hide the redundant "Show in tree" link.
             "in_pane": True,
             # Sticky URL segment: matches the form the user requested so nav
