@@ -141,13 +141,13 @@ CFDocument … ① 所有（上）
 ▼
 CFRubric … 評価表（title, description）
 │
-│  ② 内包 (1..*) : CFRubricCriteria
+│  ② 内包 (0..*) : CFRubricCriteria（仕様上は任意配列）
 ▼
 CFRubricCriterion … 観点（category, weight, position）
 │  │
 │  └─ ③ 参照 : CFItemURI / cf_item_id（任意・SET NULL）──▶ CFItem（評価対象の到達目標）
 │
-│  ② 内包 (1..*) : CFRubricCriterionLevels
+│  ② 内包 (0..*) : CFRubricCriterionLevels（仕様上は任意配列）
 ▼
 CFRubricCriterionLevel … 達成度レベル（quality, score, feedback）
 ```
