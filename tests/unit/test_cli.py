@@ -434,6 +434,133 @@ class TestTenantUpdate:
         )
         assert result.exit_code == 1
 
+    def test_update_display_order(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--display-order", "5"],
+        )
+        assert result.exit_code == 0
+        assert "Updated tenant:" in result.output
+
+    def test_update_clear_order(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        runner.invoke(cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--display-order", "5"])
+        result = runner.invoke(cli, ["tenant", "update", "--tenant", str(TENANT_ID), "--clear-order"])
+        assert result.exit_code == 0
+
+    def test_update_display_order_clear_conflict(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["tenant", "update", "--tenant", str(TENANT_ID), "--display-order", "1", "--clear-order"],
+        )
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+
+class TestDocUpdate:
+    def test_doc_update_display_order(self, runner, env_docker, test_document):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(DOC_IDENT), "--display-order", "3"],
+        )
+        assert result.exit_code == 0
+        assert "Updated document:" in result.output
+
+    def test_doc_update_clear_order(self, runner, env_docker, test_document):
+        from cli import cli
+
+        runner.invoke(
+            cli, ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(DOC_IDENT), "--display-order", "3"]
+        )
+        result = runner.invoke(
+            cli, ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(DOC_IDENT), "--clear-order"]
+        )
+        assert result.exit_code == 0
+
+    def test_doc_update_requires_option(self, runner, env_docker, test_document):
+        from cli import cli
+
+        result = runner.invoke(cli, ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(DOC_IDENT)])
+        assert result.exit_code == 1
+        assert "At least one of" in result.output
+
+    def test_doc_update_conflict(self, runner, env_docker, test_document):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            [
+                "doc",
+                "update",
+                "--tenant",
+                str(TENANT_ID),
+                "--doc",
+                str(DOC_IDENT),
+                "--display-order",
+                "1",
+                "--clear-order",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output
+
+    def test_doc_update_not_found(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(uuid.uuid4()), "--display-order", "1"],
+        )
+        assert result.exit_code == 1
+        assert "Document not found" in result.output
+
+
+class TestListDisplayOrder:
+    """CLI list commands honor display_order (smaller = higher, NULLs last)."""
+
+    def test_tenant_list_respects_display_order(self, runner, env_docker, clean_db):
+        from cli import cli
+
+        apple = "00000000-0000-0000-0000-0000000000a1"
+        zebra = "00000000-0000-0000-0000-0000000000a2"
+        runner.invoke(cli, ["tenant", "create", "--name", "Apple", "--id", apple])
+        runner.invoke(cli, ["tenant", "create", "--name", "Zebra", "--id", zebra])
+        # Pin Zebra above the alphabetical default.
+        runner.invoke(cli, ["tenant", "update", "--tenant", zebra, "--display-order", "1"])
+
+        result = runner.invoke(cli, ["tenant", "list"])
+        assert result.exit_code == 0
+        assert result.output.index("Zebra") < result.output.index("Apple")
+
+    def test_doc_list_respects_display_order(self, runner, env_docker, test_tenant):
+        from cli import cli
+
+        a_id = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+        z_id = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+
+        async def _seed(session):
+            session.add(
+                CFDocument(tenant_id=TENANT_ID, identifier=a_id, uri="ua", title="Apple Doc", last_change_date_time=NOW)
+            )
+            session.add(
+                CFDocument(tenant_id=TENANT_ID, identifier=z_id, uri="uz", title="Zebra Doc", last_change_date_time=NOW)
+            )
+
+        asyncio.run(_db_exec(_seed))
+        # Pin Zebra Doc above the alphabetical default (also verifies doc update persisted it).
+        runner.invoke(cli, ["doc", "update", "--tenant", str(TENANT_ID), "--doc", str(z_id), "--display-order", "1"])
+
+        result = runner.invoke(cli, ["doc", "list", "--tenant", str(TENANT_ID)])
+        assert result.exit_code == 0
+        assert result.output.index("Zebra Doc") < result.output.index("Apple Doc")
+
 
 class TestTenantDelete:
     def test_delete_with_force(self, runner, env_docker, test_tenant):

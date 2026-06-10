@@ -35,6 +35,7 @@ id: UUID PK  ← the UUID used in the public URL /{tenant-uuid}/
 name: VARCHAR NOT NULL
 slug: VARCHAR(64) NULLABLE UNIQUE  ← optional URL alias; CHECK '^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$'. The UUID stays canonical; the slug is a Web UI / share-link convenience (see cli.md / web-ui.md)
 is_private: BOOLEAN NOT NULL DEFAULT false
+display_order: INTEGER NULLABLE  -- optional manual list order (smaller = higher; NULL sorts last). compeito-local display only; not a CASE field
 created_at: TIMESTAMP NOT NULL DEFAULT now()
 ```
 
@@ -46,6 +47,7 @@ cf_license_id: UUID FK(cf_license.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 title: VARCHAR NOT NULL
+display_order: INTEGER NULLABLE  -- optional manual list order within the tenant (smaller = higher; NULL sorts last). compeito-local display only; not a CASE field (excluded from export, preserved on re-import)
 creator: VARCHAR                 -- Required in CASE v1.1 but nullable here to accommodate CSV imports that omit it. Phase 2 will consider defaulting to an empty string.
 publisher: VARCHAR
 description: TEXT
@@ -274,6 +276,7 @@ id: UUID PK  ← 公開URL /{tenant-uuid}/ に使われるUUID
 name: VARCHAR NOT NULL
 slug: VARCHAR(64) NULLABLE UNIQUE  ← 任意の URL 別名。CHECK '^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$'。canonical な識別子は UUID で、slug は Web UI / 共有リンク用の利便機能（cli.md / web-ui.md 参照）
 is_private: BOOLEAN NOT NULL DEFAULT false
+display_order: INTEGER NULLABLE  -- optional manual list order (smaller = higher; NULL sorts last). compeito-local display only; not a CASE field
 created_at: TIMESTAMP NOT NULL DEFAULT now()
 ```
 
@@ -285,6 +288,7 @@ cf_license_id: UUID FK(cf_license.id) NULLABLE
 identifier: UUID NOT NULL
 uri: VARCHAR NOT NULL
 title: VARCHAR NOT NULL
+display_order: INTEGER NULLABLE  -- テナント内の任意表示順（小さいほど上、NULL は最後）。compeito ローカルの表示専用。CASE フィールドではない（export 非出力・再 import で保持）
 creator: VARCHAR                 -- CASE v1.1 では required だが、CSV インポートで未指定のケースに対応するため nullable。Phase 2 で空文字列デフォルト化を検討
 publisher: VARCHAR
 description: TEXT
