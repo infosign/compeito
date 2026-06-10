@@ -4,8 +4,14 @@
    resource_type, doc, tenant, tenant_url, related_groups, rubrics,
    referring_criteria, request, t. #}
 {# Define macros first #}
+{# Copy-to-clipboard button. The value goes into a `data-copy` HTML attribute
+   (Jinja autoescape makes this context safe) and is read by a delegated click
+   handler in base.html — NEVER interpolated into inline JS. Inlining it into an
+   `onclick="...writeText('{{ text }}')"` string was XSS-able: HTML autoescape
+   (`'`→`&#39;`) is undone by the JS parser, letting imported CASE values
+   (identifier / uri / node identifiers) break out and run arbitrary JS. #}
 {% macro copy_btn(text) %}
-<button onclick="navigator.clipboard.writeText('{{ text }}')" class="inline-flex text-stone-400 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
+<button type="button" data-copy="{{ text }}" class="copy-btn inline-flex text-stone-400 hover:text-violet-600 transition-colors align-middle mr-1" title="Copy">
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
 </button>
 {% endmacro %}
