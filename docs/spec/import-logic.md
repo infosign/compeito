@@ -29,6 +29,8 @@ On update (`--doc` etc.), Step 3 acquires `SELECT ... FOR UPDATE` on the target 
 
 **UUID case sensitivity:** UUID identifiers are compared **case-insensitively** (upsert matching, `parentIdentifier` resolution, `/uri/{uuid}` lookup, etc.). PostgreSQL's UUID type is case-insensitive — `D86774F2-...` equals `d86774f2-...`. On create we normalize to lowercase when storing. UUIDs from external imports are stored as-is, and the case-insensitive rule still applies on comparison.
 
+**compeito-local fields are never touched by import.** `display_order` (manual list ordering on `tenants` / `cf_documents`) is not a CASE field and is not part of any import format. Import only writes CASE-derived fields, so re-importing a CFPackage **preserves** an existing `display_order`. It is likewise excluded from CASE/CSV/xlsx export.
+
 For format auto-detection rules see [csv-format.md](./csv-format.md).
 
 ### Step 2: metadata parsing

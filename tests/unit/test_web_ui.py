@@ -42,6 +42,20 @@ class TestListPublicTenants:
         assert names_ids[1] == ("Apple", "00000000-0000-0000-0000-000000000003")
         assert names_ids[2] == ("Banana", "00000000-0000-0000-0000-000000000002")
 
+    async def test_display_order_pins_above_alphabetical(self, db_session: AsyncSession):
+        """display_order (smaller = higher, NULLs last) overrides the name sort:
+        ordered tenants come first by number, then unset ones alphabetically."""
+        a = Tenant(name="Apple", is_private=False)  # unset → falls to the bottom group
+        z = Tenant(name="Zebra", is_private=False, display_order=10)
+        m = Tenant(name="Mango", is_private=False, display_order=5)
+        db_session.add_all([a, z, m])
+        await db_session.flush()
+
+        result = await tenant_service.list_public_tenants(db_session)
+        names = [t.name for t in result]
+        # display_order 5 (Mango) and 10 (Zebra) pin above the unset Apple.
+        assert names == ["Mango", "Zebra", "Apple"]
+
     async def test_empty_when_no_public(self, db_session: AsyncSession):
         """Returns empty list when no public tenants exist."""
         priv = Tenant(name="Private Only", is_private=True)
@@ -162,6 +176,42 @@ class TestListDocumentsWithItemCount:
         assert titles_ids[0] == ("Alpha", str(id2))
         assert titles_ids[1] == ("Alpha", str(id3))
         assert titles_ids[2] == ("Zebra", str(id1))
+
+    async def test_display_order_pins_above_alphabetical(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+    ):
+        """display_order (smaller = higher, NULLs last) overrides the title sort."""
+        unset = CFDocument(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="u-unset",
+            title="Apple",  # unset → bottom group
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        pinned_lo = CFDocument(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="u-lo",
+            title="Zebra",
+            display_order=1,
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        pinned_hi = CFDocument(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="u-hi",
+            title="Mango",
+            display_order=2,
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add_all([unset, pinned_lo, pinned_hi])
+        await db_session.flush()
+
+        result = await tenant_service.list_documents_with_item_count(db_session, tenant.id)
+        titles = [r["doc"].title for r in result]
+        assert titles == ["Zebra", "Mango", "Apple"]
 
     async def test_empty(self, db_session: AsyncSession, tenant: Tenant):
         result = await tenant_service.list_documents_with_item_count(
