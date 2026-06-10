@@ -317,7 +317,7 @@ Deliberate boundaries — read these before exposing compeito to untrusted calle
 
 ## Content negotiation
 
-- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/children/*`, `/detail/*`) are HTML too.
+- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → always HTML (`Content-Type: text/html; charset=utf-8`). HTMX fragments (`/detail/*`, `/document`) are HTML too.
 - `/{tenant}/uri/{uuid}` → Accept-based negotiation (see below).
 - CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → always JSON (`Content-Type: application/json`).
 - Admin API: → always JSON (`Content-Type: application/json`).
@@ -655,7 +655,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 
 ## コンテントネゴシエーション
 
-- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → 常に HTML（`Content-Type: text/html; charset=utf-8`）。HTMX フラグメント（`/children/*`, `/detail/*`）も HTML
+- Web UI: `/`, `/{tenant}/`, `/{tenant}/cftree/doc/*` → 常に HTML（`Content-Type: text/html; charset=utf-8`）。HTMX フラグメント（`/detail/*`, `/document`）も HTML
 - `/{tenant}/uri/{uuid}` → Accept ヘッダによるネゴシエーション（下記参照）
 - CASE API: `/{tenant}/ims/case/v1p1/CFItems/{uuid}` → 常に JSON（`Content-Type: application/json`）
 - Admin API: → 常に JSON（`Content-Type: application/json`）
