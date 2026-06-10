@@ -15,6 +15,7 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 - パッケージ内 URI を除く厳密出力 `GET /CFPackages/{id}?strict=1`（PR #191）
 - Service Discovery `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`（実装済・テストあり）
 - エラー封筒 `imsx_StatusInfo`（codeMajor / severity / codeMinor.codeMinorField[].{Name,Value}）は適合
+- `GET /CFItemAssociations/{id}` の既定を全件返却に（公式契約にページネーション定義なし。既定 limit=100 のサイレント切り詰めを廃止、`limit`/`offset` は明示指定時のみの拡張に。2026-06 適合性監査 N1、PR #220）
 
 ## certification 着手項目（未対応 / 意図的差異）
 
@@ -22,7 +23,7 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 |---|------|------|:--:|------|
 | C1 | **単一リソースの wrapper** | `{"CFDocument": {...}}` で包む（OpenSALT 流）。公式は flat DType（root に直接） | P1 | wrapper を外す、または「公式 flat 形」を返す別経路/モードを用意。`?strict=1` の対象拡張も一案 |
 | C2 | **パッケージ内 URI の既定出力** | 既定で `CFPackage.CFDocument.CFPackageURI` / `CFItems[].CFDocumentURI` を出す（OpenCASE/OpenSALT 互換）。公式 `CFPckg*DType` は `additionalProperties:false` で非許容。`?strict=1` で除去可 | P1 | certification 時は**既定を strict 側に反転**し、現状の echo を opt-in 化 |
-| C3 | **required だが nullable な項目** | `creator`、lookup の `hierarchyCode`（CFItemType/CFConcept/CFSubject）、`licenseText`、`LinkGenURIDType.title` を null 許容（寛容 import 優先） | P1 | **出力時の捏造は避ける**方針。import 厳格化（必須欠落を reject/quarantine）か、strict 出力モードでのみ安全なプレースホルダを合成 |
+| C3 | **required だが nullable な項目** | `creator`、lookup の `hierarchyCode`（CFItemType/CFConcept/CFSubject）、CFItemType の `description`、`licenseText`、`LinkGenURIDType.title` を null 許容（寛容 import 優先） | P1 | **出力時の捏造は避ける**方針。import 厳格化（必須欠落を reject/quarantine）か、strict 出力モードでのみ安全なプレースホルダを合成 |
 | C4 | **Set 型の `minItems:1`** | `CFDocumentSetDType` 等は必須・非空配列だが、0 件時に空配列 `[]` を返す | P2 | 仕様の過剰制約。空時の挙動を仕様準拠にするか（=返さない/404 は非現実的）、差異として明文化のまま据え置き |
 | C5 | **`Link` ページネーションヘッダ** | 未実装（next/prev/first/last）。`X-Total-Count` は実装済み | P2 | `GET /CFDocuments` に RFC 8288 形式の `Link` を追加。既存クエリ（sort/filter/fields）を保持してリンク生成 |
 | C6 | **filter の網羅性** | scalar + `subject`(JSONB) 対応。ネストのドット記法（`licenseURI.identifier` 等）未対応。ordering は大小区別のまま（等価は大小無視に対応済） | P2 | dot-notation のリンクフィールド filter、必要なら collation 指定の case-insensitive ordering |
@@ -30,6 +31,9 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 | C8 | **`caseVersion` を "1.1" に強制しない** | 保存値をそのまま emit | P3 | import 時に "1.1" 検証、または emit 時に固定 |
 | C9 | **UUID 不正 → 400 / `limit`=0 許容 / `limit`・`offset` の上限 cap** | 実用優先の挙動（OpenAPI は invalid を unknownobject 扱い、`minimum:1` 等） | P3 | strict モードでのみ OpenAPI どおりに（既定は現状維持） |
 | C10 | **拡張 list エンドポイント** | `CFItemTypes` 等の list は compeito 拡張（公式 list は `CFDocuments` のみ）。`sort/filter/fields` も `CFDocuments` のみ対応 | — | 仕様超過なので certification 上は無害。必要なら他 list にも query を展開 |
+| C11 | **エラー封筒の `imsx_codeMinorFieldName`** | 常に既定の `"sourcedId"`。invalid_sort_field / invalid_selection_field 系では `sort` / `fields` / `limit` 等の実フィールド名が意味的に正しい | P3 | `imsx_error_response` に fieldName 引数を追加し、各呼び出し箇所で該当フィールド名を渡す |
+| C12 | **`ext:` associationType の文字種** | import 受理が `startswith("ext:")` のみで、公式パターン `(ext:)[a-zA-Z0-9.\-_]+` の文字種を検証しない（`ext:日本語` 等も通る） | P3 | 正規表現で検証し、不一致は invalid associationType として skip + warning |
+| C13 | **スキーマ層の出力時検証なし** | Pydantic スキーマで identifier の UUID パターン・associationType / targetType の enum を検証していない（import 側で防いでいるため実害は低い） | P3 | strict 出力モード導入時に field_validator で同梱 |
 
 ## デプロイ上の制約（参考）
 

@@ -302,7 +302,7 @@ Mapping from the external CFPackage's CFDocument object to DB columns:
 - `officialSourceURL` → `official_source_url`.
 - `subject` → `subject` (JSONB string array).
 - `subjectURI` → `subject_uri` (JSONB LinkURI object array).
-- `lastChangeDateTime` → `last_change_date_time` (parse ISO 8601; on invalid format or absence, use the import-time UTC timestamp with a warning — same rule as CFItem).
+- `lastChangeDateTime` → `last_change_date_time` (parse ISO 8601; on invalid format or absence, use the import-time UTC timestamp with a warning — same rule as CFItem). A timezone-naive value (no offset / `Z`) is **assumed to be UTC**.
 - `CFPackageURI.uri` → `cf_package_uri_source` (the rest of the LinkURI is rebuilt at emit time). Stored verbatim so re-export preserves the source URI without touching `BASE_URL` — required for OpenCASE / OBF round-trip (FR-7.2; see [round_trip_status.md](../dev/round_trip_status.md) cat G). On update, the field is overwritten when the new payload includes a `CFPackageURI` key (matches the existing "missing → keep existing" semantics).
 - `notes` → `notes`; `extensions` → `extensions` (both persisted on create and update; absent → keep existing). Container-level `CFPackage.extensions` → `package_extensions` and `CFDefinitions.extensions` → `definitions_extensions` on the CFDocument row.
 
@@ -873,7 +873,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `officialSourceURL` → `official_source_url`
 - `subject` → `subject`（文字列配列 JSONB）
 - `subjectURI` → `subject_uri`（LinkURI オブジェクト配列 JSONB）
-- `lastChangeDateTime` → `last_change_date_time`（ISO 8601 文字列をパース。形式不正の場合はインポート実行時の UTC タイムスタンプを使用し警告出力。未存在の場合も同様。CFItem と同一ルール）
+- `lastChangeDateTime` → `last_change_date_time`（ISO 8601 文字列をパース。形式不正の場合はインポート実行時の UTC タイムスタンプを使用し警告出力。未存在の場合も同様。CFItem と同一ルール。TZ 情報のない naive な値（オフセット / `Z` なし）は **UTC とみなす**）
 - `CFPackageURI.uri` → `cf_package_uri_source`（LinkURI の残り部分は emit 時に再構築する）。source URI を verbatim 保存することで、再 export 時に `BASE_URL` で上書きせず source の URI を返せる（OpenCASE / OBF round-trip のため必要。FR-7.2、詳細は [round_trip_status.md](../dev/round_trip_status.md) の cat G）。更新時、新しいペイロードに `CFPackageURI` キーがあれば上書きする（既存の「キー未存在 → 既存値を保持」のセマンティクスに沿う）
 - `notes` → `notes`、`extensions` → `extensions`（新規・更新の両方で保存。未存在 → 既存値を保持）。コンテナレベルの `CFPackage.extensions` → `package_extensions`、`CFDefinitions.extensions` → `definitions_extensions` を CFDocument 行に保存する
 
