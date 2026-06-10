@@ -24,7 +24,7 @@ A static deployment (e.g., pre-rendering pages to S3 + CloudFront) must, for ten
 
 **Standard pages** (`/`, `/{tenant}/`, `/cftree/doc/{doc}`, `/uri/{uuid}`): `Cache-Control: public, max-age=3600`.
 
-**HTMX fragments** (`/cftree/doc/{doc}/children/{item}`, `/cftree/doc/{doc}/detail/{item}`): `Cache-Control: public, max-age=86400`. Tree sub-content changes infrequently, so the TTL is long; CloudFront invalidation refreshes it on import.
+**HTMX fragments** (`/cftree/doc/{doc}/detail/{item}`): `Cache-Control: public, max-age=86400`. Tree sub-content changes infrequently, so the TTL is long; CloudFront invalidation refreshes it on import.
 
 **Error responses** (4xx / 5xx): no `Cache-Control` (same policy as CASE API).
 
@@ -36,7 +36,6 @@ A static deployment (e.g., pre-rendering pages to S3 + CloudFront) must, for ten
 | GET /{tenant-uuid}/ | Framework list: CFDocument title, lastChangeDateTime, item count (`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`). Sort: `display_order ASC NULLS LAST, title ASC, identifier ASC`. Each title links to `/{tenant-uuid}/cftree/doc/{doc-uuid}`. If no documents, show "No frameworks". |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | Tree view. The **full tree is server-rendered** with native `<details>` expand/collapse (no JS). `?item={uuid}` (back-compat) opens the path to that item and SSRs its detail in the right pane. |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/item/{item-uuid} | Same tree view with an item selected via the **URL path** — the canonical, shareable, static-bakeable form that in-tree navigation pushes (`hx-push-url`). Opening/reloading/sharing reconstructs the tree (expanded to the item) + the item's full detail via SSR. |
-| GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | HTML fragment of child items. **Legacy** — retained but unused by the UI now that the tree is fully SSR. |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | HTML fragment of an item's detail (for the HTMX right pane). |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/document | HTML fragment of the document's own detail (right pane). Separate from `/detail/{item}` to avoid identifier collisions. |
 | GET /{tenant-uuid}/uri/{uuid} | Resource detail page (HTML by default; **303 See Other** to the matching CASE API endpoint when the `Accept` header signals a JSON client — see [api-spec.md](api-spec.md#tenanturiuuid-content-negotiation)). |
@@ -108,7 +107,6 @@ A two-pane layout inspired by OpenSALT's tree view. Visually, use a modern Tailw
 
 Items without any `isChildOf` association (e.g., when associations were skipped during external CASE source import) are appended at the end of the root level: depth=0 items that are **not** an origin of any `isChildOf` within the **same document** (items that only appear as origins of `isChildOf` in other documents are also treated as orphans here). Sort order as above, with `sequence_number` treated as NULL.
 
-> The `/children/{item-uuid}` HTMX fragment endpoint (lazy child loading) is **retained but no longer used by the UI** now that the tree is fully SSR; it remains available as a plain fragment and may be removed in a later cleanup.
 
 **Orphan items**: items without any `isChildOf` association (e.g., when associations were skipped during external CASE source import) are not returned via the children query. They are appended at the end of the root level: depth=0 items that are **not** an origin of any `isChildOf` within the **same document** (items that only appear as origins of `isChildOf` in other documents are also treated as orphans in the current document). The sort order is the same as above, with `sequence_number` always treated as NULL.
 
@@ -288,17 +286,15 @@ Web UI paths follow the same validation as the CASE API and render the error pag
 - Valid UUID but the document doesn't exist → 404 page.
 - `{uuid}` in `/uri/{uuid}` is not a UUID → 400 page.
 - `/uri/{uuid}` finds no resource within the tenant scope → 404 page.
-- `/children/` and `/detail/` endpoints: `{tenant-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400; not the full error page — return a fragment for HTMX swap).
-- `/children/` and `/detail/` endpoints: valid UUID but tenant doesn't exist → 404 (HTML fragment "テナントが見つかりません" + status 404).
-- `/children/` and `/detail/` endpoints: `{doc-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400).
-- `/children/` and `/detail/` endpoints: valid UUID but document doesn't exist → 404 (HTML fragment "ドキュメントが見つかりません" + status 404).
-- `/children/{item-uuid}` with non-UUID `{item-uuid}` → 400 (empty HTML fragment + status 400).
-- `/children/{item-uuid}` with valid UUID but the item doesn't exist (or exists but isn't in `{doc-uuid}`) → empty HTML fragment (200; same as "no children". The association's `cf_document_id` scope filters naturally).
+- `/detail/` / `/document` endpoints: `{tenant-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400; not the full error page — return a fragment for HTMX swap).
+- `/detail/` / `/document` endpoints: valid UUID but tenant doesn't exist → 404 (HTML fragment "テナントが見つかりません" + status 404).
+- `/detail/` / `/document` endpoints: `{doc-uuid}` is not a UUID → 400 (HTML fragment "リクエストが不正です" + status 400).
+- `/detail/` / `/document` endpoints: valid UUID but document doesn't exist → 404 (HTML fragment "ドキュメントが見つかりません" + status 404).
 - `/detail/{item-uuid}` with non-UUID `{item-uuid}` → 400 (empty HTML fragment + status 400).
 - `/detail/{item-uuid}` with valid UUID but the item doesn't exist → 404 error fragment.
 - `/detail/{item-uuid}` with valid UUID and item exists but belongs to a different document → 404 error fragment (do not show another document's item inside this tree view).
 - The 404 error fragment for `/detail/` is an HTML fragment "アイテムが見つかりません" with status 404.
-- 500 Internal Server Error on `/children/` or `/detail/` → HTML fragment "サーバーエラーが発生しました" + status 500.
+- 500 Internal Server Error on `/detail/` / `/document` → HTML fragment "サーバーエラーが発生しました" + status 500.
 - **HTMX non-2xx response handling**: HTMX does not swap content from non-2xx responses by default. To show 400/404/500 error fragments in the right pane, set `shouldSwap = true` in the `htmx:beforeSwap` event handler (in `base.html`).
 
 ## Error pages
@@ -353,7 +349,7 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 
 **通常ページ**（`/`, `/{tenant}/`, `/cftree/doc/{doc}`, `/uri/{uuid}`）: `Cache-Control: public, max-age=3600`
 
-**HTMX フラグメント**（`/cftree/doc/{doc}/children/{item}`, `/cftree/doc/{doc}/detail/{item}`）: `Cache-Control: public, max-age=86400`（ツリーの部分コンテンツは変更頻度が低いため長めに設定。インポート時に CloudFront invalidation で即時更新）
+**HTMX フラグメント**（`/cftree/doc/{doc}/detail/{item}`, `/cftree/doc/{doc}/document`）: `Cache-Control: public, max-age=86400`（ツリーの部分コンテンツは変更頻度が低いため長めに設定。インポート時に CloudFront invalidation で即時更新）
 
 **エラーレスポンス**（4xx/5xx）: `Cache-Control` を設定しない（CASE API と同一方針）。
 
@@ -365,7 +361,6 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 | GET /{tenant-uuid}/ | フレームワーク一覧: CFDocumentのtitle, lastChangeDateTime, アイテム数（`SELECT COUNT(*) FROM cf_item WHERE cf_document_id = doc.id`）。`display_order ASC NULLS LAST, title ASC, identifier ASC` でソート。各ドキュメントのタイトルは `/{tenant-uuid}/cftree/doc/{doc-uuid}` へのリンク。ドキュメントが0件の場合は「フレームワークはありません」を表示 |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid} | ツリービュー。**ツリー全体を SSR** し、ネイティブ `<details>` で開閉（JS不要）。`?item={uuid}`（後方互換）で当該アイテムまで開いて右ペインに詳細を SSR |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/item/{item-uuid} | アイテムを **URL パス**で選択したツリービュー。ツリー内ナビが push する正規・共有可能・静的に焼ける形式（`hx-push-url`）。直接開く/リロード/共有でツリー（当該アイテムまで展開）＋フル詳細を SSR 再構築 |
-| GET /{tenant-uuid}/cftree/doc/{doc-uuid}/children/{item-uuid} | 子アイテムHTMLフラグメント。**レガシー** — 全SSR化により UI では未使用（残置） |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/detail/{item-uuid} | アイテム詳細HTMLフラグメント (HTMX右ペイン用) |
 | GET /{tenant-uuid}/cftree/doc/{doc-uuid}/document | ドキュメント自身の詳細HTMLフラグメント（右ペイン）。identifier 衝突回避のため `/detail/{item}` と別ルート |
 | GET /{tenant-uuid}/uri/{uuid} | リソース詳細ページ（デフォルトは HTML。`Accept` が JSON クライアントを示す場合は該当 CASE API エンドポイントへ **303 See Other**。詳細は [api-spec.md](api-spec.md#tenanturiuuid-のコンテントネゴシエーション) を参照） |
@@ -435,7 +430,6 @@ isChildOf Association を持たないアイテム（外部CASEソースインポ
 
 **展開アイコン（▶/▼）の判定:** 各アイテムが子を持つかは、同一ドキュメント内の isChildOf の `destination_node_identifier` にその `identifier` が存在するかで判定。子があれば `<details>`＋▶、無ければ `●`。`build_full_tree` が一括取得から判定する（N+1 なし）。
 
-> `/children/{item-uuid}` HTMX フラグメント（遅延子ロード）は全SSR化により **UI では未使用**（残置。将来のクリーンアップで撤去しうる）。
 
 ※ `origin isChildOf destination` = 「origin は destination の子」。
 子を探すには destination 側で検索する。
@@ -614,17 +608,15 @@ Web UI パスでも CASE API と同様のバリデーションを行い、エラ
 - UUID 形式だがドキュメントが存在しない → 404 エラーページ
 - `/uri/{uuid}` の `{uuid}` が UUID 形式でない → 400 エラーページ
 - `/uri/{uuid}` でテナントスコープ内にリソースが見つからない → 404 エラーページ
-- `/children/` および `/detail/` エンドポイントの `{tenant-uuid}` が UUID 形式でない → 400（「リクエストが不正です」テキストを含むHTMLフラグメント + ステータスコード400。フルエラーページではなくフラグメントを返す。HTMX スワップ対応）
-- `/children/` および `/detail/` エンドポイントの `{tenant-uuid}` が UUID 形式だがテナントが存在しない → 404（「テナントが見つかりません」テキストを含むHTMLフラグメント + ステータスコード404）
-- `/children/` および `/detail/` エンドポイントの `{doc-uuid}` が UUID 形式でない → 400（「リクエストが不正です」テキストを含むHTMLフラグメント + ステータスコード400）
-- `/children/` および `/detail/` エンドポイントの `{doc-uuid}` が UUID 形式だがドキュメントが存在しない → 404（「ドキュメントが見つかりません」テキストを含むHTMLフラグメント + ステータスコード404）
-- `/children/{item-uuid}` の `{item-uuid}` が UUID 形式でない → 400（空HTMLフラグメント + ステータスコード400）
-- `/children/{item-uuid}` の `{item-uuid}` が UUID 形式だがアイテムが存在しない、または存在するが `{doc-uuid}` のドキュメントに属さない → 空のHTMLフラグメントを返す（200。子がないのと同じ扱い。association の `cf_document_id` スコープで自然にフィルタされる）
+- `/detail/` / `/document` エンドポイントの `{tenant-uuid}` が UUID 形式でない → 400（「リクエストが不正です」テキストを含むHTMLフラグメント + ステータスコード400。フルエラーページではなくフラグメントを返す。HTMX スワップ対応）
+- `/detail/` / `/document` エンドポイントの `{tenant-uuid}` が UUID 形式だがテナントが存在しない → 404（「テナントが見つかりません」テキストを含むHTMLフラグメント + ステータスコード404）
+- `/detail/` / `/document` エンドポイントの `{doc-uuid}` が UUID 形式でない → 400（「リクエストが不正です」テキストを含むHTMLフラグメント + ステータスコード400）
+- `/detail/` / `/document` エンドポイントの `{doc-uuid}` が UUID 形式だがドキュメントが存在しない → 404（「ドキュメントが見つかりません」テキストを含むHTMLフラグメント + ステータスコード404）
 - `/detail/{item-uuid}` の `{item-uuid}` が UUID 形式でない → 400（空HTMLフラグメント + ステータスコード400）
 - `/detail/{item-uuid}` の `{item-uuid}` が UUID 形式だがアイテムが存在しない → 404 エラーフラグメント
 - `/detail/{item-uuid}` の `{item-uuid}` が UUID 形式でアイテムが存在するが `{doc-uuid}` のドキュメントに属さない → 404 エラーフラグメント（別ドキュメントのアイテム詳細をツリービュー内で表示しない）
 - `/detail/{item-uuid}` の `{item-uuid}` が UUID 形式だがアイテムが存在しない、または別ドキュメントに属する場合の 404 エラーフラグメント → 「アイテムが見つかりません」テキストを含むHTMLフラグメント + ステータスコード404
-- `/children/` および `/detail/` エンドポイントで 500 Internal Server Error が発生した場合 → 「サーバーエラーが発生しました」テキストを含むHTMLフラグメント + ステータスコード500 を返す
+- `/detail/` / `/document` エンドポイントで 500 Internal Server Error が発生した場合 → 「サーバーエラーが発生しました」テキストを含むHTMLフラグメント + ステータスコード500 を返す
 - **HTMX の非2xxレスポンス処理:** HTMX はデフォルトで非2xxレスポンスのコンテンツをスワップしない。400/404/500 のエラーフラグメントを右ペインに表示するため、`htmx:beforeSwap` イベントハンドラで `shouldSwap = true` を設定する（`base.html` に記述）
 
 ## エラーページ
