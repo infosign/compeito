@@ -51,6 +51,46 @@ async def list_outgoing_related(
     return list(result.scalars().unique().all())
 
 
+async def list_ischildof_parents(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    item_identifier: str,
+) -> list[CFAssociation]:
+    """isChildOf where this item is the ORIGIN (child) → destinations are its
+    parents. Tenant-wide (indexed on origin_node_identifier), so it surfaces
+    cross-document parents that the in-document tree can't show."""
+    result = await session.execute(
+        select(CFAssociation)
+        .where(
+            CFAssociation.tenant_id == tenant_id,
+            CFAssociation.origin_node_identifier == item_identifier,
+            CFAssociation.association_type == "isChildOf",
+        )
+        .order_by(CFAssociation.sequence_number.nulls_last(), CFAssociation.destination_node_title)
+    )
+    return list(result.scalars().unique().all())
+
+
+async def list_ischildof_children(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    item_identifier: str,
+) -> list[CFAssociation]:
+    """isChildOf where this item is the DESTINATION (parent) → origins are its
+    children. Tenant-wide (indexed on destination_node_identifier), so it
+    surfaces cross-document children that the in-document tree can't show."""
+    result = await session.execute(
+        select(CFAssociation)
+        .where(
+            CFAssociation.tenant_id == tenant_id,
+            CFAssociation.destination_node_identifier == item_identifier,
+            CFAssociation.association_type == "isChildOf",
+        )
+        .order_by(CFAssociation.sequence_number.nulls_last(), CFAssociation.origin_node_title)
+    )
+    return list(result.scalars().unique().all())
+
+
 async def list_associations_for_item(
     session: AsyncSession,
     tenant_id: uuid.UUID,

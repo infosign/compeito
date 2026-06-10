@@ -1135,6 +1135,27 @@ class TestAssociationImport:
         assoc = result.scalar_one()
         assert assoc.cf_association_grouping_id is not None
 
+    async def test_node_identifier_lowercased(self, db_session: AsyncSession, tenant: Tenant):
+        """Uppercase UUID node identifiers from external sources are stored
+        lowercase so they string-match CFItem.identifier (related / cross-document
+        hierarchy resolution compares against the lowercase UUID)."""
+        assoc_id = "cccc0000-0000-0000-0000-0000000000aa"
+        origin_up = "BBBB0000-0000-0000-0000-000000000001"
+        dest_up = "AAAA0000-0000-0000-0000-000000000001"
+        pkg = _make_cf_package(
+            associations=[_make_association(identifier=assoc_id, origin_ident=origin_up, dest_ident=dest_up)]
+        )
+
+        with patch("src.services.case_import_service.fetch_cf_package") as mock_fetch:
+            mock_fetch.return_value = (pkg, [])
+            await import_case_package(db_session, tenant.id, "https://example.com/CFPackages/xxx")
+        await db_session.flush()
+
+        result = await db_session.execute(select(CFAssociation).where(CFAssociation.identifier == uuid.UUID(assoc_id)))
+        assoc = result.scalar_one()
+        assert assoc.origin_node_identifier == origin_up.lower()
+        assert assoc.destination_node_identifier == dest_up.lower()
+
     async def test_skip_invalid_association(self, db_session: AsyncSession, tenant: Tenant):
         assocs = [
             _make_association(identifier="bad-uuid"),
