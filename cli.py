@@ -370,6 +370,8 @@ def tenant_list(with_docs: bool):
 @click.option("--clear-slug", "clear_slug", is_flag=True, default=False, help=t("help_tenant_clear_slug"))
 @click.option("--private", "set_private", is_flag=True, default=False, help=t("help_set_private"))
 @click.option("--public", "set_public", is_flag=True, default=False, help=t("help_set_public"))
+@click.option("--display-order", "display_order", type=int, default=None, help=t("help_display_order"))
+@click.option("--clear-order", "clear_order", is_flag=True, default=False, help=t("help_clear_order"))
 def tenant_update(
     tenant_id: str,
     name: str | None,
@@ -377,6 +379,8 @@ def tenant_update(
     clear_slug: bool,
     set_private: bool,
     set_public: bool,
+    display_order: int | None,
+    clear_order: bool,
 ):
     """Update a tenant."""
     _check_db()
@@ -389,7 +393,19 @@ def tenant_update(
         err_console.print(t("err_tenant_slug_clear_exclusive"))
         raise SystemExit(1)
 
-    if not name and not set_private and not set_public and slug is None and not clear_slug:
+    if display_order is not None and clear_order:
+        err_console.print(t("err_display_order_clear_exclusive"))
+        raise SystemExit(1)
+
+    if (
+        not name
+        and not set_private
+        and not set_public
+        and slug is None
+        and not clear_slug
+        and display_order is None
+        and not clear_order
+    ):
         err_console.print(t("err_update_requires_option"))
         raise SystemExit(1)
 
@@ -433,6 +449,10 @@ def tenant_update(
                 tenant_obj.slug = slug
             elif clear_slug:
                 tenant_obj.slug = None
+            if display_order is not None:
+                tenant_obj.display_order = display_order
+            elif clear_order:
+                tenant_obj.display_order = None
 
             await session.flush()
             console.print(
@@ -556,6 +576,65 @@ def doc_list(tenant_id: str):
             console.print(table)
 
     _run(_run_list())
+
+
+# ---------------------------------------------------------------------------
+# doc update
+# ---------------------------------------------------------------------------
+
+
+@doc.command("update", help=t("cmd_doc_update"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
+@click.option("--display-order", "display_order", type=int, default=None, help=t("help_display_order"))
+@click.option("--clear-order", "clear_order", is_flag=True, default=False, help=t("help_clear_order"))
+def doc_update(tenant_id: str, doc_id: str, display_order: int | None, clear_order: bool):
+    """Update a document's display order (compeito-local list ordering)."""
+    _check_db()
+
+    if display_order is not None and clear_order:
+        err_console.print(t("err_display_order_clear_exclusive"))
+        raise SystemExit(1)
+    if display_order is None and not clear_order:
+        err_console.print(t("err_doc_update_requires_option"))
+        raise SystemExit(1)
+
+    tid = _parse_uuid(tenant_id)
+    did = _parse_uuid(doc_id)
+
+    async def _run_update():
+        from sqlalchemy import select
+
+        from src.models.cf_document import CFDocument
+        from src.models.tenant import Tenant
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            result = await session.execute(
+                select(CFDocument).where(
+                    CFDocument.tenant_id == tid,
+                    CFDocument.identifier == did,
+                ),
+            )
+            doc_obj = result.scalar_one_or_none()
+            if doc_obj is None:
+                err_console.print(t("err_doc_not_found", value=str(did)))
+                raise SystemExit(1)
+
+            if display_order is not None:
+                doc_obj.display_order = display_order
+            elif clear_order:
+                doc_obj.display_order = None
+
+            await session.flush()
+            console.print(t("msg_updated_document", id=str(doc_obj.identifier), title=doc_obj.title))
+            await session.commit()
+
+    _run(_run_update())
 
 
 # ---------------------------------------------------------------------------
