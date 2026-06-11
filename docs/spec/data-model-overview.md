@@ -129,6 +129,37 @@ destination（親）= CFItem または CFDocument "数と式"
 | CFAssociation | `CFAssociationGroupingURI` | CFAssociationGrouping |
 | CFRubricCriterion | `CFItemURI` | CFItem（この基準が評価する項目）|
 
+### 単数で解決する参照 vs 複数になる参照
+
+リンクは「**前向きのスカラー参照（1つに解決）**」と「**配列参照・逆向き/集約（複数になる）**」に分かれる。
+compeito の UI もこれに従い、単一が保証される参照は単独リンク（例: 「対象アイテムを表示」）、
+複数になりうる参照は**リストで並べて**表示する。
+
+**単一リンク（必ず1つに解決）= 前向きのスカラー参照**
+
+| 元 | リンク | 先 |
+|---|---|---|
+| CFItem | `CFItemTypeURI` | CFItemType（種類）|
+| CFItem | `licenseURI` | CFLicense |
+| CFItem | `conceptKeywordsURI` | CFConcept（**URI は単数**。文字列の `conceptKeywords` は配列だがリンクは1つ）|
+| CFItem | `CFDocumentURI` | 所属ドキュメント |
+| CFRubricCriterion | `CFItemURI` | CFItem（＝「対象アイテムを表示」）|
+| CFRubricCriterionLevel | （親参照）| 親 Criterion |
+| CFAssociation | `originNodeURI` / `destinationNodeURI` / `CFAssociationGroupingURI` / `CFDocumentURI` | 各1つ |
+
+**複数になりうる（リストで並ぶ）= 配列参照 ＆ 逆向き・集約**
+
+| 元 | 関係 | 先 | なぜ複数 |
+|---|---|---|---|
+| CFItem / CFDocument | `subjectURI`（**配列**）| CFSubject | 教科は複数付けられる |
+| CFItem | 関連 (related) | 他の CFItem | `isRelatedTo` 等は何本でも張れる |
+| CFItem | このアイテムを参照する観点 (referring_criteria) | CFRubricCriterion | **`CFItemURI` の逆向き**。1アイテムを複数観点が指せる |
+| CFItem | 別FWの上位/下位 (cross-doc hierarchy) | 他FWの CFItem | isChildOf 横断は複数 |
+
+> **対称性**: 前向きの 観点 → アイテム は **1**（`CFItemURI` 単数）なので「対象アイテムを表示」は1つに解決。
+> 逆向きの アイテム ← 観点 は **多**（`referring_criteria`）なので、アイテム詳細には
+> 「このアイテムを評価している観点」が複数**リストで**並ぶ。
+
 ---
 
 ## 4. ⑤ ルーブリックの結びつき
