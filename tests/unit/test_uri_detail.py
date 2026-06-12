@@ -931,6 +931,9 @@ class TestDetailInfoHierarchy:
         assert resp.text.count(f'data-copy="{ident}"') >= 2
         # permalink / API URLs likewise appear as chips + technical fields
         assert resp.text.count(f"/ims/case/v1p1/CFItems/{ident}") >= 2
+        # the CASE uri (external-import original, distinct from the permalink)
+        # is shown in the technical section
+        assert "https://example.com/item" in resp.text
 
     async def test_cf_document_name_is_card_heading(
         self,
@@ -973,6 +976,8 @@ class TestDetailInfoHierarchy:
         # heading reads "origin → destination" before the node detail blocks
         assert resp.text.index("Origin Node") < resp.text.index("技術情報")
         assert "→" in resp.text
+        # every type gets a permalink copy chip in the header
+        assert f'data-copy="http://test/{tenant.id}/uri/{ident}"' in resp.text
 
 
 class TestUriDetailErrors:
@@ -1032,14 +1037,16 @@ class TestUriSecurityUrls:
         assert f"/uri/{sample_document.identifier}" in resp.text
         assert f"/ims/case/v1p1/CFPackages/{sample_document.identifier}" in resp.text
 
-    async def test_javascript_url_not_rendered(
+    async def test_javascript_url_not_linkified(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """DB uri with javascript: should NOT appear in rendered page (Permalink is constructed from base_url)."""
+        """A DB uri with a javascript: scheme must never be linkified. The CASE
+        uri is displayed in the technical section as inert <code> text (the
+        plain-text rule for non-http(s) schemes), never as an href."""
         item = CFItem(
             tenant_id=tenant.id,
             cf_document_id=sample_document.id,
@@ -1054,7 +1061,9 @@ class TestUriSecurityUrls:
 
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
         assert 'href="javascript:' not in resp.text
-        assert "javascript:alert(1)" not in resp.text
+        # shown, but only as code text (copy button data-copy attr + <code>)
+        assert "<code" in resp.text
+        assert "javascript:alert(1)" in resp.text
 
 
 class TestUriContentNegotiation:

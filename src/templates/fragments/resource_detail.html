@@ -457,6 +457,7 @@
             {{ code_field(t("f_identifier"), resource.identifier) }}
             {{ code_url_field(t("f_permalink"), permalink) }}
             {{ code_url_field(t("f_cf_items_api"), item_api_url) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
             {{ effective_license(resource.license, doc) }}
             <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
                 {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
@@ -524,6 +525,7 @@
             {{ code_field(t("f_identifier"), resource.identifier) }}
             {{ code_url_field(t("f_permalink"), permalink) }}
             {{ code_url_field(t("f_cf_package_api"), package_api_url) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
             {{ effective_license(resource.license, None) }}
             <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
                 {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
@@ -543,9 +545,11 @@
 
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set assoc_heading %}{{ resource.origin_node_title or resource.origin_node_identifier }} <span class="text-stone-400 font-normal">→</span> {{ resource.destination_node_title or resource.destination_node_identifier }}{% endset %}
         {% call detail_header(resource_type, assoc_heading, code=resource.association_type) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
         {% endcall %}
 
         <dl class="space-y-4">
@@ -593,8 +597,10 @@
 
     {# ========== CFRubric ========== #}
     {% elif resource_type == "CFRubric" %}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% call detail_header(resource_type, resource.title or resource.identifier) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
         {% endcall %}
 
         {% if resource.description %}
@@ -718,8 +724,10 @@
 
     {# ========== CFRubricCriterion ========== #}
     {% elif resource_type == "CFRubricCriterion" %}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% call detail_header(resource_type, resource.category or resource.identifier) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
         {% endcall %}
 
         {% if resource.description or resource.weight is not none or resource.position is not none %}
@@ -787,9 +795,11 @@
 
     {# ========== CFRubricCriterionLevel ========== #}
     {% elif resource_type == "CFRubricCriterionLevel" %}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set score_chip = (t("f_score") ~ ": " ~ resource.score) if resource.score is not none else None %}
         {% call detail_header(resource_type, resource.quality or resource.identifier, code=score_chip) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
         {% endcall %}
 
         {% if resource.description or resource.feedback or resource.score is not none or resource.position is not none %}
@@ -835,8 +845,10 @@
 
     {# ========== Lookup resources ========== #}
     {% else %}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% call detail_header(resource_type, resource.title) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
         {% endcall %}
 
         <dl class="space-y-4">
