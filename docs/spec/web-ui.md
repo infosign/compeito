@@ -142,7 +142,7 @@ Both the `/uri/{uuid}` page and the tree right pane render the shared detail car
 2. **Content** — description / notes / abbreviatedStatement etc., directly under the header (no section title). CFRubric's criteria table/list also renders here, right after the description.
 3. **Classification** ("Classification" / 「分類」) — educational metadata: item type, education level, concept keywords, subject, language, creator/publisher/version (CFDocument), …
 4. **Relations** ("Relations" / 「関連情報」) — owning document, cross-document hierarchy, related items, rubrics, parent rubric / criterion, linked item.
-5. **Technical details** ("Technical Details" / 「技術情報」) — identifier, permalink, CASE API URL, uri, effective license, status dates, lastChangeDateTime, extensions. Rendered as a visually muted, **always-open** section at the bottom (not a collapsible — it must stay visible for OBF/QTI integration and printing).
+5. **Technical details** ("Technical Details" / 「技術情報」) — identifier, uri, effective license, status dates, lastChangeDateTime, extensions. CFItem / CFDocument additionally repeat the permalink and their CASE API URL here as full copyable strings (for the other types the permalink is available from the header chip only). Rendered as a visually muted, **always-open** section at the bottom (not a collapsible — it must stay visible for OBF/QTI integration and printing).
 
 Zones 3–5 render with a top separator and a small uppercase section title, and each zone is omitted entirely when it has no content. Short scalar fields inside a zone may be arranged in a 2-column grid. The standalone `/uri/` page's own `<h1>` shows only `page_title`; the type / adoptionStatus badges live in the card header.
 
@@ -478,7 +478,7 @@ OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tail
 2. **内容** — description / notes / abbreviatedStatement 等をヘッダー直下に表示（セクション見出しなし）。CFRubric の評価基準テーブル/リストも description の直後にここで描画する。
 3. **分類**（`sec_classification`）— 教育メタデータ: アイテム種別・教育段階・コンセプトキーワード・教科・言語、CFDocument の creator / publisher / version 等。
 4. **関連情報**（`sec_relations`）— 所属ドキュメント・クロス文書階層・関連アイテム・ルーブリック・所属ルーブリック/評価基準・対象アイテム。
-5. **技術情報**（`sec_technical`）— 識別子・パーマリンク・CASE API URL・uri・実効ライセンス・status 日付・lastChangeDateTime・extensions。最下部に**薄いグレーの常時表示セクション**として描画する（折りたたみにしない — OBF/QTI 連携用 URL の視認性と印刷のため）。
+5. **技術情報**（`sec_technical`）— 識別子・uri・実効ライセンス・status 日付・lastChangeDateTime・extensions。CFItem / CFDocument はさらにパーマリンクと CASE API URL をコピー用の完全な文字列としてここに再掲する（他のタイプのパーマリンクはヘッダーのチップのみ）。最下部に**薄いグレーの常時表示セクション**として描画する（折りたたみにしない — OBF/QTI 連携用 URL の視認性と印刷のため）。
 
 ゾーン 3〜5 は上罫線 + 小さな大文字セクション見出し付きで描画し、内容が無いゾーンはセクションごと省略する。ゾーン内の短いスカラー値は 2 カラムグリッドに並べる場合がある。単独 `/uri/` ページ自体の `<h1>` は `page_title` のみを表示し、種別 / adoptionStatus バッジはカードヘッダー側に置く。
 
