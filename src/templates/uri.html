@@ -14,20 +14,9 @@
 </nav>
 {% endblock %}
 
-{% block heading %}
-{{ page_title }}
-<br class="md:hidden">
-{% if resource_type == "CFDocument" and resource.adoption_status %}
-<span class="inline-block mt-1 md:mt-0 md:ml-2 px-2 py-0.5 text-xs font-medium rounded align-middle
-    {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
-    {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
-    {% elif resource.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
-    {% else %}bg-stone-100 text-stone-700{% endif %}">
-    {{ resource.adoption_status }}
-</span>
-{% endif %}
-<span class="inline-block mt-1 md:mt-0 {% if resource_type == 'CFDocument' and resource.adoption_status %}ml-2{% else %}md:ml-2{% endif %} px-2 py-0.5 text-xs font-medium rounded align-middle bg-violet-100 text-violet-700">{{ resource_type }}</span>
-{% endblock %}
+{# Type / adoption-status badges live in the detail card's header
+   (resource_detail.html detail_header) — the page heading stays plain. #}
+{% block heading %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="bg-white rounded-lg shadow-sm border border-stone-200 p-6">
