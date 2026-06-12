@@ -788,6 +788,26 @@ class TestDetailFragment:
         )
         assert resp.headers["cache-control"] == "public, max-age=86400"
 
+    async def test_fragment_leads_with_name_heading(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The pane fragment leads with the statement as its heading; the
+        identifier only appears later (header copy chip / technical section)."""
+        item = _make_item(tenant, sample_document, full_statement="Heading target")
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{item.identifier}",
+        )
+        assert ">Heading target</h2>" in resp.text
+        assert resp.text.index("Heading target") < resp.text.index(str(item.identifier))
+        assert "技術情報" in resp.text
+
     async def test_pane_hides_show_in_tree(
         self,
         db_session: AsyncSession,

@@ -874,6 +874,112 @@ class TestUriDetailPage:
         assert "ParentCrit" in resp.text  # parent criterion link
 
 
+class TestDetailInfoHierarchy:
+    """The detail card leads with the resource name as its heading and pushes
+    identifier / permalink / API URLs into the muted technical section at the
+    bottom; copy chips in the header keep one-click copy access."""
+
+    async def test_cf_item_name_is_card_heading(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        ident = uuid.uuid4()
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/item",
+            full_statement="Hierarchy statement",
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # fullStatement is the card heading, not a labeled field
+        assert ">Hierarchy statement</h2>" in resp.text
+        # heading comes before the technical section
+        assert resp.text.index("<h2") < resp.text.index("技術情報")
+
+    async def test_cf_item_header_copy_chips(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        ident = uuid.uuid4()
+        item = CFItem(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/item",
+            full_statement="Chip statement",
+            last_change_date_time=NOW,
+            depth=0,
+        )
+        db_session.add(item)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        # identifier is copyable from the header chip AND the technical section
+        assert resp.text.count(f'data-copy="{ident}"') >= 2
+        # permalink / API URLs likewise appear as chips + technical fields
+        assert resp.text.count(f"/ims/case/v1p1/CFItems/{ident}") >= 2
+        # the CASE uri (external-import original, distinct from the permalink)
+        # is shown in the technical section
+        assert "https://example.com/item" in resp.text
+
+    async def test_cf_document_name_is_card_heading(
+        self,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
+        assert resp.status_code == 200
+        assert f">{sample_document.title}</h2>" in resp.text
+        assert "技術情報" in resp.text
+
+    async def test_cf_association_heading_summarizes_nodes(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        ident = uuid.uuid4()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=ident,
+            uri="https://example.com/assoc",
+            association_type="isRelatedTo",
+            origin_node_identifier="origin-id",
+            origin_node_title="Origin Node",
+            origin_node_uri="https://example.com/o",
+            destination_node_identifier="dest-id",
+            destination_node_title="Destination Node",
+            destination_node_uri="https://example.com/d",
+            last_change_date_time=NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{ident}")
+        assert resp.status_code == 200
+        # heading reads "origin → destination" before the node detail blocks
+        assert resp.text.index("Origin Node") < resp.text.index("技術情報")
+        assert "→" in resp.text
+        # every type gets a permalink copy chip in the header
+        assert f'data-copy="http://test/{tenant.id}/uri/{ident}"' in resp.text
+
+
 class TestUriDetailErrors:
     async def test_non_uuid_tenant_falls_back_to_slug_404(self, db_client):
         """A non-UUID tenant segment is interpreted as a slug; unknown slug → 404."""
@@ -931,14 +1037,16 @@ class TestUriSecurityUrls:
         assert f"/uri/{sample_document.identifier}" in resp.text
         assert f"/ims/case/v1p1/CFPackages/{sample_document.identifier}" in resp.text
 
-    async def test_javascript_url_not_rendered(
+    async def test_javascript_url_not_linkified(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """DB uri with javascript: should NOT appear in rendered page (Permalink is constructed from base_url)."""
+        """A DB uri with a javascript: scheme must never be linkified. The CASE
+        uri is displayed in the technical section as inert <code> text (the
+        plain-text rule for non-http(s) schemes), never as an href."""
         item = CFItem(
             tenant_id=tenant.id,
             cf_document_id=sample_document.id,
@@ -953,7 +1061,9 @@ class TestUriSecurityUrls:
 
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
         assert 'href="javascript:' not in resp.text
-        assert "javascript:alert(1)" not in resp.text
+        # shown, but only as code text (copy button data-copy attr + <code>)
+        assert "<code" in resp.text
+        assert "javascript:alert(1)" in resp.text
 
 
 class TestUriContentNegotiation:

@@ -2,7 +2,15 @@
    Used by uri.html (standalone permalink page) and the tree right-pane
    fragment so both show identical full detail. Expects context: resource,
    resource_type, doc, tenant, tenant_url, related_groups, rubrics,
-   referring_criteria, request, t. #}
+   referring_criteria, request, t.
+
+   Layout: each resource renders as zones, top to bottom:
+     A. header  — type badge + name heading + copy chips (ID / permalink / API)
+     B. content — description / notes etc., directly under the header
+     C. classification — educational metadata (sec_classification)
+     D. relations — document / hierarchy / related / rubrics (sec_relations)
+     E. technical — identifier, URLs, license, dates, extensions
+        (sec_technical, muted) #}
 {# Define macros first #}
 {# Copy-to-clipboard button. The value goes into a `data-copy` HTML attribute
    (Jinja autoescape makes this context safe) and is read by a delegated click
@@ -16,40 +24,78 @@
 </button>
 {% endmacro %}
 
+{# Labeled copy chip for the header copy cluster (same data-copy delegation as
+   copy_btn — the value never reaches inline JS). #}
+{% macro copy_chip(label, value) %}
+<button type="button" data-copy="{{ value }}" title="{{ value }}" class="copy-btn inline-flex items-center gap-1 px-2 py-0.5 text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded hover:text-violet-600 hover:border-violet-300 transition-colors">
+    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>{{ label }}
+</button>
+{% endmacro %}
+
+{# Zone A header: type badge row (+ adoption-status badge / code chip), the
+   resource name as the card heading, and an optional caller block rendered as
+   the copy-chip cluster. #}
+{% macro detail_header(type_label, name, code=None, status=None) %}
+<header class="mb-6">
+    <div class="flex flex-wrap items-center gap-2 mb-1.5">
+        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded bg-violet-100 text-violet-700">{{ type_label }}</span>
+        {% if status %}
+        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded
+            {% if status == 'Adopted' %}bg-emerald-100 text-emerald-700
+            {% elif status == 'Deprecated' %}bg-pink-100 text-pink-700
+            {% elif status == 'Draft' %}bg-amber-100 text-amber-700
+            {% else %}bg-stone-100 text-stone-700{% endif %}">{{ status }}</span>
+        {% endif %}
+        {% if code %}<code class="px-1.5 py-0.5 text-xs bg-stone-100 text-stone-600 rounded">{{ code }}</code>{% endif %}
+    </div>
+    <h2 class="text-lg font-semibold text-gray-900 leading-snug">{{ name }}</h2>
+    {% if caller %}<div class="mt-2 flex flex-wrap gap-1.5">{{ caller() }}</div>{% endif %}
+</header>
+{% endmacro %}
+
+{# Titled zone wrapper (Zones C/D/E). Callers must skip the call entirely when
+   the zone would be empty — the divider + title always render. #}
+{% macro section(title=None, muted=False) %}
+<section class="mt-6 pt-5 border-t border-stone-200{% if muted %} opacity-75{% endif %}">
+    {% if title %}<h3 class="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">{{ title }}</h3>{% endif %}
+    <dl class="space-y-4">{{ caller() }}</dl>
+</section>
+{% endmacro %}
+
 {% macro field(label, value) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ value }}</dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ value }}</dd>
 </div>
 {% endmacro %}
 
 {% macro datetime_field(label, dt) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800"><time datetime="{{ dt.isoformat() }}">{{ dt.isoformat() }}</time></dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1"><time datetime="{{ dt.isoformat() }}">{{ dt.isoformat() }}</time></dd>
 </div>
 {% endmacro %}
 
 {% macro optional_field(label, value) %}
 {% if value is not none and value != "" %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ value }}</dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ value }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro code_field(label, value) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ copy_btn(value) }}<code class="text-sm">{{ value }}</code></dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ copy_btn(value) }}<code class="text-sm">{{ value }}</code></dd>
 </div>
 {% endmacro %}
 
 {% macro code_url_field(label, url) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ copy_btn(url) }}<code class="text-sm break-all">{{ url }}</code></dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ copy_btn(url) }}<code class="text-sm break-all">{{ url }}</code></dd>
 </div>
 {% endmacro %}
 
@@ -59,22 +105,22 @@
 
 {% macro uri_field(label, url) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ url_text(url) }}</dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ url_text(url) }}</dd>
 </div>
 {% endmacro %}
 
 {% macro optional_uri_field(label, url) %}
 {% if url %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ url_text(url) }}</dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ url_text(url) }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro sub_label(label) %}
-<span class="text-xs font-medium text-stone-500 uppercase inline-block w-16">{{ label }}</span>
+<span class="text-xs font-medium text-stone-400 uppercase inline-block w-16">{{ label }}</span>
 {% endmacro %}
 
 {% macro nested_uri(label, url) %}
@@ -84,8 +130,8 @@
 {% macro array_field(label, arr) %}
 {% if arr and arr|length > 0 %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
-    <dd class="text-gray-800">{{ arr | join(", ") }}</dd>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
+    <dd class="text-gray-800 mt-1">{{ arr | join(", ") }}</dd>
 </div>
 {% endif %}
 {% endmacro %}
@@ -95,7 +141,7 @@
 {% macro chips_field(label, arr) %}
 {% if arr and arr|length > 0 %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
     <dd class="mt-1 flex flex-wrap gap-1">
         {% for v in arr %}<span class="inline-block px-2 py-0.5 text-xs bg-stone-100 text-stone-700 rounded">{{ v }}</span>{% endfor %}
     </dd>
@@ -149,7 +195,7 @@
 
 {% macro nested_resource(label, title, ident, uri) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
         <div>{{ sub_label(t("f_title")) }}{{ def_nav(ident, title) }}</div>
         <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
@@ -167,7 +213,7 @@
 {% set inherited = (not own_license) and doc and doc.license %}
 {% if lic %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">
         {{ t("f_license_uri") }}{% if inherited %} <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] font-normal normal-case rounded bg-stone-100 text-stone-500 tracking-normal">{{ t("inherited_from_document") }}</span>{% endif %}
     </dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
@@ -181,7 +227,7 @@
 
 {% macro linked_resource(label, link_url, link_text, ident, uri, nav_in_doc=False) %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
         <div>{{ sub_label(t("f_title")) }}{% if nav_in_doc and in_pane and doc %}{{ def_nav(ident, link_text) }}{% else %}<a href="{{ link_url }}" class="text-violet-600 hover:text-violet-800">{{ link_text }}</a>{% endif %}</div>
         <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(ident) }}<code class="text-sm">{{ ident }}</code></div>
@@ -193,7 +239,7 @@
 {% macro subject_uri_list(items) %}
 {% if items %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_subject_uri") }}</dt>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_subject_uri") }}</dt>
     <dd class="text-gray-800 ml-4 mt-1">
         {% for su in items %}
         <div class="{% if not loop.first %}mt-2{% endif %} space-y-0.5">
@@ -249,7 +295,7 @@
 {% set _empty = (ext is none) or (ext is string and ext == "") or ((ext is mapping or (ext is sequence and ext is not string)) and ext | length == 0) %}
 {% if not _empty %}
 <div>
-    <dt class="text-xs font-semibold text-stone-500 uppercase">{{ label }}</dt>
+    <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ label }}</dt>
     <dd class="text-gray-800 ml-4 mt-1 text-sm">
     {%- if ext is mapping -%}
         <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -270,130 +316,156 @@
 {# This partial renders only the inner content (no card wrapper). Callers
    provide the card container: the tree view's #detail-pane and uri.html's
    block both supply `bg-white rounded-lg shadow-sm border ... p-6`. #}
-    <dl class="space-y-4">
 
     {# ========== CFItem ========== #}
     {% if resource_type == "CFItem" %}
         {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set item_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFItems/" ~ resource.identifier|string %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ code_url_field(t("f_permalink"), permalink) }}
-        {{ code_url_field(t("f_cf_items_api"), item_api_url) }}
-        {% if doc %}
-            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+        {% call detail_header(resource_type, resource.full_statement, code=resource.human_coding_scheme) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+            {{ copy_chip(t("f_cf_items_api"), item_api_url) }}
+        {% endcall %}
+
+        {% if resource.abbreviated_statement or resource.alternative_label or resource.notes %}
+        <dl class="space-y-4">
+            {{ optional_field(t("f_abbreviated_statement"), resource.abbreviated_statement) }}
+            {{ optional_field(t("f_alternative_label"), resource.alternative_label) }}
+            {{ optional_field(t("f_notes"), resource.notes) }}
+        </dl>
         {% endif %}
-        {{ field(t("f_full_statement"), resource.full_statement) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {{ optional_field(t("f_human_coding_scheme"), resource.human_coding_scheme) }}
-        {{ optional_field(t("f_abbreviated_statement"), resource.abbreviated_statement) }}
-        {{ optional_field(t("f_alternative_label"), resource.alternative_label) }}
-        {{ optional_field(t("f_notes"), resource.notes) }}
-        {% if resource.item_type %}
-            {{ nested_resource(t("f_cf_item_type"), resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
+
+        {% if resource.item_type or resource.education_level or resource.concept_keywords or resource.concept or resource.subject or resource.subject_uri or resource.language or resource.list_enumeration %}
+        {% call section(t("sec_classification")) %}
+            {% if resource.item_type %}
+                {{ nested_resource(t("f_cf_item_type"), resource.item_type.title, resource.item_type.identifier, resource.item_type.uri) }}
+            {% endif %}
+            {{ chips_field(t("f_concept_keywords"), resource.concept_keywords) }}
+            {% if resource.concept %}
+                {{ nested_resource(t("f_concept_keywords_uri"), resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
+            {% endif %}
+            {{ subject_uri_list(resource.subject_uri) }}
+            {% if resource.education_level or resource.subject or resource.language or resource.list_enumeration %}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {{ array_field(t("f_education_level"), resource.education_level) }}
+                {{ array_field(t("f_subject"), resource.subject) }}
+                {{ optional_field(t("f_language"), resource.language) }}
+                {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
+            </div>
+            {% endif %}
+        {% endcall %}
         {% endif %}
-        {{ array_field(t("f_education_level"), resource.education_level) }}
-        {{ chips_field(t("f_concept_keywords"), resource.concept_keywords) }}
-        {% if resource.concept %}
-            {{ nested_resource(t("f_concept_keywords_uri"), resource.concept.title, resource.concept.identifier, resource.concept.uri) }}
-        {% endif %}
-        {{ array_field(t("f_subject"), resource.subject) }}
-        {{ subject_uri_list(resource.subject_uri) }}
-        {{ optional_field(t("f_language"), resource.language) }}
-        {{ effective_license(resource.license, doc) }}
-        {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
-        {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
-        {{ optional_field(t("f_list_enumeration"), resource.list_enumeration) }}
-        {# Cross-document hierarchy (isChildOf parents/children in another framework).
-           Same-document hierarchy is in the tree; these surface the boundary. #}
-        {% if hierarchy_upper %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_hierarchy_upper") }}</dt>
-            <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
-                {% for e in hierarchy_upper %}
-                <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
-                {% endfor %}
-            </ul></dd>
-        </div>
-        {% endif %}
-        {% if hierarchy_lower %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_hierarchy_lower") }}</dt>
-            <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
-                {% for e in hierarchy_lower %}
-                <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
-                {% endfor %}
-            </ul></dd>
-        </div>
-        {% endif %}
-        {% if referring_criteria %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_criteria") }}</dt>
-            <dd class="text-gray-800">
-                <ul class="ml-4 mt-1 space-y-1">
-                    {% for crit in referring_criteria %}
-                    <li>
-                        {% set crit_label %}{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}{% endset %}
-                        {{ def_nav(crit.identifier, crit_label, crit.cf_rubric and doc and crit.cf_rubric.cf_document_id == doc.id) }}
-                        {% if crit.cf_rubric %}<span class="text-stone-500 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
-                    </li>
+
+        {% if doc or hierarchy_upper or hierarchy_lower or referring_criteria or related_groups %}
+        {% call section(t("sec_relations")) %}
+            {% if doc %}
+                {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+            {% endif %}
+            {# Cross-document hierarchy (isChildOf parents/children in another framework).
+               Same-document hierarchy is in the tree; these surface the boundary. #}
+            {% if hierarchy_upper %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_hierarchy_upper") }}</dt>
+                <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
+                    {% for e in hierarchy_upper %}
+                    <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
                     {% endfor %}
-                </ul>
-            </dd>
-        </div>
-        {% endif %}
-        {% if related_groups %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_related") }}</dt>
-            <dd class="text-gray-800 mt-1 space-y-3">
-                {% for grp in related_groups %}
-                <div>
-                    <div class="text-sm font-semibold text-stone-600">{{ grp.title or t("related_other") }}</div>
+                </ul></dd>
+            </div>
+            {% endif %}
+            {% if hierarchy_lower %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_hierarchy_lower") }}</dt>
+                <dd class="text-gray-800"><ul class="ml-4 mt-1 space-y-1">
+                    {% for e in hierarchy_lower %}
+                    <li>{{ classified_ref(e.identifier, e.label, e.uri, false, e if e.doc_identifier else none) }}</li>
+                    {% endfor %}
+                </ul></dd>
+            </div>
+            {% endif %}
+            {% if referring_criteria %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("rubric_criteria") }}</dt>
+                <dd class="text-gray-800">
                     <ul class="ml-4 mt-1 space-y-1">
-                        {% for a in grp["items"] %}
-                        {% set dest = a.destination_node_identifier %}
-                        {% set dest_label = a.destination_node_title or dest %}
+                        {% for crit in referring_criteria %}
                         <li>
-                            {% if in_pane and doc and dest in related_in_doc %}
-                            {# Same-doc item → navigate within the tree (swap pane + sync tree + push URL). #}
-            {# Tree sync after swap is handled globally (htmx:afterSettle reads
-               the pushed /item/{id} URL) — robust since this link is inside the
-               swapped pane and is removed by the swap. #}
-                            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
-                               class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
-                               hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ dest }}"
-                               hx-target="#detail-pane" hx-swap="innerHTML"
-                               hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}">{{ dest_label }}</a>
-                            {% elif dest in related_in_doc %}
-                            {# Same-doc item, standalone page → its tree-item page. #}
-                            <a href="/{{ tenant_url }}/uri/{{ dest }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
-                            {% elif related_other_doc and dest in related_other_doc %}
-                            {# Same-tenant item in another framework → switch the tree to that document. #}
-                            <a href="/{{ tenant_url }}/cftree/doc/{{ related_other_doc[dest].doc_identifier }}/item/{{ dest }}"
-                               class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
-                               title="{{ related_other_doc[dest].doc_title }}">{{ dest_label }}</a>
-                            <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
-                            {% elif a.destination_node_uri and (a.destination_node_uri.startswith("http://") or a.destination_node_uri.startswith("https://")) %}
-                            {# External / unresolvable reference → link out in a new tab.
-                               Only http(s) is linkified; other schemes (javascript:, data:)
-                               from external CASE data are rendered as plain text below. #}
-                            <a href="{{ a.destination_node_uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
-                            <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
-                            {% else %}
-                            {# Unresolvable with an unsafe/empty URI scheme → not clickable. #}
-                            <span class="text-gray-800 text-sm">{{ dest_label }}</span>
-                            <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}</span>
-                            {% endif %}
-                            {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
+                            {% set crit_label %}{% if crit.category %}{{ crit.category }}{% else %}{{ crit.identifier }}{% endif %}{% endset %}
+                            {{ def_nav(crit.identifier, crit_label, crit.cf_rubric and doc and crit.cf_rubric.cf_document_id == doc.id) }}
+                            {% if crit.cf_rubric %}<span class="text-stone-500 text-xs">({{ crit.cf_rubric.title or crit.cf_rubric.identifier }})</span>{% endif %}
                         </li>
                         {% endfor %}
                     </ul>
-                </div>
-                {% endfor %}
-            </dd>
-        </div>
+                </dd>
+            </div>
+            {% endif %}
+            {% if related_groups %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_related") }}</dt>
+                <dd class="text-gray-800 mt-1 space-y-3">
+                    {% for grp in related_groups %}
+                    <div>
+                        <div class="text-sm font-semibold text-stone-600">{{ grp.title or t("related_other") }}</div>
+                        <ul class="ml-4 mt-1 space-y-1">
+                            {% for a in grp["items"] %}
+                            {% set dest = a.destination_node_identifier %}
+                            {% set dest_label = a.destination_node_title or dest %}
+                            <li>
+                                {% if in_pane and doc and dest in related_in_doc %}
+                                {# Same-doc item → navigate within the tree (swap pane + sync tree + push URL). #}
+                {# Tree sync after swap is handled globally (htmx:afterSettle reads
+                   the pushed /item/{id} URL) — robust since this link is inside the
+                   swapped pane and is removed by the swap. #}
+                                <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}"
+                                   class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
+                                   hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ dest }}"
+                                   hx-target="#detail-pane" hx-swap="innerHTML"
+                                   hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}">{{ dest_label }}</a>
+                                {% elif dest in related_in_doc %}
+                                {# Same-doc item, standalone page → its tree-item page. #}
+                                <a href="/{{ tenant_url }}/uri/{{ dest }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
+                                {% elif related_other_doc and dest in related_other_doc %}
+                                {# Same-tenant item in another framework → switch the tree to that document. #}
+                                <a href="/{{ tenant_url }}/cftree/doc/{{ related_other_doc[dest].doc_identifier }}/item/{{ dest }}"
+                                   class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
+                                   title="{{ related_other_doc[dest].doc_title }}">{{ dest_label }}</a>
+                                <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
+                                {% elif a.destination_node_uri and (a.destination_node_uri.startswith("http://") or a.destination_node_uri.startswith("https://")) %}
+                                {# External / unresolvable reference → link out in a new tab.
+                                   Only http(s) is linkified; other schemes (javascript:, data:)
+                                   from external CASE data are rendered as plain text below. #}
+                                <a href="{{ a.destination_node_uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
+                                <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
+                                {% else %}
+                                {# Unresolvable with an unsafe/empty URI scheme → not clickable. #}
+                                <span class="text-gray-800 text-sm">{{ dest_label }}</span>
+                                <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}</span>
+                                {% endif %}
+                                {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+                </dd>
+            </div>
+            {% endif %}
+        {% endcall %}
         {% endif %}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
-    </dl>
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ code_url_field(t("f_permalink"), permalink) }}
+            {{ code_url_field(t("f_cf_items_api"), item_api_url) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(resource.license, doc) }}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
+                {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
+                {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            </div>
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {% endcall %}
     {% if not in_pane %}
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -404,53 +476,67 @@
     {% elif resource_type == "CFDocument" %}
         {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
         {% set package_api_url = request.base_url|string ~ tenant.id|string ~ "/ims/case/v1p1/CFPackages/" ~ resource.identifier|string %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ code_url_field(t("f_permalink"), permalink) }}
-        {{ code_url_field(t("f_cf_package_api"), package_api_url) }}
-        {{ field(t("f_title"), resource.title) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {{ optional_field(t("f_creator"), resource.creator) }}
-        {{ optional_field(t("f_publisher"), resource.publisher) }}
-        {{ optional_field(t("f_description"), resource.description) }}
-        {{ optional_field(t("f_notes"), resource.notes) }}
-        {{ optional_field(t("f_language"), resource.language) }}
-        {{ optional_field(t("f_version"), resource.version) }}
-        {% if resource.adoption_status %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_adoption_status") }}</dt>
-            <dd><span class="inline-block px-2 py-0.5 text-xs font-medium rounded
-                {% if resource.adoption_status == 'Adopted' %}bg-emerald-100 text-emerald-700
-                {% elif resource.adoption_status == 'Deprecated' %}bg-pink-100 text-pink-700
-                {% elif resource.adoption_status == 'Draft' %}bg-amber-100 text-amber-700
-                {% else %}bg-stone-100 text-stone-700{% endif %}">{{ resource.adoption_status }}</span></dd>
-        </div>
+        {% call detail_header(resource_type, resource.title, status=resource.adoption_status) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+            {{ copy_chip(t("f_cf_package_api"), package_api_url) }}
+        {% endcall %}
+
+        {% if resource.description or resource.notes %}
+        <dl class="space-y-4">
+            {{ optional_field(t("f_description"), resource.description) }}
+            {{ optional_field(t("f_notes"), resource.notes) }}
+        </dl>
         {% endif %}
-        {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
-        {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
-        {{ effective_license(resource.license, None) }}
-        {{ optional_uri_field(t("f_official_source_url"), resource.official_source_url) }}
-        {{ optional_field(t("f_framework_type"), resource.framework_type) }}
-        {{ optional_field(t("f_case_version"), resource.case_version) }}
-        {{ array_field(t("f_subject"), resource.subject) }}
-        {{ subject_uri_list(resource.subject_uri) }}
+
+        {% if resource.creator or resource.publisher or resource.version or resource.language or resource.subject or resource.subject_uri or resource.framework_type or resource.official_source_url %}
+        {% call section(t("sec_classification")) %}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {{ optional_field(t("f_creator"), resource.creator) }}
+                {{ optional_field(t("f_publisher"), resource.publisher) }}
+                {{ optional_field(t("f_version"), resource.version) }}
+                {{ optional_field(t("f_language"), resource.language) }}
+            </div>
+            {{ array_field(t("f_subject"), resource.subject) }}
+            {{ subject_uri_list(resource.subject_uri) }}
+            {{ optional_field(t("f_framework_type"), resource.framework_type) }}
+            {{ optional_uri_field(t("f_official_source_url"), resource.official_source_url) }}
+        {% endcall %}
+        {% endif %}
+
         {% if rubrics %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubrics") }}</dt>
-            <dd class="text-gray-800">
-                <ul class="ml-4 mt-1 space-y-1">
-                    {% for rubric in rubrics %}
-                    <li>
-                        <a href="/{{ tenant_url }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </dd>
-        </div>
+        {% call section(t("sec_relations")) %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("rubrics") }}</dt>
+                <dd class="text-gray-800">
+                    <ul class="ml-4 mt-1 space-y-1">
+                        {% for rubric in rubrics %}
+                        <li>
+                            <a href="/{{ tenant_url }}/uri/{{ rubric.identifier }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ rubric.title or rubric.identifier }}</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </dd>
+            </div>
+        {% endcall %}
         {% endif %}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
-        {{ extensions_block(t("f_package_extensions"), resource.package_extensions) }}
-        {{ extensions_block(t("f_definitions_extensions"), resource.definitions_extensions) }}
-    </dl>
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ code_url_field(t("f_permalink"), permalink) }}
+            {{ code_url_field(t("f_cf_package_api"), package_api_url) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(resource.license, None) }}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {{ optional_field(t("f_status_start_date"), resource.status_start_date) }}
+                {{ optional_field(t("f_status_end_date"), resource.status_end_date) }}
+                {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+                {{ optional_field(t("f_case_version"), resource.case_version) }}
+            </div>
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+            {{ extensions_block(t("f_package_extensions"), resource.package_extensions) }}
+            {{ extensions_block(t("f_definitions_extensions"), resource.definitions_extensions) }}
+        {% endcall %}
     {% if not in_pane %}
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -459,55 +545,69 @@
 
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ uri_field(t("f_uri"), resource.uri) }}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
+        {% set assoc_heading %}{{ resource.origin_node_title or resource.origin_node_identifier }} <span class="text-stone-400 font-normal">→</span> {{ resource.destination_node_title or resource.destination_node_identifier }}{% endset %}
+        {% call detail_header(resource_type, assoc_heading, code=resource.association_type) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+        {% endcall %}
+
+        <dl class="space-y-4">
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_origin_node_uri") }}</dt>
+                <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                    {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.origin_node_identifier, resource.origin_node_title, resource.origin_node_uri, resource.origin_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.origin_node_identifier)) }}</div>{% endif %}
+                    <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
+                    {{ nested_uri(t("f_uri"), resource.origin_node_uri) }}
+                    {% if resource.origin_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.origin_node_target_type }}</div>{% endif %}
+                </dd>
+            </div>
+            {{ field(t("f_association_type"), resource.association_type) }}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_destination_node_uri") }}</dt>
+                <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
+                    {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.destination_node_identifier, resource.destination_node_title, resource.destination_node_uri, resource.destination_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.destination_node_identifier)) }}</div>{% endif %}
+                    <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
+                    {{ nested_uri(t("f_uri"), resource.destination_node_uri) }}
+                    {% if resource.destination_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.destination_node_target_type }}</div>{% endif %}
+                </dd>
+            </div>
+            {% if resource.sequence_number is not none %}
+                {{ field(t("f_sequence_number"), resource.sequence_number) }}
+            {% endif %}
+            {% if resource.association_grouping %}
+                {{ nested_resource(t("f_cf_association_grouping_uri"), resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
+            {% endif %}
+            {{ optional_field(t("f_notes"), resource.notes) }}
+        </dl>
+
         {% if doc %}
+        {% call section(t("sec_relations")) %}
             {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+        {% endcall %}
         {% endif %}
-        {{ field(t("f_association_type"), resource.association_type) }}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_origin_node_uri") }}</dt>
-            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.origin_node_identifier, resource.origin_node_title, resource.origin_node_uri, resource.origin_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.origin_node_identifier)) }}</div>{% endif %}
-                <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
-                {{ nested_uri(t("f_uri"), resource.origin_node_uri) }}
-                {% if resource.origin_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.origin_node_target_type }}</div>{% endif %}
-            </dd>
-        </div>
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("f_destination_node_uri") }}</dt>
-            <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.destination_node_identifier, resource.destination_node_title, resource.destination_node_uri, resource.destination_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.destination_node_identifier)) }}</div>{% endif %}
-                <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
-                {{ nested_uri(t("f_uri"), resource.destination_node_uri) }}
-                {% if resource.destination_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.destination_node_target_type }}</div>{% endif %}
-            </dd>
-        </div>
-        {% if resource.sequence_number is not none %}
-            {{ field(t("f_sequence_number"), resource.sequence_number) }}
-        {% endif %}
-        {% if resource.association_grouping %}
-            {{ nested_resource(t("f_cf_association_grouping_uri"), resource.association_grouping.title, resource.association_grouping.identifier, resource.association_grouping.uri) }}
-        {% endif %}
-        {{ optional_field(t("f_notes"), resource.notes) }}
-        {{ effective_license(None, doc) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
-    </dl>
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(None, doc) }}
+            {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {% endcall %}
 
     {# ========== CFRubric ========== #}
     {% elif resource_type == "CFRubric" %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ uri_field(t("f_uri"), resource.uri) }}
-        {% if doc %}
-            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
+        {% call detail_header(resource_type, resource.title or resource.identifier) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+        {% endcall %}
+
+        {% if resource.description %}
+        <dl class="space-y-4">
+            {{ optional_field(t("f_description"), resource.description) }}
+        </dl>
         {% endif %}
-        {{ optional_field(t("f_title"), resource.title) }}
-        {{ optional_field(t("f_description"), resource.description) }}
-        {{ effective_license(None, doc) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
-    </dl>
 
     {# Rubric table/list display #}
     {% set criteria = resource.criteria | sort(attribute='position,identifier') if resource.criteria else [] %}
@@ -602,6 +702,20 @@
         </div>
         {% endif %}
     {% endif %}
+
+        {% if doc %}
+        {% call section(t("sec_relations")) %}
+            {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
+        {% endcall %}
+        {% endif %}
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(None, doc) }}
+            {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {% endcall %}
     {% if doc and not in_pane %}
     <div class="mt-6">
         <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ resource.identifier }}" class="inline-flex items-center px-3 py-1.5 bg-violet-100 text-violet-700 rounded hover:bg-violet-200 text-xs transition-colors">{{ t("show_in_tree") }}</a>
@@ -610,30 +724,26 @@
 
     {# ========== CFRubricCriterion ========== #}
     {% elif resource_type == "CFRubricCriterion" %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ uri_field(t("f_uri"), resource.uri) }}
-        {{ optional_field(t("f_category"), resource.category) }}
-        {{ optional_field(t("f_description"), resource.description) }}
-        {% if resource.cf_item %}
-            {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant_url ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri, doc and resource.cf_item.cf_document_id == doc.id) }}
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
+        {% call detail_header(resource_type, resource.category or resource.identifier) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+        {% endcall %}
+
+        {% if resource.description or resource.weight is not none or resource.position is not none %}
+        <dl class="space-y-4">
+            {{ optional_field(t("f_description"), resource.description) }}
+            {% if resource.weight is not none or resource.position is not none %}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
+                {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+            </div>
+            {% endif %}
+        </dl>
         {% endif %}
-        {% if resource.weight is not none %}{{ field(t("f_weight"), resource.weight) }}{% endif %}
-        {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
-        {{ effective_license(None, doc) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {# Parent rubric link #}
-        {% if resource.cf_rubric %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent") }}</dt>
-            <dd class="text-gray-800">
-                {{ def_nav(resource.cf_rubric.identifier, resource.cf_rubric.title or resource.cf_rubric.identifier) }}
-            </dd>
-        </div>
-        {% endif %}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
+
         {# Levels list #}
         {% if resource.levels %}
-        </dl>
         <div class="mt-6">
             <h3 class="text-sm font-semibold text-stone-600 mb-2">{{ t("rubric_levels") }}</h3>
             <div class="space-y-2">
@@ -648,9 +758,32 @@
                 {% endfor %}
             </div>
         </div>
-        {% else %}
-        </dl>
         {% endif %}
+
+        {% if resource.cf_item or resource.cf_rubric %}
+        {% call section(t("sec_relations")) %}
+            {% if resource.cf_item %}
+                {{ linked_resource(t("f_cf_item_uri"), "/" ~ tenant_url ~ "/uri/" ~ resource.cf_item.identifier, resource.cf_item.full_statement, resource.cf_item.identifier, resource.cf_item.uri, doc and resource.cf_item.cf_document_id == doc.id) }}
+            {% endif %}
+            {# Parent rubric link #}
+            {% if resource.cf_rubric %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("rubric_parent") }}</dt>
+                <dd class="text-gray-800 mt-1">
+                    {{ def_nav(resource.cf_rubric.identifier, resource.cf_rubric.title or resource.cf_rubric.identifier) }}
+                </dd>
+            </div>
+            {% endif %}
+        {% endcall %}
+        {% endif %}
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(None, doc) }}
+            {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {% endcall %}
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_item %}
             {{ nav_button(resource.cf_item.identifier, t("view_linked_item"), doc and resource.cf_item.cf_document_id == doc.id) }}
@@ -662,26 +795,45 @@
 
     {# ========== CFRubricCriterionLevel ========== #}
     {% elif resource_type == "CFRubricCriterionLevel" %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ uri_field(t("f_uri"), resource.uri) }}
-        {{ optional_field(t("f_description"), resource.description) }}
-        {{ optional_field(t("f_quality"), resource.quality) }}
-        {% if resource.score is not none %}{{ field(t("f_score"), resource.score) }}{% endif %}
-        {{ optional_field(t("f_feedback"), resource.feedback) }}
-        {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
-        {{ effective_license(None, doc) }}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {# Parent criterion link #}
-        {% if resource.cf_rubric_criterion %}
-        <div>
-            <dt class="text-xs font-semibold text-stone-500 uppercase">{{ t("rubric_parent_criterion") }}</dt>
-            <dd class="text-gray-800">
-                {{ def_nav(resource.cf_rubric_criterion.identifier, resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier) }}
-            </dd>
-        </div>
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
+        {% set score_chip = (t("f_score") ~ ": " ~ resource.score) if resource.score is not none else None %}
+        {% call detail_header(resource_type, resource.quality or resource.identifier, code=score_chip) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+        {% endcall %}
+
+        {% if resource.description or resource.feedback or resource.score is not none or resource.position is not none %}
+        <dl class="space-y-4">
+            {{ optional_field(t("f_description"), resource.description) }}
+            {{ optional_field(t("f_feedback"), resource.feedback) }}
+            {% if resource.score is not none or resource.position is not none %}
+            <div class="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+                {% if resource.score is not none %}{{ field(t("f_score"), resource.score) }}{% endif %}
+                {% if resource.position is not none %}{{ field(t("f_position"), resource.position) }}{% endif %}
+            </div>
+            {% endif %}
+        </dl>
         {% endif %}
-        {{ extensions_block(t("f_extensions"), resource.extensions) }}
-    </dl>
+
+        {% if resource.cf_rubric_criterion %}
+        {% call section(t("sec_relations")) %}
+            {# Parent criterion link #}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("rubric_parent_criterion") }}</dt>
+                <dd class="text-gray-800 mt-1">
+                    {{ def_nav(resource.cf_rubric_criterion.identifier, resource.cf_rubric_criterion.category or resource.cf_rubric_criterion.identifier) }}
+                </dd>
+            </div>
+        {% endcall %}
+        {% endif %}
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ effective_license(None, doc) }}
+            {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            {{ extensions_block(t("f_extensions"), resource.extensions) }}
+        {% endcall %}
         <div class="mt-6 flex flex-wrap gap-2">
             {% if resource.cf_rubric_criterion and resource.cf_rubric_criterion.cf_item %}
             {{ nav_button(resource.cf_rubric_criterion.cf_item.identifier, t("view_linked_item"), doc and resource.cf_rubric_criterion.cf_item.cf_document_id == doc.id) }}
@@ -693,15 +845,24 @@
 
     {# ========== Lookup resources ========== #}
     {% else %}
-        {{ code_field(t("f_identifier"), resource.identifier) }}
-        {{ uri_field(t("f_uri"), resource.uri) }}
-        {{ field(t("f_title"), resource.title) }}
-        {{ optional_field(t("f_description"), resource.description) }}
-        {% if resource.type_code is defined %}{{ optional_field(t("f_type_code"), resource.type_code) }}{% endif %}
-        {% if resource.hierarchy_code is defined %}{{ optional_field(t("f_hierarchy_code"), resource.hierarchy_code) }}{% endif %}
-        {% if resource.keywords is defined %}{{ optional_field(t("f_keywords"), resource.keywords) }}{% endif %}
-        {% if resource.license_text is defined %}{{ optional_field(t("f_license_text"), resource.license_text) }}{% endif %}
-        {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
-        {% if resource.extensions is defined %}{{ extensions_block(t("f_extensions"), resource.extensions) }}{% endif %}
-    </dl>
+        {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
+        {% call detail_header(resource_type, resource.title) %}
+            {{ copy_chip(t("f_identifier"), resource.identifier) }}
+            {{ copy_chip(t("f_permalink"), permalink) }}
+        {% endcall %}
+
+        <dl class="space-y-4">
+            {{ optional_field(t("f_description"), resource.description) }}
+            {% if resource.type_code is defined %}{{ optional_field(t("f_type_code"), resource.type_code) }}{% endif %}
+            {% if resource.hierarchy_code is defined %}{{ optional_field(t("f_hierarchy_code"), resource.hierarchy_code) }}{% endif %}
+            {% if resource.keywords is defined %}{{ optional_field(t("f_keywords"), resource.keywords) }}{% endif %}
+            {% if resource.license_text is defined %}{{ optional_field(t("f_license_text"), resource.license_text) }}{% endif %}
+        </dl>
+
+        {% call section(t("sec_technical"), muted=true) %}
+            {{ code_field(t("f_identifier"), resource.identifier) }}
+            {{ uri_field(t("f_uri"), resource.uri) }}
+            {{ datetime_field(t("f_last_change_date_time"), resource.last_change_date_time) }}
+            {% if resource.extensions is defined %}{{ extensions_block(t("f_extensions"), resource.extensions) }}{% endif %}
+        {% endcall %}
     {% endif %}
