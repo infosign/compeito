@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from markupsafe import escape
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
@@ -134,9 +135,13 @@ def _error_response(
 
 
 def _error_fragment(status_code: int, message: str) -> HTMLResponse:
-    """Return a plain HTML fragment for HTMX error responses."""
+    """Return a plain HTML fragment for HTMX error responses.
+
+    `message` is HTML-escaped: callers pass translated, static strings today, but
+    escaping defensively keeps this (the app's only raw-HTML-construction site)
+    safe if a caller ever passes user/import-derived text."""
     return HTMLResponse(
-        f'<p class="text-red-600 p-4">{message}</p>',
+        f'<p class="text-red-600 p-4">{escape(message)}</p>',
         status_code=status_code,
     )
 

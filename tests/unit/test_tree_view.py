@@ -1855,3 +1855,18 @@ class TestCrossDocHierarchy:
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{parent.identifier}")
         assert resp.status_code == 200
         assert "下位（別フレームワーク）" not in resp.text
+
+
+class TestErrorFragmentEscaping:
+    """`_error_fragment` builds raw HTML, so it must HTML-escape its message
+    (defense-in-depth: callers pass static translations today, but a future
+    caller passing user/import text must not yield reflected XSS)."""
+
+    def test_error_fragment_escapes_message(self):
+        from src.routers.web import _error_fragment
+
+        resp = _error_fragment(404, "<script>alert(1)</script>&\"'")
+        body = resp.body.decode()
+        assert "<script>alert(1)</script>" not in body
+        assert "&lt;script&gt;" in body
+        assert resp.status_code == 404
