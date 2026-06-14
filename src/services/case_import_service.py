@@ -608,6 +608,62 @@ async def _resolve_fk_by_identifier(
     return row
 
 
+async def _load_lookup_map(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    model_class,
+) -> dict:
+    """Load all lookup rows for a tenant as ``{identifier: id}``.
+
+    Lets item/association import resolve FKs from memory instead of one SELECT
+    per row. The lookups (CFItemType / CFConcept / CFLicense /
+    CFAssociationGrouping) are few, so loading them all is cheap and removes the
+    per-row N+1.
+    """
+    result = await session.execute(
+        select(model_class.identifier, model_class.id).where(model_class.tenant_id == tenant_id)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def _load_existing_by_identifier(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    model_class,
+) -> dict:
+    """Load existing rows for a tenant as ``{identifier: ORM object}``.
+
+    Replaces the per-row "does this identifier already exist?" SELECT during
+    import. A fresh tenant yields an empty map (fastest path); a re-import holds
+    the existing objects so the upsert *update* path still works in memory.
+    """
+    result = await session.execute(select(model_class).where(model_class.tenant_id == tenant_id))
+    return {obj.identifier: obj for obj in result.scalars().all()}
+
+
+def _fk_from_map(
+    fk_map: dict,
+    uri_obj,
+    ctx: str,
+    type_name: str,
+    report: CaseImportReport,
+) -> uuid.UUID | None:
+    """Resolve a lookup FK from a preloaded ``{identifier: id}`` map.
+
+    Mirrors the not-found warning behaviour of :func:`_resolve_fk_by_identifier`
+    (warn when an identifier is given but unresolved — invalid UUID or missing).
+    """
+    if not uri_obj or not isinstance(uri_obj, dict):
+        return None
+    ident = uri_obj.get("identifier")
+    if not ident:
+        return None
+    fk = fk_map.get(uuid.UUID(str(ident))) if _is_valid_uuid(str(ident)) else None
+    if fk is None:
+        report.warnings.append(f"{ctx}: {type_name} '{ident}' not found, set to null")
+    return fk
+
+
 # ---------------------------------------------------------------------------
 # Main import function
 # ---------------------------------------------------------------------------
@@ -1040,6 +1096,14 @@ async def _import_items(
     now: datetime,
     report: CaseImportReport,
 ) -> None:
+    # Preload lookups + existing items once (removes the per-row FK / existence
+    # N+1). A fresh tenant yields empty maps and the fastest insert path.
+    type_map = await _load_lookup_map(session, tenant_id, CFItemType)
+    concept_map = await _load_lookup_map(session, tenant_id, CFConcept)
+    license_map = await _load_lookup_map(session, tenant_id, CFLicense)
+    existing_items = await _load_existing_by_identifier(session, tenant_id, CFItem)
+
+    pending = 0
     for item_data in items_data:
         ident_str = item_data.get("identifier")
         fs_raw = item_data.get("fullStatement", "")
@@ -1063,60 +1127,16 @@ async def _import_items(
         ident_uuid = uuid.UUID(str(ident_str))
         ctx = f"CFItem '{ident_str}'"
 
-        # Check for existing item (tenant-wide by identifier)
-        result = await session.execute(
-            select(CFItem).where(
-                CFItem.tenant_id == tenant_id,
-                CFItem.identifier == ident_uuid,
-            )
-        )
-        existing = result.scalar_one_or_none()
+        # Existing item (tenant-wide by identifier) — from preloaded map
+        existing = existing_items.get(ident_uuid)
 
-        # Resolve FKs
-        # CFItemType
-        item_type_id: uuid.UUID | None = None
+        # Resolve FKs from preloaded maps
         item_type_uri = item_data.get("CFItemTypeURI")
-        if item_type_uri and isinstance(item_type_uri, dict):
-            type_ident = item_type_uri.get("identifier")
-            if type_ident:
-                item_type_id = await _resolve_fk_by_identifier(
-                    session,
-                    tenant_id,
-                    CFItemType,
-                    type_ident,
-                )
-                if item_type_id is None:
-                    report.warnings.append(f"{ctx}: CFItemType '{type_ident}' not found, set to null")
-
-        # CFConcept
-        concept_id: uuid.UUID | None = None
+        item_type_id = _fk_from_map(type_map, item_type_uri, ctx, "CFItemType", report)
         concept_uri = item_data.get("conceptKeywordsURI")
-        if concept_uri and isinstance(concept_uri, dict):
-            concept_ident = concept_uri.get("identifier")
-            if concept_ident:
-                concept_id = await _resolve_fk_by_identifier(
-                    session,
-                    tenant_id,
-                    CFConcept,
-                    concept_ident,
-                )
-                if concept_id is None:
-                    report.warnings.append(f"{ctx}: CFConcept '{concept_ident}' not found, set to null")
-
-        # CFLicense
-        license_id: uuid.UUID | None = None
+        concept_id = _fk_from_map(concept_map, concept_uri, ctx, "CFConcept", report)
         license_uri = item_data.get("licenseURI")
-        if license_uri and isinstance(license_uri, dict):
-            lic_ident = license_uri.get("identifier")
-            if lic_ident:
-                license_id = await _resolve_fk_by_identifier(
-                    session,
-                    tenant_id,
-                    CFLicense,
-                    lic_ident,
-                )
-                if license_id is None:
-                    report.warnings.append(f"{ctx}: CFLicense '{lic_ident}' not found, set to null")
+        license_id = _fk_from_map(license_map, license_uri, ctx, "CFLicense", report)
 
         lang = _validate_language(item_data.get("language"), ctx, report.warnings)
         ssd = _parse_date_with_warning(
@@ -1211,9 +1231,13 @@ async def _import_items(
                 last_change_date_time=ldt,
             )
             session.add(item)
+            existing_items[ident_uuid] = item  # so a dup identifier in the same package updates
             report.items_created += 1
 
-        await session.flush()
+        # Batch flush (was per-row): caps memory while collapsing per-row round-trips.
+        pending += 1
+        if pending % 5000 == 0:
+            await session.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -1229,6 +1253,11 @@ async def _import_associations(
     now: datetime,
     report: CaseImportReport,
 ) -> None:
+    # Preload grouping lookup + existing associations once (removes per-row N+1).
+    grouping_map = await _load_lookup_map(session, tenant_id, CFAssociationGrouping)
+    existing_assocs = await _load_existing_by_identifier(session, tenant_id, CFAssociation)
+
+    pending = 0
     for assoc_data in assocs_data:
         ident_str = assoc_data.get("identifier")
 
@@ -1269,29 +1298,13 @@ async def _import_associations(
             report.warnings,
         )
 
-        # Resolve CFAssociationGrouping FK
-        grouping_id: uuid.UUID | None = None
-        grouping_uri = assoc_data.get("CFAssociationGroupingURI")
-        if grouping_uri and isinstance(grouping_uri, dict):
-            grp_ident = grouping_uri.get("identifier")
-            if grp_ident:
-                grouping_id = await _resolve_fk_by_identifier(
-                    session,
-                    tenant_id,
-                    CFAssociationGrouping,
-                    grp_ident,
-                )
-                if grouping_id is None:
-                    report.warnings.append(f"{ctx}: CFAssociationGrouping '{grp_ident}' not found, set to null")
-
-        # Check existing
-        result = await session.execute(
-            select(CFAssociation).where(
-                CFAssociation.tenant_id == tenant_id,
-                CFAssociation.identifier == ident_uuid,
-            )
+        # Resolve CFAssociationGrouping FK from preloaded map
+        grouping_id = _fk_from_map(
+            grouping_map, assoc_data.get("CFAssociationGroupingURI"), ctx, "CFAssociationGrouping", report
         )
-        existing = result.scalar_one_or_none()
+
+        # Existing association (tenant-wide by identifier) — from preloaded map
+        existing = existing_assocs.get(ident_uuid)
 
         if existing is not None:
             if existing.cf_document_id != doc.id:
@@ -1343,9 +1356,13 @@ async def _import_associations(
                 last_change_date_time=ldt,
             )
             session.add(assoc)
+            existing_assocs[ident_uuid] = assoc  # so a dup identifier in the same package updates
             report.associations_created += 1
 
-        await session.flush()
+        # Batch flush (was per-row): caps memory while collapsing per-row round-trips.
+        pending += 1
+        if pending % 5000 == 0:
+            await session.flush()
 
 
 def _validate_association(data: dict) -> str | None:
