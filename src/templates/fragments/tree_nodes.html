@@ -1,7 +1,15 @@
-{# Renders TreeNodes as a nested <details> tree — full SSR, no lazy loading.
-   Expand/collapse is native <details> (no JS, no server round-trip). The label
-   is a real <a href> (works without JS) with HTMX layered on to swap the detail
-   pane. Uses: nodes, tenant_url, doc_identifier, selected_item. #}
+{# Renders TreeNodes as a nested <details> tree with LAZY loading. The initial
+   page SSRs depth 0-1 (plus the ancestor path to a deep-linked item); deeper
+   branches load one level on first expand via HTMX. Three node states:
+     - leaf:          no children.
+     - loaded branch: children already in `node.children` (depth 0-1 / deep-link
+                      path) → rendered inline, <details open>.
+     - lazy branch:   has_children but children not loaded → <details> with an
+                      hx-get container that fetches one level on first open.
+   Expand/collapse is native <details> (keyboard + screen-reader friendly). The
+   label is a real <a href> to /item/{id} (works without JS — non-JS clients,
+   crawlers and middle-click reach the item's full SSR page). Uses: nodes,
+   tenant_url, doc_identifier, selected_item, t. #}
 {% for node in nodes %}
 {% set is_sel = selected_item and node.item.identifier == selected_item.identifier %}
 {% set item_url = "/" ~ tenant_url ~ "/cftree/doc/" ~ doc_identifier ~ "/item/" ~ node.item.identifier|string %}
@@ -16,18 +24,31 @@
 {% set sel_classes = "bg-violet-50 ring-1 ring-inset ring-violet-200" if is_sel else "hover:bg-stone-100" %}
 {% if node.has_children %}
 <details class="mt-1"{% if node.is_expanded %} open{% endif %}>
-    <summary data-tree-item data-item-id="{{ node.item.identifier }}" class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer {{ sel_classes }}">
-        <span class="tree-tri w-5 h-5 flex-shrink-0 text-violet-500 select-none text-center">▶</span>
-        <a {{ label_attrs }} onclick="event.stopPropagation(); document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200')); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">{{ label_body }}</a>
+    <summary data-tree-item data-item-id="{{ node.item.identifier }}"{% if is_sel %} aria-current="true"{% endif %} class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer {{ sel_classes }}">
+        <span class="tree-tri w-5 h-5 flex-shrink-0 text-violet-500 select-none text-center" aria-hidden="true">▶</span>
+        <a {{ label_attrs }} onclick="event.stopPropagation(); markSelected(this);">{{ label_body }}</a>
     </summary>
+    {% if node.children %}
+    {# loaded branch — children already SSR'd inline #}
     <div class="ml-4">
         {% with nodes=node.children %}{% include "fragments/tree_nodes.html" %}{% endwith %}
     </div>
+    {% else %}
+    {# lazy branch — fetch one level of children on first open #}
+    <div class="ml-4" aria-busy="true"
+         hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
+         hx-trigger="toggle[event.target.open] once from:closest details"
+         hx-target="this"
+         hx-swap="innerHTML"
+         hx-on::after-swap="this.removeAttribute('aria-busy')">
+        <div role="status" class="py-1.5 px-2 text-sm text-stone-400">{{ t("tree_loading") }}</div>
+    </div>
+    {% endif %}
 </details>
 {% else %}
-<div data-tree-item data-item-id="{{ node.item.identifier }}" class="mt-1 flex items-center py-1.5 px-2 rounded {{ sel_classes }}">
-    <span class="w-5 h-5 flex-shrink-0 text-violet-200 text-center select-none">●</span>
-    <a {{ label_attrs }} onclick="document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200')); this.closest('[data-tree-item]').classList.add('bg-violet-50','ring-1','ring-inset','ring-violet-200');">{{ label_body }}</a>
+<div data-tree-item data-item-id="{{ node.item.identifier }}"{% if is_sel %} aria-current="true"{% endif %} class="mt-1 flex items-center py-1.5 px-2 rounded {{ sel_classes }}">
+    <span class="w-5 h-5 flex-shrink-0 text-violet-200 text-center select-none" aria-hidden="true">●</span>
+    <a {{ label_attrs }} onclick="markSelected(this);">{{ label_body }}</a>
 </div>
 {% endif %}
 {% endfor %}

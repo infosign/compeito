@@ -102,7 +102,7 @@ compeito/
 │   │   ├── case_query_service.py    # CASE API 単一リソース取得・一覧取得
 │   │   ├── case_query_params.py     # sort/orderBy/filter/fields パース共通
 │   │   ├── cf_view_service.py       # ツリービュー・詳細・CFPackage構築・list_document_definitions
-│   │   ├── tree_service.py          # build_full_tree / dfs_index / get_children
+│   │   ├── tree_service.py          # build_ssr_tree (遅延・深さ0-1) / get_children / build_full_tree (dfs_index 用) / dfs_index
 │   │   ├── uri_service.py           # /uri/{id} の任意リソース解決
 │   │   ├── case_import_service.py
 │   │   ├── csv_import_service.py / csv_export_service.py

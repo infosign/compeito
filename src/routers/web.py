@@ -392,10 +392,10 @@ async def _render_tree_page(
     item: str | None,
     session: AsyncSession,
 ) -> HTMLResponse:
-    """Render the full tree page, optionally with `item` selected (its full
-    detail SSR'd into the right pane). Shared by the query-string route
-    (`?item=`) and the path route (`/item/{id}`); the path form is what
-    in-tree navigation pushes (static-bakeable — one object per item)."""
+    """Render the tree page, optionally with `item` selected (its full detail
+    SSR'd into the right pane). Shared by the query-string route (`?item=`) and
+    the path route (`/item/{id}`); the path form is what in-tree navigation
+    pushes (canonical, shareable, reload-safe — one URL per item)."""
     lang = _get_lang(request)
     t = get_translator(lang)
     # Resolve tenant (UUID or slug)
@@ -419,7 +419,11 @@ async def _render_tree_page(
     # Parse optional ?item= parameter (ignore if invalid)
     selected_ident = _parse_uuid(item) if item else None
 
-    root_nodes, orphan_nodes, selected_item = await tree_service.build_full_tree(
+    # Lazy tree: SSR only depth 0-1 (+ the ancestor path to a deep-linked item).
+    # Deeper branches load one level on demand via the /children/ route. Keeps
+    # the initial page small for large frameworks (and within the Lambda/API GW
+    # response-size limits on the AWS deployment).
+    root_nodes, orphan_nodes, selected_item = await tree_service.build_ssr_tree(
         session,
         doc,
         selected_ident,
@@ -476,14 +480,17 @@ async def _render_tree_page(
                     open_rubric_ids.add(str(crit.identifier))
                     open_rubric_ids.add(str(crit.cf_rubric.identifier))
             if pane_type == "CFItem":
-                # Reuse the tree we just built for the related-list ordering.
+                # Related-list ordering needs the FULL tree's display order, but
+                # the rendered tree is now lazy (depth 0-1 only). Compute the
+                # full DFS index separately (build_full_tree under the hood) so
+                # related items deeper than the SSR'd levels still sort correctly.
                 extras = await _detail_extras(
                     session,
                     tenant_obj.id,
                     "CFItem",
                     pane_resource,
                     result.doc or doc,
-                    tree_service.dfs_index(root_nodes, orphan_nodes),
+                    await tree_service.doc_tree_index(session, doc),
                 )
                 referring_criteria = extras["referring_criteria"]
                 related_groups = extras["related_groups"]
@@ -564,9 +571,9 @@ async def tree_view_item(
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Tree view with an item selected via the URL path. This is the canonical,
-    shareable, static-bakeable form that in-tree navigation pushes; opening /
-    reloading / sharing it reconstructs the tree (expanded to the item) + the
-    item's full detail in the pane via SSR."""
+    shareable, reload-safe form that in-tree navigation pushes; opening /
+    reloading / sharing it reconstructs the tree (the ancestor path expanded to
+    the item) + the item's full detail in the pane via SSR."""
     return await _render_tree_page(tenant, doc_id, request, item_id, session)
 
 
@@ -740,6 +747,54 @@ async def detail_fragment(
     return await _pane_fragment_response(
         request, session, tenant, tenant_obj, result.doc or doc, result.resource, result.resource_type
     )
+
+
+@router.get(
+    "/{tenant}/cftree/doc/{doc_id}/children/{parent_id}",
+    response_class=HTMLResponse,
+)
+async def children_fragment(
+    tenant: str,
+    doc_id: str,
+    parent_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """HTMX fragment: one level of a parent item's children, for the lazy tree.
+    Returns the same `tree_nodes.html` markup as the initial SSR (each child is
+    itself a leaf / loaded / lazy node), so expansion is uniform at any depth."""
+    t = get_translator(_get_lang(request))
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
+    if tenant_obj is None:
+        return _error_fragment(404, t("error_tenant_not_found"))
+
+    doc_uuid = _parse_uuid(doc_id)
+    if doc_uuid is None:
+        return _error_fragment(400, t("error_bad_request"))
+    doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
+    if doc is None:
+        return _error_fragment(404, t("error_document_not_found"))
+
+    parent_uuid = _parse_uuid(parent_id)
+    if parent_uuid is None:
+        return HTMLResponse("", status_code=400)
+    # The parent must be an item in THIS document (same "tree node ⟺ this doc"
+    # invariant as the detail route) — otherwise we'd leak another doc's tree.
+    parent = await tree_service.get_item_for_detail(session, doc.id, parent_uuid)
+    if parent is None:
+        return _error_fragment(404, t("error_item_not_found"))
+
+    nodes = await tree_service.get_children(session, doc.id, str(parent_uuid))
+    ctx = {
+        "nodes": nodes,
+        "tenant_url": _tenant_url_segment(tenant, tenant_obj),
+        "doc_identifier": str(doc.identifier),
+        "selected_item": None,
+        "t": t,
+    }
+    response = templates.TemplateResponse(request, "fragments/tree_nodes.html", ctx)
+    response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
+    return response
 
 
 @router.get(

@@ -82,6 +82,74 @@ async def get_document_for_tree(
     return result.scalar_one_or_none()
 
 
+async def get_children_bulk(
+    session: AsyncSession,
+    doc_id: uuid.UUID,
+    parent_identifiers: list[str],
+) -> dict[str, list[TreeNode]]:
+    """Children of MANY parents in a fixed 3 queries (vs N+1 per parent).
+
+    Returns {parent_identifier: sorted TreeNodes with has_children populated}.
+    Parents with no children are absent from the dict. Used to expand a whole
+    tree level at once (initial depth 0-1) without a query per parent.
+    """
+    if not parent_identifiers:
+        return {}
+
+    # 1. all isChildOf associations whose destination is one of the parents.
+    #    origin isChildOf destination = origin is a child of destination.
+    assoc_result = await session.execute(
+        select(CFAssociation).where(
+            CFAssociation.cf_document_id == doc_id,
+            CFAssociation.association_type == "isChildOf",
+            CFAssociation.destination_node_identifier.in_(parent_identifiers),
+        )
+    )
+    # parent_ident -> {child_ident: best sequence_number (min, NULL last)}
+    children_by_parent: dict[str, dict[str, int | None]] = {}
+    for a in assoc_result.scalars().all():
+        info = children_by_parent.setdefault(a.destination_node_identifier, {})
+        ident, new_seq = a.origin_node_identifier, a.sequence_number
+        if ident not in info:
+            info[ident] = new_seq
+        elif new_seq is not None and (info[ident] is None or new_seq < info[ident]):
+            info[ident] = new_seq
+    if not children_by_parent:
+        return {}
+
+    # 2. load every child item across all parents in one query.
+    all_child_idents = {c for info in children_by_parent.values() for c in info}
+    child_uuids = _strs_to_uuids(list(all_child_idents))
+    items_by_ident: dict[str, CFItem] = {}
+    if child_uuids:
+        item_result = await session.execute(
+            select(CFItem)
+            .options(joinedload(CFItem.item_type))
+            .where(
+                CFItem.cf_document_id == doc_id,
+                CFItem.identifier.in_(child_uuids),
+            )
+        )
+        items_by_ident = {str(i.identifier): i for i in item_result.scalars().unique().all()}
+
+    # 3. one batch check of which of those children have their own children.
+    has_children_set = await _get_idents_with_children(session, doc_id, list(all_child_idents))
+
+    result: dict[str, list[TreeNode]] = {}
+    for parent, info in children_by_parent.items():
+        nodes = []
+        for ident, seq in info.items():
+            item = items_by_ident.get(ident)
+            if item is not None:
+                node = TreeNode(item=item, seq=seq)
+                node.has_children = ident in has_children_set
+                nodes.append(node)
+        if nodes:
+            nodes.sort(key=_child_sort_key)
+            result[parent] = nodes
+    return result
+
+
 async def get_children(
     session: AsyncSession,
     doc_id: uuid.UUID,
@@ -89,69 +157,12 @@ async def get_children(
 ) -> list[TreeNode]:
     """Get child items of a parent via isChildOf associations within a document.
 
-    Returns sorted TreeNodes with has_children populated.
+    Returns sorted TreeNodes with has_children populated. Thin wrapper over
+    `get_children_bulk` for the single-parent case (the /children/ lazy-expand
+    route and ancestor-path expansion).
     """
-    # Find isChildOf associations where destination = parent
-    assoc_result = await session.execute(
-        select(CFAssociation).where(
-            CFAssociation.cf_document_id == doc_id,
-            CFAssociation.association_type == "isChildOf",
-            CFAssociation.destination_node_identifier == parent_identifier,
-        )
-    )
-    assocs = assoc_result.scalars().all()
-    if not assocs:
-        return []
-
-    # origin isChildOf destination = origin is child of destination
-    # Collect child identifiers with best sequence_number
-    child_info: dict[str, int | None] = {}
-    for a in assocs:
-        ident = a.origin_node_identifier
-        new_seq = a.sequence_number
-        if ident not in child_info:
-            child_info[ident] = new_seq
-        else:
-            old_seq = child_info[ident]
-            # Pick min seq; NULL last
-            if new_seq is not None:
-                if old_seq is None or new_seq < old_seq:
-                    child_info[ident] = new_seq
-
-    # Load child items by UUID
-    child_uuids = _strs_to_uuids(list(child_info.keys()))
-    if not child_uuids:
-        return []
-
-    item_result = await session.execute(
-        select(CFItem)
-        .options(joinedload(CFItem.item_type))
-        .where(
-            CFItem.cf_document_id == doc_id,
-            CFItem.identifier.in_(child_uuids),
-        )
-    )
-    items_by_ident = {str(i.identifier): i for i in item_result.scalars().unique().all()}
-
-    # Build nodes
-    nodes = []
-    for ident, seq in child_info.items():
-        item = items_by_ident.get(ident)
-        if item is not None:
-            nodes.append(TreeNode(item=item, seq=seq))
-
-    # Batch check which children have their own children
-    if nodes:
-        has_children_set = await _get_idents_with_children(
-            session,
-            doc_id,
-            [str(n.item.identifier) for n in nodes],
-        )
-        for n in nodes:
-            n.has_children = str(n.item.identifier) in has_children_set
-
-    nodes.sort(key=_child_sort_key)
-    return nodes
+    by_parent = await get_children_bulk(session, doc_id, [parent_identifier])
+    return by_parent.get(parent_identifier, [])
 
 
 async def get_orphan_items(
@@ -306,7 +317,10 @@ async def build_ssr_tree(
 ) -> tuple[list[TreeNode], list[TreeNode], CFItem | None]:
     """Build the initial SSR tree (depth 0-1).
 
-    Returns (root_nodes, orphan_nodes, selected_item_or_None).
+    Returns (root_nodes, orphan_nodes, selected_item_or_None). Depth 0-1 is
+    loaded in a fixed number of queries regardless of how many roots there are
+    (one bulk fetch for all roots' children), so a wide framework — many roots —
+    doesn't incur a query per root.
     """
     doc_id = doc.id
     doc_ident = str(doc.identifier)
@@ -314,14 +328,13 @@ async def build_ssr_tree(
     # Root children (children of the document)
     root_nodes = await get_children(session, doc_id, doc_ident)
 
-    # Expand depth 0 nodes to show depth 1
+    # Expand depth 0 → depth 1 for ALL roots in one bulk fetch (no per-root query).
+    expandable = [str(n.item.identifier) for n in root_nodes if n.has_children]
+    children_by_parent = await get_children_bulk(session, doc_id, expandable)
     for node in root_nodes:
-        if node.has_children:
-            node.children = await get_children(
-                session,
-                doc_id,
-                str(node.item.identifier),
-            )
+        kids = children_by_parent.get(str(node.item.identifier))
+        if kids:
+            node.children = kids
             node.is_expanded = True
 
     # Orphan items

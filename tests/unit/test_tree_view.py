@@ -279,6 +279,44 @@ class TestBuildSSRTree:
         assert roots[0].children[0].item.full_statement == "Child"
         assert sel is None
 
+    async def test_build_ssr_tree_depth1_query_count_is_bounded(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Depth 0-1 loads in a bounded number of queries regardless of how many
+        roots there are — the bulk loader, not a query per root (#234 review)."""
+        from sqlalchemy import event
+
+        n_roots = 8
+        for i in range(n_roots):
+            root = _make_item(tenant, sample_document, full_statement=f"Root {i}", hcs=f"R{i}")
+            child = _make_item(tenant, sample_document, full_statement=f"Child {i}", hcs=f"C{i}")
+            db_session.add_all([root, child])
+            db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=i))
+            db_session.add(_make_is_child_of(sample_document, child.identifier, root.identifier, seq=1))
+        await db_session.flush()
+
+        count = 0
+
+        def _before(*args, **kwargs):
+            nonlocal count
+            count += 1
+
+        sync_engine = db_session.bind.sync_engine
+        event.listen(sync_engine, "before_cursor_execute", _before)
+        try:
+            roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document)
+        finally:
+            event.remove(sync_engine, "before_cursor_execute", _before)
+
+        assert len(roots) == n_roots
+        assert all(r.is_expanded and len(r.children) == 1 for r in roots)
+        # Bulk depth 0-1 is a small constant. The old per-root path would be
+        # 3 + 3*n_roots (= 27 for 8 roots); guard well below that.
+        assert count <= 12, f"build_ssr_tree used {count} queries for {n_roots} roots (should be bounded)"
+
     async def test_selected_item_returned(
         self,
         db_session: AsyncSession,
@@ -491,15 +529,16 @@ class TestTreeViewPage:
         assert resp.status_code == 200
         assert "Root Item" in resp.text
 
-    async def test_full_tree_ssr_includes_deep_nodes(
+    async def test_initial_tree_is_lazy_depth_0_1(
         self,
         db_session: AsyncSession,
         db_client,
         tenant: Tenant,
         sample_document: CFDocument,
     ):
-        """Full SSR: a grandchild (depth 2) is present in the page HTML without
-        any expansion round-trip, rendered inside nested <details>."""
+        """Lazy tree: the initial page SSRs only depth 0-1. A depth-2 grandchild
+        is NOT in the page; its parent is a lazy <details> with an hx-get that
+        fetches one level from the /children/ route on first open."""
         root = _make_item(tenant, sample_document, full_statement="Root R", hcs="R")
         child = _make_item(tenant, sample_document, full_statement="Child C", hcs="C")
         grand = _make_item(tenant, sample_document, full_statement="Grand G deep", hcs="G")
@@ -511,10 +550,100 @@ class TestTreeViewPage:
 
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
         assert resp.status_code == 200
-        # The deepest node is in the SSR HTML (no lazy load needed).
-        assert "Grand G deep" in resp.text
-        # Rendered via native <details> (JS-free expand/collapse).
+        # depth 0 (root) and depth 1 (child) are SSR'd; depth 2 (grand) is not.
+        assert "Root R" in resp.text
+        assert "Child C" in resp.text
+        assert "Grand G deep" not in resp.text
+        # Rendered via native <details> (keyboard/SR-friendly expand).
         assert "<details" in resp.text
+        # The child (which has the grandchild) is a lazy branch: its container
+        # fetches one level from the /children/ route on first open.
+        assert f"/cftree/doc/{sample_document.identifier}/children/{child.identifier}" in resp.text
+        assert 'hx-trigger="toggle' in resp.text
+
+    async def test_children_fragment_returns_one_level(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """The /children/{parent} fragment returns the parent's immediate
+        children (one level), each itself a tree node."""
+        root = _make_item(tenant, sample_document, full_statement="Root R", hcs="R")
+        child = _make_item(tenant, sample_document, full_statement="Child C", hcs="C")
+        grand = _make_item(tenant, sample_document, full_statement="Grand G deep", hcs="G")
+        db_session.add_all([root, child, grand])
+        db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, child.identifier, root.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, grand.identifier, child.identifier, seq=1))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/children/{child.identifier}")
+        assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "public, max-age=86400"
+        # the one level of children (the grandchild) is present; its own parent
+        # (the child) is not re-rendered.
+        assert "Grand G deep" in resp.text
+        assert f'/item/{grand.identifier}"' in resp.text
+
+    async def test_children_fragment_rejects_foreign_parent(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A parent_id not in this document → 404 (tree node ⟺ this doc)."""
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/children/{uuid.uuid4()}")
+        assert resp.status_code == 404
+
+    async def test_deep_link_ssrs_ancestor_path(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Deep-link /item/{grandchild}: the ancestor path is SSR'd (the
+        grandchild is in the page, expanded in context) — reload/share-safe even
+        though the tree is otherwise lazy."""
+        root = _make_item(tenant, sample_document, full_statement="Root R", hcs="R")
+        child = _make_item(tenant, sample_document, full_statement="Child C", hcs="C")
+        grand = _make_item(tenant, sample_document, full_statement="Grand G deep", hcs="G")
+        db_session.add_all([root, child, grand])
+        db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, child.identifier, root.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, grand.identifier, child.identifier, seq=1))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{grand.identifier}")
+        assert resp.status_code == 200
+        assert "Grand G deep" in resp.text  # ancestor path SSR'd to the target
+
+    async def test_tree_accessibility_attributes(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A11y: decorative triangle/bullet icons are aria-hidden; the selected
+        node carries aria-current; labels are real <a href> (no-JS reachable)."""
+        root = _make_item(tenant, sample_document, full_statement="Root R", hcs="R")
+        leaf = _make_item(tenant, sample_document, full_statement="Leaf L", hcs="L")
+        db_session.add_all([root, leaf])
+        db_session.add(_make_is_child_of(sample_document, root.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, leaf.identifier, root.identifier, seq=1))
+        await db_session.flush()
+
+        # Deep-link the leaf so it renders selected.
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{leaf.identifier}")
+        assert resp.status_code == 200
+        assert 'aria-hidden="true"' in resp.text  # decorative icons
+        assert 'aria-current="true"' in resp.text  # selected node
+        # label remains a real link to the item's full SSR page (no-JS / crawler)
+        assert f'href="/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{leaf.identifier}"' in resp.text
 
     async def test_tree_node_links_use_path_form_and_push_url(
         self,

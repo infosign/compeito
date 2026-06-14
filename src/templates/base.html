@@ -28,6 +28,13 @@
         details > summary.tree-summary::-webkit-details-marker { display: none; }
         .tree-tri { transition: transform 0.15s ease; }
         details[open] > summary > .tree-tri { transform: rotate(90deg); }
+        /* Visible keyboard focus ring for tree summaries and links (a11y). */
+        .tree-summary:focus-visible,
+        [data-tree-item] a:focus-visible {
+            outline: 2px solid #8B5CF6;
+            outline-offset: -2px;
+            border-radius: 0.375rem;
+        }
         .logo-text {
             font-family: 'Quicksand', sans-serif;
             background: linear-gradient(to right, #8B5CF6, #EC4899, #F59E0B, #10B981, #0EA5E9);
@@ -81,21 +88,36 @@
         pane.scrollTop += (er.top - pr.top) - (pr.height - er.height) / 2;
     }
 
+    // Selection highlight for a tree node. Centralized so the click handlers
+    // (tree_nodes.html / tree_node_macros.html) and selectTreeNode stay in sync,
+    // and so `aria-current` (semantic "current node" for screen readers) tracks
+    // the visual ring. Pass any element inside the node; resolves to its
+    // [data-tree-item] wrapper.
+    var TREE_SEL_CLASSES = ['bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200'];
+    function markSelected(el) {
+        var node = el && el.closest && el.closest('[data-tree-item]');
+        document.querySelectorAll('[data-tree-item]').forEach(function(e) {
+            e.classList.remove.apply(e.classList, TREE_SEL_CLASSES);
+            e.removeAttribute('aria-current');
+        });
+        if (node) {
+            node.classList.add.apply(node.classList, TREE_SEL_CLASSES);
+            node.setAttribute('aria-current', 'true');
+        }
+    }
+
     // Tree ↔ pane sync: select a tree node by item id — open its ancestor
     // <details>, highlight it, and reveal it if off-screen. No-op if the node
-    // isn't in the current tree (e.g. a cross-document link). Called from
-    // in-pane navigation so following a related link keeps the tree in step
-    // with the pane.
+    // isn't in the current tree (a cross-document link, or — with lazy loading —
+    // a node in a not-yet-expanded branch). Called from in-pane navigation so
+    // following a related link keeps the tree in step with the pane.
     function selectTreeNode(id) {
         var el = document.querySelector('[data-item-id="' + id + '"]');
         if (!el) return;
         for (var p = el.parentElement && el.parentElement.closest('details'); p; p = p.parentElement && p.parentElement.closest('details')) {
             p.open = true;
         }
-        document.querySelectorAll('[data-tree-item]').forEach(function(e) {
-            e.classList.remove('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
-        });
-        el.classList.add('bg-violet-50', 'ring-1', 'ring-inset', 'ring-violet-200');
+        markSelected(el);
         revealInTree(el);
     }
 
