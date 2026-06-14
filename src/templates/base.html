@@ -133,6 +133,16 @@
         if (m) selectTreeNode(m[1]);
     });
 
+    // When a new detail is swapped into the pane, scroll the pane back to the
+    // top so a freshly selected item is read from its heading — not from
+    // wherever the previous (longer) item left the scroll position. The pane
+    // is the scroll container on desktop (md:overflow-y-auto); on mobile it
+    // isn't scrollable, so scrollTop = 0 is a harmless no-op.
+    document.addEventListener('htmx:afterSwap', function(evt) {
+        var t = evt.detail && evt.detail.target;
+        if (t && t.id === 'detail-pane') t.scrollTop = 0;
+    });
+
     // On a full-page load of /item/{id}, the selected node is highlighted
     // server-side but may sit below the fold of the scrollable tree. Center it
     // within the tree container (scrolling the container only, not the window,
