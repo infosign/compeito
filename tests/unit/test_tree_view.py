@@ -2485,6 +2485,159 @@ class TestCrossTenantAssociations:
         assert str(parent.identifier) not in resp.text
         assert str(other_tenant.id) not in resp.text
 
+    async def test_local_uuid_collision_does_not_leak_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1 (core exploit): the SAME CFItem UUID exists in the CURRENT tenant's
+        own document AND in a PRIVATE other tenant. A related association points
+        at the private tenant's /uri/X. Identifier-first classification would
+        resolve X against the current tenant and render the private endpoint as a
+        local in-doc item (leaking its title / tenant). node_uri-first must
+        instead classify by the URI's tenant → fully hidden."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        # Same UUID exists locally (current tenant, same document → would be an
+        # in-tree node if resolved by identifier).
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(private_tenant, private_doc, full_statement="Secret", identifier=shared_ident)
+        db_session.add(private_item)
+        await db_session.flush()
+
+        # The related association points at the PRIVATE tenant's permalink.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(private_tenant.id, shared_ident),
+            title="Secret",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Nothing about the private endpoint leaks, even though the same UUID is a
+        # local in-doc item: not the secret title, not the private tenant id/url.
+        assert "Secret" not in resp.text
+        assert f"/{private_tenant.id}/" not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        # And it must NOT have been rendered as the local in-doc item (no nav link
+        # to the shared UUID in the current tenant's own tree).
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
+
+    async def test_local_uuid_collision_resolves_public_tenant(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: the SAME CFItem UUID exists locally AND in a PUBLIC other tenant; a
+        related association points at the public tenant's /uri/X. node_uri-first
+        must classify it as the PUBLIC other tenant's item (other-institution
+        link/badge), NOT the colliding local in-doc item."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        public_tenant = await self._other_tenant(db_session, is_private=False, slug="pub-inst")
+        public_doc = await self._doc(db_session, public_tenant)
+        public_item = _make_item(public_tenant, public_doc, full_statement="Public skill", identifier=shared_ident)
+        db_session.add(public_item)
+        await db_session.flush()
+
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(public_tenant.id, shared_ident),
+            title="Public skill",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Resolved against the PUBLIC other tenant's tree + badge.
+        assert f"/pub-inst/cftree/doc/{public_doc.identifier}/item/{shared_ident}" in resp.text
+        assert "他機関" in resp.text
+        # NOT rendered as the local in-doc item (would link into the current
+        # tenant's own tree under sample_document).
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
+
+    async def test_assoc_self_detail_local_collision_hides_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1 (CFAssociation self-detail): destination_node_uri is a PRIVATE
+        tenant's /uri/X while the same UUID X is also a local in-doc item.
+        node_uri-first must keep the row out of `assoc_node_in_doc`, so neither the
+        raw private URI nor the secret title is surfaced."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(private_tenant, private_doc, full_statement="Secret", identifier=shared_ident)
+        db_session.add(private_item)
+        await db_session.flush()
+
+        private_uri = self._internal_uri(private_tenant.id, shared_ident)
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="exactMatchOf",
+            origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=private_uri,
+            destination_node_identifier=str(shared_ident),
+            destination_node_title="Secret",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        # The private endpoint must not slip through `assoc_node_in_doc`: no raw
+        # private URI, no private tenant id, no secret title.
+        assert private_uri not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        assert "Secret" not in resp.text
+        # Not linked as the local in-doc item either.
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
+
 
 class TestErrorFragmentEscaping:
     """`_error_fragment` builds raw HTML, so it must HTML-escape its message
