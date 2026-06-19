@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from src.config import settings
 from src.models.cf_association import CFAssociation
 from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_concept import CFConcept
@@ -21,6 +22,35 @@ from src.models.cf_rubric import CFRubric
 from src.models.cf_rubric_criterion import CFRubricCriterion
 from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
+
+
+def parse_internal_tenant_id(uri: str | None) -> uuid.UUID | None:
+    """If `uri` is a compeito-internal CFItem permalink on THIS instance, return
+    the tenant UUID it points at; otherwise None.
+
+    A compeito permalink looks like ``{base_url}/{tenant-uuid}/uri/{item-uuid}``
+    (see `case_import_service._build_uri`). This recognizes that shape so a
+    CFAssociation endpoint URI stored against another tenant on the same
+    instance can be resolved to that tenant. Anything else — an external host, a
+    different path shape, an invalid tenant UUID, empty — returns None and is
+    treated as a true external reference by callers.
+    """
+    if not uri:
+        return None
+    prefix = settings.base_url.rstrip("/") + "/"
+    if not uri.startswith(prefix):
+        return None
+    rest = uri[len(prefix) :]
+    parts = rest.split("/")
+    # Expect exactly {tenant-uuid}/uri/{item-uuid}: first segment a valid UUID,
+    # second literally "uri". (We don't require the 3rd to parse — the tenant id
+    # is all callers need; item resolution happens later against that tenant.)
+    if len(parts) < 3 or parts[1] != "uri":
+        return None
+    try:
+        return uuid.UUID(parts[0])
+    except (ValueError, AttributeError):
+        return None
 
 
 @dataclass
