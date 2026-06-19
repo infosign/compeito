@@ -99,6 +99,12 @@ destination（親）= CFItem または CFDocument "数と式"
 **別フレームワークの項目も指せる**。`exactMatchOf` 等で他FWの相当項目に紐付けるのがこの仕組み。
 通常の URI 参照（`LinkURIDType`）は identifier が UUID 必須だが、`LinkGenURIDType` は非UUIDも許容する。
 
+**テナント横断（同一インスタンス）**: 関連は**宣言する側のテナントが所有**する。端点の `〜NodeURI` が
+同一 compeito インスタンス上の**別テナントの public な CFItem**（`{base_url}/{tenant}/uri/{item}` 形式）を
+指す場合、Web UI はそれを解決して相手の title＋「他機関」バッジ＋相手テナントのツリーへの切替リンクを出す。
+**private な別テナント**を指す端点は**完全非表示**（存在も title も URI も出さない）。別ホストの真の外部 URL は
+従来どおり別タブで開く外部リンクのまま。詳細は web-ui.md の「相互参照の出し分け」を参照。
+
 ---
 
 ## 3. ④ 参照（`〜URI` フィールドで指す）

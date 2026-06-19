@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.models.cf_association import CFAssociation
 from src.models.cf_association_grouping import CFAssociationGrouping
 from src.models.cf_document import CFDocument
@@ -1984,6 +1985,658 @@ class TestCrossDocHierarchy:
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{parent.identifier}")
         assert resp.status_code == 200
         assert "下位（別フレームワーク）" not in resp.text
+
+
+class TestCrossTenantAssociations:
+    """A CFAssociation endpoint whose node_uri points at a CFItem in ANOTHER
+    tenant on this same compeito instance is resolved when that tenant is
+    public: the detail pane shows the target title, a link that switches to the
+    other tenant's tree, and an "other institution" badge. Private other tenants
+    are fully hidden (no title, no URI). True external hosts link out as before.
+    """
+
+    NOW = datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    async def _other_tenant(self, db_session: AsyncSession, *, is_private: bool, slug: str | None = None) -> Tenant:
+        t = Tenant(id=uuid.uuid4(), name="Other Inst", is_private=is_private, slug=slug)
+        db_session.add(t)
+        await db_session.flush()
+        return t
+
+    async def _doc(self, db_session: AsyncSession, other_tenant: Tenant) -> CFDocument:
+        doc = CFDocument(
+            id=uuid.uuid4(),
+            tenant_id=other_tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/other-fw",
+            title="Other Framework",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(doc)
+        await db_session.flush()
+        return doc
+
+    def _internal_uri(self, tenant_id, item_ident) -> str:
+        # Must match settings.base_url so the URI is recognized as internal.
+        return f"{settings.base_url}/{tenant_id}/uri/{item_ident}"
+
+    async def _related_assoc(self, db_session, tenant, sample_document, origin, dest_ident, dest_uri, *, title) -> None:
+        grouping = CFAssociationGrouping(
+            tenant_id=tenant.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/grp/" + str(uuid.uuid4()),
+            title="Essential",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(grouping)
+        await db_session.flush()
+        db_session.add(
+            CFAssociation(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                association_type="isRelatedTo",
+                origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+                origin_node_identifier=str(origin.identifier),
+                destination_node_uri=dest_uri,
+                destination_node_identifier=str(dest_ident),
+                destination_node_title=title,
+                cf_association_grouping_id=grouping.id,
+                last_change_date_time=self.NOW,
+            )
+        )
+        await db_session.flush()
+
+    async def test_public_other_tenant_resolved_with_badge(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Cross-tenant skill")
+        db_session.add(dest)
+        await db_session.flush()
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            dest.identifier,
+            self._internal_uri(other_tenant.id, dest.identifier),
+            title="Cross-tenant skill",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert "Cross-tenant skill" in resp.text
+        # Link switches to the OTHER tenant's tree (segment = its UUID, no slug).
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+        assert "他機関" in resp.text  # other-institution badge (ja)
+
+    async def test_public_other_tenant_uses_slug_segment(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """When the other tenant has a slug, the switch link uses the slug."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False, slug="other-inst")
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Slug skill")
+        db_session.add(dest)
+        await db_session.flush()
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            dest.identifier,
+            self._internal_uri(other_tenant.id, dest.identifier),
+            title="Slug skill",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert f"/other-inst/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+
+    async def test_private_other_tenant_fully_hidden(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=True)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Secret skill")
+        db_session.add(dest)
+        await db_session.flush()
+        dest_uri = self._internal_uri(other_tenant.id, dest.identifier)
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            dest.identifier,
+            dest_uri,
+            title="Secret skill title",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Nothing about the private tenant is surfaced: not the title, not the URI,
+        # not a link to its tree.
+        assert "Secret skill title" not in resp.text
+        assert str(dest.identifier) not in resp.text
+        assert str(other_tenant.id) not in resp.text
+        assert "他機関" not in resp.text
+
+    async def test_assoc_self_detail_hides_private_endpoint_uri(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """CFAssociation の自己詳細 (/uri/{assoc}) で destination が private 別テナントを
+        指す場合、raw URI（private permalink）を一切出さない（案A）。public な origin
+        テナントの association 経由で private テナントの URL が漏れるのを防ぐ。"""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        priv_doc = await self._doc(db_session, private_tenant)
+        dest = _make_item(private_tenant, priv_doc, full_statement="Secret skill")
+        db_session.add(dest)
+        await db_session.flush()
+        private_uri = self._internal_uri(private_tenant.id, dest.identifier)
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="exactMatchOf",
+            origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=private_uri,
+            destination_node_identifier=str(dest.identifier),
+            destination_node_title="Secret skill",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        # private permalink(URI) も private テナント UUID も出ない → URL 復元不可
+        assert private_uri not in resp.text
+        assert str(private_tenant.id) not in resp.text
+
+    async def test_true_external_host_links_out(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A destination on a DIFFERENT host is a real external reference: it
+        still links out in a new tab (unchanged behavior)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        external_dest = uuid.uuid4()
+        external_uri = f"https://other.example.org/x/uri/{external_dest}"
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            external_dest,
+            external_uri,
+            title="External skill",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert external_uri in resp.text
+        assert 'target="_blank"' in resp.text
+        assert "External skill" in resp.text
+
+    async def test_shared_identifier_does_not_leak_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: two associations on the current item point at the SAME CFItem UUID,
+        but via different tenants — one public (A), one private (B). Resolution
+        must key off node_uri, not the bare identifier: A links out, B leaves no
+        trace at all (B must not be shown as A's public link)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        # The shared CFItem identifier present in BOTH other tenants.
+        shared_ident = uuid.uuid4()
+
+        public_tenant = await self._other_tenant(db_session, is_private=False)
+        public_doc = await self._doc(db_session, public_tenant)
+        public_item = _make_item(
+            public_tenant, public_doc, full_statement="Public shared skill", identifier=shared_ident
+        )
+        db_session.add(public_item)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(
+            private_tenant, private_doc, full_statement="Private shared skill", identifier=shared_ident
+        )
+        db_session.add(private_item)
+        await db_session.flush()
+
+        # Two related associations from the same origin, same dest identifier,
+        # different tenant node_uris.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(public_tenant.id, shared_ident),
+            title="Public shared skill",
+        )
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(private_tenant.id, shared_ident),
+            title="Private shared skill title",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Public tenant A: linked into its own tree.
+        assert f"/{public_tenant.id}/cftree/doc/{public_doc.identifier}/item/{shared_ident}" in resp.text
+        # Private tenant B: never surfaced — no link, no title, no tenant id, even
+        # though it shares the identifier with the public item.
+        assert f"/{private_tenant.id}/" not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        assert "Private shared skill title" not in resp.text
+
+    async def test_shared_identifier_two_public_tenants_link_correctly(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: the same CFItem UUID exists in two DIFFERENT public tenants; each
+        related association links to the correct tenant's tree segment (the
+        node_uri disambiguates which tenant each row belongs to)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+
+        tenant_a = await self._other_tenant(db_session, is_private=False, slug="inst-a")
+        doc_a = await self._doc(db_session, tenant_a)
+        item_a = _make_item(tenant_a, doc_a, full_statement="Skill in A", identifier=shared_ident)
+        db_session.add(item_a)
+
+        tenant_b = await self._other_tenant(db_session, is_private=False, slug="inst-b")
+        doc_b = await self._doc(db_session, tenant_b)
+        item_b = _make_item(tenant_b, doc_b, full_statement="Skill in B", identifier=shared_ident)
+        db_session.add(item_b)
+        await db_session.flush()
+
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(tenant_a.id, shared_ident),
+            title="Skill in A",
+        )
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(tenant_b.id, shared_ident),
+            title="Skill in B",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Each association links to its OWN tenant's tree segment.
+        assert f"/inst-a/cftree/doc/{doc_a.identifier}/item/{shared_ident}" in resp.text
+        assert f"/inst-b/cftree/doc/{doc_b.identifier}/item/{shared_ident}" in resp.text
+
+    async def test_resolved_label_used_when_title_blank(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P2: when the stored destination_node_title is blank but the endpoint
+        resolves to a public other-tenant item, the resolved label (the item's
+        own full_statement) is used for the link text."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Resolved label skill")
+        db_session.add(dest)
+        await db_session.flush()
+        # Stored title intentionally blank → must fall back to resolved label.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            dest.identifier,
+            self._internal_uri(other_tenant.id, dest.identifier),
+            title="",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert "Resolved label skill" in resp.text
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+
+    async def test_resolved_label_used_in_assoc_self_detail_when_title_blank(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P2 (association self-detail): a CFAssociation whose destination_node_title
+        is blank but resolves to a public other-tenant item shows the resolved
+        label (not the bare UUID) and links to that tenant's tree."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Assoc resolved skill")
+        db_session.add(dest)
+        await db_session.flush()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="exactMatchOf",
+            origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=self._internal_uri(other_tenant.id, dest.identifier),
+            destination_node_identifier=str(dest.identifier),
+            destination_node_title="",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        assert "Assoc resolved skill" in resp.text
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+        assert "他機関" in resp.text
+
+    async def test_cross_tenant_ischildof_in_hierarchy(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A cross-tenant isChildOf parent (public other tenant) surfaces in the
+        上位（別FW）section with a link to the other tenant's tree + badge."""
+        child = _make_item(tenant, sample_document, full_statement="Child item", hcs="C1")
+        db_session.add(child)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        parent = _make_item(other_tenant, other_doc, full_statement="Parent group", hcs="C0")
+        db_session.add(parent)
+        await db_session.flush()
+        # isChildOf owned by current tenant: origin=child (here), destination=parent (other tenant).
+        db_session.add(
+            CFAssociation(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                association_type="isChildOf",
+                origin_node_uri=self._internal_uri(tenant.id, child.identifier),
+                origin_node_identifier=str(child.identifier),
+                destination_node_uri=self._internal_uri(other_tenant.id, parent.identifier),
+                destination_node_identifier=str(parent.identifier),
+                last_change_date_time=self.NOW,
+            )
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{child.identifier}")
+        assert resp.status_code == 200
+        assert "上位" in resp.text
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{parent.identifier}" in resp.text
+        assert "他機関" in resp.text
+
+    async def test_private_other_tenant_ischildof_hidden(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A cross-tenant isChildOf parent in a PRIVATE tenant is not surfaced at
+        all (no 上位 entry, no link)."""
+        child = _make_item(tenant, sample_document, full_statement="Child item", hcs="C1")
+        db_session.add(child)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=True)
+        other_doc = await self._doc(db_session, other_tenant)
+        parent = _make_item(other_tenant, other_doc, full_statement="Secret parent", hcs="C0")
+        db_session.add(parent)
+        await db_session.flush()
+        db_session.add(
+            CFAssociation(
+                tenant_id=tenant.id,
+                cf_document_id=sample_document.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                association_type="isChildOf",
+                origin_node_uri=self._internal_uri(tenant.id, child.identifier),
+                origin_node_identifier=str(child.identifier),
+                destination_node_uri=self._internal_uri(other_tenant.id, parent.identifier),
+                destination_node_identifier=str(parent.identifier),
+                last_change_date_time=self.NOW,
+            )
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{child.identifier}")
+        assert resp.status_code == 200
+        assert "Secret parent" not in resp.text
+        assert str(parent.identifier) not in resp.text
+        assert str(other_tenant.id) not in resp.text
+
+    async def test_local_uuid_collision_does_not_leak_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1 (core exploit): the SAME CFItem UUID exists in the CURRENT tenant's
+        own document AND in a PRIVATE other tenant. A related association points
+        at the private tenant's /uri/X. Identifier-first classification would
+        resolve X against the current tenant and render the private endpoint as a
+        local in-doc item (leaking its title / tenant). node_uri-first must
+        instead classify by the URI's tenant → fully hidden."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        # Same UUID exists locally (current tenant, same document → would be an
+        # in-tree node if resolved by identifier).
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(private_tenant, private_doc, full_statement="Secret", identifier=shared_ident)
+        db_session.add(private_item)
+        await db_session.flush()
+
+        # The related association points at the PRIVATE tenant's permalink.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(private_tenant.id, shared_ident),
+            title="Secret",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Nothing about the private endpoint leaks, even though the same UUID is a
+        # local in-doc item: not the secret title, not the private tenant id/url.
+        assert "Secret" not in resp.text
+        assert f"/{private_tenant.id}/" not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        # And it must NOT have been rendered as the local in-doc item (no nav link
+        # to the shared UUID in the current tenant's own tree).
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
+
+    async def test_local_uuid_collision_resolves_public_tenant(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: the SAME CFItem UUID exists locally AND in a PUBLIC other tenant; a
+        related association points at the public tenant's /uri/X. node_uri-first
+        must classify it as the PUBLIC other tenant's item (other-institution
+        link/badge), NOT the colliding local in-doc item."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        public_tenant = await self._other_tenant(db_session, is_private=False, slug="pub-inst")
+        public_doc = await self._doc(db_session, public_tenant)
+        public_item = _make_item(public_tenant, public_doc, full_statement="Public skill", identifier=shared_ident)
+        db_session.add(public_item)
+        await db_session.flush()
+
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(public_tenant.id, shared_ident),
+            title="Public skill",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Resolved against the PUBLIC other tenant's tree + badge.
+        assert f"/pub-inst/cftree/doc/{public_doc.identifier}/item/{shared_ident}" in resp.text
+        assert "他機関" in resp.text
+        # NOT rendered as the local in-doc item (would link into the current
+        # tenant's own tree under sample_document).
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
+
+    async def test_assoc_self_detail_local_collision_hides_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1 (CFAssociation self-detail): destination_node_uri is a PRIVATE
+        tenant's /uri/X while the same UUID X is also a local in-doc item.
+        node_uri-first must keep the row out of `assoc_node_in_doc`, so neither the
+        raw private URI nor the secret title is surfaced."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+        local_collision = _make_item(
+            tenant, sample_document, full_statement="Local same-UUID item", identifier=shared_ident
+        )
+        db_session.add(local_collision)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(private_tenant, private_doc, full_statement="Secret", identifier=shared_ident)
+        db_session.add(private_item)
+        await db_session.flush()
+
+        private_uri = self._internal_uri(private_tenant.id, shared_ident)
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="exactMatchOf",
+            origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=private_uri,
+            destination_node_identifier=str(shared_ident),
+            destination_node_title="Secret",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        # The private endpoint must not slip through `assoc_node_in_doc`: no raw
+        # private URI, no private tenant id, no secret title.
+        assert private_uri not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        assert "Secret" not in resp.text
+        # Not linked as the local in-doc item either.
+        assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
 
 
 class TestErrorFragmentEscaping:

@@ -184,11 +184,16 @@
 {% macro classified_ref(ident, label, uri, in_doc, other) -%}
 {%- if in_doc -%}
 {{ def_nav(ident, label, True) }}
+{%- elif other and other.tenant_segment -%}
+{# Public other tenant on this instance → switch to that tenant's tree. #}
+<a href="/{{ other.tenant_segment }}/cftree/doc/{{ other.doc_identifier }}/item/{{ ident }}" class="text-violet-600 hover:text-violet-800" title="{{ other.doc_title }}">{{ label }}</a><span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-50 text-amber-700 align-middle">{{ t("related_other_institution") }}</span>
 {%- elif other -%}
 <a href="/{{ tenant_url }}/cftree/doc/{{ other.doc_identifier }}/item/{{ ident }}" class="text-violet-600 hover:text-violet-800" title="{{ other.doc_title }}">{{ label }}</a><span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
-{%- elif uri and (uri.startswith("http://") or uri.startswith("https://")) -%}
+{%- elif uri and (uri.startswith("http://") or uri.startswith("https://")) and not is_internal_uri(uri) -%}
 <a href="{{ uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800">{{ label }}</a><span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
 {%- else -%}
+{# Plain label: unsafe/empty scheme, or an internal URI that did not resolve to a
+   public item (private other tenant / hidden) → no link surfaced. #}
 {{ label }}
 {%- endif -%}
 {%- endmacro %}
@@ -409,9 +414,27 @@
                         <ul class="ml-4 mt-1 space-y-1">
                             {% for a in grp["items"] %}
                             {% set dest = a.destination_node_identifier %}
-                            {% set dest_label = a.destination_node_title or dest %}
+                            {# node_uri-first classification (P1): when the endpoint's node_uri
+                               targets ANOTHER tenant, never treat it as an in-doc / other-doc
+                               item even if its UUID collides with one — resolve it cross-tenant
+                               only (public → shown, private/nonexistent → hidden). #}
+                            {% set dest_other_tenant = uri_other_tenant(a.destination_node_uri, tenant.id) %}
+                            {# Cross-tenant entries are keyed by node_uri (tenant-unique): the
+                               same dest UUID can point at different tenants across associations,
+                               so a bare-identifier lookup would let a private endpoint borrow a
+                               public one's resolution. #}
+                            {% set dest_ct = related_other_tenant.get(a.destination_node_uri) if related_other_tenant else none %}
+                            {% set dest_label = (dest_ct.label if dest_ct else None) or a.destination_node_title or dest %}
+                            {# Skip the row entirely for an unresolved INTERNAL URI: that means a
+                               private other tenant (or hidden item) on this instance — its very
+                               existence must not be surfaced. Resolved internal items
+                               (related_in_doc / related_other_doc / related_other_tenant) still show. #}
+                            {% if a.destination_node_uri and is_internal_uri(a.destination_node_uri)
+                               and (dest_other_tenant or (dest not in related_in_doc and not (related_other_doc and dest in related_other_doc)))
+                               and not dest_ct %}
+                            {% else %}
                             <li>
-                                {% if in_pane and doc and dest in related_in_doc %}
+                                {% if not dest_other_tenant and in_pane and doc and dest in related_in_doc %}
                                 {# Same-doc item → navigate within the tree (swap pane + sync tree + push URL). #}
                 {# Tree sync after swap is handled globally (htmx:afterSettle reads
                    the pushed /item/{id} URL) — robust since this link is inside the
@@ -421,19 +444,28 @@
                                    hx-get="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/detail/{{ dest }}"
                                    hx-target="#detail-pane" hx-swap="innerHTML"
                                    hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}/item/{{ dest }}">{{ dest_label }}</a>
-                                {% elif dest in related_in_doc %}
+                                {% elif not dest_other_tenant and dest in related_in_doc %}
                                 {# Same-doc item, standalone page → its tree-item page. #}
                                 <a href="/{{ tenant_url }}/uri/{{ dest }}" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
-                                {% elif related_other_doc and dest in related_other_doc %}
+                                {% elif not dest_other_tenant and related_other_doc and dest in related_other_doc %}
                                 {# Same-tenant item in another framework → switch the tree to that document. #}
                                 <a href="/{{ tenant_url }}/cftree/doc/{{ related_other_doc[dest].doc_identifier }}/item/{{ dest }}"
                                    class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
                                    title="{{ related_other_doc[dest].doc_title }}">{{ dest_label }}</a>
                                 <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-600 align-middle">{{ t("related_other_framework") }}</span>
-                                {% elif a.destination_node_uri and (a.destination_node_uri.startswith("http://") or a.destination_node_uri.startswith("https://")) %}
+                                {% elif dest_ct %}
+                                {# Public item in ANOTHER tenant on this instance → switch to that tenant's tree. #}
+                                <a href="/{{ dest_ct.tenant_segment }}/cftree/doc/{{ dest_ct.doc_identifier }}/item/{{ dest }}"
+                                   class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
+                                   title="{{ dest_ct.doc_title }}">{{ dest_label }}</a>
+                                <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-50 text-amber-700 align-middle">{{ t("related_other_institution") }}</span>
+                                {% elif a.destination_node_uri and (a.destination_node_uri.startswith("http://") or a.destination_node_uri.startswith("https://")) and not is_internal_uri(a.destination_node_uri) %}
                                 {# External / unresolvable reference → link out in a new tab.
                                    Only http(s) is linkified; other schemes (javascript:, data:)
-                                   from external CASE data are rendered as plain text below. #}
+                                   from external CASE data are rendered as plain text below.
+                                   Internal compeito URIs that did NOT resolve (private other
+                                   tenant / hidden item) are excluded here → fall through and are
+                                   dropped entirely (never surfaced). #}
                                 <a href="{{ a.destination_node_uri }}" target="_blank" rel="noopener" class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ dest_label }}</a>
                                 <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-stone-100 text-stone-500 align-middle">{{ t("related_external") }}↗</span>
                                 {% else %}
@@ -443,6 +475,7 @@
                                 {% endif %}
                                 {% if a.association_type and a.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ a.association_type }})</span>{% endif %}
                             </li>
+                            {% endif %}
                             {% endfor %}
                         </ul>
                     </div>
@@ -546,7 +579,17 @@
     {# ========== CFAssociation ========== #}
     {% elif resource_type == "CFAssociation" %}
         {% set permalink = request.base_url|string ~ tenant.id|string ~ "/uri/" ~ resource.identifier|string %}
-        {% set assoc_heading %}{{ resource.origin_node_title or resource.origin_node_identifier }} <span class="text-stone-400 font-normal">→</span> {{ resource.destination_node_title or resource.destination_node_identifier }}{% endset %}
+        {# node_uri-first (P1): for an endpoint targeting another tenant, only a
+           node_uri-keyed cross-tenant (public) resolution may supply a label —
+           the stored node_title could be a private tenant's secret string and
+           must not leak into the heading. Fall back to the bare identifier. #}
+        {% set _o_other_tenant = uri_other_tenant(resource.origin_node_uri, tenant.id) %}
+        {% set _d_other_tenant = uri_other_tenant(resource.destination_node_uri, tenant.id) %}
+        {% set _o_ct = assoc_node_cross_tenant.get(resource.origin_node_uri) if assoc_node_cross_tenant else none %}
+        {% set _d_ct = assoc_node_cross_tenant.get(resource.destination_node_uri) if assoc_node_cross_tenant else none %}
+        {% set _o_heading = (_o_ct.label if _o_ct else resource.origin_node_identifier) if _o_other_tenant else (resource.origin_node_title or resource.origin_node_identifier) %}
+        {% set _d_heading = (_d_ct.label if _d_ct else resource.destination_node_identifier) if _d_other_tenant else (resource.destination_node_title or resource.destination_node_identifier) %}
+        {% set assoc_heading %}{{ _o_heading }} <span class="text-stone-400 font-normal">→</span> {{ _d_heading }}{% endset %}
         {% call detail_header(resource_type, assoc_heading, code=resource.association_type) %}
             {{ copy_chip(t("f_identifier"), resource.identifier) }}
             {{ copy_chip(t("f_permalink"), permalink) }}
@@ -556,9 +599,23 @@
             <div>
                 <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_origin_node_uri") }}</dt>
                 <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                    {% if resource.origin_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.origin_node_identifier, resource.origin_node_title, resource.origin_node_uri, resource.origin_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.origin_node_identifier)) }}</div>{% endif %}
+                    {# node_uri-first (P1): an endpoint targeting ANOTHER tenant is never an
+                       in-doc node, even if its UUID collides with a local item — only the
+                       node_uri-keyed cross-tenant entry (public) may surface it. #}
+                    {% set origin_other_tenant = uri_other_tenant(resource.origin_node_uri, tenant.id) %}
+                    {# Cross-tenant entry is keyed by node_uri (tenant-unique); same-tenant
+                       other-doc is keyed by identifier (unique within a tenant). #}
+                    {% set origin_other = (none if origin_other_tenant else assoc_node_other_doc.get(resource.origin_node_identifier)) or assoc_node_cross_tenant.get(resource.origin_node_uri) %}
+                    {% set origin_in_doc = (not origin_other_tenant) and resource.origin_node_identifier in assoc_node_in_doc %}
+                    {# For an unresolved cross-tenant endpoint, the stored node_title may be a
+                       private tenant's secret — suppress it; only a resolved cross-tenant
+                       (public) label may be shown. #}
+                    {% set origin_safe_title = none if (origin_other_tenant and not origin_other) else resource.origin_node_title %}
+                    {% set origin_label = (origin_other.label if origin_other and origin_other.get("label") else None) or origin_safe_title or resource.origin_node_identifier %}
+                    {% if origin_safe_title or origin_other %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.origin_node_identifier, origin_label, resource.origin_node_uri, origin_in_doc, origin_other) }}</div>{% endif %}
                     <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.origin_node_identifier) }}<code class="text-sm">{{ resource.origin_node_identifier }}</code></div>
-                    {{ nested_uri(t("f_uri"), resource.origin_node_uri) }}
+                    {# Hide the raw URI when it points at an internal tenant that did not resolve to a public item (private/hidden) — else a public association would leak a private tenant's permalink. #}
+                    {% if not (resource.origin_node_uri and is_internal_uri(resource.origin_node_uri) and not origin_in_doc and not origin_other) %}{{ nested_uri(t("f_uri"), resource.origin_node_uri) }}{% endif %}
                     {% if resource.origin_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.origin_node_target_type }}</div>{% endif %}
                 </dd>
             </div>
@@ -566,9 +623,23 @@
             <div>
                 <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("f_destination_node_uri") }}</dt>
                 <dd class="text-gray-800 ml-4 mt-1 space-y-0.5">
-                    {% if resource.destination_node_title %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.destination_node_identifier, resource.destination_node_title, resource.destination_node_uri, resource.destination_node_identifier in assoc_node_in_doc, assoc_node_other_doc.get(resource.destination_node_identifier)) }}</div>{% endif %}
+                    {# node_uri-first (P1): an endpoint targeting ANOTHER tenant is never an
+                       in-doc node, even if its UUID collides with a local item — only the
+                       node_uri-keyed cross-tenant entry (public) may surface it. #}
+                    {% set dest_other_tenant = uri_other_tenant(resource.destination_node_uri, tenant.id) %}
+                    {# Cross-tenant entry is keyed by node_uri (tenant-unique); same-tenant
+                       other-doc is keyed by identifier (unique within a tenant). #}
+                    {% set dest_other = (none if dest_other_tenant else assoc_node_other_doc.get(resource.destination_node_identifier)) or assoc_node_cross_tenant.get(resource.destination_node_uri) %}
+                    {% set dest_in_doc = (not dest_other_tenant) and resource.destination_node_identifier in assoc_node_in_doc %}
+                    {# For an unresolved cross-tenant endpoint, the stored node_title may be a
+                       private tenant's secret — suppress it; only a resolved cross-tenant
+                       (public) label may be shown. #}
+                    {% set dest_safe_title = none if (dest_other_tenant and not dest_other) else resource.destination_node_title %}
+                    {% set dest_label = (dest_other.label if dest_other and dest_other.get("label") else None) or dest_safe_title or resource.destination_node_identifier %}
+                    {% if dest_safe_title or dest_other %}<div>{{ sub_label(t("f_title")) }}{{ classified_ref(resource.destination_node_identifier, dest_label, resource.destination_node_uri, dest_in_doc, dest_other) }}</div>{% endif %}
                     <div>{{ sub_label(t("f_identifier")) }}{{ copy_btn(resource.destination_node_identifier) }}<code class="text-sm">{{ resource.destination_node_identifier }}</code></div>
-                    {{ nested_uri(t("f_uri"), resource.destination_node_uri) }}
+                    {# Hide the raw URI when it points at an internal tenant that did not resolve to a public item (private/hidden) — else a public association would leak a private tenant's permalink. #}
+                    {% if not (resource.destination_node_uri and is_internal_uri(resource.destination_node_uri) and not dest_in_doc and not dest_other) %}{{ nested_uri(t("f_uri"), resource.destination_node_uri) }}{% endif %}
                     {% if resource.destination_node_target_type %}<div>{{ sub_label(t("f_target_type")) }}{{ resource.destination_node_target_type }}</div>{% endif %}
                 </dd>
             </div>
