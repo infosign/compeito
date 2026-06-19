@@ -188,30 +188,39 @@ async def _resolve_cross_tenant(
     and only **public** (is_private=False) ones are kept — private and
     nonexistent tenants are dropped entirely so they leave no trace in the UI.
 
-    Returns ``{identifier: {"label", "doc_identifier", "doc_title",
+    The result is keyed by **node_uri**, not by identifier: a CFItem UUID is only
+    unique *within* a tenant (the same identifier routinely exists across tenants
+    when a shared framework is imported into several institutions). Keying by the
+    tenant-qualified node_uri keeps a private tenant's endpoint from ever
+    colliding with — and being shown as — a public tenant's identically-identified
+    item.
+
+    Returns ``{node_uri: {"label", "doc_identifier", "doc_title",
     "tenant_segment"}}`` for resolved public-other-tenant items only.
     """
-    # Group candidate identifiers by the other tenant they point at.
-    by_tenant: dict[uuid.UUID, set[str]] = {}
+    # Group candidate identifiers by the other tenant they point at, tracking the
+    # node_uri each (identifier, tenant) pair came from so the result can be keyed
+    # back by node_uri (the only tenant-unique handle).
+    by_tenant: dict[uuid.UUID, dict[str, str]] = {}
     for ident, node_uri in candidates:
         other_tid = uri_service.parse_internal_tenant_id(node_uri)
         if other_tid is None or other_tid == tenant_id:
             continue
-        by_tenant.setdefault(other_tid, set()).add(ident)
+        by_tenant.setdefault(other_tid, {})[ident] = node_uri
 
     resolved: dict[str, dict] = {}
-    for other_tid, idents in by_tenant.items():
+    for other_tid, ident_uris in by_tenant.items():
         other_tenant = await tenant_service.get_tenant(session, other_tid)
         # Drop nonexistent and private tenants → never surfaced (existence hidden).
         if other_tenant is None or other_tenant.is_private:
             continue
-        item_map = await cf_item_repository.map_identifiers_to_items(session, other_tid, idents)
+        item_map = await cf_item_repository.map_identifiers_to_items(session, other_tid, set(ident_uris))
         segment = other_tenant.slug or str(other_tenant.id)
         for ident, info in item_map.items():
             hcs = info.get("human_coding_scheme")
             stmt = info.get("full_statement") or ""
             label = (f"{hcs} {stmt}".strip() if hcs else stmt) or ident
-            resolved[ident] = {
+            resolved[ident_uris[ident]] = {
                 "label": label[:100],
                 "doc_identifier": info["doc_identifier"],
                 "doc_title": info["doc_title"],
@@ -265,7 +274,8 @@ async def _cross_doc_hierarchy(session: AsyncSession, tenant_id, item, doc) -> t
                 "tenant_segment": None,
             }
         # Public other tenant on this instance → resolved cross-tenant entry.
-        ct = cross_tenant.get(other_ident)
+        # Keyed by node_uri (tenant-unique), not the bare identifier.
+        ct = cross_tenant.get(node_uri)
         if ct is not None:
             return {
                 "identifier": other_ident,
@@ -331,10 +341,13 @@ async def _detail_extras(
     related_other_tenant: dict[str, dict] = {}
     # CFAssociation origin/destination node classification (same 3 buckets as the
     # related list): in-doc items navigate in-pane, other-doc items switch trees,
-    # the rest are external. Entries carry "tenant_segment" (None for same-tenant
-    # other-doc, the other tenant's URL segment for a public other-tenant item).
+    # the rest are external. `assoc_node_other_doc` is keyed by identifier
+    # (same-tenant: an item UUID is unique within a tenant); `assoc_node_cross_tenant`
+    # is keyed by node_uri (cross-tenant: the same UUID can exist in many tenants,
+    # so only the tenant-qualified node_uri disambiguates — see P1).
     assoc_node_in_doc: set[str] = set()
     assoc_node_other_doc: dict[str, dict] = {}
+    assoc_node_cross_tenant: dict[str, dict] = {}
     # Cross-document isChildOf neighbors (parents / children in another framework).
     hierarchy_upper: list[dict] = []
     hierarchy_lower: list[dict] = []
@@ -353,9 +366,12 @@ async def _detail_extras(
             k: {**v, "tenant_segment": None} for k, v in doc_map.items() if v["doc_identifier"] != cur
         }
         # Endpoints not in this tenant → try public other-tenant resolution.
+        # Keyed by node_uri so a private tenant's same-UUID item cannot collide
+        # with (and be shown as) a public tenant's item.
         unresolved = [(ident, node_uris[ident]) for ident in idents if ident not in doc_map]
-        for ident, ct in (await _resolve_cross_tenant(session, tenant_id, unresolved)).items():
-            assoc_node_other_doc[ident] = {
+        for node_uri, ct in (await _resolve_cross_tenant(session, tenant_id, unresolved)).items():
+            assoc_node_cross_tenant[node_uri] = {
+                "label": ct["label"],
                 "doc_identifier": ct["doc_identifier"],
                 "doc_title": ct["doc_title"],
                 "tenant_segment": ct["tenant_segment"],
@@ -382,12 +398,17 @@ async def _detail_extras(
                 cur = str(doc.identifier) if doc is not None else None
                 related_other_doc = {k: v for k, v in doc_map.items() if v["doc_identifier"] != cur}
                 # Dests still unresolved within this tenant → public other tenant?
-                cross_uri = {
-                    a.destination_node_identifier: a.destination_node_uri
+                # Resolve per (identifier, node_uri) and key the result by node_uri:
+                # the same dest identifier can appear on multiple associations
+                # pointing at *different* tenants, so a bare-identifier key would
+                # let a private endpoint masquerade as a resolved public one.
+                unresolved = [
+                    (a.destination_node_identifier, a.destination_node_uri)
                     for grp in related_groups
                     for a in grp["items"]
-                }
-                unresolved = [(d, cross_uri.get(d)) for d in other_dests if d not in related_other_doc]
+                    if a.destination_node_identifier in other_dests
+                    and a.destination_node_identifier not in related_other_doc
+                ]
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
     return {
@@ -399,6 +420,7 @@ async def _detail_extras(
         "related_other_tenant": related_other_tenant,
         "assoc_node_in_doc": assoc_node_in_doc,
         "assoc_node_other_doc": assoc_node_other_doc,
+        "assoc_node_cross_tenant": assoc_node_cross_tenant,
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
     }
@@ -414,6 +436,7 @@ _DETAIL_EXTRAS_KEYS = (
     "related_other_tenant",
     "assoc_node_in_doc",
     "assoc_node_other_doc",
+    "assoc_node_cross_tenant",
     "hierarchy_upper",
     "hierarchy_lower",
 )
@@ -634,6 +657,7 @@ async def _render_tree_page(
         "related_other_tenant": related_other_tenant,
         "assoc_node_in_doc": set(),
         "assoc_node_other_doc": {},
+        "assoc_node_cross_tenant": {},
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
     }

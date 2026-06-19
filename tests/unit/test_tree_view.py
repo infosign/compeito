@@ -2216,6 +2216,196 @@ class TestCrossTenantAssociations:
         assert 'target="_blank"' in resp.text
         assert "External skill" in resp.text
 
+    async def test_shared_identifier_does_not_leak_private_endpoint(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: two associations on the current item point at the SAME CFItem UUID,
+        but via different tenants — one public (A), one private (B). Resolution
+        must key off node_uri, not the bare identifier: A links out, B leaves no
+        trace at all (B must not be shown as A's public link)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        # The shared CFItem identifier present in BOTH other tenants.
+        shared_ident = uuid.uuid4()
+
+        public_tenant = await self._other_tenant(db_session, is_private=False)
+        public_doc = await self._doc(db_session, public_tenant)
+        public_item = _make_item(
+            public_tenant, public_doc, full_statement="Public shared skill", identifier=shared_ident
+        )
+        db_session.add(public_item)
+
+        private_tenant = await self._other_tenant(db_session, is_private=True)
+        private_doc = await self._doc(db_session, private_tenant)
+        private_item = _make_item(
+            private_tenant, private_doc, full_statement="Private shared skill", identifier=shared_ident
+        )
+        db_session.add(private_item)
+        await db_session.flush()
+
+        # Two related associations from the same origin, same dest identifier,
+        # different tenant node_uris.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(public_tenant.id, shared_ident),
+            title="Public shared skill",
+        )
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(private_tenant.id, shared_ident),
+            title="Private shared skill title",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Public tenant A: linked into its own tree.
+        assert f"/{public_tenant.id}/cftree/doc/{public_doc.identifier}/item/{shared_ident}" in resp.text
+        # Private tenant B: never surfaced — no link, no title, no tenant id, even
+        # though it shares the identifier with the public item.
+        assert f"/{private_tenant.id}/" not in resp.text
+        assert str(private_tenant.id) not in resp.text
+        assert "Private shared skill title" not in resp.text
+
+    async def test_shared_identifier_two_public_tenants_link_correctly(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P1: the same CFItem UUID exists in two DIFFERENT public tenants; each
+        related association links to the correct tenant's tree segment (the
+        node_uri disambiguates which tenant each row belongs to)."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+
+        shared_ident = uuid.uuid4()
+
+        tenant_a = await self._other_tenant(db_session, is_private=False, slug="inst-a")
+        doc_a = await self._doc(db_session, tenant_a)
+        item_a = _make_item(tenant_a, doc_a, full_statement="Skill in A", identifier=shared_ident)
+        db_session.add(item_a)
+
+        tenant_b = await self._other_tenant(db_session, is_private=False, slug="inst-b")
+        doc_b = await self._doc(db_session, tenant_b)
+        item_b = _make_item(tenant_b, doc_b, full_statement="Skill in B", identifier=shared_ident)
+        db_session.add(item_b)
+        await db_session.flush()
+
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(tenant_a.id, shared_ident),
+            title="Skill in A",
+        )
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            shared_ident,
+            self._internal_uri(tenant_b.id, shared_ident),
+            title="Skill in B",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        # Each association links to its OWN tenant's tree segment.
+        assert f"/inst-a/cftree/doc/{doc_a.identifier}/item/{shared_ident}" in resp.text
+        assert f"/inst-b/cftree/doc/{doc_b.identifier}/item/{shared_ident}" in resp.text
+
+    async def test_resolved_label_used_when_title_blank(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P2: when the stored destination_node_title is blank but the endpoint
+        resolves to a public other-tenant item, the resolved label (the item's
+        own full_statement) is used for the link text."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Resolved label skill")
+        db_session.add(dest)
+        await db_session.flush()
+        # Stored title intentionally blank → must fall back to resolved label.
+        await self._related_assoc(
+            db_session,
+            tenant,
+            sample_document,
+            origin,
+            dest.identifier,
+            self._internal_uri(other_tenant.id, dest.identifier),
+            title="",
+        )
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{origin.identifier}")
+        assert resp.status_code == 200
+        assert "Resolved label skill" in resp.text
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+
+    async def test_resolved_label_used_in_assoc_self_detail_when_title_blank(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """P2 (association self-detail): a CFAssociation whose destination_node_title
+        is blank but resolves to a public other-tenant item shows the resolved
+        label (not the bare UUID) and links to that tenant's tree."""
+        origin = _make_item(tenant, sample_document, full_statement="Origin item")
+        db_session.add(origin)
+        await db_session.flush()
+        other_tenant = await self._other_tenant(db_session, is_private=False)
+        other_doc = await self._doc(db_session, other_tenant)
+        dest = _make_item(other_tenant, other_doc, full_statement="Assoc resolved skill")
+        db_session.add(dest)
+        await db_session.flush()
+        assoc = CFAssociation(
+            tenant_id=tenant.id,
+            cf_document_id=sample_document.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/assoc/" + str(uuid.uuid4()),
+            association_type="exactMatchOf",
+            origin_node_uri=self._internal_uri(tenant.id, origin.identifier),
+            origin_node_identifier=str(origin.identifier),
+            destination_node_uri=self._internal_uri(other_tenant.id, dest.identifier),
+            destination_node_identifier=str(dest.identifier),
+            destination_node_title="",
+            last_change_date_time=self.NOW,
+        )
+        db_session.add(assoc)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{assoc.identifier}")
+        assert resp.status_code == 200
+        assert "Assoc resolved skill" in resp.text
+        assert f"/{other_tenant.id}/cftree/doc/{other_doc.identifier}/item/{dest.identifier}" in resp.text
+        assert "他機関" in resp.text
+
     async def test_cross_tenant_ischildof_in_hierarchy(
         self,
         db_session: AsyncSession,
