@@ -2,8 +2,10 @@
    Used both as an SSR include on the CFSubject detail card and as the response
    of the /{tenant}/subject/{id}/items "load more" route (same markup, like
    tree_nodes.html). Context: rows, next_offset, limit, has_more, subject_id,
-   tenant_url, t. Each row links to the item in its own document's tree (a
-   subject has no document, so always the cross-document deep-link form). #}
+   tenant_url, t, scope_doc. Each row links to the item in its own document's
+   tree. `scope_doc` (a document identifier or None) is threaded into the
+   "load more" URL so pagination keeps the pane's document scope; None →
+   tenant-wide (standalone /uri/ page). #}
 {% for row in rows %}
 <li>
     <a href="/{{ tenant_url }}/cftree/doc/{{ row.doc_identifier }}/item/{{ row.identifier }}"
@@ -16,7 +18,7 @@
 {% if has_more %}
 <li>
     <button type="button"
-            hx-get="/{{ tenant_url }}/subject/{{ subject_id }}/items?offset={{ next_offset }}&limit={{ limit }}"
+            hx-get="/{{ tenant_url }}/subject/{{ subject_id }}/items?offset={{ next_offset }}&limit={{ limit }}{% if scope_doc %}&doc={{ scope_doc }}{% endif %}"
             hx-target="closest li" hx-swap="outerHTML"
             class="text-xs text-violet-600 hover:text-violet-800 underline transition-colors">{{ t("show_more") }}</button>
 </li>

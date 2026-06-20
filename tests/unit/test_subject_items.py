@@ -260,35 +260,81 @@ class TestSubjectItemsFragment:
         assert resp.status_code == 404
 
 
-class TestPaneSuppression:
-    """The reverse list is for the standalone /uri/ page only — the tree right
-    pane is document-scoped and must NOT show it (and must NOT run the query)."""
+def _make_document(tenant: Tenant, *, title: str = "Doc B") -> CFDocument:
+    ident = uuid.uuid4()
+    return CFDocument(
+        id=uuid.uuid4(),
+        tenant_id=tenant.id,
+        identifier=ident,
+        uri=f"https://example.com/uri/{ident}",
+        title=title,
+        creator="x",
+        language="ja",
+        last_change_date_time=_TS,
+    )
 
-    async def test_detail_extras_suppressed_when_in_pane(
+
+class TestDocumentScope:
+    """案B: the standalone /uri/ page lists items tenant-wide; the tree right
+    pane lists only the CURRENT document's items setting the subject."""
+
+    async def test_repo_document_id_filters(
         self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
     ):
         subj = _make_subject(tenant)
         sid = str(subj.identifier)
         db_session.add(subj)
-        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="ref item"))
+        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="in doc A"))
+        doc_b = _make_document(tenant)
+        db_session.add(doc_b)
+        await db_session.flush()
+        db_session.add(_make_item_with_subject(tenant, doc_b, sid, full_statement="in doc B"))
         await db_session.flush()
 
-        # Pane path: include_subject_items=False → empty even though items exist.
-        suppressed = await _detail_extras(db_session, tenant.id, "CFSubject", subj, include_subject_items=False)
-        assert suppressed["subject_items"]["rows"] == []
-        assert suppressed["subject_items"]["total"] == 0
+        # Tenant-wide (document_id=None) → both.
+        all_rows = await cf_item_repository.list_items_by_subject(db_session, tenant.id, sid)
+        assert {r["full_statement"] for r in all_rows} == {"in doc A", "in doc B"}
+        assert await cf_item_repository.count_items_by_subject(db_session, tenant.id, sid) == 2
 
-        # Standalone page path: default True → populated.
-        shown = await _detail_extras(db_session, tenant.id, "CFSubject", subj)
-        assert shown["subject_items"]["total"] == 1
-        assert shown["subject_items"]["rows"][0]["full_statement"] == "ref item"
+        # Scoped to doc A → only A.
+        a_rows = await cf_item_repository.list_items_by_subject(
+            db_session, tenant.id, sid, document_id=sample_document.id
+        )
+        assert {r["full_statement"] for r in a_rows} == {"in doc A"}
+        assert (
+            await cf_item_repository.count_items_by_subject(db_session, tenant.id, sid, document_id=sample_document.id)
+            == 1
+        )
 
-    async def test_pane_fragment_hides_subject_items(
+    async def test_detail_extras_scopes_by_doc(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        subj = _make_subject(tenant)
+        sid = str(subj.identifier)
+        db_session.add(subj)
+        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="A item"))
+        doc_b = _make_document(tenant)
+        db_session.add(doc_b)
+        await db_session.flush()
+        db_session.add(_make_item_with_subject(tenant, doc_b, sid, full_statement="B item"))
+        await db_session.flush()
+
+        # Standalone page (doc=None) → tenant-wide, no scope_doc.
+        page = await _detail_extras(db_session, tenant.id, "CFSubject", subj)
+        assert page["subject_items"]["total"] == 2
+        assert page["subject_items"]["scope_doc"] is None
+
+        # Pane (doc=sample_document) → only that doc's item, scope_doc set.
+        pane = await _detail_extras(db_session, tenant.id, "CFSubject", subj, sample_document)
+        assert pane["subject_items"]["total"] == 1
+        assert pane["subject_items"]["rows"][0]["full_statement"] == "A item"
+        assert pane["subject_items"]["scope_doc"] == str(sample_document.identifier)
+
+    async def test_pane_fragment_shows_doc_scoped(
         self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
     ):
-        # A subject referenced by an item in this doc becomes a tree-node
-        # (Definitions), so its detail fragment is reachable in the pane. The
-        # reverse-lookup section must NOT appear there.
+        # A subject referenced by an item in this doc is a tree node (Definitions),
+        # so its detail fragment renders in the pane — now WITH the doc-scoped list.
         subj = _make_subject(tenant, title="Pane Subject")
         sid = str(subj.identifier)
         db_session.add(subj)
@@ -297,7 +343,56 @@ class TestPaneSuppression:
 
         resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{subj.identifier}")
         assert resp.status_code == 200
-        assert "Pane Subject" in resp.text  # the subject card itself renders
-        # ...but not its reverse list (no "show more" fragment link, no ref item).
-        assert f"/subject/{subj.identifier}/items" not in resp.text
-        assert "ref in pane" not in resp.text
+        assert "Pane Subject" in resp.text
+        assert "ref in pane" in resp.text  # the doc's item IS listed in the pane now
+
+    async def test_load_more_url_carries_doc_scope(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        # >20 items in the doc → pane shows "load more"; its URL must keep &doc=.
+        subj = _make_subject(tenant, title="Big Subject")
+        sid = str(subj.identifier)
+        db_session.add(subj)
+        for i in range(25):
+            db_session.add(
+                _make_item_with_subject(tenant, sample_document, sid, hcs=f"{i:03d}", full_statement=f"big {i:03d}")
+            )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{subj.identifier}")
+        assert resp.status_code == 200
+        assert f"/subject/{subj.identifier}/items?offset=20" in resp.text
+        assert f"doc={sample_document.identifier}" in resp.text
+
+    async def test_fragment_doc_scope_filters(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        subj = _make_subject(tenant)
+        sid = str(subj.identifier)
+        db_session.add(subj)
+        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="A only"))
+        doc_b = _make_document(tenant)
+        db_session.add(doc_b)
+        await db_session.flush()
+        db_session.add(_make_item_with_subject(tenant, doc_b, sid, full_statement="B only"))
+        await db_session.flush()
+
+        # Fragment scoped to doc A → only A's item.
+        scoped = await db_client.get(
+            f"/{tenant.id}/subject/{subj.identifier}/items?offset=0&limit=20&doc={sample_document.identifier}"
+        )
+        assert scoped.status_code == 200
+        assert "A only" in scoped.text
+        assert "B only" not in scoped.text
+
+        # No doc → tenant-wide.
+        wide = await db_client.get(f"/{tenant.id}/subject/{subj.identifier}/items?offset=0&limit=20")
+        assert "A only" in wide.text
+        assert "B only" in wide.text
+
+    async def test_fragment_bad_doc_400(self, db_session: AsyncSession, db_client, tenant: Tenant):
+        subj = _make_subject(tenant)
+        db_session.add(subj)
+        await db_session.flush()
+        resp = await db_client.get(f"/{tenant.id}/subject/{subj.identifier}/items?doc=not-a-uuid")
+        assert resp.status_code == 400

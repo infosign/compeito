@@ -112,6 +112,7 @@ async def list_items_by_subject(
     tenant_id: uuid.UUID,
     subject_identifier: str,
     *,
+    document_id: uuid.UUID | None = None,
     offset: int = 0,
     limit: int = 20,
 ) -> list[dict]:
@@ -119,10 +120,16 @@ async def list_items_by_subject(
 
     Reverse lookup for the CFSubject detail page ("items setting this subject").
     Matches via JSONB containment ``subject_uri @> '[{"identifier": <id>}]'``
-    (GIN-indexed). Tenant-scoped. Ordered by human_coding_scheme → full_statement
-    → identifier for a stable offset-pagination boundary. Returns
+    (GIN-indexed). Tenant-scoped. When ``document_id`` is given, additionally
+    restricts to that one document (used by the tree right pane, which is
+    document-scoped; the standalone /uri/ page passes None for the tenant-wide
+    list). Ordered by human_coding_scheme → full_statement → identifier for a
+    stable offset-pagination boundary. Returns
     ``[{identifier, human_coding_scheme, full_statement, doc_identifier, doc_title}]``.
     """
+    conditions = [CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier)]
+    if document_id is not None:
+        conditions.append(CFItem.cf_document_id == document_id)
     rows = await session.execute(
         select(
             CFItem.identifier,
@@ -132,7 +139,7 @@ async def list_items_by_subject(
             CFDocument.title,
         )
         .join(CFDocument, CFItem.cf_document_id == CFDocument.id)
-        .where(CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier))
+        .where(*conditions)
         .order_by(
             CFItem.human_coding_scheme.nullslast(),
             CFItem.full_statement,
@@ -157,13 +164,16 @@ async def count_items_by_subject(
     session: AsyncSession,
     tenant_id: uuid.UUID,
     subject_identifier: str,
+    *,
+    document_id: uuid.UUID | None = None,
 ) -> int:
-    """Total CFItems in this tenant referencing the given subject (for the count
-    label). Call once on the SSR page; the "load more" fragment derives has_more
-    from a limit+1 fetch instead of recounting."""
-    result = await session.execute(
-        select(func.count())
-        .select_from(CFItem)
-        .where(CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier))
-    )
+    """Total CFItems referencing the given subject (for the count label).
+    Tenant-scoped; restricted to one document when ``document_id`` is given
+    (same scoping as ``list_items_by_subject``). Call once on the SSR page; the
+    "load more" fragment derives has_more from a limit+1 fetch instead of
+    recounting."""
+    conditions = [CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier)]
+    if document_id is not None:
+        conditions.append(CFItem.cf_document_id == document_id)
+    result = await session.execute(select(func.count()).select_from(CFItem).where(*conditions))
     return int(result.scalar_one())

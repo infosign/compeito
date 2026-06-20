@@ -151,6 +151,27 @@ Zones 3–5 render with a top separator and a small uppercase section title, and
 
 The field tables below define each field's presence rule and rendering; the zone placement follows the mapping above.
 
+### Detail card — what shows where, under what conditions
+
+The same card (`fragments/resource_detail.html`) renders on two surfaces:
+- **Standalone `/uri/{uuid}` page** — permalink for any resource; no tree context. `in_pane=False` (shows the "Show in tree" link).
+- **Tree right pane** — the selected node's detail beside the document tree. `in_pane=True`. Reached two ways: the SSR deep-link `/cftree/doc/{doc}/item/{id}` (`_render_tree_page`) and the HTMX fragment `/cftree/doc/{doc}/detail/{id}` (`_pane_fragment_response`). Both render identical content.
+
+Beyond the always-present fields, these **conditional / relational sections** appear per resource type and surface. All cross-tenant resolution is **public-only** (a private or nonexistent target tenant is dropped entirely — neither title, URI, link, nor count is surfaced; "case A"). Server-side builder: `web._detail_extras`.
+
+| Section | On which resource | Standalone `/uri/` page | Tree right pane | Conditions / rules |
+|---|---|---|---|---|
+| **Rubrics** list | CFDocument | ✓ | ✓ (also the tree's "Rubrics" section) | document has ≥1 CFRubric |
+| **Related** (grouped associations) | CFItem | ✓ | ✓ | item is an association origin/destination. Each target classified: same-doc → in-pane nav; **other doc, same tenant** → tree-switch link + "Other framework" badge; **other public tenant** → that tenant's tree + "Other institution ↗" badge; **private/external** → hidden or external-link (http(s) only) |
+| **Cross-doc hierarchy** (上位/下位 別FW) | CFItem | ✓ | ✓ | `isChildOf` parent/child lives in another framework. Same public/private cross-tenant rules as Related |
+| **Referenced by (other institutions)** / 参照元（他機関） | CFItem | ✓ | ✓ | other-tenant associations whose destination is this item. **Public origins only** (private adopters never surfaced); current tenant excluded; excludes `isChildOf` |
+| **Referring criteria** | CFItem | ✓ | ✓ | a CFRubricCriterion links to this item via `CFItemURI` |
+| **Items setting this subject** / この分野を設定している項目 | CFSubject | ✓ **tenant-wide** (all docs) | ✓ **current document only** (案B) | items whose `subjectURI` references the subject. Top-20 + count + "Show more". Scope = `doc` presence (page None → tenant-wide; pane → that doc). `subject` string-only refs not matched |
+| **Definitions** (Item Types / Concepts / Subjects / Licenses / Groupings) | CFDocument (tree) | — | ✓ | the lookups this document references (CFPackage `CFDefinitions` scope); each is a navigable tree node |
+| **Effective license** | CFItem / CFDocument | ✓ | ✓ | item's own license, else inherited from document (labeled "from document") |
+
+**Pane-only invariant ("pane content ⟺ tree node"):** in the tree pane a selected **lookup** must be in the current document's Definitions, and a selected **rubric part** must belong to the current document — otherwise the pane route returns **404** (the standalone `/uri/` page has no such restriction; it resolves any resource). This is why a CFSubject is reachable in the pane only when the current document actually references it.
+
 ### CFItem
 
 | Field | Required/Optional | Display |
@@ -217,7 +238,13 @@ When `/uri/{uuid}` resolves to a lookup, show common + specific fields:
 | Specific fields | typeCode, hierarchyCode, licenseText, etc. (only when present) |
 | lastChangeDateTime | ISO 8601 |
 
-**CFSubject — "Items setting this subject" (reverse lookup):** a CFSubject's card adds a section listing CFItems **in the same tenant** whose `subjectURI` references this subject (the reverse of CFItem → CFSubject). It shows the total count + the first page (top 20) inline (SSR), then a **"Show more"** button that appends the next page via HTMX from `GET /{tenant}/subject/{subject-id}/items?offset=&limit=` (`Cache-Control: public, max-age=86400`; the button is self-perpetuating — each click swaps it for the next page + a fresh button, like the lazy tree). Resolved server-side by `cf_item_repository.list_items_by_subject` / `count_items_by_subject` via the JSONB containment query `subject_uri @> '[{"identifier": ...}]'` (GIN-indexed: `ix_cf_items_subject_uri_gin`). Each row links to the item in its own document's tree. Scope notes: **within-tenant only** (a subject is tenant-owned; no cross-tenant/private gating); items that reference the subject only via the plain `subject` string (no `subjectURI`) are **not** matched; the reusable `fragments/subject_items.html` partial backs both the inline SSR and the fragment route (and is intended for reuse by a future search results list). The section is **not** shown in the tree right pane (the pane is document-scoped). Other lookups (CFItemType/Concept/License) do not yet have an equivalent reverse list.
+**CFSubject — "Items setting this subject" (reverse lookup):** a CFSubject's card adds a section listing CFItems whose `subjectURI` references this subject (the reverse of CFItem → CFSubject). It shows the total count + the first page (top 20) inline (SSR), then a **"Show more"** button that appends the next page via HTMX from `GET /{tenant}/subject/{subject-id}/items?offset=&limit=[&doc=]` (`Cache-Control: public, max-age=86400`; the button is self-perpetuating — each click swaps it for the next page + a fresh button, like the lazy tree). Resolved server-side by `cf_item_repository.list_items_by_subject` / `count_items_by_subject` via the JSONB containment query `subject_uri @> '[{"identifier": ...}]'` (GIN-indexed: `ix_cf_items_subject_uri_gin`). Each row links to the item in its own document's tree.
+
+**Scope differs by surface (案B):**
+- **Standalone `/uri/{subject}` page** — **tenant-wide**: every item in the tenant setting this subject, across all documents. (A subject is a tenant-owned lookup with no owning document, so the page has no document context — `doc` is None.)
+- **Tree right pane** (subject selected via the current document's Definitions) — **restricted to the current document**: only that document's items. This keeps the pane consistent with its document-scoped tree (every listed item is a node in the same tree, so links never jump to another document), keeps the list small, and keeps the query cheap. The `doc` query param threads this scope through "Show more"; `subject_items.scope_doc` carries the document identifier (None = tenant-wide). The discriminator is simply whether `_detail_extras` receives a `doc` (pane) or not (page).
+
+Other scope notes: **within-tenant only** (no cross-tenant/private gating); items referencing the subject only via the plain `subject` string (no `subjectURI`) are **not** matched; the reusable `fragments/subject_items.html` partial backs both the inline SSR and the fragment route (and is intended for reuse by a future search results list). Other lookups (CFItemType/Concept/License) do not yet have an equivalent reverse list.
 
 ### CFRubric
 
