@@ -125,6 +125,14 @@ INDEX(origin_node_identifier), INDEX(destination_node_identifier)
 INDEX(cf_document_id, destination_node_identifier)  -- for tree children queries (also covers `INDEX(cf_document_id)` alone)
 ```
 
+> **Performance note — incoming cross-tenant references.** The detail pane's
+> "Referenced by (other institutions)" section queries `destination_node_uri`
+> (a free-text VARCHAR with no index) **across all tenants** to find rows that
+> point at the current item's permalink. At demo / single-instance scale this is
+> fine, but on a large multi-tenant corpus it degrades to a sequential scan. If
+> this becomes hot, add `INDEX(destination_node_uri)` (a migration is required —
+> it is intentionally omitted today to avoid one for a low-cardinality feature).
+
 ### Cross-table UUID lookup (`/uri/{uuid}`)
 `identifier` carries a composite `UNIQUE(tenant_id, identifier)` on every tenant-scoped table (the rubric child tables `cf_rubric_criterion` / `cf_rubric_criterion_level` are instead parent-scoped — see their definitions). The `/{tenant}/uri/{uuid}` router searches within the tenant scope, in this order: cf_document → cf_item → cf_association → cf_item_type → cf_subject → cf_concept → cf_license → cf_association_grouping (stops at the first hit).
 

@@ -2638,6 +2638,129 @@ class TestCrossTenantAssociations:
         # Not linked as the local in-doc item either.
         assert f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{shared_ident}" not in resp.text
 
+    async def _incoming_assoc(
+        self, db_session, origin_tenant, origin_doc, origin_item, *, dest_uri, assoc_type="exactMatchOf"
+    ) -> None:
+        """An association OWNED BY the origin tenant whose destination points at
+        `dest_uri` (the referenced item's permalink). This is the incoming /
+        reverse direction: origin_tenant adopts the referenced item."""
+        db_session.add(
+            CFAssociation(
+                tenant_id=origin_tenant.id,
+                cf_document_id=origin_doc.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/" + str(uuid.uuid4()),
+                association_type=assoc_type,
+                origin_node_uri=self._internal_uri(origin_tenant.id, origin_item.identifier),
+                origin_node_identifier=str(origin_item.identifier),
+                origin_node_title=origin_item.full_statement,
+                destination_node_uri=dest_uri,
+                destination_node_identifier=str(uuid.UUID(dest_uri.rstrip("/").split("/")[-1])),
+                destination_node_title="Referenced item",
+                last_change_date_time=self.NOW,
+            )
+        )
+        await db_session.flush()
+
+    async def test_incoming_public_refs_shown(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """Incoming reverse references: TWO public institutions (A, B) each
+        exactMatchOf a shared-FW item. The shared item's detail shows both as
+        "referenced by", each with the origin institution name and a link into
+        that origin tenant's tree."""
+        # The referenced (shared-FW) item lives in the current `tenant`.
+        referenced = _make_item(tenant, sample_document, full_statement="統計の基礎")
+        db_session.add(referenced)
+        await db_session.flush()
+        ref_uri = self._internal_uri(tenant.id, referenced.identifier)
+
+        # Public institution A references it.
+        tenant_a = Tenant(id=uuid.uuid4(), name="池之端大学", is_private=False, slug="ikenohata")
+        db_session.add(tenant_a)
+        await db_session.flush()
+        doc_a = await self._doc(db_session, tenant_a)
+        item_a = _make_item(tenant_a, doc_a, full_statement="統計学の基礎理論")
+        db_session.add(item_a)
+        await db_session.flush()
+        await self._incoming_assoc(db_session, tenant_a, doc_a, item_a, dest_uri=ref_uri)
+
+        # Public institution B references it too.
+        tenant_b = Tenant(id=uuid.uuid4(), name="蔵前工科大学", is_private=False, slug="kuramae")
+        db_session.add(tenant_b)
+        await db_session.flush()
+        doc_b = await self._doc(db_session, tenant_b)
+        item_b = _make_item(tenant_b, doc_b, full_statement="実験データの統計処理")
+        db_session.add(item_b)
+        await db_session.flush()
+        await self._incoming_assoc(db_session, tenant_b, doc_b, item_b, dest_uri=ref_uri)
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{referenced.identifier}"
+        )
+        assert resp.status_code == 200
+        # Both public institutions appear by name…
+        assert "池之端大学" in resp.text
+        assert "蔵前工科大学" in resp.text
+        # …with their origin item labels…
+        assert "統計学の基礎理論" in resp.text
+        assert "実験データの統計処理" in resp.text
+        # …and links into each origin tenant's own tree.
+        assert f"/ikenohata/cftree/doc/{doc_a.identifier}/item/{item_a.identifier}" in resp.text
+        assert f"/kuramae/cftree/doc/{doc_b.identifier}/item/{item_b.identifier}" in resp.text
+
+    async def test_incoming_private_ref_hidden(
+        self,
+        db_session: AsyncSession,
+        db_client,
+        tenant: Tenant,
+        sample_document: CFDocument,
+    ):
+        """A PRIVATE institution (C) also references the same shared-FW item, but
+        it must leave no trace at all (case A): not its name, its origin item
+        label, its tenant uuid, nor a count. Public A still shows."""
+        referenced = _make_item(tenant, sample_document, full_statement="統計の基礎")
+        db_session.add(referenced)
+        await db_session.flush()
+        ref_uri = self._internal_uri(tenant.id, referenced.identifier)
+
+        # Public A.
+        tenant_a = Tenant(id=uuid.uuid4(), name="池之端大学", is_private=False, slug="ikenohata")
+        db_session.add(tenant_a)
+        await db_session.flush()
+        doc_a = await self._doc(db_session, tenant_a)
+        item_a = _make_item(tenant_a, doc_a, full_statement="統計学の基礎理論")
+        db_session.add(item_a)
+        await db_session.flush()
+        await self._incoming_assoc(db_session, tenant_a, doc_a, item_a, dest_uri=ref_uri)
+
+        # Private C — must be fully hidden.
+        tenant_c = Tenant(id=uuid.uuid4(), name="上野桜木学院大学", is_private=True, slug="uenosakuragi")
+        db_session.add(tenant_c)
+        await db_session.flush()
+        doc_c = await self._doc(db_session, tenant_c)
+        item_c = _make_item(tenant_c, doc_c, full_statement="秘密の統計カリキュラム")
+        db_session.add(item_c)
+        await db_session.flush()
+        await self._incoming_assoc(db_session, tenant_c, doc_c, item_c, dest_uri=ref_uri)
+
+        resp = await db_client.get(
+            f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{referenced.identifier}"
+        )
+        assert resp.status_code == 200
+        # Public A is surfaced.
+        assert "池之端大学" in resp.text
+        assert f"/ikenohata/cftree/doc/{doc_a.identifier}/item/{item_a.identifier}" in resp.text
+        # Private C leaves NO trace: name, origin item label, tenant uuid, item uuid.
+        assert "上野桜木学院大学" not in resp.text
+        assert "秘密の統計カリキュラム" not in resp.text
+        assert str(tenant_c.id) not in resp.text
+        assert str(item_c.identifier) not in resp.text
+
 
 class TestErrorFragmentEscaping:
     """`_error_fragment` builds raw HTML, so it must HTML-escape its message

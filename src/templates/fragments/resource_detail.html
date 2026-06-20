@@ -361,7 +361,7 @@
         {% endcall %}
         {% endif %}
 
-        {% if doc or hierarchy_upper or hierarchy_lower or referring_criteria or related_groups %}
+        {% if doc or hierarchy_upper or hierarchy_lower or referring_criteria or related_groups or incoming_refs %}
         {% call section(t("sec_relations")) %}
             {% if doc %}
                 {{ linked_resource(t("f_cf_document_uri"), "/" ~ tenant_url ~ "/cftree/doc/" ~ doc.identifier, doc.title, doc.identifier, doc.uri) }}
@@ -480,6 +480,28 @@
                         </ul>
                     </div>
                     {% endfor %}
+                </dd>
+            </div>
+            {% endif %}
+            {# Incoming references: PUBLIC other-tenant items that point AT this
+               item (adoption / reference). The view already excludes private
+               origins entirely (case A — neither shown nor counted), so every
+               entry here is safe to link to its origin tenant's tree. #}
+            {% if incoming_refs %}
+            <div>
+                <dt class="text-xs font-medium text-stone-400 uppercase tracking-wide">{{ t("incoming_refs_label") }}</dt>
+                <dd class="text-gray-800 mt-1">
+                    <ul class="ml-4 mt-1 space-y-1">
+                        {% for ref in incoming_refs %}
+                        <li>
+                            <span class="text-stone-500 text-sm">{{ ref.tenant_name }}:</span>
+                            <a href="/{{ ref.tenant_segment }}/cftree/doc/{{ ref.doc_identifier }}/item/{{ ref.origin_identifier }}"
+                               class="text-violet-600 hover:text-violet-800 text-sm transition-colors">{{ ref.label }}</a>
+                            <span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-amber-50 text-amber-700 align-middle">{{ t("related_other_institution_in") }}</span>
+                            {% if ref.association_type and ref.association_type != "isRelatedTo" %}<span class="text-stone-500 text-xs">({{ ref.association_type }})</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
                 </dd>
             </div>
             {% endif %}

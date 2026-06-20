@@ -63,6 +63,8 @@
     "related_other": "その他",
     "related_other_framework": "別フレームワーク",
     "related_other_institution": "他機関 ↗",
+    "related_other_institution_in": "他機関 ↩",
+    "incoming_refs_label": "参照元（他機関）",
     "related_external": "外部",
     "f_subject": "教科",
     "f_subject_uri": "教科 URI",
