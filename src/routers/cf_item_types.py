@@ -21,9 +21,13 @@ async def list_cf_item_types(
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     if limit < 0:
-        return imsx_error_response(400, "Invalid limit: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid limit: must be a non-negative integer", "invalid_selection_field", field_name="limit"
+        )
     if offset < 0:
-        return imsx_error_response(400, "Invalid offset: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid offset: must be a non-negative integer", "invalid_selection_field", field_name="offset"
+        )
     limit = min(limit, 500)
     offset = min(offset, 100000)
     items = await case_query_service.list_cf_item_types(session, tenant_obj.id, limit, offset)

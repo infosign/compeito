@@ -49,9 +49,13 @@ async def get_cf_item_associations(
         raise ResourceNotFoundError(f"CFItem not found: '{id}'")
 
     if limit is not None and limit < 0:
-        return imsx_error_response(400, "Invalid limit: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid limit: must be a non-negative integer", "invalid_selection_field", field_name="limit"
+        )
     if offset < 0:
-        return imsx_error_response(400, "Invalid offset: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid offset: must be a non-negative integer", "invalid_selection_field", field_name="offset"
+        )
 
     assocs = await case_query_service.list_item_associations(session, tenant_obj.id, str(item_uuid), limit, offset)
     content = {
