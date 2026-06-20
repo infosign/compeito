@@ -65,7 +65,15 @@ async def method_not_allowed(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return imsx_error_response(400, str(exc), "invalid_selection_field")
+    # Surface the offending parameter name (e.g. a missing required `doc`) as
+    # imsx_codeMinorFieldName when it can be derived from the validation error.
+    field_name = "sourcedId"
+    errors = exc.errors()
+    if errors:
+        loc = errors[0].get("loc") or ()
+        if loc:
+            field_name = str(loc[-1])
+    return imsx_error_response(400, str(exc), "invalid_selection_field", field_name=field_name)
 
 
 @app.exception_handler(InvalidUUIDError)

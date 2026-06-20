@@ -583,15 +583,16 @@ GET /550e8400-.../ims/case/v1p1/CFRubrics
   "imsx_codeMinor": {
     "imsx_codeMinorField": [
       {
-        "imsx_codeMinorFieldName": "sourcedId",
+        "imsx_codeMinorFieldName": "doc",
         "imsx_codeMinorFieldValue": "invalid_selection_field"
       }
     ]
   }
 }
 ```
-> `imsx_codeMinorFieldName` is always `"sourcedId"` (per the imsx convention; see
-> [api-spec.md](api-spec.md) error format and [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C11).
+> `imsx_codeMinorFieldName` carries the offending parameter name when meaningful
+> (here `doc`, the missing required query param); it defaults to `"sourcedId"`
+> otherwise. See [api-spec.md](api-spec.md) error format.
 > `imsx_description` carries the validation detail string from the framework, so the
 > exact text varies; `"Validation error"` above is illustrative.
 
