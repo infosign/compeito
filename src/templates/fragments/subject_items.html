@@ -1,0 +1,23 @@
+{# Reusable list fragment: CFItems setting a subject.
+   Used both as an SSR include on the CFSubject detail card and as the response
+   of the /{tenant}/subject/{id}/items "load more" route (same markup, like
+   tree_nodes.html). Context: rows, next_offset, limit, has_more, subject_id,
+   tenant_url, t. Each row links to the item in its own document's tree (a
+   subject has no document, so always the cross-document deep-link form). #}
+{% for row in rows %}
+<li>
+    <a href="/{{ tenant_url }}/cftree/doc/{{ row.doc_identifier }}/item/{{ row.identifier }}"
+       class="text-violet-600 hover:text-violet-800 text-sm transition-colors"
+       {% if row.doc_title %}title="{{ row.doc_title }}"{% endif %}>
+        {% if row.human_coding_scheme %}<span class="font-medium">{{ row.human_coding_scheme }}</span> {% endif %}{{ row.full_statement[:100] }}{% if row.full_statement and row.full_statement|length > 100 %}…{% endif %}
+    </a>
+</li>
+{% endfor %}
+{% if has_more %}
+<li>
+    <button type="button"
+            hx-get="/{{ tenant_url }}/subject/{{ subject_id }}/items?offset={{ next_offset }}&limit={{ limit }}"
+            hx-target="closest li" hx-swap="outerHTML"
+            class="text-xs text-violet-600 hover:text-violet-800 underline transition-colors">{{ t("show_more") }}</button>
+</li>
+{% endif %}
