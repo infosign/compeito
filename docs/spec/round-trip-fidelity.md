@@ -62,7 +62,7 @@ flat-file formats predate those fields and have no column for them.
 | statusEndDate | ✓ | ✓ | ✓ | ✓ | |
 | notes | ✓ | ✓ | ✓ | ✓ | |
 | subject | ✓ | ✓ | ✓ | ✓ | string array (`\|`-joined in Excel) |
-| subjectURI | ✓ | ✗ | △ | △ | flat formats keep only the `subject` title; identifier/uri regenerated |
+| subjectURI | ✓ | △ | △ | △ | flat formats keep only the `subject` title (Excel carries it in the subject column → rebuilt via `#subject`); identifier/uri regenerated |
 | licenseURI | ✓ | △ | △ | △ | Excel: `title` + `licenseText` (text exported but **not re-imported**); CSV: `title` only |
 | frameworkType | ✓ | ✗ | ✗ | ✗ | v1.1; no column |
 | caseVersion | ✓ | ✗ | ✗ | ✗ | v1.1; no column |
