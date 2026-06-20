@@ -14,6 +14,13 @@ class CFItem(Base):
         UniqueConstraint("tenant_id", "identifier", name="uq_cf_items_tenant_identifier"),
         Index("ix_cf_items_tenant_document_coding", "tenant_id", "cf_document_id", "human_coding_scheme"),
         Index("ix_cf_items_document_depth", "cf_document_id", "depth"),
+        # Reverse lookup "items setting this subject": subject_uri @> '[{"identifier": ...}]'.
+        Index(
+            "ix_cf_items_subject_uri_gin",
+            "subject_uri",
+            postgresql_using="gin",
+            postgresql_ops={"subject_uri": "jsonb_path_ops"},
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

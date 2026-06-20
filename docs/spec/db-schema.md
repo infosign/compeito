@@ -99,6 +99,7 @@ last_change_date_time: TIMESTAMP NOT NULL
 UNIQUE(tenant_id, identifier)
 INDEX(tenant_id, cf_document_id, human_coding_scheme)  -- for upsert matching
 INDEX(cf_document_id, depth)  -- for the tree view's level detection (also covers `INDEX(cf_document_id)` alone)
+GIN INDEX(subject_uri jsonb_path_ops)  -- reverse lookup "items setting this subject": subject_uri @> '[{"identifier": ...}]'
 ```
 
 ### cf_association
@@ -348,6 +349,7 @@ last_change_date_time: TIMESTAMP NOT NULL
 UNIQUE(tenant_id, identifier)
 INDEX(tenant_id, cf_document_id, human_coding_scheme)  -- upsertマッチング用
 INDEX(cf_document_id, depth)  -- ツリービューLevel判定用（INDEX(cf_document_id) 単独の用途もカバー）
+GIN INDEX(subject_uri jsonb_path_ops)  -- 分野逆引き「この分野を設定している項目」: subject_uri @> '[{"identifier": ...}]'
 ```
 
 ### cf_association
