@@ -21,6 +21,10 @@ class CFItem(Base):
             postgresql_using="gin",
             postgresql_ops={"subject_uri": "jsonb_path_ops"},
         ),
+        # Reverse lookup "items of this type" (CFItemType). Postgres does not
+        # auto-index FK columns, so the tenant-wide `WHERE tenant_id=? AND
+        # cf_item_type_id=?` query would seq-scan without this.
+        Index("ix_cf_items_tenant_item_type", "tenant_id", "cf_item_type_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
