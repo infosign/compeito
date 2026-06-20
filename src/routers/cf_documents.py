@@ -25,9 +25,13 @@ async def list_cf_documents(
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     if limit < 0:
-        return imsx_error_response(400, "Invalid limit: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid limit: must be a non-negative integer", "invalid_selection_field", field_name="limit"
+        )
     if offset < 0:
-        return imsx_error_response(400, "Invalid offset: must be a non-negative integer", "invalid_selection_field")
+        return imsx_error_response(
+            400, "Invalid offset: must be a non-negative integer", "invalid_selection_field", field_name="offset"
+        )
 
     # CASE v1.1 sort / orderBy / filter / fields (IMS / OneRoster-style).
     try:
@@ -35,7 +39,7 @@ async def list_cf_documents(
         filter_clause = case_query_params.parse_filter(filter)
         field_list = case_query_params.parse_fields(fields)
     except case_query_params.QueryParamError as e:
-        return imsx_error_response(400, e.message, e.code_minor)
+        return imsx_error_response(400, e.message, e.code_minor, field_name=e.field_name)
 
     limit = min(limit, 500)
     offset = min(offset, 100000)
