@@ -535,7 +535,7 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFRubrics?doc=d86774f2-1
             "identifier": "itm11111-1111-1111-1111-111111111111",
             "uri": "https://case.example.com/550e8400-.../uri/itm11111-1111-1111-1111-111111111111"
           },
-          "weight": 1.0,
+          "weight": 1,
           "position": 1,
           "rubricId": "rub11111-1111-1111-1111-111111111111",
           "lastChangeDateTime": "2025-04-01T00:00:00+09:00",
@@ -545,7 +545,7 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFRubrics?doc=d86774f2-1
               "uri": "https://case.example.com/550e8400-.../uri/lvl11111-1111-1111-1111-111111111111",
               "description": "十分に理解している",
               "quality": "A",
-              "score": 5.0,
+              "score": 5,
               "feedback": "優れた理解を示しています",
               "position": 1,
               "rubricCriterionId": "cri11111-1111-1111-1111-111111111111",
@@ -558,6 +558,11 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFRubrics?doc=d86774f2-1
   ]
 }
 ```
+
+> **Note on `weight` / `score`:** whole-number values are emitted as integers
+> (`1`, not `1.0`; `5`, not `5.0`). The `CASEBaseSchema.serialize_int_or_float`
+> serializer renders integer-valued floats as `int` for round-trip parity with
+> OpenCASE (see [round_trip_status.md](../dev/round_trip_status.md) cat C).
 
 **Response (200) — no rubrics:**
 ```json
@@ -578,13 +583,17 @@ GET /550e8400-.../ims/case/v1p1/CFRubrics
   "imsx_codeMinor": {
     "imsx_codeMinorField": [
       {
-        "imsx_codeMinorFieldName": "ims.case.v1p1",
+        "imsx_codeMinorFieldName": "sourcedId",
         "imsx_codeMinorFieldValue": "invalid_selection_field"
       }
     ]
   }
 }
 ```
+> `imsx_codeMinorFieldName` is always `"sourcedId"` (per the imsx convention; see
+> [api-spec.md](api-spec.md) error format and [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C11).
+> `imsx_description` carries the validation detail string from the framework, so the
+> exact text varies; `"Validation error"` above is illustrative.
 
 **Error — `doc` is not a valid UUID (400):**
 ```
@@ -737,6 +746,10 @@ POST /550e8400-.../ims/case/v1p1/CFDocuments
 The response includes an `Allow: GET` header.
 
 ### 500 Internal Server Error
+
+> ⚠️ **Target shape, not yet implemented.** Uncaught errors currently return
+> Starlette's default plain 500, not the imsx shape below. Tracked as
+> [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C15.
 
 ```json
 {
