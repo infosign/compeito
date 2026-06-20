@@ -30,12 +30,15 @@ class QueryParamError(Exception):
 
     ``code_minor`` maps to an imsx_codeMinorFieldValue ("invalid_sort_field" /
     "invalid_selection_field"); ``message`` is the human-readable description.
+    ``field_name`` is the offending query parameter ("sort" / "orderBy" /
+    "filter" / "fields"), surfaced as imsx_codeMinorFieldName.
     """
 
-    def __init__(self, code_minor: str, message: str):
+    def __init__(self, code_minor: str, message: str, field_name: str = "sourcedId"):
         super().__init__(message)
         self.code_minor = code_minor
         self.message = message
+        self.field_name = field_name
 
 
 # CASE field name (camelCase, as in CFDocumentDType) → (ORM column, kind).
@@ -70,13 +73,15 @@ _PREDICATE_RE = re.compile(r"^\s*([A-Za-z]+)\s*(>=|<=|!=|=|>|<|~)\s*(.+?)\s*$")
 def parse_sort(sort: str | None, order_by: str | None):
     """Return an ORM order_by clause (or None for the default)."""
     if order_by is not None and order_by not in ("asc", "desc"):
-        raise QueryParamError("invalid_sort_field", f"Invalid orderBy: '{order_by}'. Valid values: asc, desc")
+        raise QueryParamError(
+            "invalid_sort_field", f"Invalid orderBy: '{order_by}'. Valid values: asc, desc", field_name="orderBy"
+        )
     if not sort:
         return None
     entry = _CFDOC_FIELDS.get(sort)
     if entry is None or entry[1] == "array":
         # Array fields (subject) are not meaningfully sortable.
-        raise QueryParamError("invalid_sort_field", f"Invalid sort field: '{sort}'")
+        raise QueryParamError("invalid_sort_field", f"Invalid sort field: '{sort}'", field_name="sort")
     col = entry[0]
     return col.desc() if order_by == "desc" else col.asc()
 
@@ -150,15 +155,20 @@ def parse_filter(filter_str: str | None):
     """Translate a CASE filter expression to an ORM clause (or None)."""
     if not filter_str or not filter_str.strip():
         return None
-    has_and = " AND " in filter_str
-    has_or = " OR " in filter_str
-    if has_and and has_or:
-        raise QueryParamError("invalid_selection_field", "Mixing AND and OR in filter is not supported")
-    if has_or:
-        return or_(*[_predicate(t) for t in filter_str.split(" OR ")])
-    if has_and:
-        return and_(*[_predicate(t) for t in filter_str.split(" AND ")])
-    return _predicate(filter_str)
+    try:
+        has_and = " AND " in filter_str
+        has_or = " OR " in filter_str
+        if has_and and has_or:
+            raise QueryParamError("invalid_selection_field", "Mixing AND and OR in filter is not supported")
+        if has_or:
+            return or_(*[_predicate(t) for t in filter_str.split(" OR ")])
+        if has_and:
+            return and_(*[_predicate(t) for t in filter_str.split(" AND ")])
+        return _predicate(filter_str)
+    except QueryParamError as e:
+        # Surface the offending parameter as "filter" for all filter sub-errors.
+        e.field_name = "filter"
+        raise
 
 
 def parse_fields(fields: str | None) -> list[str] | None:
@@ -168,7 +178,7 @@ def parse_fields(fields: str | None) -> list[str] | None:
     names = [f.strip() for f in fields.split(",") if f.strip()]
     invalid = [n for n in names if n not in _CFDOC_OUTPUT_FIELDS]
     if invalid:
-        raise QueryParamError("invalid_selection_field", f"Invalid field(s): {', '.join(invalid)}")
+        raise QueryParamError("invalid_selection_field", f"Invalid field(s): {', '.join(invalid)}", field_name="fields")
     return names
 
 
