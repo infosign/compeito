@@ -14,6 +14,11 @@ Three CSV formats are supported. The format is auto-detected on import; on expor
 > (`import xlsx` / `export xlsx`). OpenSALT's CSV importer drops CFItemType / educationLevel,
 > whereas its 3-sheet Excel workbook preserves them. See
 > [round_trip_status.md](../dev/round_trip_status.md) (OpenSALT section).
+>
+> For the full per-field comparison of what each path (CASE JSON / Excel / CSV)
+> preserves or drops, see [round-trip-fidelity.md](round-trip-fidelity.md). The
+> short version: CASE JSON is full fidelity; Excel is an OpenSALT-compatible subset;
+> CSV is a smaller subset (and only expresses `isChildOf` associations).
 
 ## Auto-detection logic
 
