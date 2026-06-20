@@ -28,6 +28,7 @@ from src.services.case_import_service import (
     _normalize_v1p0_package,
     _parse_sequence_number,
     _validate_association,
+    _validate_case_version,
     _validate_cf_package,
     fetch_cf_package,
     import_case_from_dict,
@@ -376,6 +377,30 @@ class TestValidation:
         pkg = _make_cf_package(doc_title="   ")
         with pytest.raises(ValueError, match="title is missing or empty"):
             _validate_cf_package(pkg)
+
+
+class TestCaseVersionValidation:
+    def test_v11_no_warning(self):
+        warnings: list[str] = []
+        assert _validate_case_version("1.1", "CFDocument 'x'", warnings) == "1.1"
+        assert warnings == []
+
+    def test_v10_no_warning(self):
+        warnings: list[str] = []
+        assert _validate_case_version("1.0", "CFDocument 'x'", warnings) == "1.0"
+        assert warnings == []
+
+    def test_none_no_warning(self):
+        warnings: list[str] = []
+        assert _validate_case_version(None, "CFDocument 'x'", warnings) is None
+        assert warnings == []
+
+    def test_unexpected_value_warns_but_keeps_value(self):
+        warnings: list[str] = []
+        # Value is preserved (round-trip fidelity); only a warning is emitted.
+        assert _validate_case_version("2.0", "CFDocument 'x'", warnings) == "2.0"
+        assert len(warnings) == 1
+        assert "caseVersion" in warnings[0]
 
 
 class TestAssociationValidation:

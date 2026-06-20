@@ -260,6 +260,28 @@ def _validate_language(
     return val
 
 
+# Accepted caseVersion values. The CASE v1.1 OpenAPI enum is just "1.1"; we also
+# accept "1.0" because compeito ingests v1.0 sources (normalized to v1.1 output).
+_VALID_CASE_VERSIONS = {"1.0", "1.1"}
+
+
+def _validate_case_version(
+    val: str | None,
+    context: str,
+    warnings: list[str],
+) -> str | None:
+    """Warn on an unexpected caseVersion; the stored value is left unchanged.
+
+    A warning (not a rewrite) keeps round-trip fidelity intact while still
+    surfacing malformed values such as "2.0" / "v1.1" / typos.
+    """
+    if val is not None and val not in _VALID_CASE_VERSIONS:
+        warnings.append(
+            f"{context}: unexpected caseVersion '{val}' (expected one of {sorted(_VALID_CASE_VERSIONS)}); kept as-is"
+        )
+    return val
+
+
 # ---------------------------------------------------------------------------
 # HTTP fetch
 # ---------------------------------------------------------------------------
@@ -907,7 +929,7 @@ def _create_document(
         publisher=data.get("publisher"),
         description=data.get("description"),
         framework_type=data.get("frameworkType"),
-        case_version=data.get("caseVersion"),
+        case_version=_validate_case_version(data.get("caseVersion"), f"CFDocument '{ident}'", warnings),
         language=lang,
         version=data.get("version"),
         adoption_status=data.get("adoptionStatus"),
@@ -960,7 +982,7 @@ def _update_document(
     if data.get("frameworkType") is not None:
         doc.framework_type = data["frameworkType"]
     if data.get("caseVersion") is not None:
-        doc.case_version = data["caseVersion"]
+        doc.case_version = _validate_case_version(data["caseVersion"], f"CFDocument '{doc.identifier}'", warnings)
     if data.get("notes") is not None:
         doc.notes = data["notes"]
     if data.get("extensions") is not None:

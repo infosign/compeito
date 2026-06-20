@@ -292,7 +292,7 @@ Mapping from the external CFPackage's CFDocument object to DB columns:
 - `publisher` → `publisher`.
 - `description` → `description`.
 - `frameworkType` → `framework_type` (v1.1 new).
-- `caseVersion` → `case_version` (v1.1 new; only `"1.1"` is valid).
+- `caseVersion` → `case_version` (v1.1 new). `"1.0"` and `"1.1"` are accepted without a warning (`"1.0"` because compeito ingests v1.0 sources); any other value emits a warning ("CFDocument '{id}': unexpected caseVersion '{val}' …") and the value is **kept as-is** (not rewritten, to preserve round-trip fidelity).
 - `language` → `language` (validate length ≤ 10; too long → NULL with a warning — same rule as CSV import).
 - `version` → `version`.
 - `adoptionStatus` → `adoption_status`.
@@ -863,7 +863,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `publisher` → `publisher`
 - `description` → `description`
 - `frameworkType` → `framework_type`（v1.1 new）
-- `caseVersion` → `case_version`（v1.1 new。値は `"1.1"` のみ有効）
+- `caseVersion` → `case_version`（v1.1 new。`"1.0"` と `"1.1"` は警告なしで受理する（`"1.0"` は v1.0 ソース取り込みのため）。それ以外の値は警告を出力し（「CFDocument '{id}': unexpected caseVersion '{val}' …」）、値はそのまま保持する（round-trip 忠実度を保つため書き換えない）。）
 - `language` → `language`（10文字以下であることを検証する。超過の場合は NULL として保存し警告出力。CSV インポートと同一ルール）
 - `version` → `version`
 - `adoptionStatus` → `adoption_status`

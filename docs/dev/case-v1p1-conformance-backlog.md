@@ -19,6 +19,7 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 - **未定義サブパスの 404 / 未捕捉の 500 を imsx_StatusInfo 形式で返す**（旧 C14 / C15）。`main.py` に `StarletteHTTPException` ハンドラ（CASE API パスの 404 → `unknownobject`）とグローバル `Exception` ハンドラ（CASE API パスの 500 → `internal_server_error`）を追加。CASE API 以外は既定挙動を維持。
 - **エラー封筒の `imsx_codeMinorFieldName` を実フィールド名に**（旧 C11）。`imsx_error_response` に `field_name` 引数を追加し、sort / orderBy / filter / fields / limit / offset と request-validation 由来のフィールド名を渡す（既定は `sourcedId`）。
 - **`ext:` associationType の文字種検証**（旧 C12）。import 受理を公式パターン `^ext:[a-zA-Z0-9.\-_]+$` で検証し、不一致（`ext:日本語` / `ext:` / 空白入り等）は invalid associationType として skip + warning。
+- **`caseVersion` の import 検証**（旧 C8）。想定外の値（`1.0` / `1.1` 以外）は警告を出す。値そのものは保持する（round-trip 忠実度を保つため emit 固定はしない）。
 
 ## certification 着手項目（未対応 / 意図的差異）
 
@@ -31,7 +32,6 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 | C5 | **`Link` ページネーションヘッダ** | 未実装（next/prev/first/last）。`X-Total-Count` は実装済み | P2 | `GET /CFDocuments` に RFC 8288 形式の `Link` を追加。既存クエリ（sort/filter/fields）を保持してリンク生成 |
 | C6 | **filter の網羅性** | scalar + `subject`(JSONB) 対応。ネストのドット記法（`licenseURI.identifier` 等）未対応。ordering は大小区別のまま（等価は大小無視に対応済） | P2 | dot-notation のリンクフィールド filter、必要なら collation 指定の case-insensitive ordering |
 | C7 | **不明な `sort` / `fields` → 400** | binding 散文は「不明 sort は既定順」「不明 field は全件返す（空 field のみ invalid_selection_field）」。compeito は 400 で明示エラー（typo 可視で親切） | P2 | strict/compat モードでのみ binding 散文どおりの寛容挙動に切替（既定は現状維持を推奨） |
-| C8 | **`caseVersion` を "1.1" に強制しない** | 保存値をそのまま emit | P3 | import 時に "1.1" 検証、または emit 時に固定 |
 | C9 | **UUID 不正 → 400 / `limit`=0 許容 / `limit`・`offset` の上限 cap** | 実用優先の挙動（OpenAPI は invalid を unknownobject 扱い、`minimum:1` 等） | P3 | strict モードでのみ OpenAPI どおりに（既定は現状維持） |
 | C10 | **拡張 list エンドポイント** | `CFItemTypes` 等の list は compeito 拡張（公式 list は `CFDocuments` のみ）。`sort/filter/fields` も `CFDocuments` のみ対応 | — | 仕様超過なので certification 上は無害。必要なら他 list にも query を展開 |
 | C13 | **スキーマ層の出力時検証なし** | Pydantic スキーマで identifier の UUID パターン・associationType / targetType の enum を検証していない（import 側で防いでいるため実害は低い） | P3 | strict 出力モード導入時に field_validator で同梱 |

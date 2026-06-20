@@ -52,7 +52,7 @@ creator: VARCHAR                 -- Required in CASE v1.1 but nullable here to a
 publisher: VARCHAR
 description: TEXT
 framework_type: VARCHAR      -- v1.1 new. Standard value "CourseCodes" (free-form string per OpenAPI).
-case_version: VARCHAR        -- v1.1 new. OpenAPI enum: ["1.1"]. Only "1.1" is valid.
+case_version: VARCHAR        -- v1.1 new. OpenAPI enum: ["1.1"]. Import also accepts "1.0" (v1.0 sources); other values are kept with a warning.
 language: VARCHAR(10)
 version: VARCHAR
 adoption_status: VARCHAR
@@ -301,7 +301,7 @@ creator: VARCHAR                 -- CASE v1.1 では required だが、CSV イ�
 publisher: VARCHAR
 description: TEXT
 framework_type: VARCHAR      -- v1.1 new. 標準値は "CourseCodes"（OpenAPI 上は自由文字列）
-case_version: VARCHAR        -- v1.1 new. OpenAPI では enum: ["1.1"]。値は "1.1" のみ有効
+case_version: VARCHAR        -- v1.1 new. OpenAPI では enum: ["1.1"]。import は "1.0"（v1.0 ソース）も受理し、その他の値は警告のうえ保持
 language: VARCHAR(10)
 version: VARCHAR
 adoption_status: VARCHAR
