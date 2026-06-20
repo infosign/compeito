@@ -160,7 +160,7 @@ CSV handles rubrics only through the dedicated rubric CSV
 | CFRubric.identifier / title / description | ✓ | ✗ | ✓ | |
 | CFRubricCriterion.identifier / category / description / weight / position / rubricId | ✓ | ✗ | ✓ | |
 | CFRubricCriterion.CFItemURI | ✓ | ✗ | △ | CSV keeps the linked item `identifier` only; title/uri rebuilt |
-| CFRubricCriterion.rubricCriterionText | ✗ | ✗ | ✗ | **dropped on every path** — DB column exists but is not wired in import/export |
+| CFRubricCriterion.rubricCriterionText | ✗ | ✗ | ✗ | **dropped on every path** — the `rubric_criterion_text_plain` DB column exists but is not wired in import/export |
 | CFRubricCriterionLevel.identifier / description / quality / score / feedback / position / rubricCriterionId | ✓ | ✗ | ✓ | |
 | extensions (all rubric resources) | ✓ | ✗ | ✗ | v1.1 |
 | uri (all rubric resources) | ✓ | ✗ | ✗ | CSV regenerates; levels get a synthetic `urn:csv-import:{uuid}` |
