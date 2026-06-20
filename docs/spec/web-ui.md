@@ -534,7 +534,7 @@ OpenSALT の `/uri/{uuid}` ページを参考にしつつ、デザインは Tail
 | licenseURI | 任意 | ネスト表示（title, identifier, uri）。CFItem と同一形式 |
 | officialSourceURL | 任意 | URL（リンク） |
 | frameworkType | 任意 | テキスト（v1.1 new。外部インポート由来で設定される場合がある） |
-| caseVersion | 任意 | テキスト（v1.1 new。値は "1.1" のみ） |
+| caseVersion | 任意 | テキスト（v1.1 new。OpenAPI enum は "1.1"。import は "1.0" も受理し、その他の値は警告のうえ保持） |
 | subject | 任意 | 配列をカンマ区切りで表示 |
 | subjectURI | 任意 | 各要素のネスト表示（title, identifier, uri）。配列 |
 | CFPackageURI | 必須 | ネスト表示（title, identifier, uri） |
