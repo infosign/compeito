@@ -66,6 +66,7 @@
     "related_other_institution_in": "Other institution ↩",
     "incoming_refs_label": "Referenced by (other institutions)",
     "subject_items_label": "Items setting this subject",
+    "item_type_items_label": "Items of this type",
     "subject_items_count": "{count} total",
     "show_more": "Show more",
     "related_external": "External",

@@ -66,6 +66,7 @@
     "related_other_institution_in": "他機関 ↩",
     "incoming_refs_label": "参照元（他機関）",
     "subject_items_label": "この分野を設定している項目",
+    "item_type_items_label": "この種別の項目",
     "subject_items_count": "全 {count} 件",
     "show_more": "もっと見る",
     "related_external": "外部",

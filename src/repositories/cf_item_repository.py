@@ -107,29 +107,13 @@ async def get_cf_item_by_identifier(
     return result.scalar_one_or_none()
 
 
-async def list_items_by_subject(
-    session: AsyncSession,
-    tenant_id: uuid.UUID,
-    subject_identifier: str,
-    *,
-    document_id: uuid.UUID | None = None,
-    offset: int = 0,
-    limit: int = 20,
-) -> list[dict]:
-    """CFItems in this tenant whose ``subject_uri`` references the given subject.
+async def _list_items_where(session: AsyncSession, conditions: list, offset: int, limit: int) -> list[dict]:
+    """Shared body of the reverse-lookup list queries (items using a definition).
 
-    Reverse lookup for the CFSubject detail page ("items setting this subject").
-    Matches via JSONB containment ``subject_uri @> '[{"identifier": <id>}]'``
-    (GIN-indexed). Tenant-scoped. When ``document_id`` is given, additionally
-    restricts to that one document (used by the tree right pane, which is
-    document-scoped; the standalone /uri/ page passes None for the tenant-wide
-    list). Ordered by human_coding_scheme → full_statement → identifier for a
-    stable offset-pagination boundary. Returns
+    Selects the label/link columns, joins the owning document, and applies a
+    stable order for offset pagination. Returns
     ``[{identifier, human_coding_scheme, full_statement, doc_identifier, doc_title}]``.
     """
-    conditions = [CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier)]
-    if document_id is not None:
-        conditions.append(CFItem.cf_document_id == document_id)
     rows = await session.execute(
         select(
             CFItem.identifier,
@@ -160,6 +144,45 @@ async def list_items_by_subject(
     ]
 
 
+async def _count_items_where(session: AsyncSession, conditions: list) -> int:
+    result = await session.execute(select(func.count()).select_from(CFItem).where(*conditions))
+    return int(result.scalar_one())
+
+
+def _subject_conditions(tenant_id: uuid.UUID, subject_identifier: str, document_id: uuid.UUID | None) -> list:
+    conditions = [CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier)]
+    if document_id is not None:
+        conditions.append(CFItem.cf_document_id == document_id)
+    return conditions
+
+
+def _item_type_conditions(tenant_id: uuid.UUID, item_type_id: uuid.UUID, document_id: uuid.UUID | None) -> list:
+    conditions = [CFItem.tenant_id == tenant_id, CFItem.cf_item_type_id == item_type_id]
+    if document_id is not None:
+        conditions.append(CFItem.cf_document_id == document_id)
+    return conditions
+
+
+async def list_items_by_subject(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    subject_identifier: str,
+    *,
+    document_id: uuid.UUID | None = None,
+    offset: int = 0,
+    limit: int = 20,
+) -> list[dict]:
+    """CFItems in this tenant whose ``subject_uri`` references the given subject.
+
+    Reverse lookup for the CFSubject detail page ("items setting this subject").
+    Matches via JSONB containment ``subject_uri @> '[{"identifier": <id>}]'``
+    (GIN-indexed). Tenant-scoped. When ``document_id`` is given, additionally
+    restricts to that one document (the tree right pane is document-scoped; the
+    standalone /uri/ page passes None for the tenant-wide list)."""
+    conditions = _subject_conditions(tenant_id, subject_identifier, document_id)
+    return await _list_items_where(session, conditions, offset, limit)
+
+
 async def count_items_by_subject(
     session: AsyncSession,
     tenant_id: uuid.UUID,
@@ -168,12 +191,35 @@ async def count_items_by_subject(
     document_id: uuid.UUID | None = None,
 ) -> int:
     """Total CFItems referencing the given subject (for the count label).
-    Tenant-scoped; restricted to one document when ``document_id`` is given
-    (same scoping as ``list_items_by_subject``). Call once on the SSR page; the
-    "load more" fragment derives has_more from a limit+1 fetch instead of
-    recounting."""
-    conditions = [CFItem.tenant_id == tenant_id, _subject_uri_contains(subject_identifier)]
-    if document_id is not None:
-        conditions.append(CFItem.cf_document_id == document_id)
-    result = await session.execute(select(func.count()).select_from(CFItem).where(*conditions))
-    return int(result.scalar_one())
+    Same scoping as ``list_items_by_subject``."""
+    return await _count_items_where(session, _subject_conditions(tenant_id, subject_identifier, document_id))
+
+
+async def list_items_by_item_type(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    item_type_id: uuid.UUID,
+    *,
+    document_id: uuid.UUID | None = None,
+    offset: int = 0,
+    limit: int = 20,
+) -> list[dict]:
+    """CFItems of the given CFItemType ("items of this type").
+
+    Reverse lookup for the CFItemType detail page. Matches the FK
+    ``cf_item.cf_item_type_id`` (indexed via the FK) — ``item_type_id`` is the
+    CFItemType's internal PK (``CFItemType.id``), not its CASE identifier.
+    Tenant-scoped; ``document_id`` restricts to one document (pane scope)."""
+    return await _list_items_where(session, _item_type_conditions(tenant_id, item_type_id, document_id), offset, limit)
+
+
+async def count_items_by_item_type(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    item_type_id: uuid.UUID,
+    *,
+    document_id: uuid.UUID | None = None,
+) -> int:
+    """Total CFItems of the given CFItemType (count label). Same scoping as
+    ``list_items_by_item_type``."""
+    return await _count_items_where(session, _item_type_conditions(tenant_id, item_type_id, document_id))
