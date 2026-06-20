@@ -22,6 +22,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | docs/spec/web-ui.md                              | Web UIパス設計・ツリービュー・詳細ページ・URI生成ルール            |
 | docs/spec/csv-format.md                          | CSVフォーマット仕様（独自形式・OpenSALT形式・簡易形式）           |
 | docs/spec/import-logic.md                        | インポート/エクスポートのビジネスロジック・upsertルール             |
+| docs/spec/round-trip-fidelity.md                 | 経路別（CASE JSON / Excel / CSV）の全フィールド往復忠実度マトリクス |
 | docs/spec/cli.md                                 | CLIコマンド仕様                                   |
 | docs/guide/initial-setup.md                      | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで）         |
 | docs/guide/opencase-interop.md                   | OpenCASE 相互運用ガイド（公開/プライベートの配置パターンと運用フロー）         |
