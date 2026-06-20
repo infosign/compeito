@@ -952,6 +952,22 @@
             {% if resource.license_text is defined %}{{ optional_field(t("f_license_text"), resource.license_text) }}{% endif %}
         </dl>
 
+        {# CFSubject reverse lookup: items in this tenant that set this subject. #}
+        {% if resource_type == "CFSubject" and subject_items.rows %}
+        {% call section(t("subject_items_label")) %}
+            <div>
+                <dd class="text-gray-800">
+                    <p class="text-xs text-stone-400 mb-2">{{ t("subject_items_count", count=subject_items.total|string) }}</p>
+                    <ul class="ml-4 space-y-1">
+                        {% with rows=subject_items.rows, next_offset=subject_items.next_offset, limit=subject_items.limit, has_more=subject_items.has_more, subject_id=resource.identifier %}
+                        {% include "fragments/subject_items.html" %}
+                        {% endwith %}
+                    </ul>
+                </dd>
+            </div>
+        {% endcall %}
+        {% endif %}
+
         {% call section(t("sec_technical"), muted=true) %}
             {{ code_field(t("f_identifier"), resource.identifier) }}
             {{ uri_field(t("f_uri"), resource.uri) }}

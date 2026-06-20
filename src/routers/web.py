@@ -63,6 +63,10 @@ templates.env.globals["uri_other_tenant"] = _uri_other_tenant
 CACHE_CONTROL = "public, max-age=3600"
 CACHE_CONTROL_FRAGMENT = "public, max-age=86400"
 
+# Page size for the CFSubject "items setting this subject" reverse-lookup list
+# (inline top-N on the subject page + "load more" HTMX pagination).
+SUBJECT_ITEMS_PAGE = 20
+
 # Map UriResult.resource_type to the CASE v1.1 API path segment.
 # Resource types without an individual API endpoint (CFRubricCriterion,
 # CFRubricCriterionLevel — nested only inside CFRubrics) are absent.
@@ -405,7 +409,14 @@ async def _incoming_refs(session: AsyncSession, tenant_id, item) -> list[dict]:
 
 
 async def _detail_extras(
-    session: AsyncSession, tenant_id, resource_type: str, resource, doc=None, tree_index=None
+    session: AsyncSession,
+    tenant_id,
+    resource_type: str,
+    resource,
+    doc=None,
+    tree_index=None,
+    *,
+    include_subject_items: bool = True,
 ) -> dict:
     """Extra context the resource-detail card needs beyond the resource itself:
     rubrics (CFDocument), referring criteria + related groupings (CFItem).
@@ -446,6 +457,15 @@ async def _detail_extras(
     # this item's node_uri ("referenced by other institutions"). Private origins
     # are excluded by `_incoming_refs` (case A — existence + count hidden).
     incoming_refs: list[dict] = []
+    # CFSubject reverse lookup: items in THIS tenant that set this subject (first
+    # page + total + has_more). Within-tenant only (a subject is tenant-owned).
+    subject_items: dict = {
+        "rows": [],
+        "total": 0,
+        "has_more": False,
+        "next_offset": 0,
+        "limit": SUBJECT_ITEMS_PAGE,
+    }
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFAssociation":
@@ -547,6 +567,23 @@ async def _detail_extras(
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
         incoming_refs = await _incoming_refs(session, tenant_id, resource)
+    elif resource_type == "CFSubject" and include_subject_items:
+        # Only the standalone /uri/ page lists "items setting this subject". The
+        # tree right pane is document-scoped, so pane callers pass
+        # include_subject_items=False — keeping it hidden there AND skipping the
+        # (potentially large) reverse-lookup query.
+        sid = str(resource.identifier)
+        rows = await cf_item_repository.list_items_by_subject(
+            session, tenant_id, sid, offset=0, limit=SUBJECT_ITEMS_PAGE
+        )
+        total = await cf_item_repository.count_items_by_subject(session, tenant_id, sid)
+        subject_items = {
+            "rows": rows,
+            "total": total,
+            "has_more": total > len(rows),
+            "next_offset": len(rows),
+            "limit": SUBJECT_ITEMS_PAGE,
+        }
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
@@ -560,6 +597,7 @@ async def _detail_extras(
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
         "incoming_refs": incoming_refs,
+        "subject_items": subject_items,
     }
 
 
@@ -577,6 +615,7 @@ _DETAIL_EXTRAS_KEYS = (
     "hierarchy_upper",
     "hierarchy_lower",
     "incoming_refs",
+    "subject_items",
 )
 
 
@@ -801,6 +840,9 @@ async def _render_tree_page(
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
         "incoming_refs": incoming_refs,
+        # The tree pane is document-scoped; a subject's cross-document "items
+        # setting this subject" list is shown only on the standalone /uri/ page.
+        "subject_items": {"rows": [], "total": 0, "has_more": False, "next_offset": 0, "limit": SUBJECT_ITEMS_PAGE},
     }
     ctx = _detail_pane_context(
         pane_extras,
@@ -965,7 +1007,9 @@ async def _pane_fragment_response(
     """Render the shared full-detail card as a right-pane HTMX fragment."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc)
+    # in_pane: the tree pane is document-scoped, so suppress the CFSubject
+    # "items setting this subject" reverse list here (don't compute or render it).
+    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc, include_subject_items=False)
     # in_pane=True → the redundant "Show in tree" link is hidden by the partial.
     ctx = _detail_pane_context(
         extras,
@@ -1080,6 +1124,58 @@ async def children_fragment(
         "t": t,
     }
     response = templates.TemplateResponse(request, "fragments/tree_nodes.html", ctx)
+    response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
+    return response
+
+
+@router.get(
+    "/{tenant}/subject/{subject_id}/items",
+    response_class=HTMLResponse,
+)
+async def subject_items_fragment(
+    tenant: str,
+    subject_id: str,
+    request: Request,
+    offset: int = 0,
+    limit: int = SUBJECT_ITEMS_PAGE,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """HTMX fragment: the next page of "items setting this subject", appended on
+    the CFSubject detail page ("load more"). Mirrors the tree's lazy-load shape —
+    returns the same `subject_items.html` markup (rows + a self-perpetuating
+    button), so each click swaps the button for the next page + a fresh button.
+    Within-tenant only. has_more is derived from a limit+1 fetch (no recount)."""
+    t = get_translator(_get_lang(request))
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
+    if tenant_obj is None:
+        return _error_fragment(404, t("error_tenant_not_found"))
+
+    subject_uuid = _parse_uuid(subject_id)
+    if subject_uuid is None:
+        return _error_fragment(400, t("error_bad_request"))
+    # The id must resolve to a CFSubject in THIS tenant (same "validate the
+    # target" invariant as children_fragment) — never drive this for arbitrary ids.
+    result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, subject_uuid)
+    if result is None or result.resource_type != "CFSubject":
+        return _error_fragment(404, t("error_not_found"))
+
+    offset = max(0, offset)
+    limit = max(1, min(limit, SUBJECT_ITEMS_PAGE))
+    rows = await cf_item_repository.list_items_by_subject(
+        session, tenant_obj.id, str(subject_uuid), offset=offset, limit=limit + 1
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    ctx = {
+        "rows": rows,
+        "next_offset": offset + len(rows),
+        "limit": limit,
+        "has_more": has_more,
+        "subject_id": str(subject_uuid),
+        "tenant_url": _tenant_url_segment(tenant, tenant_obj),
+        "t": t,
+    }
+    response = templates.TemplateResponse(request, "fragments/subject_items.html", ctx)
     response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
     return response
 
