@@ -415,8 +415,6 @@ async def _detail_extras(
     resource,
     doc=None,
     tree_index=None,
-    *,
-    include_subject_items: bool = True,
 ) -> dict:
     """Extra context the resource-detail card needs beyond the resource itself:
     rubrics (CFDocument), referring criteria + related groupings (CFItem).
@@ -465,6 +463,7 @@ async def _detail_extras(
         "has_more": False,
         "next_offset": 0,
         "limit": SUBJECT_ITEMS_PAGE,
+        "scope_doc": None,
     }
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
@@ -567,22 +566,28 @@ async def _detail_extras(
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
         incoming_refs = await _incoming_refs(session, tenant_id, resource)
-    elif resource_type == "CFSubject" and include_subject_items:
-        # Only the standalone /uri/ page lists "items setting this subject". The
-        # tree right pane is document-scoped, so pane callers pass
-        # include_subject_items=False — keeping it hidden there AND skipping the
-        # (potentially large) reverse-lookup query.
+    elif resource_type == "CFSubject":
+        # "Items setting this subject". Scope follows the surface (`doc`):
+        #   - standalone /uri/ page: `doc` is None (a subject is a tenant-owned
+        #     lookup with no owning document) → tenant-wide list.
+        #   - tree right pane: `doc` is the current document → restrict to it, so
+        #     the pane stays document-scoped (every listed item is a node in the
+        #     current tree; no jumping to another doc, and the query is cheap).
         sid = str(resource.identifier)
+        scope_doc_id = doc.id if doc is not None else None
         rows = await cf_item_repository.list_items_by_subject(
-            session, tenant_id, sid, offset=0, limit=SUBJECT_ITEMS_PAGE
+            session, tenant_id, sid, document_id=scope_doc_id, offset=0, limit=SUBJECT_ITEMS_PAGE
         )
-        total = await cf_item_repository.count_items_by_subject(session, tenant_id, sid)
+        total = await cf_item_repository.count_items_by_subject(session, tenant_id, sid, document_id=scope_doc_id)
         subject_items = {
             "rows": rows,
             "total": total,
             "has_more": total > len(rows),
             "next_offset": len(rows),
             "limit": SUBJECT_ITEMS_PAGE,
+            # Carried into the "load more" URL so pagination stays in the same
+            # scope (the pane keeps restricting to this document).
+            "scope_doc": str(doc.identifier) if doc is not None else None,
         }
     return {
         "rubrics": rubrics,
@@ -765,6 +770,14 @@ async def _render_tree_page(
     hierarchy_upper: list[dict] = []
     hierarchy_lower: list[dict] = []
     incoming_refs: list[dict] = []
+    subject_items: dict = {
+        "rows": [],
+        "total": 0,
+        "has_more": False,
+        "next_offset": 0,
+        "limit": SUBJECT_ITEMS_PAGE,
+        "scope_doc": None,
+    }
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
@@ -821,6 +834,13 @@ async def _render_tree_page(
                 hierarchy_upper = extras["hierarchy_upper"]
                 hierarchy_lower = extras["hierarchy_lower"]
                 incoming_refs = extras["incoming_refs"]
+            elif pane_type == "CFSubject":
+                # Pane is document-scoped: list only this document's items that
+                # set the subject (passing `doc` scopes the query — see
+                # _detail_extras). The standalone /uri/ page shows the tenant-wide
+                # list (doc is None there).
+                extras = await _detail_extras(session, tenant_obj.id, "CFSubject", pane_resource, doc)
+                subject_items = extras["subject_items"]
 
     # Full-detail pane context (shared partial). `resource` is the
     # relationship-loaded selected resource, or the document by default.
@@ -840,9 +860,9 @@ async def _render_tree_page(
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
         "incoming_refs": incoming_refs,
-        # The tree pane is document-scoped; a subject's cross-document "items
-        # setting this subject" list is shown only on the standalone /uri/ page.
-        "subject_items": {"rows": [], "total": 0, "has_more": False, "next_offset": 0, "limit": SUBJECT_ITEMS_PAGE},
+        # Document-scoped in the pane (a CFSubject selected in this doc's tree
+        # lists only this document's items setting it); empty for non-subjects.
+        "subject_items": subject_items,
     }
     ctx = _detail_pane_context(
         pane_extras,
@@ -1007,9 +1027,10 @@ async def _pane_fragment_response(
     """Render the shared full-detail card as a right-pane HTMX fragment."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    # in_pane: the tree pane is document-scoped, so suppress the CFSubject
-    # "items setting this subject" reverse list here (don't compute or render it).
-    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc, include_subject_items=False)
+    # Passing `doc` document-scopes the CFSubject "items setting this subject"
+    # list to the current tree (see _detail_extras); the standalone /uri/ page
+    # has no doc and shows the tenant-wide list.
+    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc)
     # in_pane=True → the redundant "Show in tree" link is hidden by the partial.
     ctx = _detail_pane_context(
         extras,
@@ -1138,13 +1159,18 @@ async def subject_items_fragment(
     request: Request,
     offset: int = 0,
     limit: int = SUBJECT_ITEMS_PAGE,
+    doc: str | None = None,
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """HTMX fragment: the next page of "items setting this subject", appended on
     the CFSubject detail page ("load more"). Mirrors the tree's lazy-load shape —
     returns the same `subject_items.html` markup (rows + a self-perpetuating
     button), so each click swaps the button for the next page + a fresh button.
-    Within-tenant only. has_more is derived from a limit+1 fetch (no recount)."""
+    Within-tenant only. has_more is derived from a limit+1 fetch (no recount).
+
+    Optional `doc` keeps the pane's document scope across pagination: when given,
+    only that document's items are listed (matching the tree-pane view); omitted
+    on the standalone /uri/ page → tenant-wide."""
     t = get_translator(_get_lang(request))
     tenant_obj = await tenant_service.resolve_tenant(session, tenant)
     if tenant_obj is None:
@@ -1159,10 +1185,23 @@ async def subject_items_fragment(
     if result is None or result.resource_type != "CFSubject":
         return _error_fragment(404, t("error_not_found"))
 
+    # Optional document scope (pane). Validate it's a document in this tenant.
+    scope_doc_id = None
+    scope_doc_ident = None
+    if doc is not None:
+        doc_uuid = _parse_uuid(doc)
+        if doc_uuid is None:
+            return _error_fragment(400, t("error_bad_request"))
+        scope_doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
+        if scope_doc is None:
+            return _error_fragment(404, t("error_document_not_found"))
+        scope_doc_id = scope_doc.id
+        scope_doc_ident = str(scope_doc.identifier)
+
     offset = max(0, offset)
     limit = max(1, min(limit, SUBJECT_ITEMS_PAGE))
     rows = await cf_item_repository.list_items_by_subject(
-        session, tenant_obj.id, str(subject_uuid), offset=offset, limit=limit + 1
+        session, tenant_obj.id, str(subject_uuid), document_id=scope_doc_id, offset=offset, limit=limit + 1
     )
     has_more = len(rows) > limit
     rows = rows[:limit]
@@ -1172,6 +1211,7 @@ async def subject_items_fragment(
         "limit": limit,
         "has_more": has_more,
         "subject_id": str(subject_uuid),
+        "scope_doc": scope_doc_ident,
         "tenant_url": _tenant_url_segment(tenant, tenant_obj),
         "t": t,
     }

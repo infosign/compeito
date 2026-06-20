@@ -959,7 +959,7 @@
                 <dd class="text-gray-800">
                     <p class="text-xs text-stone-400 mb-2">{{ t("subject_items_count", count=subject_items.total|string) }}</p>
                     <ul class="ml-4 space-y-1">
-                        {% with rows=subject_items.rows, next_offset=subject_items.next_offset, limit=subject_items.limit, has_more=subject_items.has_more, subject_id=resource.identifier %}
+                        {% with rows=subject_items.rows, next_offset=subject_items.next_offset, limit=subject_items.limit, has_more=subject_items.has_more, subject_id=resource.identifier, scope_doc=subject_items.scope_doc %}
                         {% include "fragments/subject_items.html" %}
                         {% endwith %}
                     </ul>
