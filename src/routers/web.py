@@ -409,7 +409,14 @@ async def _incoming_refs(session: AsyncSession, tenant_id, item) -> list[dict]:
 
 
 async def _detail_extras(
-    session: AsyncSession, tenant_id, resource_type: str, resource, doc=None, tree_index=None
+    session: AsyncSession,
+    tenant_id,
+    resource_type: str,
+    resource,
+    doc=None,
+    tree_index=None,
+    *,
+    include_subject_items: bool = True,
 ) -> dict:
     """Extra context the resource-detail card needs beyond the resource itself:
     rubrics (CFDocument), referring criteria + related groupings (CFItem).
@@ -560,7 +567,11 @@ async def _detail_extras(
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
         incoming_refs = await _incoming_refs(session, tenant_id, resource)
-    elif resource_type == "CFSubject":
+    elif resource_type == "CFSubject" and include_subject_items:
+        # Only the standalone /uri/ page lists "items setting this subject". The
+        # tree right pane is document-scoped, so pane callers pass
+        # include_subject_items=False — keeping it hidden there AND skipping the
+        # (potentially large) reverse-lookup query.
         sid = str(resource.identifier)
         rows = await cf_item_repository.list_items_by_subject(
             session, tenant_id, sid, offset=0, limit=SUBJECT_ITEMS_PAGE
@@ -996,7 +1007,9 @@ async def _pane_fragment_response(
     """Render the shared full-detail card as a right-pane HTMX fragment."""
     lang = _get_lang(request)
     t = get_translator(lang)
-    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc)
+    # in_pane: the tree pane is document-scoped, so suppress the CFSubject
+    # "items setting this subject" reverse list here (don't compute or render it).
+    extras = await _detail_extras(session, tenant_obj.id, resource_type, resource, doc, include_subject_items=False)
     # in_pane=True → the redundant "Show in tree" link is hidden by the partial.
     ctx = _detail_pane_context(
         extras,

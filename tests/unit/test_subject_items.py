@@ -14,6 +14,7 @@ from src.models.cf_item import CFItem
 from src.models.cf_subject import CFSubject
 from src.models.tenant import Tenant
 from src.repositories import cf_item_repository
+from src.routers.web import _detail_extras
 
 _TS = datetime(2025, 1, 1, tzinfo=timezone.utc)
 
@@ -257,3 +258,46 @@ class TestSubjectItemsFragment:
     async def test_unknown_subject_404(self, db_client, tenant: Tenant):
         resp = await db_client.get(f"/{tenant.id}/subject/{uuid.uuid4()}/items")
         assert resp.status_code == 404
+
+
+class TestPaneSuppression:
+    """The reverse list is for the standalone /uri/ page only — the tree right
+    pane is document-scoped and must NOT show it (and must NOT run the query)."""
+
+    async def test_detail_extras_suppressed_when_in_pane(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        subj = _make_subject(tenant)
+        sid = str(subj.identifier)
+        db_session.add(subj)
+        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="ref item"))
+        await db_session.flush()
+
+        # Pane path: include_subject_items=False → empty even though items exist.
+        suppressed = await _detail_extras(db_session, tenant.id, "CFSubject", subj, include_subject_items=False)
+        assert suppressed["subject_items"]["rows"] == []
+        assert suppressed["subject_items"]["total"] == 0
+
+        # Standalone page path: default True → populated.
+        shown = await _detail_extras(db_session, tenant.id, "CFSubject", subj)
+        assert shown["subject_items"]["total"] == 1
+        assert shown["subject_items"]["rows"][0]["full_statement"] == "ref item"
+
+    async def test_pane_fragment_hides_subject_items(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        # A subject referenced by an item in this doc becomes a tree-node
+        # (Definitions), so its detail fragment is reachable in the pane. The
+        # reverse-lookup section must NOT appear there.
+        subj = _make_subject(tenant, title="Pane Subject")
+        sid = str(subj.identifier)
+        db_session.add(subj)
+        db_session.add(_make_item_with_subject(tenant, sample_document, sid, full_statement="ref in pane"))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{subj.identifier}")
+        assert resp.status_code == 200
+        assert "Pane Subject" in resp.text  # the subject card itself renders
+        # ...but not its reverse list (no "show more" fragment link, no ref item).
+        assert f"/subject/{subj.identifier}/items" not in resp.text
+        assert "ref in pane" not in resp.text
