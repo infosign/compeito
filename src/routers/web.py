@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import escape
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
 from src.repositories import cf_association_repository, cf_item_repository, cf_rubric_repository
@@ -348,6 +349,61 @@ async def _cross_doc_hierarchy(session: AsyncSession, tenant_id, item, doc) -> t
     return upper, lower
 
 
+async def _incoming_refs(session: AsyncSession, tenant_id, item) -> list[dict]:
+    """Incoming references ("referenced by other institutions"): associations in
+    OTHER tenants whose destination is THIS item's node_uri.
+
+    The search key is this item's own permalink — ``{base_url}/{tenant}/uri/{item}``
+    (the same shape `case_import_service._build_uri` stores) — looked up against
+    every tenant's associations. For each match, the **origin** tenant must be
+    PUBLIC (is_private=False); private-tenant references are dropped entirely so
+    neither their existence nor their count is ever surfaced (case A). The origin
+    item is then resolved within its own tenant for a display label.
+
+    Returns ``[{label, tenant_name, tenant_segment, doc_identifier,
+    origin_identifier, association_type}, ...]`` for public origins only,
+    de-duplicated per (origin tenant, origin item).
+    """
+    dest_uri = f"{settings.base_url}/{tenant_id}/uri/{item.identifier}"
+    assocs = await cf_association_repository.list_incoming_by_destination_uri(session, dest_uri)
+    # Group origin identifiers by origin tenant so each tenant is visibility-gated
+    # once and its items resolved in a single batched lookup.
+    by_tenant: dict[uuid.UUID, dict[str, str]] = {}
+    for a in assocs:
+        # An origin in the CURRENT tenant referencing its own item is not an
+        # "other institution" adoption — skip it (the relation already shows in
+        # this item's own related/hierarchy sections).
+        if a.tenant_id == tenant_id:
+            continue
+        by_tenant.setdefault(a.tenant_id, {})[a.origin_node_identifier] = a.association_type
+
+    refs: list[dict] = []
+    for origin_tid, ident_types in by_tenant.items():
+        origin_tenant = await tenant_service.get_tenant(session, origin_tid)
+        # Drop nonexistent and PRIVATE origin tenants → never surfaced (case A).
+        if origin_tenant is None or origin_tenant.is_private:
+            continue
+        item_map = await cf_item_repository.map_identifiers_to_items(session, origin_tid, set(ident_types))
+        segment = origin_tenant.slug or str(origin_tenant.id)
+        for ident, info in item_map.items():
+            hcs = info.get("human_coding_scheme")
+            stmt = info.get("full_statement") or ""
+            label = (f"{hcs} {stmt}".strip() if hcs else stmt) or ident
+            refs.append(
+                {
+                    "label": label[:100],
+                    "tenant_name": origin_tenant.name,
+                    "tenant_segment": segment,
+                    "doc_identifier": info["doc_identifier"],
+                    "origin_identifier": ident,
+                    "association_type": ident_types[ident],
+                }
+            )
+    # Stable display order: by institution name, then by label.
+    refs.sort(key=lambda r: (r["tenant_name"] or "", r["label"]))
+    return refs
+
+
 async def _detail_extras(
     session: AsyncSession, tenant_id, resource_type: str, resource, doc=None, tree_index=None
 ) -> dict:
@@ -386,6 +442,10 @@ async def _detail_extras(
     # Cross-document isChildOf neighbors (parents / children in another framework).
     hierarchy_upper: list[dict] = []
     hierarchy_lower: list[dict] = []
+    # Incoming cross-tenant references: PUBLIC other-tenant items that point AT
+    # this item's node_uri ("referenced by other institutions"). Private origins
+    # are excluded by `_incoming_refs` (case A — existence + count hidden).
+    incoming_refs: list[dict] = []
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFAssociation":
@@ -486,6 +546,7 @@ async def _detail_extras(
             if unresolved:
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
+        incoming_refs = await _incoming_refs(session, tenant_id, resource)
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
@@ -498,6 +559,7 @@ async def _detail_extras(
         "assoc_node_cross_tenant": assoc_node_cross_tenant,
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
+        "incoming_refs": incoming_refs,
     }
 
 
@@ -514,6 +576,7 @@ _DETAIL_EXTRAS_KEYS = (
     "assoc_node_cross_tenant",
     "hierarchy_upper",
     "hierarchy_lower",
+    "incoming_refs",
 )
 
 
@@ -662,6 +725,7 @@ async def _render_tree_page(
     related_other_tenant: dict[str, dict] = {}
     hierarchy_upper: list[dict] = []
     hierarchy_lower: list[dict] = []
+    incoming_refs: list[dict] = []
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
@@ -717,6 +781,7 @@ async def _render_tree_page(
                 related_other_tenant = extras["related_other_tenant"]
                 hierarchy_upper = extras["hierarchy_upper"]
                 hierarchy_lower = extras["hierarchy_lower"]
+                incoming_refs = extras["incoming_refs"]
 
     # Full-detail pane context (shared partial). `resource` is the
     # relationship-loaded selected resource, or the document by default.
@@ -735,6 +800,7 @@ async def _render_tree_page(
         "assoc_node_cross_tenant": {},
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
+        "incoming_refs": incoming_refs,
     }
     ctx = _detail_pane_context(
         pane_extras,
