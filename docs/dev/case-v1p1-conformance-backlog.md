@@ -18,6 +18,7 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 - `GET /CFItemAssociations/{id}` の既定を全件返却に（公式契約にページネーション定義なし。既定 limit=100 のサイレント切り詰めを廃止、`limit`/`offset` は明示指定時のみの拡張に。2026-06 適合性監査 N1、PR #220）
 - **未定義サブパスの 404 / 未捕捉の 500 を imsx_StatusInfo 形式で返す**（旧 C14 / C15）。`main.py` に `StarletteHTTPException` ハンドラ（CASE API パスの 404 → `unknownobject`）とグローバル `Exception` ハンドラ（CASE API パスの 500 → `internal_server_error`）を追加。CASE API 以外は既定挙動を維持。
 - **エラー封筒の `imsx_codeMinorFieldName` を実フィールド名に**（旧 C11）。`imsx_error_response` に `field_name` 引数を追加し、sort / orderBy / filter / fields / limit / offset と request-validation 由来のフィールド名を渡す（既定は `sourcedId`）。
+- **`ext:` associationType の文字種検証**（旧 C12）。import 受理を公式パターン `^ext:[a-zA-Z0-9.\-_]+$` で検証し、不一致（`ext:日本語` / `ext:` / 空白入り等）は invalid associationType として skip + warning。
 
 ## certification 着手項目（未対応 / 意図的差異）
 
@@ -33,7 +34,6 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 | C8 | **`caseVersion` を "1.1" に強制しない** | 保存値をそのまま emit | P3 | import 時に "1.1" 検証、または emit 時に固定 |
 | C9 | **UUID 不正 → 400 / `limit`=0 許容 / `limit`・`offset` の上限 cap** | 実用優先の挙動（OpenAPI は invalid を unknownobject 扱い、`minimum:1` 等） | P3 | strict モードでのみ OpenAPI どおりに（既定は現状維持） |
 | C10 | **拡張 list エンドポイント** | `CFItemTypes` 等の list は compeito 拡張（公式 list は `CFDocuments` のみ）。`sort/filter/fields` も `CFDocuments` のみ対応 | — | 仕様超過なので certification 上は無害。必要なら他 list にも query を展開 |
-| C12 | **`ext:` associationType の文字種** | import 受理が `startswith("ext:")` のみで、公式パターン `(ext:)[a-zA-Z0-9.\-_]+` の文字種を検証しない（`ext:日本語` 等も通る） | P3 | 正規表現で検証し、不一致は invalid associationType として skip + warning |
 | C13 | **スキーマ層の出力時検証なし** | Pydantic スキーマで identifier の UUID パターン・associationType / targetType の enum を検証していない（import 側で防いでいるため実害は低い） | P3 | strict 出力モード導入時に field_validator で同梱 |
 
 > C14（未定義サブパスの 404 imsx 化）と C15（500 imsx 化）は対応済み。上記「すでに対応済み」を参照。

@@ -405,6 +405,25 @@ class TestAssociationValidation:
         assoc = _make_association(assoc_type="ext:customType")
         assert _validate_association(assoc) is None
 
+    def test_ext_prefix_allowed_charset_valid(self):
+        # Allowed token charset: a-z A-Z 0-9 . - _
+        assoc = _make_association(assoc_type="ext:custom.Type-1_2")
+        assert _validate_association(assoc) is None
+
+    def test_ext_prefix_non_ascii_invalid(self):
+        # `ext:` with characters outside the official pattern is rejected (C12).
+        assoc = _make_association(assoc_type="ext:日本語")
+        assert "invalid associationType" in _validate_association(assoc)
+
+    def test_ext_prefix_empty_token_invalid(self):
+        # `ext:` with no token is invalid (pattern requires at least one char).
+        assoc = _make_association(assoc_type="ext:")
+        assert "invalid associationType" in _validate_association(assoc)
+
+    def test_ext_prefix_with_space_invalid(self):
+        assoc = _make_association(assoc_type="ext:has space")
+        assert "invalid associationType" in _validate_association(assoc)
+
     def test_missing_origin_uri(self):
         assoc = _make_association()
         del assoc["originNodeURI"]["uri"]
