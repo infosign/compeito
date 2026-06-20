@@ -465,6 +465,16 @@ async def _detail_extras(
         "limit": SUBJECT_ITEMS_PAGE,
         "scope_doc": None,
     }
+    # CFItemType reverse lookup: items of this type (same shape / scope rules as
+    # subject_items, but matched by the cf_item_type_id FK instead of JSONB).
+    item_type_items: dict = {
+        "rows": [],
+        "total": 0,
+        "has_more": False,
+        "next_offset": 0,
+        "limit": SUBJECT_ITEMS_PAGE,
+        "scope_doc": None,
+    }
     if resource_type == "CFDocument":
         rubrics = await cf_rubric_repository.list_by_document(session, resource.id)
     elif resource_type == "CFAssociation":
@@ -589,6 +599,25 @@ async def _detail_extras(
             # scope (the pane keeps restricting to this document).
             "scope_doc": str(doc.identifier) if doc is not None else None,
         }
+    elif resource_type == "CFItemType":
+        # "Items of this type". Same surface-based scope as CFSubject (doc=None on
+        # the standalone page → tenant-wide; doc set in the pane → that document).
+        # Matched by the cf_item_type_id FK; `resource.id` is the type's PK.
+        scope_doc_id = doc.id if doc is not None else None
+        rows = await cf_item_repository.list_items_by_item_type(
+            session, tenant_id, resource.id, document_id=scope_doc_id, offset=0, limit=SUBJECT_ITEMS_PAGE
+        )
+        total = await cf_item_repository.count_items_by_item_type(
+            session, tenant_id, resource.id, document_id=scope_doc_id
+        )
+        item_type_items = {
+            "rows": rows,
+            "total": total,
+            "has_more": total > len(rows),
+            "next_offset": len(rows),
+            "limit": SUBJECT_ITEMS_PAGE,
+            "scope_doc": str(doc.identifier) if doc is not None else None,
+        }
     return {
         "rubrics": rubrics,
         "referring_criteria": referring_criteria,
@@ -603,6 +632,7 @@ async def _detail_extras(
         "hierarchy_lower": hierarchy_lower,
         "incoming_refs": incoming_refs,
         "subject_items": subject_items,
+        "item_type_items": item_type_items,
     }
 
 
@@ -621,6 +651,7 @@ _DETAIL_EXTRAS_KEYS = (
     "hierarchy_lower",
     "incoming_refs",
     "subject_items",
+    "item_type_items",
 )
 
 
@@ -778,6 +809,14 @@ async def _render_tree_page(
         "limit": SUBJECT_ITEMS_PAGE,
         "scope_doc": None,
     }
+    item_type_items: dict = {
+        "rows": [],
+        "total": 0,
+        "has_more": False,
+        "next_offset": 0,
+        "limit": SUBJECT_ITEMS_PAGE,
+        "scope_doc": None,
+    }
     # Which Definitions subgroup (if any) holds the selected node — so the
     # template can auto-open that section/subgroup on a direct load/reload.
     selected_def_group: str | None = None
@@ -841,6 +880,10 @@ async def _render_tree_page(
                 # list (doc is None there).
                 extras = await _detail_extras(session, tenant_obj.id, "CFSubject", pane_resource, doc)
                 subject_items = extras["subject_items"]
+            elif pane_type == "CFItemType":
+                # Same document-scoped pane treatment for "items of this type".
+                extras = await _detail_extras(session, tenant_obj.id, "CFItemType", pane_resource, doc)
+                item_type_items = extras["item_type_items"]
 
     # Full-detail pane context (shared partial). `resource` is the
     # relationship-loaded selected resource, or the document by default.
@@ -860,9 +903,10 @@ async def _render_tree_page(
         "hierarchy_upper": hierarchy_upper,
         "hierarchy_lower": hierarchy_lower,
         "incoming_refs": incoming_refs,
-        # Document-scoped in the pane (a CFSubject selected in this doc's tree
-        # lists only this document's items setting it); empty for non-subjects.
+        # Document-scoped in the pane (a CFSubject/CFItemType selected in this
+        # doc's tree lists only this document's items); empty for other types.
         "subject_items": subject_items,
+        "item_type_items": item_type_items,
     }
     ctx = _detail_pane_context(
         pane_extras,
@@ -1149,6 +1193,25 @@ async def children_fragment(
     return response
 
 
+def _items_fragment_ctx(rows, offset, limit, items_endpoint, scope_doc_ident, tenant_url, t) -> dict:
+    """Context for the shared `subject_items.html` "load more" fragment. `rows`
+    is a limit+1 fetch; has_more is derived from it (no recount). `items_endpoint`
+    is the base URL the partial appends `/items?...` to (keeps subject vs
+    item-type generic)."""
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    return {
+        "rows": rows,
+        "next_offset": offset + len(rows),
+        "limit": limit,
+        "has_more": has_more,
+        "items_endpoint": items_endpoint,
+        "scope_doc": scope_doc_ident,
+        "tenant_url": tenant_url,
+        "t": t,
+    }
+
+
 @router.get(
     "/{tenant}/subject/{subject_id}/items",
     response_class=HTMLResponse,
@@ -1203,18 +1266,63 @@ async def subject_items_fragment(
     rows = await cf_item_repository.list_items_by_subject(
         session, tenant_obj.id, str(subject_uuid), document_id=scope_doc_id, offset=offset, limit=limit + 1
     )
-    has_more = len(rows) > limit
-    rows = rows[:limit]
-    ctx = {
-        "rows": rows,
-        "next_offset": offset + len(rows),
-        "limit": limit,
-        "has_more": has_more,
-        "subject_id": str(subject_uuid),
-        "scope_doc": scope_doc_ident,
-        "tenant_url": _tenant_url_segment(tenant, tenant_obj),
-        "t": t,
-    }
+    tenant_url = _tenant_url_segment(tenant, tenant_obj)
+    ctx = _items_fragment_ctx(
+        rows, offset, limit, f"/{tenant_url}/subject/{subject_uuid}", scope_doc_ident, tenant_url, t
+    )
+    response = templates.TemplateResponse(request, "fragments/subject_items.html", ctx)
+    response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
+    return response
+
+
+@router.get(
+    "/{tenant}/item-type/{item_type_id}/items",
+    response_class=HTMLResponse,
+)
+async def item_type_items_fragment(
+    tenant: str,
+    item_type_id: str,
+    request: Request,
+    offset: int = 0,
+    limit: int = SUBJECT_ITEMS_PAGE,
+    doc: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> HTMLResponse:
+    """HTMX fragment: the next page of "items of this type" ("load more"), the
+    CFItemType analogue of `subject_items_fragment`. Same markup / scoping (`doc`
+    keeps the pane's document scope through pagination)."""
+    t = get_translator(_get_lang(request))
+    tenant_obj = await tenant_service.resolve_tenant(session, tenant)
+    if tenant_obj is None:
+        return _error_fragment(404, t("error_tenant_not_found"))
+
+    item_type_uuid = _parse_uuid(item_type_id)
+    if item_type_uuid is None:
+        return _error_fragment(400, t("error_bad_request"))
+    result = await uri_service.find_resource_by_identifier(session, tenant_obj.id, item_type_uuid)
+    if result is None or result.resource_type != "CFItemType":
+        return _error_fragment(404, t("error_not_found"))
+
+    scope_doc_id, scope_doc_ident = None, None
+    if doc is not None:
+        doc_uuid = _parse_uuid(doc)
+        if doc_uuid is None:
+            return _error_fragment(400, t("error_bad_request"))
+        scope_doc = await tree_service.get_document_for_tree(session, tenant_obj.id, doc_uuid)
+        if scope_doc is None:
+            return _error_fragment(404, t("error_document_not_found"))
+        scope_doc_id = scope_doc.id
+        scope_doc_ident = str(scope_doc.identifier)
+
+    offset = max(0, offset)
+    limit = max(1, min(limit, SUBJECT_ITEMS_PAGE))
+    rows = await cf_item_repository.list_items_by_item_type(
+        session, tenant_obj.id, result.resource.id, document_id=scope_doc_id, offset=offset, limit=limit + 1
+    )
+    tenant_url = _tenant_url_segment(tenant, tenant_obj)
+    ctx = _items_fragment_ctx(
+        rows, offset, limit, f"/{tenant_url}/item-type/{item_type_uuid}", scope_doc_ident, tenant_url, t
+    )
     response = templates.TemplateResponse(request, "fragments/subject_items.html", ctx)
     response.headers["Cache-Control"] = CACHE_CONTROL_FRAGMENT
     return response
