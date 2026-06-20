@@ -95,7 +95,7 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 # are included. isChildOf is NOT repeated in the CF Association sheet.
 uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
 
-# CASE CFPackage JSON export (output is byte-for-byte identical to GET /CFPackages/{id})
+# CASE CFPackage JSON export (same payload as GET /CFPackages/{id}; the CLI pretty-prints with indent, the API serves compact JSON)
 # Re-importable via `import case --file`, or feed-able to any CASE-conformant editor.
 uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
 
@@ -162,7 +162,7 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--file` is not readable (permissions, etc.) → exit ("Cannot read file: '{filepath}'", code 1)
 - `--file` output path is not writable (directory missing, permissions) → exit ("Cannot write file: '{filepath}'", code 1)
 - CSV import: file is not valid UTF-8 → exit ("CSV file is not valid UTF-8", code 1)
-- `tenant update` with none of `--name` / `--private` / `--public` / `--slug` / `--clear-slug` → exit ("At least one of --name, --private, --public, --slug, or --clear-slug is required", code 1)
+- `tenant update` with none of `--name` / `--private` / `--public` / `--slug` / `--clear-slug` / `--display-order` / `--clear-order` → exit ("At least one of --name, --private, --public, --slug, --clear-slug, --display-order, or --clear-order is required", code 1)
 
 ## CSV import defaults
 
@@ -294,7 +294,7 @@ uv run python cli.py export csv --tenant {uuid} --doc {doc-uuid} --file output.c
 # isChildOf は CF Association シートには重複出力しない。
 uv run python cli.py export xlsx --tenant {uuid} --doc {doc-uuid} --file output.xlsx
 
-# CASE CFPackage JSON エクスポート（出力は GET /CFPackages/{id} と同一のバイト列）
+# CASE CFPackage JSON エクスポート（内容は GET /CFPackages/{id} と同一。CLI は可読性のため indent 付き整形、API は compact JSON）
 # import case --file で再取り込みするか、任意の CASE 準拠エディタへ受け渡せる
 uv run python cli.py export case --tenant {uuid} --doc {doc-uuid} --file output.json
 
@@ -361,7 +361,7 @@ uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
 - `--file` で指定したファイルが読み取れない（パーミッションエラー等） → エラー終了（「Cannot read file: '{filepath}'」、終了コード 1）
 - `--file` で指定した出力先に書き込めない（ディレクトリが存在しない、パーミッションエラー等） → エラー終了（「Cannot write file: '{filepath}'」、終了コード 1）
 - CSVインポート時、ファイルが UTF-8 としてデコードできない → エラー終了（「CSV file is not valid UTF-8」、終了コード 1）
-- `tenant update` に `--name` / `--private` / `--public` / `--slug` / `--clear-slug` のいずれも指定されていない → エラー終了（「--name、--private、--public、--slug、--clear-slugのいずれかを指定してください」、終了コード 1）
+- `tenant update` に `--name` / `--private` / `--public` / `--slug` / `--clear-slug` / `--display-order` / `--clear-order` のいずれも指定されていない → エラー終了（「--name、--private、--public、--slug、--clear-slug、--display-order、--clear-orderのいずれかを指定してください」、終了コード 1）
 
 ## CSVインポートのデフォルト動作
 

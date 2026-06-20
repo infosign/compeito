@@ -34,6 +34,8 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 | C11 | **エラー封筒の `imsx_codeMinorFieldName`** | 常に既定の `"sourcedId"`。invalid_sort_field / invalid_selection_field 系では `sort` / `fields` / `limit` 等の実フィールド名が意味的に正しい | P3 | `imsx_error_response` に fieldName 引数を追加し、各呼び出し箇所で該当フィールド名を渡す |
 | C12 | **`ext:` associationType の文字種** | import 受理が `startswith("ext:")` のみで、公式パターン `(ext:)[a-zA-Z0-9.\-_]+` の文字種を検証しない（`ext:日本語` 等も通る） | P3 | 正規表現で検証し、不一致は invalid associationType として skip + warning |
 | C13 | **スキーマ層の出力時検証なし** | Pydantic スキーマで identifier の UUID パターン・associationType / targetType の enum を検証していない（import 側で防いでいるため実害は低い） | P3 | strict 出力モード導入時に field_validator で同梱 |
+| C14 | **未定義サブパスの 404 が imsx 形式でない** | `/{tenant}/ims/case/v1p1/...` 配下の未定義サブパスは FastAPI/Starlette 既定の 404（`{"detail":"Not Found"}`）を返し、imsx_StatusInfo 形式になっていない（既知リソース種別で ID 不在の 404 `unknownobject` は実装済み） | P2 | CASE API パス配下の catch-all ルートまたは `StarletteHTTPException` ハンドラを `main.py` に追加し、imsx 404 に変換 |
+| C15 | **500 が imsx 形式でない** | 未捕捉例外は Starlette 既定のプレーン 500 を返し、`internal_server_error` の imsx_StatusInfo 形式になっていない | P2 | グローバル `Exception` ハンドラを `main.py` に追加し、CASE API パスの 500 を imsx 形式に変換 |
 
 ## デプロイ上の制約（参考）
 
