@@ -6,6 +6,7 @@ See docs/spec/import-logic.md "外部CASEソースインポート" section for t
 from __future__ import annotations
 
 import math
+import re
 import uuid
 
 # ---------------------------------------------------------------------------
@@ -121,6 +122,11 @@ VALID_ASSOCIATION_TYPES = {
     "hasSkillLevel",
     "isTranslationOf",
 }
+
+# CASE v1.1 allows extension association types of the form `ext:<token>`, where
+# <token> matches the official pattern `(ext:)[a-zA-Z0-9.\-_]+`. Values that
+# start with `ext:` but contain other characters (e.g. `ext:日本語`) are invalid.
+_EXT_ASSOCIATION_RE = re.compile(r"^ext:[a-zA-Z0-9.\-_]+$")
 
 HTTP_TIMEOUT = 30.0
 MAX_REDIRECTS = 5
@@ -1376,7 +1382,7 @@ def _validate_association(data: dict) -> str | None:
     assoc_type = data.get("associationType")
     if not assoc_type:
         return "missing associationType"
-    if assoc_type not in VALID_ASSOCIATION_TYPES and not str(assoc_type).startswith("ext:"):
+    if assoc_type not in VALID_ASSOCIATION_TYPES and not _EXT_ASSOCIATION_RE.match(str(assoc_type)):
         return f"invalid associationType '{assoc_type}'"
 
     origin = data.get("originNodeURI")
