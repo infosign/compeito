@@ -33,7 +33,7 @@ The format is decided from the header row (line 1, or the first non-empty line a
 
 **Note**: rule 3 is a catch-all, so a CSV with only part of the custom columns (e.g., `fullStatement` present but no `Identifier`) falls back to the simple format. Simple format is positional and does not map columns by name. To avoid an unintended fallback, always include the `Identifier` column in custom-format CSVs (it can be entirely empty).
 
-**Empty files / no data rows**: when the file is empty (0 lines), or contains only metadata rows, there's no header to detect on. In that case the **simple format is used** (rule 3 fallback) and processing continues with zero data rows. The result is an empty document (on create) or all `isChildOf` associations being deleted (on update).
+**Empty files / no data rows**: when the file is empty (0 lines), or contains only metadata rows, there's no header to detect on. In that case the **simple format is used** (rule 3 fallback) and processing continues with zero data rows. On create this yields an empty document. On update (metadata-only CSV) the existing items and associations are **preserved** — only CFDocument metadata is updated (see [import-logic.md](import-logic.md) Step 7 / 7.5).
 
 ## Metadata rows
 
@@ -136,11 +136,16 @@ associationType has its own column: `isPeerOf`, `isPartOf`, `exactMatchOf`,
 - **`targetType` and association `notes`** have no column and are **not**
   expressible in CSV — they round-trip only via CASE JSON. A CSV-imported
   association stores `targetType = null`.
-- **Re-import (upsert) scope**: on update, only the association types **whose
-  column is present in the header** are deleted-and-rebuilt. A type whose column
-  is absent is left untouched (so associations imported via CASE JSON survive a
-  CSV round-trip that does not mention them). A present-but-empty cell clears that
-  item's links of that type.
+- **Re-import (upsert) scope**: the rebuild is **document-level**, mirroring
+  `isChildOf`. On update, each association type **whose column is present in the
+  header** is deleted across the whole document and rebuilt from the CSV's rows.
+  A type whose column is absent is left untouched (so associations imported via
+  CASE JSON survive a CSV round-trip that does not mention them). **Caveat**:
+  because the rebuild is document-level, a *partial* CSV (one that omits some
+  items) drops the present-type associations of the omitted items as well — re-export
+  the full document before editing, the same round-trip caveat that applies to
+  `isChildOf`. Consequently an empty cell (or an item with no row at all) ends up
+  with no links of that type.
 - A target UUID not found in the tenant emits a warning; the link is still built
   from the identifier. A self-reference is skipped with a warning.
 
