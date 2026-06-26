@@ -13,6 +13,7 @@
 5. Auto-create lookup tables (CFItemType, CFSubject, CFConcept)
 6. Upsert CFItem
 7. Generate isChildOf CFAssociations
+7.5. Generate non-isChildOf CFAssociations (isPeerOf, exactMatchOf, ...)
 8. Compute `depth`
 9. Print the result report
 ```
@@ -176,6 +177,15 @@ Persist parent–child relationships as `isChildOf` CFAssociation rows.
 - Updating an existing document (`--doc` specified, OpenSALT `Is Part Of` matched, or `#identifier` matched) **with at least 1 data row**: **delete all** existing `isChildOf` associations of that document, then regenerate from the current CSV.
 - Updating an existing document **with 0 data rows** (metadata-only CSV): existing items and `isChildOf` associations are **preserved**; only CFDocument metadata (`#title`, `#subject`, etc.) is updated. A non-destructive warning is emitted ("No data rows in CSV; metadata updated, existing items and isChildOf preserved"). To intentionally wipe the tree, a future explicit `--clear-items` flag is the planned entry point; until then no implicit wipe path exists. This safety carve-out is especially relevant for `#identifier`, which makes triggering an update with a metadata-only CSV trivially easy.
 - New document: just generate. With 0 items processed, an empty document is created and a warning is emitted ("No items processed, empty document created").
+
+### Step 7.5: generating CFAssociation (non-`isChildOf`)
+
+Every CASE associationType other than `isChildOf` is carried in its own column on the CFItem row (`isPeerOf`, `isPartOf`, `exactMatchOf`, `precedes`, `isRelatedTo`, `replacedBy`, `exemplar`, `hasSkillLevel`, `isTranslationOf`). The row's item is the **origin**; each cell holds the **destination(s)**, `|`-separated. Column names and the OpenSALT `Is Part Of` carve-out are specified in [csv-format.md](csv-format.md#expressing-associations).
+
+- **Target resolution**: a UUID is resolved against items in the same tenant (title/uri filled from the matched item; a one-time tenant query resolves targets outside the current document). A UUID with no in-tenant match emits a warning and the link is built from the identifier. A non-UUID value is treated as a cross-framework URI: stored verbatim as the destination URI, with the trailing path segment used as the destination identifier when it is a UUID, else the URI string itself (the column is NOT NULL).
+- `association_type` = the column's type. `origin_node_*` = the row's item. `sequence_number` = NULL. `origin_node_target_type` / `destination_node_target_type` = NULL (no CSV column; see [round-trip-fidelity.md](round-trip-fidelity.md)).
+- Self-reference (target equals the row's own item) emits a warning ("Row N: {type} references self, skipped") and creates no association.
+- **Existing associations on upsert**: only the association types **whose column is present in the header** are delete-and-rebuilt for the document (reported as `existing_associations_deleted`). A type whose column is absent is left untouched — so associations imported via CASE JSON survive a CSV round-trip that does not mention them. A present-but-empty cell clears that item's links of that type. As with `isChildOf`, this runs only when the CSV has ≥1 data row.
 
 ### Step 8: depth computation
 
@@ -504,6 +514,7 @@ Imported into 'Document Title' (doc-uuid)
 ```
 1. Fetch the CFDocument and all its CFItems
 2. Resolve parent/child relations from isChildOf in the same document (`cf_association.cf_document_id` matches the target)
+2.5. Load the document's non-isChildOf associations, grouped by origin item then type
 3. Sort in tree (depth-first) order
 4. Generate CSV in the specified format
 ```
@@ -517,7 +528,7 @@ Imported into 'Document Title' (doc-uuid)
 ### Custom-format export
 
 - Emit metadata rows from CFDocument's non-NULL, non-empty fields. (VARCHAR fields → omit when NULL. FK reference `cf_license_id` → omit when NULL; otherwise resolve `cf_license.title` and emit as `#license`. JSONB array `subject` → omit when NULL or `[]`. **Round-trip caveat**: `[]` is omitted, so re-importing as a new document drops `subject` / `subject_uri` to NULL; on update with omitted keys, the existing values are preserved, so there's no impact.) Output order: `#identifier` (emitted first so re-import preserves the CFDocument UUID), `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`. `#status_start_date` / `#status_end_date` are emitted as `YYYY-MM-DD`. Metadata rows follow RFC 4180 too (quote values containing commas, newlines, or double-quotes; e.g., `#description,"Information I, II"`). `#subject` is emitted with each JSONB element as a separate CSV field (not as one quoted string; e.g., `#subject,Japanese,Geography,Civics`). Quote individual `subject` values that contain commas, etc., per RFC 4180 (e.g., `#subject,Japanese,"Information I, II",Geography`).
-- Emit the header row: `Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,notes,language,listEnumeration,license,statusStartDate,statusEndDate` (16 columns).
+- Emit the header row: `Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,notes,language,listEnumeration,license,statusStartDate,statusEndDate` followed by the 9 association columns `isPeerOf,isPartOf,exactMatchOf,precedes,isRelatedTo,replacedBy,exemplar,hasSkillLevel,isTranslationOf` (25 columns).
 - Emit every column (including Identifier).
 - `parentIdentifier` is the parent's UUID; an empty cell for root-level items (parent = CFDocument). When an item has multiple `isChildOf` parents (possible via external CASE imports), pick the association with the smallest `sequence_number` (NULL last; ties broken by `destination_node_identifier` lexicographic). **Round-trip caveat**: an item with multiple isChildOf parents is collapsed to one in the export. Re-importing this CSV loses the non-selected relationships via the isChildOf delete-all → regenerate.
 - `sequenceNumber` is the `sequence_number` of the isChildOf association used for `parentIdentifier` (when there are multiple isChildOfs, the selected one's value). NULL → empty cell. **Round-trip caveat**: an empty `sequenceNumber` cell auto-numbers (10, 20, 30, …) on re-import. The display order is preserved because the export sort matches the auto-numbering order, but the actual values change.
@@ -535,13 +546,14 @@ Imported into 'Document Title' (doc-uuid)
 - `statusStartDate` emits `cf_item.status_start_date` as `YYYY-MM-DD` (NULL → empty cell).
 - `statusEndDate` emits `cf_item.status_end_date` as `YYYY-MM-DD` (NULL → empty cell).
 - **`cf_association_grouping` round-trip caveat**: `cf_association_grouping` is not emitted at all (no CSV column). Rows created by external CASE imports are entirely lost when exporting and importing into a different tenant. Within the same tenant, the tenant-owned lookup row stays in the DB, so updates aren't affected. For cross-tenant data migration, use external CASE imports instead of CSV.
+- **Association columns** (`isPeerOf` … `isTranslationOf`): for each item, its outgoing non-isChildOf associations (origin = the item) are grouped by type and emitted into the matching column. An in-document target is emitted as the destination UUID; a target outside the document (cross-framework) is emitted as the full destination URI. Multiple targets join with `|`. **Caveats**: association `identifier`, `sequence_number`, `notes`, `extensions`, `CFAssociationGroupingURI`, and `targetType` are not emitted (no column) — they round-trip only via CASE JSON. `ext:`-prefixed association types have no column and are dropped on the CSV path.
 
 ### OpenSALT-format export
 
 > See [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md) for differences from OpenSALT's actual format.
 
 - Metadata rows use the same rule as the custom format (`#title`, `#version`, …, `#subject` order; only non-NULL, non-empty fields).
-- Header: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Notes,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of` (13 columns).
+- Header: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Notes,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of` followed by the 6 OpenSALT-recognized association columns `Is Peer Of,Replaced By,Exemplar,Precedes,Has Skill Level,Is Related To` (19 columns). `exactMatchOf` / `isTranslationOf` have no OpenSALT column and are omitted (use the custom format); `Is Part Of` stays the document identifier, so the isPartOf association is not emitted here.
 - Column mapping:
   - `Identifier` → `cf_item.identifier`.
   - `Full Statement` → `cf_item.full_statement`.
@@ -556,6 +568,7 @@ Imported into 'Document Title' (doc-uuid)
   - `Is Child Of` → parent's identifier (same logic as custom format `parentIdentifier`; root → empty).
   - `Sequence Number` → the isChildOf association's `sequence_number` (same logic as custom format `sequenceNumber`).
   - `Is Part Of` → the CFDocument `identifier` (same value for every row).
+  - `Is Peer Of` / `Replaced By` / `Exemplar` / `Precedes` / `Has Skill Level` / `Is Related To` → the item's outgoing associations of that type (same rule as the custom format: in-document target → UUID, cross-framework → full URI, `|`-separated for multiple).
 - Sort order: same as the custom format (depth-first; see "Sort order" below).
 - Round-trip caveats: same as the custom format. The `License` column is always empty, so item-level `cf_license_id` is lost in round-trip. Document-level license is preserved via the `#license` metadata row.
 
@@ -586,6 +599,7 @@ Tree depth-first order:
 5. lookup系テーブルの自動生成 (CFItemType, CFSubject, CFConcept)
 6. CFItem の作成または更新 (upsert)
 7. CFAssociation (isChildOf) の生成
+7.5. CFAssociation (isChildOf 以外) の生成 (isPeerOf, exactMatchOf 等)
 8. depth の計算
 9. 結果レポート出力
 ```
@@ -748,6 +762,15 @@ CSVの `CFItemType` 列・`license` 列・メタデータ `#subject`・メタデ
 - 既存ドキュメントの更新時（`--doc` 指定、OpenSALT `Is Part Of` マッチ、または `#identifier` マッチ）で**データ行が 1 件以上ある場合**: 該当ドキュメントの既存 `isChildOf` Association を**全削除**してから、現 CSV から再生成する
 - 既存ドキュメントの更新時で**データ行が 0 件**（メタデータのみの CSV）の場合: 既存のアイテムと `isChildOf` Association は**保持**され、CFDocument のメタデータ（`#title` / `#subject` 等）のみが更新される。非破壊的な警告を出力する（「No data rows in CSV; metadata updated, existing items and isChildOf preserved」）。意図的にツリーを消したい場合は将来追加予定の明示フラグ `--clear-items` を入口とする。それまでは暗黙的な wipe パスを設けない。この安全策は `#identifier` が「メタデータのみの CSV で誤って update を発火させる」操作を簡単に作れるようになったことを踏まえた措置
 - 新規ドキュメント作成時: そのまま生成。処理アイテムが 0 件の場合は、空のドキュメントが作成される。この場合は警告を出力する（「No items processed, empty document created」）
+
+### ステップ7.5: CFAssociation (isChildOf 以外) 生成
+
+`isChildOf` 以外の全 CASE associationType は CFItem 行の専用列で表現する（`isPeerOf`, `isPartOf`, `exactMatchOf`, `precedes`, `isRelatedTo`, `replacedBy`, `exemplar`, `hasSkillLevel`, `isTranslationOf`）。行のアイテムが **origin**、各セルが **destination**（複数は `|` 区切り）。列名と OpenSALT の `Is Part Of` 例外は [csv-format.md](csv-format.md#expressing-associations) を参照。
+
+- **ターゲット解決**: UUID は同一テナント内のアイテムに対して解決する（マッチしたアイテムから title/uri を補完。現ドキュメント外のターゲットはテナント一括クエリで解決）。テナント内で見つからない UUID は警告を出し、identifier からリンクを構築する。非 UUID 値はクロスフレームワーク URI として扱い、destination URI にそのまま格納する（末尾パスが UUID ならそれを destination identifier に、そうでなければ URI 文字列自体を使う。カラムは NOT NULL のため）
+- `association_type` = 列のタイプ。`origin_node_*` = 行のアイテム。`sequence_number` = NULL。`origin_node_target_type` / `destination_node_target_type` = NULL（CSV に列がない。[round-trip-fidelity.md](round-trip-fidelity.md) 参照）
+- 自己参照（ターゲットが行自身のアイテム）は警告を出し（「Row N: {type} references self, skipped」）、Association を生成しない
+- **upsert時の既存Association処理**: ヘッダーに**列が存在する** association タイプのみ、該当ドキュメントで全削除→再生成する（`existing_associations_deleted` として報告）。列が存在しないタイプは温存する（CASE JSON 経由でインポートした Association が、それに言及しない CSV の往復で消えないようにするため）。列はあるが空セルの場合は、そのアイテムの当該タイプのリンクをクリアする。`isChildOf` と同様、データ行が 1 件以上ある場合にのみ実行する
 
 ### ステップ8: depth計算
 
@@ -1075,6 +1098,7 @@ Imported into 'Document Title' (doc-uuid)
 ```
 1. CFDocument + 配下の全 CFItem を取得
 2. 同一ドキュメント内（`cf_association.cf_document_id` が対象ドキュメントと一致）の isChildOf Association から親子関係を解決
+2.5. ドキュメントの isChildOf 以外の Association を origin アイテム・タイプ別にグループ化してロード
 3. ツリー順序（depth-first）でソート
 4. 指定フォーマットでCSV生成
 ```
@@ -1088,7 +1112,7 @@ Imported into 'Document Title' (doc-uuid)
 ### 独自形式エクスポート
 
 - CFDocumentの非NULLかつ非空のフィールドからメタデータ行を出力する（VARCHAR 型フィールドは NULL なら出力しない。FK 参照型フィールド `cf_license_id` は NULL なら出力しない、非 NULL なら `cf_license.title` を解決して `#license` として出力する。JSONB 配列型フィールド `subject` は NULL または空配列 `[]` なら出力しない。**round-trip 制約**: `[]`（空配列）は出力されないため、新規ドキュメントとしての re-import 時に `subject` / `subject_uri` は NULL に変わる。既存ドキュメントの更新時はキー未記載→既存値保持のため問題ない）。出力順: `#identifier`（再インポート時に CFDocument UUID を保持するため先頭に出力）, `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式で出力する。メタデータ行もCSV行として出力するため、値にカンマ・改行・ダブルクォートが含まれる場合はRFC 4180に従いダブルクォートで囲む（例: `#description,"情報I, 情報II向け"`）。`#subject` は JSONB配列の各要素を個別のCSVフィールドとして出力する（単一のクォート文字列にまとめない。例: `#subject,国語,地理歴史,公民`）。個々の subject 値にカンマ等が含まれる場合は RFC 4180 に従い個別にクォートする（例: `#subject,国語,"情報I, 情報II",地理歴史`）
-- ヘッダー行を出力する（`Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,notes,language,listEnumeration,license,statusStartDate,statusEndDate`、16列）
+- ヘッダー行を出力する（`Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,notes,language,listEnumeration,license,statusStartDate,statusEndDate` に続けて 9 つの association 列 `isPeerOf,isPartOf,exactMatchOf,precedes,isRelatedTo,replacedBy,exemplar,hasSkillLevel,isTranslationOf`、25列）
 - 全列を出力（Identifier含む）
 - `parentIdentifier` には親アイテムのUUIDを出力。ルートレベルアイテム（親が CFDocument）の場合は空セル。1つのアイテムが複数の `isChildOf` association を持つ場合（外部CASEソースインポート由来）は、`sequence_number` が最小の association の親を採用する（NULL は非NULLの後に配置する。`sequence_number` が同じ場合は `destination_node_identifier` の辞書順で最初のもの）。**round-trip 制約**: 複数の isChildOf 親を持つアイテムは、エクスポート時に1つの親に集約される。このCSVを再インポートすると、選択されなかった親子関係は isChildOf 全削除→再生成により失われる
 - `sequenceNumber` は `parentIdentifier` の決定に使用した isChildOf association の `sequence_number` を出力する（複数 isChildOf がある場合も、選択した association の値を使用）。NULL の場合は空セル。**round-trip 制約**: 空セルの `sequenceNumber` は re-import 時に自動採番（10, 20, 30...）に変わる。エクスポート時のソート順で自動採番されるため表示順序は維持されるが、実際の値は変化する
@@ -1106,13 +1130,14 @@ Imported into 'Document Title' (doc-uuid)
 - `statusStartDate` は `cf_item.status_start_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
 - `statusEndDate` は `cf_item.status_end_date` を `YYYY-MM-DD` 形式で出力（NULL なら空セル）
 - **cf_association_grouping の round-trip 制約**: cf_association_grouping は CSV に一切出力されない（CSV フォーマットに対応するカラムが存在しない）。外部 CASE ソースインポートで作成された cf_association_grouping レコードは、CSV エクスポート→別テナントへの CSV インポートで完全に失われる。同一テナント内の更新ではテナント所有の lookup レコードが DB 上に残るため影響はないが、テナント間のデータ移行には CSV ではなく外部 CASE ソースインポートを使用すべきである
+- **association 列**（`isPeerOf` … `isTranslationOf`）: 各アイテムの発信 isChildOf 以外の Association（origin = そのアイテム）をタイプ別にグループ化し、該当列に出力する。同一ドキュメント内ターゲットは destination の UUID、ドキュメント外（クロスフレームワーク）ターゲットはフルの destination URI を出力する。複数ターゲットは `|` で連結する。**制約**: association の `identifier`・`sequence_number`・`notes`・`extensions`・`CFAssociationGroupingURI`・`targetType` は出力されない（列がない）— これらは CASE JSON 経由でのみ往復する。`ext:` プレフィックス付きの association タイプは列がなく、CSV 経路では失われる
 
 ### OpenSALT形式エクスポート
 
 > OpenSALT の実際のフォーマットとの差異については [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md) を参照。
 
 - メタデータ行は独自形式と同一のルールで出力する（`#title`, `#version`, ..., `#subject` の順。非NULLかつ非空のフィールドのみ出力）
-- ヘッダー行: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Notes,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of`（13列）
+- ヘッダー行: `Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Notes,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of` に続けて OpenSALT が認識する 6 つの association 列 `Is Peer Of,Replaced By,Exemplar,Precedes,Has Skill Level,Is Related To`（19列）。`exactMatchOf` / `isTranslationOf` は OpenSALT に対応列がないため出力しない（独自形式を使用）。`Is Part Of` はドキュメント識別子のままなので、isPartOf association はここでは出力しない
 - 列の対応:
   - `Identifier` → `cf_item.identifier`
   - `Full Statement` → `cf_item.full_statement`
@@ -1127,6 +1152,7 @@ Imported into 'Document Title' (doc-uuid)
   - `Is Child Of` → 親アイテムの identifier（独自形式の `parentIdentifier` と同一ロジック。ルートレベルなら空セル）
   - `Sequence Number` → isChildOf association の `sequence_number`（独自形式の `sequenceNumber` と同一ロジック）
   - `Is Part Of` → CFDocument の `identifier`（全行で同一値）
+  - `Is Peer Of` / `Replaced By` / `Exemplar` / `Precedes` / `Has Skill Level` / `Is Related To` → アイテムの該当タイプの発信 Association（独自形式と同一ルール: 同一ドキュメント内ターゲットは UUID、クロスフレームワークはフル URI、複数は `|` 区切り）
 - ソート順序は独自形式と同一（depth-first、上記「ソート順序」セクション参照）
 - round-trip 制約は独自形式と同一（`License` 列が常に空のため、アイテムレベルの `cf_license_id` は round-trip で失われる。ドキュメントレベルのライセンスはメタデータ行 `#license` で保持される）
 

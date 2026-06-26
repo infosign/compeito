@@ -237,6 +237,74 @@ async def _load_document_tree(
 
 
 # ---------------------------------------------------------------------------
+# Non-isChildOf association columns
+# ---------------------------------------------------------------------------
+
+# Custom format emits every non-isChildOf CASE associationType as its own column
+# (matching the import column keys). OpenSALT format emits only the subset its
+# importer recognizes, excluding `Is Part Of` (reserved for the document
+# identifier); exactMatchOf / isTranslationOf have no OpenSALT column and are
+# therefore omitted on the OpenSALT path (they round-trip via custom CSV / JSON).
+_ASSOC_TARGET_SEP = "|"
+
+CUSTOM_ASSOC_COLUMNS = [
+    ("isPeerOf", "isPeerOf"),
+    ("isPartOf", "isPartOf"),
+    ("exactMatchOf", "exactMatchOf"),
+    ("precedes", "precedes"),
+    ("isRelatedTo", "isRelatedTo"),
+    ("replacedBy", "replacedBy"),
+    ("exemplar", "exemplar"),
+    ("hasSkillLevel", "hasSkillLevel"),
+    ("isTranslationOf", "isTranslationOf"),
+]
+
+OPENSALT_ASSOC_COLUMNS = [
+    ("isPeerOf", "Is Peer Of"),
+    ("replacedBy", "Replaced By"),
+    ("exemplar", "Exemplar"),
+    ("precedes", "Precedes"),
+    ("hasSkillLevel", "Has Skill Level"),
+    ("isRelatedTo", "Is Related To"),
+]
+
+
+async def _load_outgoing_associations(
+    session: AsyncSession,
+    doc: CFDocument,
+    doc_item_idents: set[str],
+) -> dict[str, dict[str, list[str]]]:
+    """Load non-isChildOf associations grouped by origin item then type.
+
+    Each value is a list of target tokens: the destination identifier (UUID)
+    when the target is an item of this document, otherwise its full URI
+    (preserving cross-framework links).
+    """
+    result = await session.execute(
+        select(CFAssociation).where(
+            CFAssociation.cf_document_id == doc.id,
+            CFAssociation.association_type != "isChildOf",
+        )
+    )
+    out: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for a in result.scalars().all():
+        dest = a.destination_node_identifier
+        token = dest if dest in doc_item_idents else (a.destination_node_uri or dest)
+        out[a.origin_node_identifier][a.association_type].append(token)
+    return out
+
+
+def _assoc_cells(
+    outgoing: dict[str, dict[str, list[str]]],
+    item_ident: str,
+    columns: list[tuple[str, str]],
+) -> list[str]:
+    """Build the association cell values for one item, in column order."""
+    by_type = outgoing.get(item_ident, {})
+    return [_ASSOC_TARGET_SEP.join(by_type.get(atype, [])) for atype, _label in columns]
+
+
+# ---------------------------------------------------------------------------
 # Custom format export
 # ---------------------------------------------------------------------------
 
@@ -257,7 +325,7 @@ HEADER = [
     "license",
     "statusStartDate",
     "statusEndDate",
-]
+] + [label for _atype, label in CUSTOM_ASSOC_COLUMNS]
 
 
 async def export_csv(
@@ -274,6 +342,8 @@ async def export_csv(
         ValueError: If document not found.
     """
     doc, ordered = await _load_document_tree(session, tenant_id, doc_identifier)
+    doc_item_idents = {str(item.identifier) for item, _p, _s in ordered}
+    outgoing = await _load_outgoing_associations(session, doc, doc_item_idents)
 
     # Generate CSV
     output = io.StringIO()
@@ -307,6 +377,7 @@ async def export_csv(
                 ei.status_start_date,
                 ei.status_end_date,
             ]
+            + _assoc_cells(outgoing, ei.identifier, CUSTOM_ASSOC_COLUMNS)
         )
 
     return output.getvalue()
@@ -330,7 +401,7 @@ OPENSALT_HEADER = [
     "Is Child Of",
     "Sequence Number",
     "Is Part Of",
-]
+] + [label for _atype, label in OPENSALT_ASSOC_COLUMNS]
 
 
 async def export_opensalt_csv(
@@ -348,6 +419,8 @@ async def export_opensalt_csv(
     """
     doc, ordered = await _load_document_tree(session, tenant_id, doc_identifier)
     doc_ident_str = str(doc.identifier)
+    doc_item_idents = {str(item.identifier) for item, _p, _s in ordered}
+    outgoing = await _load_outgoing_associations(session, doc, doc_item_idents)
 
     # Generate CSV
     output = io.StringIO()
@@ -378,6 +451,7 @@ async def export_opensalt_csv(
                 ei.sequence_number,
                 doc_ident_str,
             ]
+            + _assoc_cells(outgoing, ei.identifier, OPENSALT_ASSOC_COLUMNS)
         )
 
     return output.getvalue()

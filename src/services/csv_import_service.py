@@ -37,6 +37,7 @@ class ImportReport:
     items_skipped: int = 0
     associations_created: int = 0
     existing_is_child_of_deleted: int = 0
+    existing_associations_deleted: int = 0
     item_types_created: int = 0
     item_types_existing: int = 0
     licenses_created: int = 0
@@ -69,6 +70,10 @@ class ParsedRow:
     status_end_date: date | None = None
     depth: int = 0  # simple format only
 
+    # Non-isChildOf associations expressed on this row: list of (associationType, target_raw).
+    # target_raw is a single target token (UUID of an in-tenant item, or a full URI).
+    associations: list[tuple[str, str]] = field(default_factory=list)
+
     # Track which fields had non-empty raw values (for upsert empty-cell logic)
     _present_fields: set[str] = field(default_factory=set)
 
@@ -94,6 +99,65 @@ def _detect_format(header_columns: list[str]) -> str:
     if "full statement" in lower:
         return FormatType.OPENSALT
     return FormatType.SIMPLE
+
+
+# ---------------------------------------------------------------------------
+# Non-isChildOf association columns
+# ---------------------------------------------------------------------------
+
+# isChildOf is expressed via parentIdentifier / "Is Child Of"; every other CASE
+# associationType gets its own column. Each type maps to the set of accepted
+# column keys (lower-cased, as _build_column_map produces): the custom-format
+# camelCase form and the OpenSALT spaced Title Case form. Targets in a cell are
+# `|`-separated (commas are already used by educationLevel / conceptKeywords).
+_ASSOC_COLUMN_KEYS: dict[str, tuple[str, ...]] = {
+    "isPeerOf": ("ispeerof", "is peer of"),
+    "isPartOf": ("ispartof", "is part of"),
+    "exactMatchOf": ("exactmatchof", "exact match of"),
+    "precedes": ("precedes",),
+    "isRelatedTo": ("isrelatedto", "is related to"),
+    "replacedBy": ("replacedby", "replaced by"),
+    "exemplar": ("exemplar",),
+    "hasSkillLevel": ("hasskilllevel", "has skill level"),
+    "isTranslationOf": ("istranslationof", "is translation of"),
+}
+
+_ASSOC_TARGET_SEP = "|"
+
+
+def _assoc_columns_in_header(col_map: dict[str, int], fmt: str) -> list[tuple[str, str]]:
+    """Return [(associationType, column_key)] for association columns present in the header.
+
+    In the OpenSALT format `Is Part Of` is reserved for the CFDocument identifier
+    (document membership), so it is never treated as an isPartOf association there.
+    """
+    present: list[tuple[str, str]] = []
+    for atype, keys in _ASSOC_COLUMN_KEYS.items():
+        if fmt == FormatType.OPENSALT and atype == "isPartOf":
+            continue
+        for k in keys:
+            if k in col_map:
+                present.append((atype, k))
+                break
+    return present
+
+
+def _parse_assoc_cells(
+    row: list[str],
+    col_map: dict[str, int],
+    assoc_cols: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Extract (associationType, target) pairs from a row's association columns."""
+    out: list[tuple[str, str]] = []
+    for atype, key in assoc_cols:
+        raw = _get_cell(row, col_map, key).strip()
+        if not raw:
+            continue
+        for tgt in raw.split(_ASSOC_TARGET_SEP):
+            tgt = tgt.strip()
+            if tgt:
+                out.append((atype, tgt))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -247,8 +311,10 @@ def _parse_custom_rows(
     data_rows: list[tuple[int, list[str]]],
     col_map: dict[str, int],
     warnings: list[str],
+    assoc_cols: list[tuple[str, str]] | None = None,
 ) -> list[ParsedRow]:
     """Parse rows in custom format. Returns list of ParsedRow."""
+    assoc_cols = assoc_cols or []
     results: list[ParsedRow] = []
     seen_identifiers: dict[str, int] = {}  # identifier -> row_number
 
@@ -396,6 +462,7 @@ def _parse_custom_rows(
                 license=lic,
                 status_start_date=ssd,
                 status_end_date=sed,
+                associations=_parse_assoc_cells(row, col_map, assoc_cols),
                 _present_fields=present,
             )
         )
@@ -425,8 +492,10 @@ def _parse_opensalt_rows(
     col_map: dict[str, int],
     warnings: list[str],
     doc_identifier_str: str | None,
+    assoc_cols: list[tuple[str, str]] | None = None,
 ) -> list[ParsedRow]:
     """Parse rows in OpenSALT format."""
+    assoc_cols = assoc_cols or []
     results: list[ParsedRow] = []
     seen_identifiers: dict[str, int] = {}
 
@@ -546,6 +615,7 @@ def _parse_opensalt_rows(
                 abbreviated_statement=abst,
                 notes=notes_raw,
                 language=lang,
+                associations=_parse_assoc_cells(row, col_map, assoc_cols),
                 _present_fields=present,
             )
         )
@@ -1024,6 +1094,110 @@ def _generate_is_child_of(
 
 
 # ---------------------------------------------------------------------------
+# Non-isChildOf association generation
+# ---------------------------------------------------------------------------
+
+
+def _resolve_assoc_target(
+    raw: str,
+    item_by_ident: dict[str, CFItem],
+    tenant_index: dict[str, tuple[str, str | None]],
+    tenant_id: uuid.UUID,
+    warnings: list[str],
+    row_num: int,
+    assoc_type: str,
+) -> tuple[str, str, str | None]:
+    """Resolve an association target token to (identifier, uri, title).
+
+    A UUID is treated as an in-tenant item reference (title/uri filled from the
+    item when found). Anything else is treated as an external URI: the trailing
+    path segment is used as the identifier when it is a UUID, otherwise the URI
+    string itself is used (destination_node_identifier is NOT NULL).
+    """
+    if _is_valid_uuid(raw):
+        ident = str(uuid.UUID(raw))
+        if ident in item_by_ident:
+            it = item_by_ident[ident]
+            return ident, it.uri, it.full_statement
+        if ident in tenant_index:
+            uri, title = tenant_index[ident]
+            return ident, uri, title
+        warnings.append(f"Row {row_num}: {assoc_type} target '{raw}' not found in tenant; link built from identifier")
+        return ident, _build_uri(tenant_id, uuid.UUID(raw)), None
+
+    # External URI form
+    last = raw.rstrip("/").split("/")[-1]
+    ident = str(uuid.UUID(last)) if _is_valid_uuid(last) else raw
+    return ident, raw, None
+
+
+async def _generate_non_child_associations(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    doc: CFDocument,
+    items: list[CFItem],
+    parsed_rows: list[ParsedRow],
+    now: datetime,
+    warnings: list[str],
+) -> list[CFAssociation]:
+    """Generate non-isChildOf associations from parsed rows (origin = the row's item)."""
+    item_by_ident: dict[str, CFItem] = {str(it.identifier): it for it in items}
+
+    # Resolve UUID targets that are not items of the current document by querying
+    # the tenant once (so title/uri reflect the linked item where it exists).
+    uuid_targets: set[str] = set()
+    for pr in parsed_rows:
+        for _atype, tgt in pr.associations:
+            if _is_valid_uuid(tgt):
+                ident = str(uuid.UUID(tgt))
+                if ident not in item_by_ident:
+                    uuid_targets.add(ident)
+
+    tenant_index: dict[str, tuple[str, str | None]] = {}
+    if uuid_targets:
+        result = await session.execute(
+            select(CFItem).where(
+                CFItem.tenant_id == tenant_id,
+                CFItem.identifier.in_([uuid.UUID(t) for t in uuid_targets]),
+            )
+        )
+        for it in result.scalars().all():
+            tenant_index[str(it.identifier)] = (it.uri, it.full_statement)
+
+    associations: list[CFAssociation] = []
+    for pr, item in zip(parsed_rows, items):
+        for atype, tgt in pr.associations:
+            dest_ident, dest_uri, dest_title = _resolve_assoc_target(
+                tgt, item_by_ident, tenant_index, tenant_id, warnings, pr.row_number, atype
+            )
+            if dest_ident == str(item.identifier):
+                warnings.append(f"Row {pr.row_number}: {atype} references self, skipped")
+                continue
+            assoc_ident = uuid.uuid4()
+            associations.append(
+                CFAssociation(
+                    id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    cf_document_id=doc.id,
+                    identifier=assoc_ident,
+                    uri=_build_uri(tenant_id, assoc_ident),
+                    association_type=atype,
+                    origin_node_identifier=str(item.identifier),
+                    origin_node_uri=item.uri,
+                    origin_node_title=item.full_statement,
+                    origin_node_target_type=None,
+                    destination_node_identifier=dest_ident,
+                    destination_node_uri=dest_uri,
+                    destination_node_title=dest_title,
+                    destination_node_target_type=None,
+                    sequence_number=None,
+                    last_change_date_time=now,
+                )
+            )
+    return associations
+
+
+# ---------------------------------------------------------------------------
 # Depth calculation (BFS)
 # ---------------------------------------------------------------------------
 
@@ -1468,16 +1642,24 @@ async def import_csv(
 
     # Step 4: Parse data rows
     parsed_rows: list[ParsedRow]
+    # Association-type columns present in the header (drives the delete+rebuild
+    # scope below). Empty for the simple format (no header).
+    present_assoc_types: set[str] = set()
     if fmt == FormatType.CUSTOM:
         col_map = _build_column_map(header)
-        parsed_rows = _parse_custom_rows(data_rows_indexed, col_map, report.warnings)
+        assoc_cols = _assoc_columns_in_header(col_map, fmt)
+        present_assoc_types = {atype for atype, _ in assoc_cols}
+        parsed_rows = _parse_custom_rows(data_rows_indexed, col_map, report.warnings, assoc_cols)
     elif fmt == FormatType.OPENSALT:
         col_map = _build_column_map(header)
+        assoc_cols = _assoc_columns_in_header(col_map, fmt)
+        present_assoc_types = {atype for atype, _ in assoc_cols}
         parsed_rows = _parse_opensalt_rows(
             data_rows_indexed,
             col_map,
             report.warnings,
             opensalt_doc_ident,
+            assoc_cols,
         )
     else:
         parsed_rows = _parse_simple_rows(data_rows_indexed, report.warnings)
@@ -1544,6 +1726,40 @@ async def import_csv(
         session.add(assoc)
     await session.flush()
     report.associations_created = len(new_assocs)
+
+    # Step 7.5: Non-isChildOf associations (isPeerOf, exactMatchOf, ...).
+    # Delete+rebuild only the association types whose column is present in the
+    # header (format expressiveness: an absent column leaves existing
+    # associations of that type untouched, so associations imported via CASE
+    # JSON survive a CSV round-trip that does not mention them). An empty cell
+    # under a present column clears that item's links of that type.
+    if present_assoc_types and len(upserted_items) > 0:
+        if is_update:
+            result = await session.execute(
+                select(CFAssociation).where(
+                    CFAssociation.cf_document_id == doc.id,
+                    CFAssociation.association_type.in_(present_assoc_types),
+                )
+            )
+            existing_nc = list(result.scalars().all())
+            for assoc in existing_nc:
+                await session.delete(assoc)
+            await session.flush()
+            report.existing_associations_deleted = len(existing_nc)
+
+        new_nc_assocs = await _generate_non_child_associations(
+            session,
+            tenant_id,
+            doc,
+            upserted_items,
+            parsed_rows,
+            now,
+            report.warnings,
+        )
+        for assoc in new_nc_assocs:
+            session.add(assoc)
+        await session.flush()
+        report.associations_created += len(new_nc_assocs)
 
     # Step 8: Depth calculation
     # Get ALL isChildOf for this document (just generated ones for CSV import)

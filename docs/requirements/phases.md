@@ -32,7 +32,7 @@ Priority within the phase reflects an OpenCASE conformance-gap analysis: items 1
 2. ✅ **CASE v1.1 optional fields**: `notes` (CFItem / CFAssociation / CFDocument), `alternativeLabel` (CFItem), `extensions` (all resources). Persisted in DB and emitted in API responses. (done)
 3. ✅ **OpenSALT Excel (.xlsx) round-trip** — 3-sheet OpenSALT Excel import / export, the concrete realization of "improved OpenSALT compatibility" (see [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md)). (done)
 4. ✅ **`GET /CFDocuments` query parameters** — `sort` / `orderBy` / `filter` / `fields` + `X-Total-Count` header (see [api-spec.md](../spec/api-spec.md) and the [conformance backlog](../dev/case-v1p1-conformance-backlog.md)). (done)
-5. CSV import / export for CFAssociation types other than `isChildOf` (`isPeerOf`, `exactMatchOf`, etc.)
+5. ✅ **CSV import / export for CFAssociation types other than `isChildOf`** (`isPeerOf`, `exactMatchOf`, etc.) — column-based, one column per associationType on the CFItem row (OpenSALT-compatible). In-document targets use the item UUID; cross-framework targets use the full URI. `targetType` / association `notes` remain JSON-only (see [round-trip-fidelity.md](../spec/round-trip-fidelity.md)). (done)
 6. Semantic search over competencies (vector embeddings)
 7. Automatic cross-framework mapping suggestions
 
@@ -81,7 +81,7 @@ These features are not on the roadmap. The positioning rationale is documented h
 2. ✅ **CASE v1.1 オプションフィールド対応**: `notes`（CFItem / CFAssociation / CFDocument）、`alternativeLabel`（CFItem）、`extensions`（全リソース）。DB に永続化し API レスポンスに含める（完了）
 3. ✅ **OpenSALT Excel (.xlsx) round-trip** — 3 シートの OpenSALT Excel インポート/エクスポート。「OpenSALT 互換性の改善」の具体的な実現（詳細は [reference/opensalt-csv-format.md](../reference/opensalt-csv-format.md)）（完了）
 4. ✅ **`GET /CFDocuments` クエリパラメータ** — `sort` / `orderBy` / `filter` / `fields` + `X-Total-Count` ヘッダー（詳細は [api-spec.md](../spec/api-spec.md) と [conformance backlog](../dev/case-v1p1-conformance-backlog.md)）（完了）
-5. isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応（isPeerOf, exactMatchOf 等）
+5. ✅ **isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応**（isPeerOf, exactMatchOf 等） — 列ベース（associationType ごとに CFItem 行へ 1 列、OpenSALT 互換）。同一ドキュメント内ターゲットは item の UUID、クロスフレームワークはフル URI で表現。`targetType` と association の `notes` は JSON 専用のまま（[round-trip-fidelity.md](../spec/round-trip-fidelity.md) 参照）（完了）
 6. コンピテンシーの意味検索（ベクトル埋め込み）
 7. フレームワーク間自動マッピング提案
 

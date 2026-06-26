@@ -107,8 +107,8 @@ Custom uses `parentIdentifier`/`sequenceNumber`, CSV Simple uses indentation.
 | Field | JSON | Excel | CSV | Notes |
 |-------|:----:|:-----:|:---:|-------|
 | identifier | ✓ | ✓ | ✗ | CSV regenerates a UUID each round-trip |
-| associationType | ✓ (all) | ✓ (all) | ✗ | **CSV can only express `isChildOf`** (parent/child); Excel carries every type in the CF Association sheet |
-| originNodeURI.uri | ✓ | ✓ | ✓ | CSV value is generated for the isChildOf link |
+| associationType | ✓ (all) | ✓ (all) | ✓ (all) | CSV uses per-type columns on the CFItem row (`isChildOf` via `parentIdentifier`); OpenSALT CSV omits `isPartOf` (reserved for doc membership), `exactMatchOf`, `isTranslationOf` |
+| originNodeURI.uri | ✓ | ✓ | ✓ | CSV origin is always the row's item (uri from that item) |
 | originNodeURI.identifier | ✓ | ✓ | ✓ | |
 | originNodeURI.title | ✓ | ✗ | △ | Excel stores uri + identifier only |
 | **originNodeURI.targetType** | ✓ | ✗ | ✗ | v1.1; CSV hard-codes `None` |
@@ -126,7 +126,11 @@ Custom uses `parentIdentifier`/`sequenceNumber`, CSV Simple uses indentation.
 > **Cross-tenant / cross-framework associations** (e.g. `exactMatchOf` pointing at
 > another framework) round-trip **fully in JSON**. In **Excel** the association and
 > its type survive, but `targetType` and the node `title`s are lost. In **CSV** the
-> association cannot be expressed at all (CSV only emits `isChildOf`). Note that
+> association and its type survive: an in-tenant target is carried as the
+> destination UUID, a cross-framework target as the full destination URI, but
+> `targetType` is lost (the CSV stores `None`). The custom CSV carries every
+> associationType column; OpenSALT CSV omits `isPartOf` (its `Is Part Of` column
+> is the document identifier), `exactMatchOf`, and `isTranslationOf`. Note that
 > Excel splits the work: `isChildOf` lives in the CF Item `smartLevel` column and is
 > *excluded* from the CF Association sheet, which carries every other type.
 
@@ -201,7 +205,8 @@ not round-trip.
 - **OpenSALT interchange:** use **Excel** (3-sheet workbook) — the highest-fidelity
   flat-file path, but it still drops `targetType`, `notes`, `extensions`, and
   rubrics.
-- **Quick human edits / first ingest:** use **CSV (Custom)**. Remember CSV can only
-  express `isChildOf`; other association types need Excel or JSON.
+- **Quick human edits / first ingest:** use **CSV (Custom)**. CSV expresses every
+  associationType via per-type columns, but drops association `targetType` /
+  `notes` (JSON-only); for those, use JSON.
 - **Rubrics over a flat-file path:** only the dedicated **rubric CSV** carries them
   (there is no Excel rubric sheet).
