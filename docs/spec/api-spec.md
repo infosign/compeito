@@ -126,7 +126,7 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 - Note: served only by the dynamic API. A static-publishing deployment bakes the default (unsorted/unfiltered/full) listing, so sort/filter/fields require dynamic serving.
 **`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header.
 
-**`Link`** (RFC 8288): `GET /CFDocuments` returns a `Link` response header with `first` / `prev` / `next` / `last` relations (whichever apply), comma-separated in a single header. Relations are omitted at the series boundaries (no `prev`/`first` on the first page; no `next` on the last page). The header is absent when the result fits a single page, when the result is empty, or when `limit=0`. Notes:
+**`Link`** (RFC 8288): `GET /CFDocuments` returns a `Link` response header with `first` / `prev` / `next` / `last` relations (whichever apply), comma-separated in a single header. Relations are omitted at the series boundaries (no `prev`/`first` on the first page; no `next` on the last page). The header is absent when the whole result fits a single page at `offset=0`, when the result is empty, or when `limit=0`. (An out-of-range `offset` past the end still emits `first`/`prev`/`last` so the client can rewind.) Notes:
 - The tenant segment in every Link URL is the canonical **UUID**, even when the request addressed the tenant by slug (matching the URIs CASE resources emit). A slug-addressed response therefore points pagination at UUID URLs; slug and UUID responses are distinct cache keys.
 - All relations keep the request's `limit` (the binding's example narrows `last` to the remainder; compeito keeps `limit` for query consistency — the last page still returns only the remaining items).
 - `next`/`last` never point past the `offset` cap (100000): a target that would be re-clamped to the cap (and thus loop back to the current page) is omitted. With more than `cap + limit` rows the true final page is unreachable by paging — use a narrower `filter`.
@@ -472,7 +472,7 @@ CASE v1.1準拠。全一覧エンドポイントに `limit`(デフォルト100, 
 - 動的 API でのみ提供。静的公開のデプロイでは既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
 **`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。
 
-**`Link`**（RFC 8288）: `GET /CFDocuments` は `first` / `prev` / `next` / `last`（該当するもの）をカンマ区切りで 1 つの `Link` レスポンスヘッダーに載せて返す。系列の端では該当 rel を省略する（先頭ページは `prev`/`first` なし、最終ページは `next` なし）。結果が 1 ページに収まる場合・空の場合・`limit=0` の場合はヘッダー自体を付けない。補足:
+**`Link`**（RFC 8288）: `GET /CFDocuments` は `first` / `prev` / `next` / `last`（該当するもの）をカンマ区切りで 1 つの `Link` レスポンスヘッダーに載せて返す。系列の端では該当 rel を省略する（先頭ページは `prev`/`first` なし、最終ページは `next` なし）。結果全体が `offset=0` の 1 ページに収まる場合・空の場合・`limit=0` の場合はヘッダー自体を付けない（範囲外の `offset` では巻き戻し用に `first`/`prev`/`last` を出す）。補足:
 - Link URL のテナント部分は、slug でアクセスされた場合でも常に正規の **UUID**（CASE リソースが emit する URI と一致）。slug 応答内の Link は UUID URL を指し、slug 応答と UUID 応答は別の cache key になる。
 - 全 rel で要求時の `limit` を保持する（binding の例は `last` を残件数 limit に絞るが、compeito はクエリ一貫性のため `limit` を保持。最終ページは残件のみ返る）。
 - `next`/`last` は `offset` 上限（100000）を超えるページを指さない。上限に再丸めされて現在ページにループする宛先は省略する。`上限 + limit` を超える件数では最終ページにページ送りで到達できない（`filter` で絞ること）。

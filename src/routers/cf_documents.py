@@ -59,7 +59,7 @@ async def list_cf_documents(
     # RFC 8288 Link header (next/prev/first/last). Tenant segment is always the
     # canonical UUID, matching emitted CASE URIs regardless of slug addressing.
     link = case_query_params.build_link_header(
-        f"{settings.base_url}/{tenant_obj.id}/ims/case/v1p1/CFDocuments",
+        f"{settings.base_url.rstrip('/')}/{tenant_obj.id}/ims/case/v1p1/CFDocuments",
         limit,
         offset,
         total,

@@ -20,7 +20,7 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 - **エラー封筒の `imsx_codeMinorFieldName` を実フィールド名に**（旧 C11）。`imsx_error_response` に `field_name` 引数を追加し、sort / orderBy / filter / fields / limit / offset と request-validation 由来のフィールド名を渡す（既定は `sourcedId`）。
 - **`ext:` associationType の文字種検証**（旧 C12）。import 受理を公式パターン `^ext:[a-zA-Z0-9.\-_]+$` で検証し、不一致（`ext:日本語` / `ext:` / 空白入り等）は invalid associationType として skip + warning。
 - **`caseVersion` の import 検証**（旧 C8）。想定外の値（`1.0` / `1.1` 以外）は警告を出す。値そのものは保持する（round-trip 忠実度を保つため emit 固定はしない）。
-- **`Link` ページネーションヘッダー**（旧 C5）。`GET /CFDocuments` に RFC 8288 形式の `Link`（first/prev/next/last）を実装。既存クエリ（sort/orderBy/filter/fields）を URL エンコードして保持。テナント部分は常に UUID。`offset` 上限（100000）超のページは再丸めによる自己ループを避けるため省略（上限超の最終ページはページ送り不可）。`limit` 上限・空結果・`limit=0` ではヘッダーを付けない。`last` のみ binding 例（残件数 limit）と異なり `limit` を保持（意図的差異として api-spec.md に明記）。`build_link_header` の単体テスト＋エンドポイント結合テストあり。
+- **`Link` ページネーションヘッダー**（旧 C5）。`GET /CFDocuments` に RFC 8288 形式の `Link`（first/prev/next/last）を実装。既存クエリ（sort/orderBy/filter/fields）を URL エンコードして保持。テナント部分は常に UUID。`offset` 上限（100000）超のページは再丸めによる自己ループを避けるため省略（上限超の最終ページはページ送り不可）。空結果・`limit=0`・先頭ページ単独で全件収まる場合はヘッダーを付けない（`limit` 上限超は 500 に clamp されたうえで通常どおり Link を出す）。`last` のみ binding 例（残件数 limit）と異なり `limit` を保持（意図的差異として api-spec.md に明記）。`build_link_header` の単体テスト＋エンドポイント結合テストあり。
 
 ## certification 着手項目（未対応 / 意図的差異）
 

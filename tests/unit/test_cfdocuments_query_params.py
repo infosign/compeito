@@ -321,6 +321,17 @@ class TestBuildLinkHeader:
         )
         assert "last" not in rels
 
+    def test_next_and_last_clamp_to_cap_when_emitted(self):
+        from src.services.case_query_params import OFFSET_CAP, build_link_header
+
+        # One page before the cap, with the true last page beyond it: both next
+        # and last are emitted, clamped to OFFSET_CAP (the last reachable page).
+        rels = _parse_link(
+            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP - 500, total=OFFSET_CAP + 1)
+        )
+        assert rels["next"]["offset"] == str(OFFSET_CAP)
+        assert rels["last"]["offset"] == str(OFFSET_CAP)
+
 
 class TestLinkHeaderEndpoint:
     """Integration: Link header on GET /CFDocuments."""
@@ -357,12 +368,14 @@ class TestLinkHeaderEndpoint:
 
     async def test_link_preserves_filter_and_sort(self, db_session: AsyncSession, db_client):
         await _seed(db_session)
+        # creator='Alice' matches 2 docs; offset=0 so a `next` page exists.
         r = await db_client.get(
-            f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?limit=1&offset=1&sort=title&filter=creator='Alice'"
+            f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?limit=1&offset=0&sort=title&filter=creator='Alice'"
         )
         rels = _parse_link(r.headers["Link"])
         assert rels["next"]["sort"] == "title"
         assert rels["next"]["filter"] == "creator='Alice'"
+        assert rels["next"]["offset"] == "1"
 
     async def test_no_link_header_single_page(self, db_session: AsyncSession, db_client):
         await _seed(db_session)
