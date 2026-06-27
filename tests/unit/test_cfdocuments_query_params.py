@@ -324,10 +324,11 @@ class TestBuildLinkHeader:
     def test_next_and_last_clamp_to_cap_when_emitted(self):
         from src.services.case_query_params import OFFSET_CAP, build_link_header
 
-        # One page before the cap, with the true last page beyond it: both next
-        # and last are emitted, clamped to OFFSET_CAP (the last reachable page).
+        # One page before the cap, with the true last page genuinely beyond it
+        # (total chosen so last_offset > OFFSET_CAP, exercising the clamp): both
+        # next and last are emitted, clamped to OFFSET_CAP (last reachable page).
         rels = _parse_link(
-            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP - 500, total=OFFSET_CAP + 1)
+            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP - 500, total=OFFSET_CAP + 501)
         )
         assert rels["next"]["offset"] == str(OFFSET_CAP)
         assert rels["last"]["offset"] == str(OFFSET_CAP)
