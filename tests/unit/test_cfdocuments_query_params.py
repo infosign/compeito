@@ -306,9 +306,7 @@ class TestBuildLinkHeader:
 
         # At the cap with more data: next_offset would exceed the cap and be
         # re-clamped by the router to OFFSET_CAP (the current page) -> omit it.
-        rels = _parse_link(
-            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000)
-        )
+        rels = _parse_link(build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000))
         assert "next" not in rels
 
     def test_last_clamped_not_self_loop_at_cap(self):
@@ -316,9 +314,7 @@ class TestBuildLinkHeader:
 
         # True last page is beyond the cap; last must clamp to OFFSET_CAP and,
         # since that equals the current offset, be omitted (no self-loop).
-        rels = _parse_link(
-            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000)
-        )
+        rels = _parse_link(build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000))
         assert "last" not in rels
 
     def test_next_and_last_clamp_to_cap_when_emitted(self):
@@ -327,9 +323,7 @@ class TestBuildLinkHeader:
         # One page before the cap, with the true last page genuinely beyond it
         # (total chosen so last_offset > OFFSET_CAP, exercising the clamp): both
         # next and last are emitted, clamped to OFFSET_CAP (last reachable page).
-        rels = _parse_link(
-            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP - 500, total=OFFSET_CAP + 501)
-        )
+        rels = _parse_link(build_link_header(self.BASE, limit=500, offset=OFFSET_CAP - 500, total=OFFSET_CAP + 501))
         assert rels["next"]["offset"] == str(OFFSET_CAP)
         assert rels["last"]["offset"] == str(OFFSET_CAP)
 
