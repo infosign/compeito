@@ -17,13 +17,16 @@ from src.models.cf_item_type import CFItemType
 from src.models.tenant import Tenant
 from src.services.csv_import_service import (
     FormatType,
+    _assoc_columns_in_header,
     _build_column_map,
     _detect_format,
     _is_valid_uuid,
+    _parse_assoc_cells,
     _parse_csv_list,
     _parse_date,
     _parse_int,
     _parse_metadata_lines,
+    _resolve_assoc_target,
     _simple_depth_from_indent,
     import_csv,
 )
@@ -948,3 +951,191 @@ class TestMetadataOnlyUpdate:
         assert "bbbb2222-0000-0000-0000-000000000003" in origins  # New Child → Root
         # Old Child's old isChildOf (2 from 1st run = Root→doc + Old Child→Root) was deleted
         assert report.existing_is_child_of_deleted == 2
+
+
+# ---------------------------------------------------------------------------
+# Non-isChildOf associations (isPeerOf, exactMatchOf, ...)
+# ---------------------------------------------------------------------------
+
+
+class TestAssociationColumnParsing:
+    def test_custom_includes_is_part_of(self):
+        cm = _build_column_map(["Identifier", "fullStatement", "isPeerOf", "isPartOf", "exactMatchOf"])
+        types = {a for a, _ in _assoc_columns_in_header(cm, FormatType.CUSTOM)}
+        assert types == {"isPeerOf", "isPartOf", "exactMatchOf"}
+
+    def test_opensalt_excludes_is_part_of(self):
+        # In OpenSALT, "Is Part Of" is the document identifier, not an isPartOf association.
+        cm = _build_column_map(["Identifier", "Full Statement", "Is Part Of", "Is Peer Of"])
+        types = {a for a, _ in _assoc_columns_in_header(cm, FormatType.OPENSALT)}
+        assert types == {"isPeerOf"}
+
+    def test_opensalt_spaced_headers(self):
+        cm = _build_column_map(["Is Related To", "Has Skill Level", "Replaced By"])
+        types = {a for a, _ in _assoc_columns_in_header(cm, FormatType.OPENSALT)}
+        assert types == {"isRelatedTo", "hasSkillLevel", "replacedBy"}
+
+    def test_parse_cells_pipe_split_and_trim(self):
+        cm = _build_column_map(["Identifier", "fullStatement", "isPeerOf", "exactMatchOf"])
+        cols = _assoc_columns_in_header(cm, FormatType.CUSTOM)
+        row = ["i", "stmt", " u1 | u2 |", ""]
+        assert _parse_assoc_cells(row, cm, cols) == [("isPeerOf", "u1"), ("isPeerOf", "u2")]
+
+    def test_resolve_uuid_not_found_warns(self):
+        tid = uuid.uuid4()
+        tgt = str(uuid.uuid4())
+        warns: list[str] = []
+        ident, _uri, title = _resolve_assoc_target(tgt, {}, {}, tid, warns, 3, "isPeerOf")
+        assert ident == tgt and title is None and len(warns) == 1
+
+    def test_resolve_external_uri_trailing_uuid(self):
+        tid = uuid.uuid4()
+        target_uuid = str(uuid.uuid4())
+        url = f"https://other.example/t/uri/{target_uuid}"
+        ident, uri, title = _resolve_assoc_target(url, {}, {}, tid, [], 4, "exactMatchOf")
+        assert ident == target_uuid and uri == url and title is None
+
+    def test_resolve_external_uri_no_uuid(self):
+        tid = uuid.uuid4()
+        ident, uri, _t = _resolve_assoc_target("https://x/foo", {}, {}, tid, [], 5, "exactMatchOf")
+        assert ident == "https://x/foo" and uri == "https://x/foo"
+
+
+class TestImportNonChildAssociations:
+    async def test_is_peer_of_same_document(self, db_session: AsyncSession, tenant: Tenant):
+        a = "ccaa0000-0000-4000-8000-000000000001"
+        b = "ccaa0000-0000-4000-8000-000000000002"
+        csv = (f"#title,Peer Doc\nIdentifier,fullStatement,isPeerOf\n{a},Item A,{b}\n{b},Item B,\n").encode("utf-8")
+
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        peers = list(
+            (
+                await db_session.execute(
+                    select(CFAssociation).where(
+                        CFAssociation.tenant_id == tenant.id,
+                        CFAssociation.association_type == "isPeerOf",
+                    )
+                )
+            ).scalars()
+        )
+        assert len(peers) == 1
+        assert peers[0].origin_node_identifier == a
+        assert peers[0].destination_node_identifier == b
+        # destination resolved to the in-document item (title filled, uri is the item's)
+        assert peers[0].destination_node_title == "Item B"
+        assert peers[0].origin_node_target_type is None
+        # 2 isChildOf (both items → doc) + 1 isPeerOf
+        assert report.associations_created == 3
+
+    async def test_multiple_targets_pipe_separated(self, db_session: AsyncSession, tenant: Tenant):
+        a = "ccbb0000-0000-4000-8000-000000000001"
+        b = "ccbb0000-0000-4000-8000-000000000002"
+        c = "ccbb0000-0000-4000-8000-000000000003"
+        csv = (
+            f"#title,Multi Doc\nIdentifier,fullStatement,isRelatedTo\n{a},Item A,{b}|{c}\n{b},Item B,\n{c},Item C,\n"
+        ).encode("utf-8")
+
+        await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        related = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isRelatedTo"))
+            ).scalars()
+        )
+        assert {r.destination_node_identifier for r in related} == {b, c}
+
+    async def test_cross_framework_uri_preserved(self, db_session: AsyncSession, tenant: Tenant):
+        a = "cccc0000-0000-4000-8000-000000000001"
+        ext_uuid = str(uuid.uuid4())
+        ext_uri = f"https://external.example/ims/case/v1p1/CFItems/{ext_uuid}"
+        csv = (f"#title,XFW Doc\nIdentifier,fullStatement,exactMatchOf\n{a},Item A,{ext_uri}\n").encode("utf-8")
+
+        await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        em = (
+            await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "exactMatchOf"))
+        ).scalar_one()
+        assert em.destination_node_uri == ext_uri
+        assert em.destination_node_identifier == ext_uuid
+
+    async def test_absent_column_preserves_existing(self, db_session: AsyncSession, tenant: Tenant):
+        """A re-import whose header lacks the isPeerOf column must not delete
+        existing isPeerOf associations (format expressiveness)."""
+        ident = "ccdd0000-0000-4000-8000-000000000000"
+        a = "ccdd0000-0000-4000-8000-000000000001"
+        b = "ccdd0000-0000-4000-8000-000000000002"
+        csv1 = (
+            f"#identifier,{ident}\n#title,T\nIdentifier,fullStatement,isPeerOf\n{a},Item A,{b}\n{b},Item B,\n"
+        ).encode("utf-8")
+        await import_csv(db_session, tenant.id, csv1)
+        await db_session.flush()
+
+        # Re-import WITHOUT the isPeerOf column.
+        csv2 = (f"#identifier,{ident}\n#title,T\nIdentifier,fullStatement\n{a},Item A\n{b},Item B\n").encode("utf-8")
+        report = await import_csv(db_session, tenant.id, csv2)
+        await db_session.flush()
+
+        peers = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isPeerOf"))
+            ).scalars()
+        )
+        assert len(peers) == 1  # preserved
+        assert report.existing_associations_deleted == 0
+
+    async def test_empty_cell_clears_existing(self, db_session: AsyncSession, tenant: Tenant):
+        """A present-but-empty isPeerOf column wipes existing isPeerOf links."""
+        ident = "ccee0000-0000-4000-8000-000000000000"
+        a = "ccee0000-0000-4000-8000-000000000001"
+        b = "ccee0000-0000-4000-8000-000000000002"
+        csv1 = (
+            f"#identifier,{ident}\n#title,T\nIdentifier,fullStatement,isPeerOf\n{a},Item A,{b}\n{b},Item B,\n"
+        ).encode("utf-8")
+        await import_csv(db_session, tenant.id, csv1)
+        await db_session.flush()
+
+        csv2 = (f"#identifier,{ident}\n#title,T\nIdentifier,fullStatement,isPeerOf\n{a},Item A,\n{b},Item B,\n").encode(
+            "utf-8"
+        )
+        report = await import_csv(db_session, tenant.id, csv2)
+        await db_session.flush()
+
+        peers = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isPeerOf"))
+            ).scalars()
+        )
+        assert len(peers) == 0
+        assert report.existing_associations_deleted == 1
+
+    async def test_self_reference_skipped(self, db_session: AsyncSession, tenant: Tenant):
+        a = "ccff0000-0000-4000-8000-000000000001"
+        csv = (f"#title,Self Doc\nIdentifier,fullStatement,isPeerOf\n{a},Item A,{a}\n").encode("utf-8")
+        report = await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        peers = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isPeerOf"))
+            ).scalars()
+        )
+        assert len(peers) == 0
+        assert any("references self" in w for w in report.warnings)
+
+    async def test_opensalt_is_part_of_not_treated_as_association(self, db_session: AsyncSession, tenant: Tenant):
+        """OpenSALT 'Is Part Of' binds the document; it must not create an isPartOf association."""
+        doc_ident = "ccab0000-0000-4000-8000-000000000000"
+        csv = (f"#title,OS Doc\nIdentifier,Full Statement,Is Part Of\n,Item 1,{doc_ident}\n").encode("utf-8")
+        await import_csv(db_session, tenant.id, csv)
+        await db_session.flush()
+
+        is_part = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isPartOf"))
+            ).scalars()
+        )
+        assert len(is_part) == 0

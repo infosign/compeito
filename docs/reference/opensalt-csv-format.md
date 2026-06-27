@@ -83,6 +83,10 @@ OpenSALT exports use camelCase (e.g., `fullStatement`). compeito uses space-sepa
 
 compeito's format auto-detection treats the presence of `Is Child Of` or `Is Part Of` as the OpenSALT signal (see [csv-format.md](../spec/csv-format.md)). These column names are absent from the custom format, so even with a shared `Identifier` column the two are distinguishable.
 
+### Association columns
+
+compeito now imports and exports the OpenSALT association columns it recognizes — `Is Peer Of`, `Replaced By`, `Exemplar`, `Precedes`, `Has Skill Level`, `Is Related To` — using the column-per-associationType layout (the row's item is the origin; the cell holds the destination identifier(s), `|`-separated). Two caveats: `Is Part Of` stays the CFDocument identifier (document membership), so the isPartOf *association* is not expressible in this format; and `exactMatchOf` / `isTranslationOf` have no OpenSALT column (use the custom CSV format or CASE JSON). See [csv-format.md](../spec/csv-format.md#expressing-associations).
+
 ---
 
 # OpenSALT CSV/Excel フォーマット調査結果（日本語）

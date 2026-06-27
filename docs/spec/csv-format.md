@@ -18,7 +18,10 @@ Three CSV formats are supported. The format is auto-detected on import; on expor
 > For the full per-field comparison of what each path (CASE JSON / Excel / CSV)
 > preserves or drops, see [round-trip-fidelity.md](round-trip-fidelity.md). The
 > short version: CASE JSON is full fidelity; Excel is an OpenSALT-compatible subset;
-> CSV is a smaller subset (and only expresses `isChildOf` associations).
+> CSV is a smaller subset. CSV expresses every CASE associationType via per-type
+> columns (see [Expressing associations](#expressing-associations)), but the
+> v1.1-only association fields `targetType` and `notes` have no column and stay
+> JSON-only.
 
 ## Auto-detection logic
 
@@ -30,7 +33,7 @@ The format is decided from the header row (line 1, or the first non-empty line a
 
 **Note**: rule 3 is a catch-all, so a CSV with only part of the custom columns (e.g., `fullStatement` present but no `Identifier`) falls back to the simple format. Simple format is positional and does not map columns by name. To avoid an unintended fallback, always include the `Identifier` column in custom-format CSVs (it can be entirely empty).
 
-**Empty files / no data rows**: when the file is empty (0 lines), or contains only metadata rows, there's no header to detect on. In that case the **simple format is used** (rule 3 fallback) and processing continues with zero data rows. The result is an empty document (on create) or all `isChildOf` associations being deleted (on update).
+**Empty files / no data rows**: when the file is empty (0 lines), or contains only metadata rows, there's no header to detect on. In that case the **simple format is used** (rule 3 fallback) and processing continues with zero data rows. On create this yields an empty document. On update (metadata-only CSV) the existing items and associations are **preserved** — only CFDocument metadata is updated (see [import-logic.md](import-logic.md) Step 7 / 7.5).
 
 ## Metadata rows
 
@@ -83,6 +86,15 @@ Lines starting with `#` may appear at the top of the file (optional). The rule a
 | license | — | License name (e.g., "CC BY 4.0"). Lookup is auto-generated |
 | statusStartDate | — | Status start date (YYYY-MM-DD) |
 | statusEndDate | — | Status end date (YYYY-MM-DD) |
+| isPeerOf | — | Association target(s). See [Expressing associations](#expressing-associations) |
+| isPartOf | — | Association target(s) |
+| exactMatchOf | — | Association target(s) |
+| precedes | — | Association target(s) |
+| isRelatedTo | — | Association target(s) |
+| replacedBy | — | Association target(s) |
+| exemplar | — | Association target(s) |
+| hasSkillLevel | — | Association target(s) |
+| isTranslationOf | — | Association target(s) |
 
 ### Example
 
@@ -103,6 +115,46 @@ The `parentIdentifier` column makes parent–child relationships explicit:
 - A UUID → child of the item with that Identifier.
 - Forward and backward references are both allowed (resolved in two passes).
 - A non-existent UUID → warning emitted; the row is treated as a root-level item.
+
+### Expressing associations
+
+`isChildOf` is expressed via `parentIdentifier` (above). Every **other** CASE
+associationType has its own column: `isPeerOf`, `isPartOf`, `exactMatchOf`,
+`precedes`, `isRelatedTo`, `replacedBy`, `exemplar`, `hasSkillLevel`,
+`isTranslationOf`. The row's item is the **origin**; the cell holds the
+**destination(s)**.
+
+- **Target value**:
+  - An **item in the same tenant** → its Identifier (UUID). On import the link's
+    title/uri are filled from the target item; on export an in-document target is
+    emitted as the bare UUID.
+  - A **cross-framework target** (another framework, possibly on another server)
+    → the full destination URI. It is stored verbatim as the destination URI; the
+    trailing path segment is used as the destination identifier when it is a UUID.
+- **Multiple targets** in one cell are separated by `|` (pipe), e.g.
+  `uuidA|uuidB`. (Comma is reserved for `educationLevel` / `conceptKeywords`.)
+- **`targetType` and association `notes`** have no column and are **not**
+  expressible in CSV — they round-trip only via CASE JSON. A CSV-imported
+  association stores `targetType = null`.
+- **Re-import (upsert) scope**: the rebuild is **document-level**, mirroring
+  `isChildOf`. On update, each association type **whose column is present in the
+  header** is deleted across the whole document and rebuilt from the CSV's rows.
+  A type whose column is absent is left untouched (so associations imported via
+  CASE JSON survive a CSV round-trip that does not mention them). **Caveat**:
+  because the rebuild is document-level, a *partial* CSV (one that omits some
+  items) drops the present-type associations of the omitted items as well — re-export
+  the full document before editing, the same round-trip caveat that applies to
+  `isChildOf`. Consequently an empty cell (or an item with no row at all) ends up
+  with no links of that type.
+- A target UUID not found in the tenant emits a warning; the link is still built
+  from the identifier. A self-reference is skipped with a warning.
+
+```csv
+#title,Association Example
+Identifier,fullStatement,parentIdentifier,isPeerOf,exactMatchOf
+11110000-0000-0000-0000-000000000001,Item A,,11110000-0000-0000-0000-000000000002,
+11110000-0000-0000-0000-000000000002,Item B,,,https://other.example/ims/case/v1p1/CFItems/<uuid>
+```
 
 ## OpenSALT format
 
@@ -125,6 +177,12 @@ A format intended for interoperability with OpenSALT CSV imports. It is not full
 | Is Child Of | parentIdentifier (the parent's Identifier) |
 | Sequence Number | sequenceNumber |
 | Is Part Of | CFDocument identifier (see notes below) |
+| Is Peer Of | isPeerOf association target(s) |
+| Replaced By | replacedBy association target(s) |
+| Exemplar | exemplar association target(s) |
+| Precedes | precedes association target(s) |
+| Has Skill Level | hasSkillLevel association target(s) |
+| Is Related To | isRelatedTo association target(s) |
 
 ### Example
 
@@ -143,6 +201,9 @@ e97885g3-...,Modern Japanese,,,,,Course,en,,d86774f2-...,10,a1b2c3d4-...
   - When `Is Part Of` varies row-by-row in one CSV: the first non-empty value is used as the document identifier; rows with different values produce a warning (all rows still bind to that single document).
 - In OpenSALT CSVs, `Is Child Of` carries the parent item's Identifier (the same role as `parentIdentifier` in the custom format).
 - Header names are case-insensitive (`Full Statement` = `full statement` = `FULL STATEMENT`).
+- **Associations** follow the same rules as the [custom format](#expressing-associations) (one column per associationType, `|`-separated targets). Two differences specific to OpenSALT:
+  - `Is Part Of` is **not** an isPartOf association here — it is reserved for the CFDocument identifier (document membership). The isPartOf association is therefore not expressible in OpenSALT CSV; use the custom format or CASE JSON for it.
+  - Only the association types OpenSALT recognizes get a column (`Is Peer Of`, `Replaced By`, `Exemplar`, `Precedes`, `Has Skill Level`, `Is Related To`). `exactMatchOf` and `isTranslationOf` have no OpenSALT column and are omitted on export (they round-trip via the custom format or CASE JSON).
 
 ## Simple format
 

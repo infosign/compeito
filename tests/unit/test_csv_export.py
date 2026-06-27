@@ -4,6 +4,7 @@ import uuid
 from datetime import date, datetime, timezone
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.cf_association import CFAssociation
@@ -532,14 +533,19 @@ class TestOpenSALTExport:
         assert "Is Child Of" in header_line
 
     async def test_opensalt_is_part_of(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
-        """Every data row should have document identifier in Is Part Of column."""
+        """Every data row should have document identifier in the Is Part Of column."""
+        import csv as csv_mod
+        import io
+
         doc = doc_with_items
         csv_str = await export_opensalt_csv(db_session, tenant.id, doc.identifier)
-        lines = csv_str.strip().split("\n")
-        data_lines = [line for line in lines if not line.startswith("#") and not line.startswith("Identifier")]
+        reader = csv_mod.reader(io.StringIO(csv_str))
+        rows = [row for row in reader if row and not row[0].startswith("#")]
+        header = rows[0]
+        is_part_of_idx = header.index("Is Part Of")
         doc_ident = str(doc.identifier)
-        for line in data_lines:
-            assert line.endswith(doc_ident)
+        for row in rows[1:]:
+            assert row[is_part_of_idx] == doc_ident
 
     async def test_opensalt_is_child_of(self, db_session: AsyncSession, tenant: Tenant, doc_with_items):
         """Child items have parent identifier; root items have empty Is Child Of."""
@@ -701,3 +707,139 @@ class TestOpenSALTRoundTrip:
         await db_session.flush()
         assert report2.items_updated == 2
         assert report2.items_created == 0
+
+
+# ---------------------------------------------------------------------------
+# Non-isChildOf association export
+# ---------------------------------------------------------------------------
+
+
+def _parse_rows(csv_str: str):
+    import csv as csv_mod
+    import io
+
+    reader = csv_mod.reader(io.StringIO(csv_str))
+    rows = [row for row in reader if row and not row[0].startswith("#")]
+    return rows[0], rows[1:]
+
+
+class TestExportNonChildAssociations:
+    async def test_custom_header_has_assoc_columns(self, db_session, tenant, doc_with_items):
+        csv_str = await export_csv(db_session, tenant.id, doc_with_items.identifier)
+        header, _ = _parse_rows(csv_str)
+        for col in ("isPeerOf", "isPartOf", "exactMatchOf", "isRelatedTo", "isTranslationOf"):
+            assert col in header
+
+    async def test_in_document_peer_emits_uuid(self, db_session, tenant, doc_with_items):
+        doc = doc_with_items
+        item1 = "bbbbbbbb-0000-0000-0000-000000000001"
+        item3 = "bbbbbbbb-0000-0000-0000-000000000003"
+        # item1 isPeerOf item3 (both in document)
+        db_session.add(
+            CFAssociation(
+                id=uuid.uuid4(),
+                tenant_id=tenant.id,
+                cf_document_id=doc.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/peer",
+                association_type="isPeerOf",
+                origin_node_identifier=item1,
+                origin_node_uri="https://example.com/item/1",
+                destination_node_identifier=item3,
+                destination_node_uri="https://example.com/item/3",
+                last_change_date_time=LCT,
+            )
+        )
+        await db_session.flush()
+
+        header, rows = _parse_rows(await export_csv(db_session, tenant.id, doc.identifier))
+        peer_idx = header.index("isPeerOf")
+        by_id = {r[0]: r for r in rows}
+        assert by_id[item1][peer_idx] == item3  # in-document target → bare UUID
+
+    async def test_cross_framework_emits_uri(self, db_session, tenant, doc_with_items):
+        doc = doc_with_items
+        item1 = "bbbbbbbb-0000-0000-0000-000000000001"
+        ext_uri = "https://external.example/ims/case/v1p1/CFItems/" + str(uuid.uuid4())
+        db_session.add(
+            CFAssociation(
+                id=uuid.uuid4(),
+                tenant_id=tenant.id,
+                cf_document_id=doc.id,
+                identifier=uuid.uuid4(),
+                uri="https://example.com/assoc/xfw",
+                association_type="exactMatchOf",
+                origin_node_identifier=item1,
+                origin_node_uri="https://example.com/item/1",
+                destination_node_identifier="external-id",
+                destination_node_uri=ext_uri,
+                last_change_date_time=LCT,
+            )
+        )
+        await db_session.flush()
+
+        header, rows = _parse_rows(await export_csv(db_session, tenant.id, doc.identifier))
+        em_idx = header.index("exactMatchOf")
+        by_id = {r[0]: r for r in rows}
+        assert by_id[item1][em_idx] == ext_uri  # external target → full URI
+
+    async def test_multiple_targets_joined_with_pipe(self, db_session, tenant, doc_with_items):
+        doc = doc_with_items
+        item1 = "bbbbbbbb-0000-0000-0000-000000000001"
+        item2 = "bbbbbbbb-0000-0000-0000-000000000002"
+        item3 = "bbbbbbbb-0000-0000-0000-000000000003"
+        for dest in (item2, item3):
+            db_session.add(
+                CFAssociation(
+                    id=uuid.uuid4(),
+                    tenant_id=tenant.id,
+                    cf_document_id=doc.id,
+                    identifier=uuid.uuid4(),
+                    uri=f"https://example.com/assoc/rel-{dest}",
+                    association_type="isRelatedTo",
+                    origin_node_identifier=item1,
+                    origin_node_uri="https://example.com/item/1",
+                    destination_node_identifier=dest,
+                    destination_node_uri=f"https://example.com/item/{dest[-1]}",
+                    last_change_date_time=LCT,
+                )
+            )
+        await db_session.flush()
+
+        header, rows = _parse_rows(await export_csv(db_session, tenant.id, doc.identifier))
+        rel_idx = header.index("isRelatedTo")
+        cell = {r[0]: r for r in rows}[item1][rel_idx]
+        assert set(cell.split("|")) == {item2, item3}
+
+    async def test_opensalt_omits_exact_match_of(self, db_session, tenant, doc_with_items):
+        """OpenSALT export has no exactMatchOf column (not OpenSALT-recognized)."""
+        header, _ = _parse_rows(await export_opensalt_csv(db_session, tenant.id, doc_with_items.identifier))
+        assert "Is Peer Of" in header
+        assert "exactMatchOf" not in header
+        assert "Exact Match Of" not in header
+
+    async def test_round_trip_peer_association(self, db_session, tenant):
+        """isPeerOf survives custom-CSV export → re-import."""
+        a = "22220000-0000-4000-8000-000000000001"
+        b = "22220000-0000-4000-8000-000000000002"
+        csv_input = (f"#title,Peer RT\nIdentifier,fullStatement,isPeerOf\n{a},Item A,{b}\n{b},Item B,\n").encode(
+            "utf-8"
+        )
+        report1 = await import_csv(db_session, tenant.id, csv_input)
+        await db_session.flush()
+        doc_ident = uuid.UUID(report1.document_identifier)
+
+        csv_output = await export_csv(db_session, tenant.id, doc_ident)
+        header, rows = _parse_rows(csv_output)
+        peer_idx = header.index("isPeerOf")
+        assert {r[0]: r for r in rows}[a][peer_idx] == b
+
+        # Re-import into same doc; isPeerOf rebuilt (1), still present.
+        await import_csv(db_session, tenant.id, csv_output.encode("utf-8"), doc_identifier=doc_ident)
+        await db_session.flush()
+        peers = list(
+            (
+                await db_session.execute(select(CFAssociation).where(CFAssociation.association_type == "isPeerOf"))
+            ).scalars()
+        )
+        assert len(peers) == 1
