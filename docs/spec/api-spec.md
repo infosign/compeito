@@ -124,7 +124,14 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 - `fields` — comma-separated CFDocument field names; the response objects are projected to exactly those keys. Unknown field → 400 (`invalid_selection_field`). NOTE: the REST binding prose says an unknown field should return the full record (and only a *blank* field is `invalid_selection_field`); similarly it says an unknown `sort` should fall back to the default order. compeito intentionally returns 400 in both cases (typos are visible to the client). This is an intentional divergence (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7).
 - These are currently implemented for `GET /CFDocuments` only (the only listing endpoint the CASE v1.1 OpenAPI defines these params on); the extension listing endpoints (`CFItemTypes`, etc.) accept `limit`/`offset` only.
 - Note: served only by the dynamic API. A static-publishing deployment bakes the default (unsorted/unfiltered/full) listing, so sort/filter/fields require dynamic serving.
-**`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header. The `Link` pagination headers (next/prev/first/last) are not implemented (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5).
+**`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header.
+
+**`Link`** (RFC 8288): `GET /CFDocuments` returns a `Link` response header with `first` / `prev` / `next` / `last` relations (whichever apply), comma-separated in a single header. Relations are omitted at the series boundaries (no `prev`/`first` on the first page; no `next` on the last page). The header is absent when the result fits a single page, when the result is empty, or when `limit=0`. Notes:
+- The tenant segment in every Link URL is the canonical **UUID**, even when the request addressed the tenant by slug (matching the URIs CASE resources emit). A slug-addressed response therefore points pagination at UUID URLs; slug and UUID responses are distinct cache keys.
+- All relations keep the request's `limit` (the binding's example narrows `last` to the remainder; compeito keeps `limit` for query consistency — the last page still returns only the remaining items).
+- `next`/`last` never point past the `offset` cap (100000): a target that would be re-clamped to the cap (and thus loop back to the current page) is omitted. With more than `cap + limit` rows the true final page is unreachable by paging — use a narrower `filter`.
+- `filter`/`fields` are carried through, URL-encoded; a very long `filter` lengthens the header.
+- Served only by the dynamic API (like `sort`/`filter`/`fields`); a static-publishing deployment does not emit `Link`.
 Default sort order: every listing endpoint sorts by `identifier ASC` to guarantee deterministic ordering and avoid duplicates / gaps across pages.
 Scope: every listing endpoint returns all tenant rows (no document filtering). `CFDocuments` returns every document in the tenant. `CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` return every lookup in the tenant. `CFItems/{id}/associations` searches all documents in the tenant (see the validation section). CFDefinitions inside CFPackage is narrowed to definitions referenced from the document, but listing endpoints are not narrowed.
 
@@ -299,7 +306,7 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
 3. **Invalid UUID → 400:** CASE v1.1 lumps invalid UUIDs into 404; we split into 400 (see validation section).
 4. **`limit=0` accepted:** OpenAPI says `minimum: 1`, but we accept it and return an empty array (see pagination section).
 5. **Pagination extended:** OpenAPI defines `limit` / `offset` etc. only on `GET /CFDocuments`; we extend them to every listing endpoint.
-6. **`Link` pagination headers omitted:** `X-Total-Count` is implemented on `GET /CFDocuments`; the RFC 8288 `Link` headers (next/prev/first/last) are not (see pagination section and [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5).
+6. **`Link` pagination `last` keeps `limit`:** the RFC 8288 `Link` headers (next/prev/first/last) are implemented on `GET /CFDocuments` (see pagination section). One minor divergence remains from the binding's example, which narrows the `last` page to the remainder; compeito keeps the request `limit` on every relation for query consistency (the last page still returns only the remaining items).
 7. **Emitting `targetType: null`:** OpenAPI's anyOf does not permit null, but we include it for practical reasons (see LinkURI section).
 8. **Tenant prefix:** `/{tenant}/ims/case/v1p1/` is an extension to support multi-tenancy (not in the CASE v1.1 spec).
 9. **Service Discovery endpoint:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` returns the official OpenAPI 3 schema as static JSON. No tenant prefix. `Cache-Control: public, max-age=86400` (the schema is release-pinned). FR-2.12.
@@ -463,7 +470,14 @@ CASE v1.1準拠。全一覧エンドポイントに `limit`(デフォルト100, 
 - `fields` — カンマ区切りの CFDocument フィールド名。レスポンスを指定キーのみに射影。未知フィールド → 400（`invalid_selection_field`）。注: REST binding の散文では未知フィールドは全件返す（空フィールドのみ `invalid_selection_field`）、未知 `sort` は既定順にフォールバックする、とされる。compeito は両ケースとも意図的に 400 を返す（typo をクライアントに可視化）。意図的差異（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7 参照）
 - 現状 `GET /CFDocuments` のみ（公式 OpenAPI がこれらを定義する唯一の list エンドポイント）。拡張 list エンドポイント（`CFItemTypes` 等）は `limit`/`offset` のみ
 - 動的 API でのみ提供。静的公開のデプロイでは既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
-**`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。`Link` ページネーションヘッダー（next/prev/first/last）は未実装（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5 参照）。
+**`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。
+
+**`Link`**（RFC 8288）: `GET /CFDocuments` は `first` / `prev` / `next` / `last`（該当するもの）をカンマ区切りで 1 つの `Link` レスポンスヘッダーに載せて返す。系列の端では該当 rel を省略する（先頭ページは `prev`/`first` なし、最終ページは `next` なし）。結果が 1 ページに収まる場合・空の場合・`limit=0` の場合はヘッダー自体を付けない。補足:
+- Link URL のテナント部分は、slug でアクセスされた場合でも常に正規の **UUID**（CASE リソースが emit する URI と一致）。slug 応答内の Link は UUID URL を指し、slug 応答と UUID 応答は別の cache key になる。
+- 全 rel で要求時の `limit` を保持する（binding の例は `last` を残件数 limit に絞るが、compeito はクエリ一貫性のため `limit` を保持。最終ページは残件のみ返る）。
+- `next`/`last` は `offset` 上限（100000）を超えるページを指さない。上限に再丸めされて現在ページにループする宛先は省略する。`上限 + limit` を超える件数では最終ページにページ送りで到達できない（`filter` で絞ること）。
+- `filter`/`fields` は URL エンコードして引き継ぐ。極端に長い `filter` はヘッダー長を増やす。
+- `sort`/`filter`/`fields` 同様、動的 API でのみ提供（静的公開デプロイでは `Link` を出さない）。
 デフォルトソート順: 全一覧エンドポイントは `identifier ASC` で並べる（決定的な順序を保証し、ページ間の重複・欠落を防ぐ）。
 スコープ: 全一覧エンドポイントはテナント内の全件を返す（ドキュメントでフィルタリングしない）。`CFDocuments` はテナント内の全ドキュメント、`CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` はテナント内の全 lookup リソースを返す。`CFItems/{id}/associations` はテナント内の全ドキュメントを横断して検索する（api-spec.md バリデーション節参照）。CFPackage 内の CFDefinitions はドキュメントから参照されている定義のみに絞り込むが、一覧APIは絞り込まない。
 
@@ -639,7 +653,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 3. **invalid UUID → 400:** CASE v1.1 では invalid UUID も 404 に含むが、本システムでは 400 に分離（上記バリデーション節参照）
 4. **`limit=0` の許容:** OpenAPI は `minimum: 1` だが、本システムでは空配列を返す有効リクエストとして扱う（上記ページネーション節参照）
 5. **ページネーション拡張:** OpenAPI では `limit`/`offset` 等は `GET /CFDocuments` のみに定義。本システムでは全一覧エンドポイントに適用する独自拡張
-6. **`Link` ヘッダー省略:** `X-Total-Count` は `GET /CFDocuments` で実装済み。RFC 8288 の `Link` ヘッダー（next/prev/first/last）は未実装（上記ページネーション節および [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C5 参照）
+6. **`Link` の `last` は `limit` を保持:** RFC 8288 の `Link` ヘッダー（next/prev/first/last）は `GET /CFDocuments` で実装済み（上記ページネーション節参照）。binding の例は `last` を残件数 limit に絞るが、compeito はクエリ一貫性のため全 rel で要求時の `limit` を保持する点のみ軽微に異なる（最終ページは残件のみ返る）。
 7. **`targetType: null` の出力:** OpenAPI の anyOf 定義上 null は有効値でないが、実運用上必要なため null を含める（上記 LinkURI 型節参照）
 8. **テナントプレフィックス:** `/{tenant}/ims/case/v1p1/` パスは CASE v1.1 仕様にない独自拡張（マルチテナント対応）
 9. **Service Discovery エンドポイント:** `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で公式 OpenAPI 3 スキーマを静的 JSON として返す。テナントプレフィックスなし。`Cache-Control: public, max-age=86400`（スキーマはリリース固定）。FR-2.12

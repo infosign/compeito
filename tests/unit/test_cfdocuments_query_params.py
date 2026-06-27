@@ -184,3 +184,188 @@ class TestTotalCountAndExtras:
         await _seed(db_session)
         r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?sort=subject")
         assert r.status_code == 400
+
+
+def _parse_link(header: str) -> dict[str, dict[str, str]]:
+    """Parse an RFC 8288 Link header into {rel: {query param: value}}.
+
+    Asserting on parsed rel/query pairs (rather than exact URL strings) keeps
+    these tests robust to parameter ordering.
+    """
+    from urllib.parse import parse_qs, urlsplit
+
+    out: dict[str, dict[str, str]] = {}
+    for part in header.split(","):
+        part = part.strip()
+        url, _, relseg = part.partition(";")
+        url = url.strip()[1:-1]  # strip < >
+        rel = relseg.split("=", 1)[1].strip().strip('"')
+        q = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
+        out[rel] = q
+    return out
+
+
+class TestBuildLinkHeader:
+    """Pure unit tests for build_link_header (no DB). See design-notes.md C5."""
+
+    BASE = "https://h/t/ims/case/v1p1/CFDocuments"
+
+    def test_middle_page_all_four_rels(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(build_link_header(self.BASE, limit=10, offset=20, total=100))
+        assert set(rels) == {"first", "prev", "next", "last"}
+        assert rels["first"]["offset"] == "0"
+        assert rels["prev"]["offset"] == "10"
+        assert rels["next"]["offset"] == "30"
+        assert rels["last"]["offset"] == "90"
+        assert all(r["limit"] == "10" for r in rels.values())
+
+    def test_first_page_no_prev_first(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(build_link_header(self.BASE, limit=10, offset=0, total=100))
+        assert set(rels) == {"next", "last"}
+
+    def test_last_page_no_next_last(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(build_link_header(self.BASE, limit=10, offset=90, total=100))
+        assert set(rels) == {"first", "prev"}
+
+    def test_single_page_returns_none(self):
+        from src.services.case_query_params import build_link_header
+
+        assert build_link_header(self.BASE, limit=100, offset=0, total=50) is None
+
+    def test_total_zero_returns_none(self):
+        from src.services.case_query_params import build_link_header
+
+        assert build_link_header(self.BASE, limit=10, offset=0, total=0) is None
+        # offset > 0 with empty series still yields no Link.
+        assert build_link_header(self.BASE, limit=10, offset=50, total=0) is None
+
+    def test_limit_zero_returns_none(self):
+        from src.services.case_query_params import build_link_header
+
+        assert build_link_header(self.BASE, limit=0, offset=0, total=100) is None
+
+    def test_extra_params_carried_and_none_omitted(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(
+            build_link_header(
+                self.BASE,
+                limit=10,
+                offset=20,
+                total=100,
+                extra_params={"sort": "title", "orderBy": "asc", "filter": None, "fields": None},
+            )
+        )
+        assert rels["next"]["sort"] == "title"
+        assert rels["next"]["orderBy"] == "asc"
+        assert "filter" not in rels["next"]
+        assert "fields" not in rels["next"]
+
+    def test_filter_special_chars_encoded(self):
+        from src.services.case_query_params import build_link_header
+
+        header = build_link_header(
+            self.BASE, limit=10, offset=20, total=100, extra_params={"filter": "creator='Al ice'"}
+        )
+        # Raw special chars must be percent-encoded in the header.
+        assert "Al ice" not in header
+        rels = _parse_link(header)
+        assert rels["next"]["filter"] == "creator='Al ice'"  # round-trips when parsed
+
+    def test_last_offset_on_ragged_total(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(build_link_header(self.BASE, limit=100, offset=0, total=250))
+        assert rels["last"]["offset"] == "200"
+
+    def test_prev_not_negative(self):
+        from src.services.case_query_params import build_link_header
+
+        rels = _parse_link(build_link_header(self.BASE, limit=100, offset=50, total=300))
+        assert rels["prev"]["offset"] == "0"
+
+    def test_offset_out_of_range_emits_first_prev_last(self):
+        from src.services.case_query_params import build_link_header
+
+        # offset beyond total: empty page, but caller can rewind.
+        rels = _parse_link(build_link_header(self.BASE, limit=10, offset=500, total=100))
+        assert "next" not in rels
+        assert set(rels) >= {"first", "prev", "last"}
+        assert rels["last"]["offset"] == "90"  # last_offset < offset
+
+    # --- offset cap boundary (regression for must-fix #1: no self-loop) ---
+
+    def test_next_omitted_at_offset_cap(self):
+        from src.services.case_query_params import OFFSET_CAP, build_link_header
+
+        # At the cap with more data: next_offset would exceed the cap and be
+        # re-clamped by the router to OFFSET_CAP (the current page) -> omit it.
+        rels = _parse_link(
+            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000)
+        )
+        assert "next" not in rels
+
+    def test_last_clamped_not_self_loop_at_cap(self):
+        from src.services.case_query_params import OFFSET_CAP, build_link_header
+
+        # True last page is beyond the cap; last must clamp to OFFSET_CAP and,
+        # since that equals the current offset, be omitted (no self-loop).
+        rels = _parse_link(
+            build_link_header(self.BASE, limit=500, offset=OFFSET_CAP, total=OFFSET_CAP + 2000)
+        )
+        assert "last" not in rels
+
+
+class TestLinkHeaderEndpoint:
+    """Integration: Link header on GET /CFDocuments."""
+
+    async def test_link_header_present_with_rels(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)  # 3 docs
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?limit=1&offset=1")
+        assert r.status_code == 200
+        rels = _parse_link(r.headers["Link"])
+        assert set(rels) == {"first", "prev", "next", "last"}
+        assert rels["next"]["offset"] == "2"
+
+    async def test_link_tenant_is_uuid_even_via_slug(self, db_session: AsyncSession, db_client):
+        # Seed tenant with a slug, address via slug, expect UUID in Link URLs.
+        db_session.add(
+            Tenant(id=uuid.UUID("22222222-2222-2222-2222-222222222222"), name="S", slug="myslug", is_private=False)
+        )
+        await db_session.flush()
+        for i in range(3):
+            db_session.add(
+                CFDocument(
+                    id=uuid.uuid4(),
+                    tenant_id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
+                    identifier=uuid.uuid4(),
+                    uri=f"https://example.com/s/{i}",
+                    title=f"Doc {i}",
+                    last_change_date_time=LCT,
+                )
+            )
+        await db_session.flush()
+        r = await db_client.get("/myslug/ims/case/v1p1/CFDocuments?limit=1&offset=1")
+        assert "22222222-2222-2222-2222-222222222222" in r.headers["Link"]
+        assert "myslug" not in r.headers["Link"]
+
+    async def test_link_preserves_filter_and_sort(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        r = await db_client.get(
+            f"/{TENANT_ID}/ims/case/v1p1/CFDocuments?limit=1&offset=1&sort=title&filter=creator='Alice'"
+        )
+        rels = _parse_link(r.headers["Link"])
+        assert rels["next"]["sort"] == "title"
+        assert rels["next"]["filter"] == "creator='Alice'"
+
+    async def test_no_link_header_single_page(self, db_session: AsyncSession, db_client):
+        await _seed(db_session)
+        r = await db_client.get(f"/{TENANT_ID}/ims/case/v1p1/CFDocuments")
+        assert "Link" not in r.headers
+        assert r.headers["X-Total-Count"] == "3"
