@@ -11,7 +11,7 @@
 | # | 項目 | ステータス | 設計 |
 |---|------|:--:|------|
 | B1 | **Moodle コンピテンシー CSV エクスポート**（`export csv --profile moodle`） — CFDocument を Moodle の `tool_lpimportcsv`（サイト管理 > コンピテンシー > コンピテンシーフレームワークのインポート）が取り込める CSV として出力する一方通行・lossy なエクスポート | 設計済み（実装順未定） | [designs/moodle-competency-export.md](./designs/moodle-competency-export.md) |
-| B2 | **コンピテンシーの意味検索**（ベクトル埋め込み） | 未着手 | — |
+| B2 | **コンピテンシーの意味検索**（ベクトル埋め込み） — ローカル埋め込みモデル同梱（オフライン）＋ pgvector ＋検索 API。CFItem を意味の近さで検索 | 設計済み（実装順未定） | [designs/semantic-search.md](./designs/semantic-search.md) |
 | B3 | **フレームワーク間自動マッピング提案** | 未着手 | — |
 
 ## 参考: 別ファイルで管理する将来要望（要件未確定）
