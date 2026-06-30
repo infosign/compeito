@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime
+from urllib.parse import urlencode
 
 from sqlalchemy import Text, and_, func, or_
 
@@ -187,3 +188,63 @@ def project_fields(dump: dict, fields: list[str] | None) -> dict:
     if fields is None:
         return dump
     return {k: v for k, v in dump.items() if k in fields}
+
+
+# Pagination caps. These MUST match the clamping applied in the router
+# (src/routers/cf_documents.py); the Link builder relies on them so that a URL
+# it emits is never re-clamped server-side into a different (self-looping) page.
+LIMIT_CAP = 500
+OFFSET_CAP = 100000
+
+
+def build_link_header(
+    base_path: str,
+    limit: int,
+    offset: int,
+    total: int,
+    *,
+    extra_params: dict[str, str | None] | None = None,
+) -> str | None:
+    """Build an RFC 8288 ``Link`` header for a paginated CFDocuments listing.
+
+    Returns a single header value with ``first``/``prev``/``next``/``last``
+    relations (whichever apply), comma-separated, or ``None`` when no relation
+    applies (single page, empty result, or ``limit == 0``).
+
+    ``limit``/``offset`` are the cap-applied values used for the actual query.
+    ``extra_params`` carries through ``sort``/``orderBy``/``filter``/``fields``
+    (``None`` values are omitted). See design-notes.md for the rel rules.
+    """
+    # No pagination possible: empty series or a non-positive page size.
+    if total <= 0 or limit <= 0:
+        return None
+
+    extras = {k: v for k, v in (extra_params or {}).items() if v is not None}
+
+    def link(rel: str, target_offset: int) -> str:
+        params = [("limit", str(limit)), ("offset", str(target_offset))]
+        params += [(k, str(v)) for k, v in extras.items()]
+        return f'<{base_path}?{urlencode(params)}>; rel="{rel}"'
+
+    parts: list[str] = []
+
+    # first / prev: only when there is a page before the current one.
+    if offset > 0:
+        parts.append(link("first", 0))
+        parts.append(link("prev", max(0, offset - limit)))
+
+    # next: the following page, only when it holds data AND is reachable without
+    # the router re-clamping it back to OFFSET_CAP (= the current page).
+    next_offset = offset + limit
+    if next_offset < total and next_offset <= OFFSET_CAP:
+        parts.append(link("next", next_offset))
+
+    # last: the final page of real data, regardless of direction. Clamp to
+    # OFFSET_CAP when the true last page is unreachable; skip if clamping (or
+    # the raw value) lands on the current page.
+    last_offset = ((total - 1) // limit) * limit
+    last_offset = min(last_offset, OFFSET_CAP)
+    if last_offset != offset:
+        parts.append(link("last", last_offset))
+
+    return ", ".join(parts) if parts else None

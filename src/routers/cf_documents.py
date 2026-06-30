@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.database import get_session
 from src.dependencies import require_tenant, validate_uuid
 from src.errors import ResourceNotFoundError, imsx_error_response
@@ -41,8 +42,8 @@ async def list_cf_documents(
     except case_query_params.QueryParamError as e:
         return imsx_error_response(400, e.message, e.code_minor, field_name=e.field_name)
 
-    limit = min(limit, 500)
-    offset = min(offset, 100000)
+    limit = min(limit, case_query_params.LIMIT_CAP)
+    offset = min(offset, case_query_params.OFFSET_CAP)
 
     # X-Total-Count: total matching the (optional) filter, before pagination.
     total = await case_query_service.count_cf_documents(session, tenant_obj.id, filter_clause=filter_clause)
@@ -53,10 +54,21 @@ async def list_cf_documents(
     content = {
         "CFDocuments": [case_query_params.project_fields(doc.model_dump(by_alias=True), field_list) for doc in docs]
     }
-    return JSONResponse(
-        content=content,
-        headers={"Cache-Control": CACHE_CONTROL, "X-Total-Count": str(total)},
+    headers = {"Cache-Control": CACHE_CONTROL, "X-Total-Count": str(total)}
+
+    # RFC 8288 Link header (next/prev/first/last). Tenant segment is always the
+    # canonical UUID, matching emitted CASE URIs regardless of slug addressing.
+    link = case_query_params.build_link_header(
+        f"{settings.base_url.rstrip('/')}/{tenant_obj.id}/ims/case/v1p1/CFDocuments",
+        limit,
+        offset,
+        total,
+        extra_params={"sort": sort, "orderBy": orderBy, "filter": filter, "fields": fields},
     )
+    if link is not None:
+        headers["Link"] = link
+
+    return JSONResponse(content=content, headers=headers)
 
 
 @router.get("/{tenant}/ims/case/v1p1/CFDocuments/{id}")
