@@ -35,6 +35,7 @@ Priority within the phase reflects an OpenCASE conformance-gap analysis: items 1
 5. ✅ **CSV import / export for CFAssociation types other than `isChildOf`** (`isPeerOf`, `exactMatchOf`, etc.) — column-based, one column per associationType on the CFItem row (OpenSALT-compatible). In-document targets use the item UUID; cross-framework targets use the full URI. `targetType` / association `notes` remain JSON-only (see [round-trip-fidelity.md](../spec/round-trip-fidelity.md)). (done)
 6. Semantic search over competencies (vector embeddings)
 7. Automatic cross-framework mapping suggestions
+8. **Moodle competency CSV export** (`export csv --profile moodle`) — one-way, lossy export of a CFDocument into the CSV that Moodle's `tool_lpimportcsv` (Site administration > Competencies > Import competency framework) accepts. Design reviewed and ready to implement; implementation order TBD. See [moodle-competency-export-design.md](../dev/moodle-competency-export-design.md).
 
 Remaining strict-conformance gaps (wrappers, package-context URIs, Link headers, etc.) are tracked separately in the [CASE v1.1 conformance backlog](../dev/case-v1p1-conformance-backlog.md).
 
@@ -84,6 +85,7 @@ These features are not on the roadmap. The positioning rationale is documented h
 5. ✅ **isChildOf 以外の CFAssociation の CSV インポート/エクスポート対応**（isPeerOf, exactMatchOf 等） — 列ベース（associationType ごとに CFItem 行へ 1 列、OpenSALT 互換）。同一ドキュメント内ターゲットは item の UUID、クロスフレームワークはフル URI で表現。`targetType` と association の `notes` は JSON 専用のまま（[round-trip-fidelity.md](../spec/round-trip-fidelity.md) 参照）（完了）
 6. コンピテンシーの意味検索（ベクトル埋め込み）
 7. フレームワーク間自動マッピング提案
+8. **Moodle コンピテンシー CSV エクスポート**（`export csv --profile moodle`） — CFDocument を Moodle の `tool_lpimportcsv`（サイト管理 > コンピテンシー > コンピテンシーフレームワークのインポート）が取り込める CSV として出力する一方通行・lossy なエクスポート。設計レビュー済み・実装着手可、実装順は未定。[moodle-competency-export-design.md](../dev/moodle-competency-export-design.md) 参照。
 
 残る厳密適合のギャップ（wrapper、パッケージ内 URI、Link ヘッダー等）は [CASE v1.1 conformance backlog](../dev/case-v1p1-conformance-backlog.md) で別途管理する。
 
