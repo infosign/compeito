@@ -28,6 +28,9 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | docs/guide/opencase-interop.md                   | OpenCASE 相互運用ガイド（公開/プライベートの配置パターンと運用フロー）         |
 | docs/dev/conventions.md                          | コミット・PR・リリースノートの書き方規約                       |
 | docs/dev/local-setup.md                          | ローカル開発セットアップ（ハイブリッド/全 Docker 両構成）             |
+| docs/dev/backlog.md                              | **機能/相互運用バックログ**（未完了項目の索引。「バックログ」はまずここ）   |
+| docs/dev/case-v1p1-conformance-backlog.md        | CASE v1.1 厳密適合バックログ（適合性ギャップ専用）              |
+| docs/dev/designs/                                | バックログ項目ごとの設計ドキュメント（1項目1ファイル）              |
 | docs/requirements/phases.md                      | フェーズ定義・ロードマップ                               |
 | docs/requirements/functional-requirements.md     | 機能要件一覧（FR-1〜FR-12）                          |
 | docs/requirements/non-functional-requirements.md | 非機能要件一覧（NFR-1〜NFR-11）                       |
