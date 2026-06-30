@@ -1,7 +1,7 @@
 # Moodle competency CSV エクスポート 実装方針
 
 > **ステータス: 設計レビュー済み（実装着手可）／バックログ入り・実装順は未定。**
-> 設計は Codex によるレビューを 3 ラウンド経て確定済み（[phases.md](../requirements/phases.md) Phase 3 backlog 参照）。
+> 設計は Codex によるレビューを 3 ラウンド経て確定済み（[backlog.md](../backlog.md) 参照）。
 > 実装に着手する際はこのドキュメントの方針に従う。
 
 > 目的: compeito の CFDocument を **Moodle のコンピテンシーフレームワーク取り込み**（管理 > コンピテンシー >
