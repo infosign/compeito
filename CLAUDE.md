@@ -2,9 +2,11 @@
 
 ## プロジェクト概要
 
-1EdTech CASE v1.1 準拠のWebサービス。コンピテンシーフレームワークをAPIで配信する。\
+1EdTech CASE v1.1 対応のWebサービス。コンピテンシーフレームワークをAPIで配信する。\
 Open Badge Factory (OB v3) と TAO Testing (QTI v3.0) の参照先として機能する。\
 インフォザインが開発・運用。Apache License 2.0 で公開。Docker + PostgreSQL で動作。
+
+**プロジェクトの方向性（2026-07 転換）**: 当初は OpenSALT (CASE v1.0) 完全互換の CASE v1.1 配信サーバーを目指していたが、現在は **CASE v1.1 コンフォーマンステストのパス**が目標。OpenSALT/OpenCASE からは取り込みの一方通行（import は寛容なまま維持）。出力側の OpenSALT 互換挙動（wrapper 等）は段階的に opt-in へ退役予定。適合性ギャップは docs/dev/case-v1p1-conformance-backlog.md で管理。
 
 ## 仕様ドキュメント
 
