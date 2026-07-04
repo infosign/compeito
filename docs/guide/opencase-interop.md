@@ -161,7 +161,9 @@ Re-export and re-run `import case --file` with the same `--tenant`. COMPEITO ups
 
 ## Reverse direction: COMPEITO → OpenCASE
 
-In some workflows you'll want to move the other way — share a COMPEITO-hosted framework with someone running OpenCASE. Two approaches:
+> **Positioning note (2026-07 goal shift):** COMPEITO now treats OpenSALT / OpenCASE as **one-way import sources** and aims to pass the CASE v1.1 conformance test. Pushing frameworks back into an editor is a secondary, best-effort path — not a supported round-trip. Also note that COMPEITO's default CFPackage output still carries non-strict, OpenSALT-flavoured behaviours (optional-field `null`s, package-context URIs unless `?strict=1`; see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md)), so success on this path currently depends on the importing editor's tolerance.
+
+In some workflows you'll still want to move the other way — share a COMPEITO-hosted framework with someone running OpenCASE. Two approaches:
 
 ### Option 1 — OpenCASE pulls directly from COMPEITO (public COMPEITO)
 
@@ -376,6 +378,8 @@ docker compose exec app uv run python cli.py import case \
 > **補足**: `import case --file` は OpenCASE 限定ではなく、**任意の CASE 準拠ツール**がエクスポートした CFPackage JSON を受け入れます — OpenSALT、Standards Satchel、手書きの JSON もすべて同じように動作します。
 
 ## 逆方向: COMPEITO → OpenCASE
+
+> **位置づけの注記（2026-07 ゴール転換）**: COMPEITO は現在、OpenSALT / OpenCASE を**取り込みの一方通行ソース**と位置づけ、CASE v1.1 コンフォーマンステストのパスを目指している。フレームワークをエディタ側へ戻すこの経路は、サポートされた round-trip ではなく**副次的・ベストエフォート**の位置づけ。また現状の既定 CFPackage 出力には非 strict な OpenSALT 互換挙動（optional フィールドの `null`、`?strict=1` なしではパッケージ内 URI 等。[conformance backlog](../dev/case-v1p1-conformance-backlog.md) 参照）が残るため、この経路の成否は取り込み側エディタの寛容さに依存する。
 
 COMPEITO に登録したフレームワークを OpenCASE 側に渡したい場合の選択肢:
 

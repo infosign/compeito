@@ -12,7 +12,7 @@ A live demo with a sample competency framework preloaded. Browse the tree view, 
 
 ## Features
 
-- **CASE v1.1 compatible** — All required REST API endpoints (CFPackages, CFDocuments, CFItems, CFAssociations, and more)
+- **CASE v1.1 Provider endpoints implemented** — all official REST API endpoints (CFPackages, CFDocuments, CFItems, CFAssociations, and more); working toward full conformance
 - **Multi-tenant** — Serve multiple organizations from a single instance, each with their own UUID namespace
 - **Tree view UI** — Browse competency frameworks with an interactive HTMX-powered tree view
 - **CSV import/export** — Import from custom CSV or OpenSALT-compatible formats; export for editing and re-import with UUID-based upsert
@@ -103,7 +103,7 @@ The 1EdTech CASE ecosystem has several active open-source implementations, each 
 
 - **COMPEITO** — a lightweight, distribution-focused server developed in Japan. It started out as a CASE v1.1 delivery server designed for full compatibility with OpenSALT (CASE v1.0); today it takes one-way imports from OpenSALT / OpenCASE and is working toward passing the 1EdTech CASE v1.1 conformance test (known gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md)). English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks. A good fit when you already have an editor (OpenCASE, OpenSALT, or any CASE-conformant tool) and want a small, focused publishing component — or when you need a Japanese-language deployment of a CASE endpoint.
 
-These projects are designed to **interoperate via the CASE standard**. COMPEITO can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by COMPEITO can be consumed by any CASE-conformant client (e.g., Open Badge Factory). Importing competency frameworks from external CASE sources is a first-class capability.
+These projects are designed to **interoperate via the CASE standard**. COMPEITO can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by COMPEITO are consumed by practical CASE clients (e.g., Open Badge Factory); remaining strict-conformance gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md). Importing competency frameworks from external CASE sources is a first-class capability.
 
 ## Roadmap
 
@@ -135,7 +135,7 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 
 ## 特徴
 
-- **CASE v1.1 対応** — 必須の REST API エンドポイントをすべて実装（CFPackages, CFDocuments, CFItems, CFAssociations 等）
+- **CASE v1.1 対応** — 公式 Provider の REST API エンドポイントをすべて実装（CFPackages, CFDocuments, CFItems, CFAssociations 等）。完全適合（コンフォーマンステストのパス）に向けて対応中
 - **マルチテナント** — 1つのインスタンスで複数の組織をホスト。各テナントは独自の UUID 名前空間を持つ
 - **ツリービュー UI** — HTMX によるインタラクティブなツリービューでコンピテンシーフレームワークを閲覧
 - **CSV インポート/エクスポート** — 独自CSV・OpenSALT互換形式に対応。エクスポートして編集後、UUID ベースの upsert で再インポート可能
@@ -226,7 +226,7 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 - **COMPEITO** — 日本で開発される軽量・配信特化のサーバーです。当初は OpenSALT (CASE v1.0) との完全互換を保った CASE v1.1 配信サーバーとして出発し、現在は OpenSALT / OpenCASE からの取り込みを一方通行と位置づけ、**1EdTech CASE v1.1 コンフォーマンステストのパス**を目指しています（既知のギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視しています。既存のエディタ（OpenCASE、OpenSALT、その他 CASE 準拠ツール）と組み合わせて配信を担当させたい場合や、日本語環境に CASE エンドポイントを設けたい場合に向いています。
 
-これらは **CASE 標準を介して相互運用すること** を前提に設計されています。COMPEITO は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、また COMPEITO が公開するフレームワークは CASE 準拠の任意のクライアント（例: Open Badge Factory）から参照可能です。外部 CASE ソースからのインポートは中核機能の一つです。
+これらは **CASE 標準を介して相互運用すること** を前提に設計されています。COMPEITO は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、COMPEITO が公開するフレームワークは実用的な CASE クライアント（例: Open Badge Factory）から参照されています（厳密適合の残ギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。外部 CASE ソースからのインポートは中核機能の一つです。
 
 ## ロードマップ
 
