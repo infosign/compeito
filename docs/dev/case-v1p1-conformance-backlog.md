@@ -1,8 +1,10 @@
 # CASE v1.1 conformance backlog
 
-compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互運用**であり、1EdTech の **Provider 認証（certification）取得そのものは目標にしていない**。そのため公式 CASE v1.1 OpenAPI / REST/JSON Binding と**意図的に異なる**挙動や、未実装の契約項目がいくつかある。
+compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CASE v1.1 に対応する配信サーバー**」を目指して出発した。公式 CASE v1.1 OpenAPI / REST/JSON Binding と**意図的に異なる**挙動（wrapper・URI echo・null echo・caseVersion 保持等）は、この「v1.0 OpenSALT との双方向データ交換」前提の名残である。
 
-このドキュメントは **将来 conformance / certification を本気で狙うときに着手すべき項目を一箇所に集約**したもの。各項目の現状・優先度・必要作業を記す。詳細な挙動は [docs/spec/api-spec.md](../spec/api-spec.md) の "Intentional differences from CASE v1.1" 節を参照。
+**2026-07 に方針を転換した。** OpenSALT も v1.1 開発が進み OpenCASE も標準化しつつある現在、OpenSALT/OpenCASE とは**取り込みの一方通行**（import は寛容なまま維持）で十分であり、プロジェクトのゴールは **1EdTech CASE v1.1 コンフォーマンステストのパス**に移った。かつての「意図的差異」は「歴史的経緯を持つ解消対象」となり、出力側の OpenSALT 互換挙動は段階的に opt-in へ退役させる（strict/compat の既定反転はメジャーバージョンイベントとして実施）。
+
+このドキュメントは **conformance テストをパスするために着手すべき項目を一箇所に集約**したもの。各項目の現状・優先度・必要作業を記す。詳細な挙動は [docs/spec/api-spec.md](../spec/api-spec.md) の "Intentional differences from CASE v1.1" 節を参照。
 
 > 凡例 — 優先度は **certification 観点**。P1=厳密適合に必須級 / P2=契約として望ましい / P3=軽微。
 
@@ -44,5 +46,5 @@ compeito の現在のゴールは **OpenCASE / OpenSALT との実用的な相互
 
 ## 方針メモ
 
-- certification を狙う場合、**出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。
-- 既定の挙動は**実用相互運用優先**のまま、厳密適合は **`?strict=1` 系の opt-in を拡張**して両立させるのが、既存利用を壊さない筋（C1/C2/C7/C9）。
+- **出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。ただし import の寛容さは一方通行方針でも受け側として必要なので、reject ではなく警告＋運用（完全なデータの用意）で対処するのが基本線。
+- 段取りは2段階: まず **`?strict=1` 系の opt-in を全エンドポイント・全変換（wrapper 除去・exclude_none 等）に拡張**して完成させる（既存利用を壊さない）。その後、**メジャーバージョンイベントとして既定を strict 側に反転**し、旧来の OpenSALT 互換出力を `?compat=1` 系の opt-in に降格する（2026-07 のゴール転換による）。

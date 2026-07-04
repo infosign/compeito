@@ -6,7 +6,7 @@ API path: `/{tenant}/ims/case/v1p1/` (required for conformance) + `/{tenant}/ims
 
 ## Endpoint list
 
-12 CASE v1.1 compliant endpoints:
+12 CASE v1.1 endpoints (all official Provider endpoints are implemented; known conformance gaps against the official OpenAPI schema are tracked in the [conformance backlog](../dev/case-v1p1-conformance-backlog.md)):
 
 | Path | Response root key | Description | CASE v1.1 |
 |------|-------------------|-------------|-----------|
@@ -299,7 +299,7 @@ Standard values per the CASE v1.1 information model:
 
 ## Intentional differences from CASE v1.1
 
-Notable design choices that diverge from the CASE v1.1 OpenAPI schema:
+Notable design choices that diverge from the CASE v1.1 OpenAPI schema. Historical note: most of these stem from COMPEITO's original goal of full OpenSALT (CASE v1.0) compatibility with two-way data exchange. As of 2026-07 the project instead aims to pass the 1EdTech CASE v1.1 conformance test (imports from OpenSALT / OpenCASE stay tolerant and one-way), so the output-side OpenSALT-flavoured behaviours below are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md):
 
 1. **Response wrapper structure:** strictly per the OpenAPI schema, single-resource fetches (`GET /CFDocuments/{id}`, etc.) return the DType at the root (no wrapper). We wrap with a root key — `{"CFDocument": {...}}` — to match the convention used by OpenSALT and other CASE implementations. **Exception:** `GET /CFPackages/{id}` returns the `CFPackageDType` at the top level (no wrapper) so that CASE clients reading `CFDocument` / `CFItems` from the root can interpret the framework. OpenSALT does the same.
 2. **Empty arrays allowed:** `CFDocumentSetDType` (`minItems: 1`) and `CFAssociationSetDType` (`minItems: 1`) are documented as non-empty in the spec, but we return empty arrays when the result is 0 (see relevant sections).
@@ -352,7 +352,7 @@ APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/
 
 ## エンドポイント一覧
 
-CASE v1.1 準拠の 12 エンドポイント:
+CASE v1.1 の 12 エンドポイント（公式 Provider エンドポイントはすべて実装済み。公式 OpenAPI スキーマとの既知の適合性ギャップは [conformance backlog](../dev/case-v1p1-conformance-backlog.md) で管理）:
 
 | Path | レスポンスルートキー | 説明 | CASE v1.1 |
 |------|---------------------|------|-----------|
@@ -646,7 +646,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 
 ## CASE v1.1 公式仕様との意図的差異
 
-以下は CASE v1.1 OpenAPI スキーマとの差異のうち、意図的な設計判断として本システムで採用しているもの:
+以下は CASE v1.1 OpenAPI スキーマとの差異のうち、意図的な設計判断として本システムで採用しているもの。歴史的経緯: これらの多くは、当初の開発思想「OpenSALT (CASE v1.0) との完全互換・双方向データ交換」に由来する。2026-07 の方針転換により現在は **CASE v1.1 コンフォーマンステストのパス**を目標としており（OpenSALT / OpenCASE からの import は寛容な一方通行として維持）、出力側の OpenSALT 互換挙動は段階的な退役対象（詳細は [conformance backlog](../dev/case-v1p1-conformance-backlog.md)）:
 
 1. **レスポンスラッパー構造:** OpenAPI スキーマの strict な読み方では、単一リソース取得（`GET /CFDocuments/{id}` 等）は DType をルートに直接返す（ラッパーなし）。本システムでは `{"CFDocument": {...}}` のようにルートキーでラップする。これは OpenSALT 等の既存 CASE 実装の慣行に合わせた設計。**例外:** `GET /CFPackages/{id}` は `CFPackageDType` をトップレベルで返す（ラッパーなし）。これは CASE クライアントがトップレベルから `CFDocument` / `CFItems` を読めるようにするため。OpenSALT も同じ形式
 2. **空配列の許容:** `CFDocumentSetDType` (`minItems: 1`) や `CFAssociationSetDType` (`minItems: 1`) に対して、0 件時に空配列を返す（上記各セクション参照）
