@@ -28,7 +28,8 @@ compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CA
 
 | # | 項目 | 現状 | 優先 | certification 時の作業 |
 |---|------|------|:--:|------|
-| C16 | **optional フィールドの null 出力**（exclude_none 未使用） | 全 DType が optional フィールドを `null` で emit（`model_dump` に `exclude_none` なし）。公式スキーマは nullable を定義しないため**型違反**。`?strict=1` でも残る。**現状最大の schema-invalid 源**（2026-07 外部レビュー N1） | P1 | strict 出力で `exclude_none=True` を全エンドポイントに適用。あわせて strict 時は `caseVersion` を `"1.1"` で emit（C8 の出力側）。schemas docstring / api-spec の "strict conformance" 過大表現も同時修正 |
+| C16 | **optional フィールドの null 出力**（exclude_none 未使用） | 全 DType が optional フィールドを `null` で emit（`model_dump` に `exclude_none` なし）。公式スキーマは nullable を定義しないため**型違反**。`?strict=1` でも残る。**現状最大の schema-invalid 源**（2026-07 外部レビュー N1） | P1 | strict 出力で `exclude_none=True` を全エンドポイントに適用。あわせて strict 時は `caseVersion` を `"1.1"` で emit（C8 の出力側）。schemas docstring / api-spec の "strict conformance" 過大表現も同時修正。**設計: [designs/strict-output.md](./designs/strict-output.md)**（C1/C2/C3 も同設計で扱う） |
+| C17 | **HEAD / OPTIONS が 405・CORS 未実装**（2026-07 外部レビュー N2） | CASE API パスの middleware が GET 以外を一律 405 に。HEAD プローブが壊れ、ブラウザからのクロスオリジン取得不可 | P3（運用改善） | HEAD 許容＋CORSMiddleware＋405 の Allow ヘッダ更新。certification の直接要件ではなく HTTP/ブラウザ相互運用改善。**設計: [designs/http-head-cors.md](./designs/http-head-cors.md)** |
 | C1 | **単一リソースの wrapper** | `{"CFDocument": {...}}` で包む（OpenSALT 流）。公式は flat DType（root に直接） | P1 | wrapper を外す、または「公式 flat 形」を返す別経路/モードを用意。`?strict=1` の対象拡張も一案 |
 | C2 | **パッケージ内 URI の既定出力** | 既定で `CFPackage.CFDocument.CFPackageURI` / `CFItems[].CFDocumentURI` を出す（OpenCASE/OpenSALT 互換）。公式 `CFPckg*DType` は `additionalProperties:false` で非許容。`?strict=1` で除去可 | P1 | certification 時は**既定を strict 側に反転**し、現状の echo を opt-in 化 |
 | C3 | **required だが nullable な項目** | `creator`、lookup の `hierarchyCode`（CFItemType/CFConcept/CFSubject）、CFItemType の `description`、`licenseText`、`LinkGenURIDType.title` を null 許容（寛容 import 優先） | P1 | **出力時の捏造は避ける**方針。import 厳格化（必須欠落を reject/quarantine）か、strict 出力モードでのみ安全なプレースホルダを合成 |
@@ -47,5 +48,6 @@ compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CA
 
 ## 方針メモ
 
-- **出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。ただし import の寛容さは一方通行方針でも受け側として必要なので、reject はしない。その代わり **conformance-grade の出力には「検証失敗データをそのまま出さない」仕組みが要る**: 候補は (a) import 時の validation report（required 欠落の一覧化）＋運用での補完、(b) strict 出力時に required 欠落リソースを明示エラー/除外（quarantine）、(c) strict 出力時のみ安全なプレースホルダ合成。どれを採るかは strict 出力設計（C16 実装）時に決定する。
-- 段取りは2段階: まず **`?strict=1` 系の opt-in を全エンドポイント・全変換（wrapper 除去・exclude_none 等）に拡張**して完成させる（既存利用を壊さない）。その後、**メジャーバージョンイベントとして既定を strict 側に反転**し、旧来の OpenSALT 互換出力を `?compat=1` 系の opt-in に降格する（2026-07 のゴール転換による）。
+- **出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。ただし import の寛容さは一方通行方針でも受け側として必要なので、reject はしない。その代わり **conformance-grade の出力には「検証失敗データをそのまま出さない」仕組みが要る**: **採用方針（2026-07 決定）: (a) import 時の validation report**（required 欠落の一覧化＋運用での補完。設計: [designs/strict-output.md](./designs/strict-output.md) と [designs/import-dry-run-and-ai-guide.md](./designs/import-dry-run-and-ai-guide.md)）。(b) quarantine / (c) プレースホルダ合成は不採用（捏造回避・寛容 import 維持のため）。ただし**データが補完されるまで C3 は残ギャップ**（strict 出力でも required 欠落は schema-invalid のまま）。
+- 段取りは2段階: まず **`?strict=1` 系の opt-in を全エンドポイント・全変換（wrapper 除去・exclude_none 等）に拡張**して完成させる（既存利用を壊さない）。その後、**メジャーバージョンイベントとして既定を strict 側に反転**し、旧来の OpenSALT 互換出力を `?compat=1` 系の opt-in に降格する（2026-07 のゴール転換による）。第1段の設計: [designs/strict-output.md](./designs/strict-output.md)。
+- **回帰検証基盤**: 公式 OpenAPI スキーマで実レスポンスを機械検証する統合テスト（xfail=既知ギャップ、直ると XPASS で検出）を導入する。設計: [designs/openapi-schema-validation-tests.md](./designs/openapi-schema-validation-tests.md)。
