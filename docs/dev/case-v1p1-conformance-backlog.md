@@ -48,6 +48,6 @@ compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CA
 
 ## 方針メモ
 
-- **出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。ただし import の寛容さは一方通行方針でも受け側として必要なので、reject はしない。その代わり **conformance-grade の出力には「検証失敗データをそのまま出さない」仕組みが要る**: 候補は (a) import 時の validation report（required 欠落の一覧化）＋運用での補完、(b) strict 出力時に required 欠落リソースを明示エラー/除外（quarantine）、(c) strict 出力時のみ安全なプレースホルダ合成。どれを採るかは strict 出力設計（C16 実装）時に決定する。
+- **出力側で値を取り繕う（fabricate）より、入口（import）で厳格化する**ほうがデータ品質を損なわない（C3）。ただし import の寛容さは一方通行方針でも受け側として必要なので、reject はしない。その代わり **conformance-grade の出力には「検証失敗データをそのまま出さない」仕組みが要る**: **採用方針（2026-07 決定）: (a) import 時の validation report**（required 欠落の一覧化＋運用での補完。設計: [designs/strict-output.md](./designs/strict-output.md) と [designs/import-dry-run-and-ai-guide.md](./designs/import-dry-run-and-ai-guide.md)）。(b) quarantine / (c) プレースホルダ合成は不採用（捏造回避・寛容 import 維持のため）。ただし**データが補完されるまで C3 は残ギャップ**（strict 出力でも required 欠落は schema-invalid のまま）。
 - 段取りは2段階: まず **`?strict=1` 系の opt-in を全エンドポイント・全変換（wrapper 除去・exclude_none 等）に拡張**して完成させる（既存利用を壊さない）。その後、**メジャーバージョンイベントとして既定を strict 側に反転**し、旧来の OpenSALT 互換出力を `?compat=1` 系の opt-in に降格する（2026-07 のゴール転換による）。第1段の設計: [designs/strict-output.md](./designs/strict-output.md)。
 - **回帰検証基盤**: 公式 OpenAPI スキーマで実レスポンスを機械検証する統合テスト（xfail=既知ギャップ、直ると XPASS で検出）を導入する。設計: [designs/openapi-schema-validation-tests.md](./designs/openapi-schema-validation-tests.md)。

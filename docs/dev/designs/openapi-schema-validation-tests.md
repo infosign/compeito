@@ -1,6 +1,7 @@
 # 公式 OpenAPI スキーマによるレスポンス機械検証テスト 実装方針
 
-> **ステータス: 設計ドラフト（レビュー前）**
+> **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
+> Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
 >
 > 目的: CASE API の**実レスポンス（HTTP ボディ）を公式 CASE v1.1 OpenAPI スキーマで機械検証する**
 > 結合テストを追加し、適合性ギャップ解消（並行作成中の [strict-output.md](strict-output.md) = C16/C1 等）を
@@ -41,7 +42,7 @@
 スキーマの検証上の特徴（実ファイルを確認済み）:
 
 - `components/schemas` 内の相互参照はすべて `#/components/schemas/...` の内部 `$ref`。外部参照なし。
-- **全 26 型が `additionalProperties: false`** — 余計なキー（wrapper、`CFPckg*` 内の URI echo 等）は即違反になる。
+- `components/schemas` は全 39 型。**非 Extension の 26 DType が `additionalProperties: false`** — 余計なキー（wrapper、`CFPckg*` 内の URI echo 等）は即違反になる。残り 13 の `*ExtensionDType` は `additionalProperties: true`（自由形）。
 - `nullable` は**一切使われていない**（出現 0 件）— optional フィールドの `null` emit は型違反（= C16）。
 - `oneOf`/`allOf` なし。`anyOf` は `associationType` / `targetType` の拡張語彙（enum ∪ `ext:` パターン）のみ。
 - 使用 format: `date-time`, `date`, `uri`, `float`, `int32`。
@@ -282,7 +283,7 @@ markers = ["conformance: official CASE v1.1 OpenAPI schema validation tests"]
 
 `minimal` シード側（上表の gaps に加えて、該当エンドポイントに **C3** を追加。
 strict-output（C16 = exclude_none）実装後は null が消える代わりに required 欠落として C3 違反が残るため、
-**C3 の方針決定（import 厳格化 / quarantine / プレースホルダ合成）まで xfail が続く**のが期待状態）:
+**import 時の validation report（採用済み方針 — designs/import-dry-run-and-ai-guide.md で設計）で欠落が検出され、データが補完されるまで xfail が続く**のが期待状態）:
 
 | テスト ID（minimal） | 追加 gap | C3 の violating フィールド |
 |---|---|---|
@@ -297,7 +298,7 @@ strict-output（C16 = exclude_none）実装後は null が消える代わりに 
 | CFItemTypes/{id} | C3 | `description` / `hierarchyCode`（required） |
 | CFLicenses/{id} | C3 | `licenseText`（required） |
 | CFPackages/{id} | C3 | 内包する CFDocument の `creator` ほか |
-| CFRubrics/{id} | — | CFRubricDType の required は identifier/uri のみ |
+| CFRubrics/{id} | — | CFRubricDType の required は identifier / uri / lastChangeDateTime（lastChangeDateTime の充足は実装時にシードで確認） |
 
 C2 は `?strict=1` で解消済みのため初期値の表に**登場しない**（strict の除去ロジックが壊れたら
 CFPackages テストが additionalProperties 違反で fail する = 回帰検出になる）。

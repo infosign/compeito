@@ -1,6 +1,7 @@
 # CASE API の HEAD 許容と CORS 対応 実装方針 — 2026-07 適合性監査 N2
 
-> **ステータス: 設計ドラフト（レビュー前）**
+> **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
+> Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
 > 2026-07 適合性監査 N2（HTTP/ブラウザ相互運用の改善）への対応設計。
 > **certification（CASE v1.1 コンフォーマンステスト）の直接要件ではない**が、公開読み取り専用 API としての
 > HTTP 相互運用性（リンクチェッカー・監視ツールの HEAD、ブラウザ上の JS クライアントからの fetch）を改善する。
@@ -182,6 +183,9 @@ fastapi 0.135.1 / starlette 0.52.1 / httpx 0.28.1 / uvicorn 0.41.0 で確認。
   HEAD は S3/CloudFront がネイティブに処理し、CORS は **CDN 側の設定**（CloudFront response headers policy /
   S3 CORS configuration）で同等ポリシー（`*`・GET/HEAD・expose `X-Total-Count`/`Link` 相当）を再現する必要がある。
   conformance backlog の「デプロイ上の制約」節と同種の注意として api-spec.md に明記する。
+- **`allow_headers=[]`（カスタムリクエストヘッダ不可）の制約も api-spec.md に明記する**: 現方針（認証なし・公開
+  read-only）では問題ないが、将来 `Authorization` 等のヘッダを送るブラウザクライアントが現れると preflight で
+  落ちる。制約として文書化しておけば、その時点で設定拡張の判断ができる。
 
 ## 変更するファイル
 

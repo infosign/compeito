@@ -1,6 +1,7 @@
 # フレームワーク改訂プロトコル 運用ガイド 執筆仕様
 
-> **ステータス: 設計ドラフト（レビュー前）**
+> **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
+> Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
 > 成果物は**コードではなく運用ガイド文書** `docs/guide/framework-revision.md`（EN/JP 併記）。
 > 本仕様書は「そのガイドに何をどう書くか」の設計であり、実装変更は一切伴わない（実装ゼロ・ドキュメントのみ）。
 > 執筆担当はこの仕様書だけを頼りにガイドを書き上げられることを目標とする。
@@ -245,7 +246,7 @@ uv run python cli.py doc update --tenant {tenant_id} --doc {old_doc_id} --displa
 
 ## 残る決定事項（レビューで確認したい点）
 
-- exactMatchOf を「replacedBy に**追加で**張る」（本設計の推奨）か、「変わらない項目は exactMatchOf **のみ**」（外部レビュー指摘の字義どおり）か。前者は「後継を辿る」consumers に一様な forward pointer を与えられる。
+- ~~exactMatchOf を「replacedBy に追加で張る」か「変わらない項目は exactMatchOf のみ」か~~ → **解消済み（レビューで確定）**: 決定事項 3 のとおり「replacedBy に**追加で** exactMatchOf を張る」を採用。「後継を辿る」consumers に一様な forward pointer を与えられるため。「exactMatchOf のみ」案は不採用。
 - 対応付け association を旧ドキュメント側に置く方針（本設計）の確認。新ドキュメント側に置く案は、旧 doc を一切触らない利点があるが、CSV 経路で association が孤児化する（origin が doc 外だと新旧どちらの CSV エクスポートにも現れない）ため採らない。
 - backlog 追加行の番号・文言（B7 想定）。
 - ガイドのタイトル（案: EN "Framework Revision Guide" / JP「フレームワーク改訂ガイド」）。

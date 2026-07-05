@@ -1,8 +1,11 @@
 # CASE API strict/compat 出力層 実装方針 — conformance backlog C16 / C1 / C2 / C3
 
-> **ステータス: 設計ドラフト（レビュー前）**
+> **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
+> Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
 > [case-v1p1-conformance-backlog.md](../case-v1p1-conformance-backlog.md) の P1 項目群（C16 / C1 / C2 / C3、および C8/N6 の出力側・N7 文言修正）をまとめて解消する設計。
 > 目的: CASE API の出力を **compat（現状互換・既定）** と **strict（公式 OpenAPI スキーマ適合）** の 2 モードで対称に切り替えられるようにする。
+> ※ strict の schema-valid は**データが required を満たす場合に成立**する。required 欠落データ（C3）は import 時の
+> validation report（[import-dry-run-and-ai-guide.md](./import-dry-run-and-ai-guide.md)）で検出し運用で補完する方針であり、補完までは残ギャップ。
 > 2026-07 のゴール転換（OpenSALT 完全互換 → **CASE v1.1 コンフォーマンステストのパス**。OpenSALT/OpenCASE は取り込み一方通行）に基づく。
 
 ## 決定事項
