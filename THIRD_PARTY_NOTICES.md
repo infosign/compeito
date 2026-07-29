@@ -41,7 +41,9 @@ Two things this does **not** claim. The specification does not require anyone to
 place the file in a public source repository; that is our packaging choice.
 And the copy shipped here is not yet localized — its `servers` block is still the
 published template — so COMPEITO does not currently meet §2.5 in full. That gap
-is tracked as a conformance item, separately from this notice.
+is tracked as item C18 in
+[docs/dev/case-v1p1-conformance-backlog.md](docs/dev/case-v1p1-conformance-backlog.md),
+separately from this notice.
 
 **No local mirror of the specification.** 1EdTech grants no right to create
 modifications or derivatives of their documents, and publishing a derived
@@ -170,7 +172,7 @@ localized version の OpenAPI ファイルを提供すること*を要求して�
 主張していないことが 2 つある。仕様は公開ソースリポジトリへのファイル配置を
 誰にも要求していない。それは当方のパッケージングの選択である。また同梱しているコピーは
 まだ localize されておらず（`servers` が公開時のテンプレートのまま）、現状 §2.5 を
-完全には満たしていない。このギャップは本表記とは別に適合性の課題として管理している。
+完全には満たしていない。このギャップは本表記とは別に、[docs/dev/case-v1p1-conformance-backlog.md](docs/dev/case-v1p1-conformance-backlog.md) の C18 として管理している。
 
 **仕様のローカルミラーは置かない。** 1EdTech は文書の改変・派生物を作る権利を付与しておらず、
 派生文書の公開には 1EdTech との別途の合意が必要である。よって本リポジトリは CASE 仕様の

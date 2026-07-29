@@ -15,7 +15,7 @@ compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CA
 - CFItem/CFDocument/CFAssociation の `notes`、CFItem の `alternativeLabel`、全エンティティ + CFPackage/CFDefinitions の `extensions`（PR #191）
 - `GET /CFDocuments` の `sort` / `orderBy` / `filter` / `fields`（PR #192）+ `X-Total-Count`・大小無視の文字列等価・`subject` フィルタ（本バックログ作成時の PR）
 - パッケージ内 URI を除く厳密出力 `GET /CFPackages/{id}?strict=1`（PR #191）
-- Service Discovery `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`（実装済・テストあり）
+- Service Discovery `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`（エンドポイントは実装済・テストあり。ただし配信しているファイルが未 localize のため §2.5 を完全には満たしていない → C18）
 - エラー封筒 `imsx_StatusInfo`（codeMajor / severity / codeMinor.codeMinorField[].{Name,Value}）は適合
 - `GET /CFItemAssociations/{id}` の既定を全件返却に（公式契約にページネーション定義なし。既定 limit=100 のサイレント切り詰めを廃止、`limit`/`offset` は明示指定時のみの拡張に。2026-06 適合性監査 N1、PR #220）
 - **未定義サブパスの 404 / 未捕捉の 500 を imsx_StatusInfo 形式で返す**（旧 C14 / C15）。`main.py` に `StarletteHTTPException` ハンドラ（CASE API パスの 404 → `unknownobject`）とグローバル `Exception` ハンドラ（CASE API パスの 500 → `internal_server_error`）を追加。CASE API 以外は既定挙動を維持。
@@ -29,6 +29,7 @@ compeito は当初「**OpenSALT (CASE v1.0) と完全互換を保ったまま CA
 | # | 項目 | 現状 | 優先 | certification 時の作業 |
 |---|------|------|:--:|------|
 | C16 | **optional フィールドの null 出力**（exclude_none 未使用） | 全 DType が optional フィールドを `null` で emit（`model_dump` に `exclude_none` なし）。公式スキーマは nullable を定義しないため**型違反**。`?strict=1` でも残る。**現状最大の schema-invalid 源**（2026-07 外部レビュー N1） | P1 | strict 出力で `exclude_none=True` を全エンドポイントに適用。あわせて strict 時は `caseVersion` を `"1.1"` で emit（C8 の出力側）。schemas docstring / api-spec の "strict conformance" 過大表現も同時修正。**設計: [designs/strict-output.md](./designs/strict-output.md)**（C1/C2/C3 も同設計で扱う） |
+| C18 | **discovery で配信する OpenAPI が未 localize** | §2.5 は "A Service Provider MUST provide a **localized version** of the OpenAPI file" と規定するが、配信しているのは公式配布物そのままで `servers.variables.hostName` が実サービスに設定されていない（ファイル内にも "MUST be set to the actual service provider" と記載）。エンドポイントの存在は満たすが内容が未 localize | P1 | 配信時に `servers` を実行時のホスト・base path で書き換えて返す（同梱ファイルは無改変のまま保持し、レスポンス生成時に差し替える）。無改変同梱は [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) の前提でもあるため、ファイル自体を書き換える対処は採らない |
 | C17 | **HEAD / OPTIONS が 405・CORS 未実装**（2026-07 外部レビュー N2） | CASE API パスの middleware が GET 以外を一律 405 に。HEAD プローブが壊れ、ブラウザからのクロスオリジン取得不可 | P3（運用改善） | HEAD 許容＋CORSMiddleware＋405 の Allow ヘッダ更新。certification の直接要件ではなく HTTP/ブラウザ相互運用改善。**設計: [designs/http-head-cors.md](./designs/http-head-cors.md)** |
 | C1 | **単一リソースの wrapper** | `{"CFDocument": {...}}` で包む（OpenSALT 流）。公式は flat DType（root に直接） | P1 | wrapper を外す、または「公式 flat 形」を返す別経路/モードを用意。`?strict=1` の対象拡張も一案 |
 | C2 | **パッケージ内 URI の既定出力** | 既定で `CFPackage.CFDocument.CFPackageURI` / `CFItems[].CFDocumentURI` を出す（OpenCASE/OpenSALT 互換）。公式 `CFPckg*DType` は `additionalProperties:false` で非許容。`?strict=1` で除去可 | P1 | certification 時は**既定を strict 側に反転**し、現状の echo を opt-in 化 |
