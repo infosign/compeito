@@ -24,7 +24,7 @@
 | FR-2.9 | Non-GET requests (POST/PUT/DELETE/PATCH) on CASE API paths return 405 Method Not Allowed | 1 |
 | FR-2.10 | Nullable fields are included in responses as `null` (`exclude_none=False`). CASE v1.1 allows either inclusion or omission; we always include for consistency | 1 |
 | FR-2.11 | Provide CFRubric API endpoints | 2 |
-| FR-2.12 | Provide the CASE v1.1 Service Discovery endpoint at `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`, returning the official OpenAPI 3 schema as static JSON | 3 |
+| FR-2.12 | Provide the CASE v1.1 Service Discovery endpoint at `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`. Currently returns the official OpenAPI 3 schema as static JSON; §2.5 requires a *localized* version, which is outstanding (C18) | 3 |
 | FR-2.13 | Persist and emit the CASE v1.1 optional fields `notes` (CFItem / CFAssociation / CFDocument), `alternativeLabel` (CFItem), and `extensions` (all resources) | 3 |
 
 ## FR-3: Validation
@@ -157,7 +157,7 @@
 
 | ID | 要件 | Phase |
 |----|------|-------|
-| FR-2.1 | CASE v1.1 準拠の 11 エンドポイント（CFRubric 除く）+ 独自拡張の一覧エンドポイント 5 つを `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
+| FR-2.1 | CASE v1.1 の 11 エンドポイント（CFRubric 除く）+ 独自拡張の一覧エンドポイント 5 つを `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
 | FR-2.2 | CFPackage エンドポイントで、CFDocument・CFItems・CFAssociations・CFDefinitions を一括返却する | 1 |
 | FR-2.3 | CFPackage の CFItems・CFAssociations はデータがなくても空配列として常に含める。CFDefinitions はデータがなければ省略する | 1 |
 | FR-2.4 | 全一覧エンドポイントに `limit`（デフォルト100, 最大500）/ `offset`（デフォルト0, 最大100000）のページネーションを実装する | 1 |
@@ -168,7 +168,7 @@
 | FR-2.9 | CASE API パスへの非GETリクエスト（POST/PUT/DELETE/PATCH）には 405 Method Not Allowed を返す | 1 |
 | FR-2.10 | null 許容フィールドはレスポンスに `null` として含める（`exclude_none=False`）。CASE v1.1 仕様は含めるか省略するかを許容するが、本システムでは一貫性のため常に含める方針とする | 1 |
 | FR-2.11 | CFRubric API エンドポイントを提供する | 2 |
-| FR-2.12 | CASE v1.1 Service Discovery エンドポイントを `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で提供し、公式 OpenAPI 3 スキーマを静的 JSON として返す | 3 |
+| FR-2.12 | CASE v1.1 Service Discovery エンドポイントを `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で提供する。現状は公式 OpenAPI 3 スキーマを静的 JSON として返しており、§2.5 が要求する *localized* 版は未対応（C18） | 3 |
 | FR-2.13 | CASE v1.1 オプションフィールド `notes`（CFItem / CFAssociation / CFDocument）、`alternativeLabel`（CFItem）、`extensions`（全リソース）を DB に永続化し API レスポンスに含める | 3 |
 
 ## FR-3: バリデーション
@@ -281,5 +281,5 @@
 
 | ID | 項目 | 理由 |
 |----|------|------|
-| NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goalsexplicitly-out-of-scope) を参照 |
+| NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goals-explicitly-out-of-scope) を参照 |
 | NG-2 | CASE Provider API の認証 / 認可（OAuth、Bearer、Keycloak、RBAC 等） | CASE API はデフォルトで公開。private テナントは URL の秘匿性で保護する（FR-1.3）。管理用途で認証付きアクセスが必要な場合は、別途のデプロイ/管理レイヤーが担い、compeito 自身が露出する CASE API サーフェスでは扱わない |

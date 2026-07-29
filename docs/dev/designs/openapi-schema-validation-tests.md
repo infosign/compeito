@@ -252,6 +252,8 @@ markers = ["conformance: official CASE v1.1 OpenAPI schema validation tests"]
 テストがロードした `SPEC` と等価（`==`）であることを 1 本アサートする。
 「テストが検証している権威ソース」と「クライアントに配信している契約」の乖離を防ぐ。
 
+> **C18 との関係。** §2.5 は localized version の提供を要求しており（適合性バックログ C18）、これを実装すると応答は `SPEC` と等価でなくなる。C18 着手時にこのアサートを、localize 後の期待値との比較か、localize 対象フィールド（`servers`・`info.contact` 等）を除いた比較に変更する。
+
 ## 既知ギャップの扱い（xfail 機構と対応表）
 
 - **`pytest.mark.xfail(strict=True, reason=...)`** を使う。`strict=True` により、
@@ -370,8 +372,9 @@ compat 応答の形・値の回帰は既存の `tests/integration/test_cf_*.py` 
 
 本テストは**社内回帰用**であり、1EdTech の公式 conformance テスト（certification）の**代替ではない**:
 
-- 公式ハーネスは実際の HTTP サーバーに対して Service Discovery（compeito は
-  `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` 実装済み）経由でエンドポイントを叩き、
+- 公式ハーネスは実際の HTTP サーバーに対して Service Discovery（compeito はエンドポイント
+  `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` を実装済みだが、応答が未 localize の
+  ため実 URL の発見には C18 の解消が必要）経由でエンドポイントを叩き、
   スキーマ以外（HTTP セマンティクス・エラーコード・クエリパラメータ挙動等）も含めて判定する。
 - 本テストが全緑（xfail が全部外れた状態）になることは「公式テストに挑める前提条件」であって十分条件ではない。
   certification 実施時の段取り・残項目は [conformance backlog](../case-v1p1-conformance-backlog.md) で管理する。

@@ -2,7 +2,7 @@
 
 CASE v1.1 のデータモデルを「全体像 → 関係 → 各エンティティ」の順で図解する入門ドキュメント。
 CASE という標準そのものの背景・API・バージョン差は [`case-overview.md`](./case-overview.md) を参照。
-フィールドの型・必須/任意の権威的な定義は `docs/reference/case-v1p1-info-model.md`
+フィールドの型・必須/任意の権威的な定義は公式 CASE v1.1 Information Model（[docs/reference/README.md](../reference/README.md) にリンク）
 （および `docs/reference/imscasev1p1_openapi3_v1p0.json`）を参照すること。本書はその地図。
 
 > 図は等幅フォント前提。罫線は左寄せ構造のみで描いているので、全角・半角が混在しても崩れない。
@@ -304,7 +304,7 @@ erDiagram
 | **CFRubricCriterionLevel** | 達成度 | quality, score, feedback, position |
 
 `Standalone`（個別GET時）は `CFDocumentURI` / `CFPackageURI` が付くが、`CFPackage` 内（`CFPckg*` 型）
-では付かない、という文脈差もある（詳細は `docs/reference/case-v1p1-rest-binding.md`）。
+では付かない、という文脈差もある（詳細は公式 CASE v1.1 REST/JSON Binding — [docs/reference/README.md](../reference/README.md) 参照）。
 
 ---
 
