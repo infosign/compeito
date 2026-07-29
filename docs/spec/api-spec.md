@@ -1,6 +1,6 @@
 # CASE v1.1 API Specification
 
-API path: `/{tenant}/ims/case/v1p1/` (required for conformance) + `/{tenant}/ims/case/v1p0/` (backward compatibility).
+API path: `/{tenant}/ims/case/v1p1/` (COMPEITO's current API path; the tenant prefix is a COMPEITO extension, not part of CASE v1.1 — see "Intentional differences") + `/{tenant}/ims/case/v1p0/` (backward compatibility).
 
 **Meaning of the `{id}` path parameter:** in every endpoint, `{id}` is the CASE identifier (the DB `identifier` column), not the internal PK (`id`).
 
@@ -346,7 +346,7 @@ When `Accept`-based variants matter for caches, the response should also vary on
 
 # CASE v1.1 API 仕様（日本語）
 
-APIパス: `/{tenant}/ims/case/v1p1/` (conformance必須) + `/{tenant}/ims/case/v1p0/` (後方互換)
+APIパス: `/{tenant}/ims/case/v1p1/`（COMPEITO の現行 API パス。テナントプレフィックスは CASE v1.1 仕様にない COMPEITO 独自拡張 — 「意図的な差異」参照） + `/{tenant}/ims/case/v1p0/`（後方互換）
 
 **パスパラメータ `{id}` の意味:** 全エンドポイントの `{id}` は CASE 識別子（DB の `identifier` カラム）を指す。内部PK（`id` カラム）ではない。
 

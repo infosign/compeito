@@ -1,14 +1,14 @@
 """CASE v1.1 Service Discovery endpoint (FR-2.12).
 
-Serves the official 1EdTech OpenAPI 3 schema as static JSON so CASE clients
-(and the 1EdTech conformance tester) can discover compeito's API surface.
+Serves the official 1EdTech OpenAPI 3 schema as static JSON at the endpoint the
+CASE v1.1 REST/JSON Binding prescribes. Because the document is served as
+published rather than localized, CASE clients (and the 1EdTech conformance
+tester) cannot yet discover compeito's own API URLs from it — see C18 in
+docs/dev/case-v1p1-conformance-backlog.md.
 
 The schema file is shipped at `docs/reference/imscasev1p1_openapi3_v1p0.json`,
 an unmodified copy of the official 1EdTech OpenAPI definition (see
-`THIRD_PARTY_NOTICES.md`). The REST/JSON Binding requires a service provider to
-serve a *localized* OpenAPI file here; this copy is not localized yet (its
-`servers` block is the published template), which is a tracked conformance gap.
-We resolve the
+`THIRD_PARTY_NOTICES.md`). We resolve the
 path from `__file__` so it works under the Docker deployment (`COPY . .`
 includes docs/) and editable installs (`pip install -e .`). A future PyPI
 distribution would need package-data inclusion, which is out of scope here.

@@ -90,7 +90,7 @@ CASE 仕様
 - 個別取得（`Standalone`）と、パッケージ内（`CFPckg*` 型）で**同じ種別でも持つフィールドが少し違う**
   （Standalone は `CFDocumentURI` 等が付く / パッケージ内は付かない）。
 - エラーは **`imsx_StatusInfo`** という共通形式で返す（`docs/spec/api-spec.md` 参照）。
-- サービス記述（OpenAPI）を **`/discovery/...` で自己配信**でき、クライアントが API 仕様を発見できる。
+- サービス記述（OpenAPI）を **`/discovery/...` で自己配信**でき、クライアントが API 仕様を発見できる。（CASE の仕組みとしての説明。COMPEITO の現在の応答は未 localize のため、ここから COMPEITO 自身の URL は発見できない → 適合性バックログ C18）
 
 ---
 

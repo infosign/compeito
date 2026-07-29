@@ -372,8 +372,9 @@ compat 応答の形・値の回帰は既存の `tests/integration/test_cf_*.py` 
 
 本テストは**社内回帰用**であり、1EdTech の公式 conformance テスト（certification）の**代替ではない**:
 
-- 公式ハーネスは実際の HTTP サーバーに対して Service Discovery（compeito は
-  `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` 実装済み）経由でエンドポイントを叩き、
+- 公式ハーネスは実際の HTTP サーバーに対して Service Discovery（compeito はエンドポイント
+  `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` を実装済みだが、応答が未 localize の
+  ため実 URL の発見には C18 の解消が必要）経由でエンドポイントを叩き、
   スキーマ以外（HTTP セマンティクス・エラーコード・クエリパラメータ挙動等）も含めて判定する。
 - 本テストが全緑（xfail が全部外れた状態）になることは「公式テストに挑める前提条件」であって十分条件ではない。
   certification 実施時の段取り・残項目は [conformance backlog](../case-v1p1-conformance-backlog.md) で管理する。
