@@ -157,7 +157,7 @@
 
 | ID | 要件 | Phase |
 |----|------|-------|
-| FR-2.1 | CASE v1.1 準拠の 11 エンドポイント（CFRubric 除く）+ 独自拡張の一覧エンドポイント 5 つを `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
+| FR-2.1 | CASE v1.1 の 11 エンドポイント（CFRubric 除く）+ 独自拡張の一覧エンドポイント 5 つを `/{tenant}/ims/case/v1p1/` パスで提供する | 1 |
 | FR-2.2 | CFPackage エンドポイントで、CFDocument・CFItems・CFAssociations・CFDefinitions を一括返却する | 1 |
 | FR-2.3 | CFPackage の CFItems・CFAssociations はデータがなくても空配列として常に含める。CFDefinitions はデータがなければ省略する | 1 |
 | FR-2.4 | 全一覧エンドポイントに `limit`（デフォルト100, 最大500）/ `offset`（デフォルト0, 最大100000）のページネーションを実装する | 1 |
@@ -281,5 +281,5 @@
 
 | ID | 項目 | 理由 |
 |----|------|------|
-| NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goalsexplicitly-out-of-scope) を参照 |
+| NG-1 | Write API（CASE エンドポイントへの POST / PUT / DELETE） | compeito は外部エディタ（OpenCASE / OpenSALT / 自身の CLI）と組み合わせて使う read-only な CASE publisher。編集は CLI / インポート経路を通り、公開 API は経由しない。非 GET への 405 応答（FR-2.9）は将来の書き込み対応のプレースホルダではなく明示的な方針。詳細は [phases.md](phases.md#non-goals-explicitly-out-of-scope) を参照 |
 | NG-2 | CASE Provider API の認証 / 認可（OAuth、Bearer、Keycloak、RBAC 等） | CASE API はデフォルトで公開。private テナントは URL の秘匿性で保護する（FR-1.3）。管理用途で認証付きアクセスが必要な場合は、別途のデプロイ/管理レイヤーが担い、compeito 自身が露出する CASE API サーフェスでは扱わない |
