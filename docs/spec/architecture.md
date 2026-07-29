@@ -61,11 +61,10 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
   — authoritative definitions for CFDocument, CFItem, CFAssociation and the rest of the data model
 - [REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
   — endpoints, request/response shapes, DTypes and enumerated values, conformance requirements, service discovery
-  - Appendix B (OpenAPI definitions) and Appendix C (JSON Schema) require a 1EdTech member login
 - OpenAPI 3 schema (authoritative): [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - Official source: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - Response format: plain JSON (no JSON-LD `@context` / `@type` for the REST API)
-- `imsx_StatusInfo` error shape: REST Binding §4.4
+- `imsx_StatusInfo` error shape: defined in the REST/JSON Binding (see its HTTP code handling section)
 
 ### Related specifications
 - Open Badges v3: https://www.imsglobal.org/spec/ob/v3p0
@@ -138,11 +137,10 @@ CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreS
   — CFDocument, CFItem, CFAssociation 等、データモデルの権威的な定義
 - [REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
   — エンドポイント、リクエスト/レスポンス形式、全 DType と列挙値、準拠要件、service discovery
-  - 付録B（OpenAPI 定義）と付録C（JSON Schema）は 1EdTech メンバーログインが必要
 - OpenAPI 3 スキーマ（権威的ソース）: [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - 公式配布元: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - レスポンス形式: 標準JSON（JSON-LDの `@context` / `@type` はREST APIに含めない）
-- imsx_StatusInfo エラー形式: REST Binding §4.4
+- imsx_StatusInfo エラー形式: REST/JSON Binding で定義（HTTP コード処理の節）
 
 ### 関連仕様
 - Open Badges v3: https://www.imsglobal.org/spec/ob/v3p0

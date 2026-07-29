@@ -21,10 +21,11 @@ package.
 | Verified against upstream | 2026-07-28 (byte-identical) |
 | Terms | [1EdTech specification license](https://www.1edtech.org/standards/specification-license) |
 
-> © 2001-2023 1EdTech Consortium Inc. All Rights Reserved.
+> © 2025 1EdTech™ Consortium, Inc. All Rights Reserved.
 
-This is the copyright legend carried by the CASE v1.1 specification itself. Legal
-and trademark information: https://www.1edtech.org/about/legal
+This is the copyright legend given in the IPR and Distribution Notice of the CASE
+v1.1 specification. Legal and trademark information:
+https://www.1edtech.org/about/legal
 
 This is an unmodified, verbatim copy. The file's own `info.license` and
 `info.contact` metadata are preserved as published.
@@ -126,7 +127,7 @@ reuse — including adaptation and commercial use — with attribution, and are
 stated to be compatible with CC BY 4.0.
 
 Source: 文部科学省「高等学校学習指導要領（平成30年告示）」
-(https://www.mext.go.jp/), retrieved 2026. Where wording has been shortened or
+(https://www.mext.go.jp/a_menu/shotou/new-cs/1384661.htm), retrieved 2026. Where wording has been shortened or
 adapted for examples — for instance in `docs/spec/api-examples.md` — that is this
 project's adaptation and not the original text.
 
@@ -153,10 +154,10 @@ COMPEITO のライセンスは [Apache License 2.0](LICENSE)。これは本プ�
 | 上流との照合 | 2026-07-28（バイト単位で一致） |
 | 条項 | [1EdTech specification license](https://www.1edtech.org/standards/specification-license) |
 
-> © 2001-2023 1EdTech Consortium Inc. All Rights Reserved.
+> © 2025 1EdTech™ Consortium, Inc. All Rights Reserved.
 
-これは CASE v1.1 仕様自身が掲げている copyright legend。法務・商標に関する情報:
-https://www.1edtech.org/about/legal
+これは CASE v1.1 仕様の IPR and Distribution Notice に記載されている copyright legend。
+法務・商標に関する情報: https://www.1edtech.org/about/legal
 
 無改変の逐語コピー。ファイル自身が持つ `info.license` と `info.contact` は公開時のまま保持している。
 
@@ -245,6 +246,7 @@ CASE の概念に言及しているが、その目的は COMPEITO が何を実�
 [ウェブサイト利用規約](https://www.mext.go.jp/b_menu/1351168.htm)は、出典表示を条件に
 翻案・商用利用を含む再利用を認めており、CC BY 4.0 と互換であるとされている。
 
-出典: 文部科学省「高等学校学習指導要領（平成30年告示）」（https://www.mext.go.jp/）、2026 年取得。
+出典: 文部科学省「高等学校学習指導要領（平成30年告示）」
+（https://www.mext.go.jp/a_menu/shotou/new-cs/1384661.htm）、2026 年取得。
 例示のために文言を短縮・改変した箇所（`docs/spec/api-examples.md` 等）は
 本プロジェクトによる加工であり、原文そのものではない。
