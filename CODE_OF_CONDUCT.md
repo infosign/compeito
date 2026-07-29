@@ -36,6 +36,10 @@ The full text of the Contributor Covenant and the enforcement guidelines (includ
 
 ---
 
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org/), version 2.1, available at <https://www.contributor-covenant.org/version/2/1/code_of_conduct/>, which is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). This is an abridged rendering with a project-specific reporting contact.
+
+---
+
 # 行動規範（日本語）
 
 本プロジェクトは [Contributor Covenant 行動規範 バージョン 2.1](https://www.contributor-covenant.org/ja/version/2/1/code_of_conduct/) に従います。
@@ -71,3 +75,7 @@ COMPEITO のメンバー、貢献者、リーダーである私たちは、年�
 プロジェクトメンテナは、報告者のプライバシーとセキュリティを尊重する義務を負います。
 
 Contributor Covenant の全文および違反対応ガイドライン（4 段階の対応はしご）は <https://www.contributor-covenant.org/ja/version/2/1/code_of_conduct/> をご覧ください。
+
+---
+
+本行動規範は [Contributor Covenant](https://www.contributor-covenant.org/) バージョン 2.1（<https://www.contributor-covenant.org/ja/version/2/1/code_of_conduct/>、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) でライセンスされている）を翻案したものです。報告先を本プロジェクトのものに差し替えた抄録です。

@@ -187,7 +187,7 @@ compeito は CASE v1.1 の**配信側**（コンシューマに提供する側�
 | ドキュメント | 内容 |
 |---|---|
 | [`data-model-overview.md`](./data-model-overview.md) | データモデルの図解・つまずきポイント |
-| `docs/reference/case-v1p1-info-model.md` | 公式データモデル定義（全フィールド・型・必須/任意）|
-| `docs/reference/case-v1p1-rest-binding.md` | 公式 REST API 定義（エンドポイント・レスポンス型）|
+| [公式 Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html) | データモデル定義（全フィールド・型・必須/任意）|
+| [公式 REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html) | REST API 定義（エンドポイント・レスポンス型）|
 | `docs/reference/imscasev1p1_openapi3_v1p0.json` | 公式 OpenAPI 3 スキーマ（権威的ソース）|
 | `docs/spec/api-spec.md` | compeito の API 仕様（エラー形式・ページネーション等）|

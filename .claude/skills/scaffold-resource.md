@@ -153,7 +153,7 @@ async def get_{resource}s(
 ```
 
 **レスポンス形式の注意点**:
-- ルートキーは DType 名（`docs/reference/case-v1p1-rest-binding.md` で確認）
+- ルートキーは DType 名（公式 REST/JSON Binding で確認）
 - `exclude_none=False` で null フィールドを含める（FR-2.10）
 - Set型エンドポイント（CFConcepts, CFSubjects, CFItemTypes の `/{id}`）は配列で返す
 - エラーは imsx_StatusInfo 形式（`docs/spec/api-spec.md` 参照）

@@ -59,14 +59,14 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 - Spec home: https://www.imsglobal.org/spec/case/v1p1
 - Information Model: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html
   - §5 Data Model: definitions for CFDocument, CFItem, CFAssociation, etc.
-  - Local reference: [docs/reference/case-v1p1-info-model.md](../reference/case-v1p1-info-model.md)
+  - Official: [CASE v1.1 Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
 - REST/JSON Binding: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html
   - §4 REST API: endpoints, request/response shape
   - §6 UML to JSON Mappings: all DTypes and enumerated values
   - §7 Conformance: required endpoints and compliance requirements
   - Appendix B: OpenAPI definitions (YAML/JSON) — requires 1EdTech member login
   - Appendix C: JSON Schema — requires 1EdTech member login
-  - Local reference: [docs/reference/case-v1p1-rest-binding.md](../reference/case-v1p1-rest-binding.md)
+  - Official: [CASE v1.1 REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
 - OpenAPI 3 schema (authoritative): [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - Official source: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - Response format: plain JSON (no JSON-LD `@context` / `@type` for the REST API)
@@ -141,14 +141,14 @@ CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreS
 - 仕様トップ: https://www.imsglobal.org/spec/case/v1p1
 - Information Model: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html
   - §5 Data Model: CFDocument, CFItem, CFAssociation 等のフィールド定義
-  - ローカル参照: [docs/reference/case-v1p1-info-model.md](../reference/case-v1p1-info-model.md)
+  - 公式: [CASE v1.1 Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
 - REST/JSON Binding: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html
   - §4 REST API: エンドポイント一覧、リクエスト/レスポンス形式
   - §6 UML to JSON Mappings: 全DType・列挙値の定義
   - §7 Conformance: 必須エンドポイントと準拠要件
   - 付録B: OpenAPI定義 (YAML/JSON) — 1EdTechメンバーログイン要
   - 付録C: JSON Schema — 1EdTechメンバーログイン要
-  - ローカル参照: [docs/reference/case-v1p1-rest-binding.md](../reference/case-v1p1-rest-binding.md)
+  - 公式: [CASE v1.1 REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
 - OpenAPI 3 スキーマ（権威的ソース）: [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - 公式配布元: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - レスポンス形式: 標準JSON（JSON-LDの `@context` / `@type` はREST APIに含めない）

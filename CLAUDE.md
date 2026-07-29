@@ -43,8 +43,8 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 
 | ドキュメント                                        | 内容                                                           |
 | --------------------------------------------- | ------------------------------------------------------------ |
-| docs/reference/case-v1p1-info-model.md        | データモデル定義（CFDocument, CFItem, CFAssociation 等の全フィールド・型・必須/任意） |
-| docs/reference/case-v1p1-rest-binding.md      | REST API定義（エンドポイント・レスポンス型・Standalone vs Package型の差異）         |
+| docs/reference/README.md                      | 公式 CASE v1.1 仕様へのリンク集（データモデル・REST binding の権威的定義は公式文書を参照） |
+| docs/spec/api-spec.md                         | 実装された API と CASE v1.1 との意図的な差異                                        |
 | docs/reference/imscasev1p1_openapi3_v1p0.json | 公式 OpenAPI 3 スキーマ（権威的ソース）                                    |
 | docs/reference/opensalt-csv-format.md         | OpenSALT の実際の CSV/Excel フォーマット調査結果（compeito との差異）            |
 

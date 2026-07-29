@@ -4,8 +4,9 @@ Serves the official 1EdTech OpenAPI 3 schema as static JSON so CASE clients
 (and the 1EdTech conformance tester) can discover compeito's API surface.
 
 The schema file is shipped at `docs/reference/imscasev1p1_openapi3_v1p0.json`,
-which is the authoritative source already referenced by `docs/spec/
-architecture.md` and `docs/reference/case-v1p1-rest-binding.md`. We resolve the
+an unmodified copy of the official 1EdTech OpenAPI definition (see
+`THIRD_PARTY_NOTICES.md`). Serving it here satisfies the REST/JSON Binding
+requirement for a service discovery endpoint. We resolve the
 path from `__file__` so it works under the Docker deployment (`COPY . .`
 includes docs/) and editable installs (`pip install -e .`). A future PyPI
 distribution would need package-data inclusion, which is out of scope here.
