@@ -21,16 +21,16 @@ above.
 
 > **Why there is no local mirror.** This directory previously contained two
 > Markdown documents that restated the information model and the REST binding in
-> tabular form. 1EdTech's terms grant no right to create derivative works from
-> their documents, and publishing a derived document requires a separate
-> agreement, so those files were removed. See `THIRD_PARTY_NOTICES.md`.
+> tabular form. The 1EdTech specification license grants no right to create derivative
+> works from their documents, and their guidance requires a separate agreement
+> before publishing one, so those files were removed. See `THIRD_PARTY_NOTICES.md`.
 
 ## Files in this directory
 
 | File | What it is |
 |------|-----------|
 | `imscasev1p1_openapi3_v1p0.json` | Verbatim, unmodified copy of the official 1EdTech OpenAPI definition. Served at the specification's service discovery endpoint. **Not** covered by this project's Apache-2.0 license — see `THIRD_PARTY_NOTICES.md` |
-| `opensalt-csv-format.md` | compeito's own investigation notes on OpenSALT's CSV/Excel format, which is not part of any specification |
+| `opensalt-csv-format.md` | compeito's own investigation notes on OpenSALT's CSV/Excel format, which is not a 1EdTech CASE specification artifact |
 
 ## Where compeito's own behavior is documented
 
@@ -63,8 +63,8 @@ CASE 仕様の内容をミラーしたり再構成したりは**しない**。
 確実な答えが必要なときは上記を辿る。
 
 > **ローカルミラーを置かない理由。** このディレクトリには以前、情報モデルと REST binding を
-> 表形式で再構成した Markdown 2 本があった。1EdTech の条項は文書の派生物を作る権利を
-> 付与しておらず、派生文書の公開には別途合意が必要であるため、これらを削除した。
+> 表形式で再構成した Markdown 2 本があった。1EdTech の specification license は文書の派生物を作る権利を付与しておらず、
+> 同団体のガイダンスは派生文書の公開に先立って別途の合意を求めているため、これらを削除した。
 > `THIRD_PARTY_NOTICES.md` を参照。
 
 ## このディレクトリのファイル
@@ -72,7 +72,7 @@ CASE 仕様の内容をミラーしたり再構成したりは**しない**。
 | ファイル | 内容 |
 |---------|------|
 | `imscasev1p1_openapi3_v1p0.json` | 公式 1EdTech OpenAPI 定義の無改変の逐語コピー。仕様が定める service discovery エンドポイントで配信している。本プロジェクトの Apache-2.0 の**対象外** — `THIRD_PARTY_NOTICES.md` 参照 |
-| `opensalt-csv-format.md` | OpenSALT の CSV / Excel 形式に関する compeito 独自の調査記録（この形式はいかなる仕様にも属さない） |
+| `opensalt-csv-format.md` | OpenSALT の CSV / Excel 形式に関する compeito 独自の調査記録（この形式は 1EdTech CASE 仕様の成果物ではない） |
 
 ## compeito 自身の挙動はどこに書いてあるか
 

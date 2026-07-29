@@ -4,8 +4,10 @@
 
 COMPEITO is licensed under the [Apache License 2.0](LICENSE). That license covers
 the code and documentation written for this project. It does **not** cover the
-third-party material listed below, which is redistributed as part of this
-repository under its own terms. Copyright in each item remains with its owner.
+third-party material listed below. Some of it is redistributed as part of this
+repository under its own terms; the rest is acknowledged because it is used at
+build time or referenced in documentation. Each section says which applies.
+Copyright in each item remains with its owner.
 
 Dependencies that are merely installed from a package registry are not listed
 here; see `pyproject.toml` and `uv.lock` and the license metadata of each
@@ -45,9 +47,10 @@ is tracked as item C18 in
 [docs/dev/case-v1p1-conformance-backlog.md](docs/dev/case-v1p1-conformance-backlog.md),
 separately from this notice.
 
-**No local mirror of the specification.** 1EdTech grants no right to create
-modifications or derivatives of their documents, and publishing a derived
-document requires a separate agreement with 1EdTech. Accordingly this repository
+**No local mirror of the specification.** The 1EdTech specification license
+itself grants no right to create modifications or derivatives of their documents,
+and their guidance requires a separate agreement with 1EdTech before publishing or
+commercially distributing a derived document. Accordingly this repository
 keeps no comprehensive local mirror or restatement of the CASE specification, and
 `docs/reference/` links to the official documents instead.
 
@@ -141,7 +144,9 @@ project's adaptation and not the original text.
 
 COMPEITO のライセンスは [Apache License 2.0](LICENSE)。これは本プロジェクトのために
 書かれたコードとドキュメントに適用される。以下に挙げる第三者素材は**対象外**であり、
-それぞれの条項のもとで本リポジトリの一部として再配布している。著作権は各権利者に帰属する。
+一部は各自の条項のもとで本リポジトリの一部として再配布しており、残りはビルド時に使用しているか
+ドキュメントで言及しているために記載している。どちらに当たるかは各節に記す。
+著作権は各権利者に帰属する。
 
 パッケージレジストリから取得するだけの依存関係はここに挙げない（`pyproject.toml`、
 `uv.lock`、および各パッケージのライセンス情報を参照）。
@@ -174,8 +179,9 @@ localized version の OpenAPI ファイルを提供すること*を要求して�
 まだ localize されておらず（`servers` が公開時のテンプレートのまま）、現状 §2.5 を
 完全には満たしていない。このギャップは本表記とは別に、[docs/dev/case-v1p1-conformance-backlog.md](docs/dev/case-v1p1-conformance-backlog.md) の C18 として管理している。
 
-**仕様のローカルミラーは置かない。** 1EdTech は文書の改変・派生物を作る権利を付与しておらず、
-派生文書の公開には 1EdTech との別途の合意が必要である。よって本リポジトリは CASE 仕様の
+**仕様のローカルミラーは置かない。** 1EdTech の specification license 自体は文書の改変・派生物を
+作る権利を付与しておらず、同団体のガイダンスは派生文書の公開・商用配布に先立って
+1EdTech との別途の合意を求めている。よって本リポジトリは CASE 仕様の
 網羅的なローカルミラーや再構成を持たず、`docs/reference/` は公式文書へのリンクに留める。
 
 `docs/spec/case-overview.md`、`docs/spec/data-model-overview.md`、`docs/spec/api-spec.md` は

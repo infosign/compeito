@@ -252,6 +252,8 @@ markers = ["conformance: official CASE v1.1 OpenAPI schema validation tests"]
 テストがロードした `SPEC` と等価（`==`）であることを 1 本アサートする。
 「テストが検証している権威ソース」と「クライアントに配信している契約」の乖離を防ぐ。
 
+> **C18 との関係。** §2.5 は localized version の提供を要求しており（適合性バックログ C18）、これを実装すると応答は `SPEC` と等価でなくなる。C18 着手時にこのアサートを、localize 後の期待値との比較か、localize 対象フィールド（`servers`・`info.contact` 等）を除いた比較に変更する。
+
 ## 既知ギャップの扱い（xfail 機構と対応表）
 
 - **`pytest.mark.xfail(strict=True, reason=...)`** を使う。`strict=True` により、
