@@ -116,8 +116,8 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 [Apache License 2.0](LICENSE)
 
 Third-party material redistributed in this repository — most notably the official
-1EdTech CASE v1.1 OpenAPI definition, which the specification requires a service
-provider to serve — is **not** covered by that license. See
+1EdTech CASE v1.1 OpenAPI definition, which COMPEITO serves from the CASE service
+discovery endpoint — is **not** covered by that license. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Developed by
@@ -243,9 +243,9 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 [Apache License 2.0](LICENSE)
 
-本リポジトリに同梱している第三者素材 — 特に、仕様がサービスプロバイダに配信を
-求めている公式 1EdTech CASE v1.1 OpenAPI 定義 — はこのライセンスの**対象外**。
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照。
+本リポジトリに同梱している第三者素材 — 特に、COMPEITO が CASE の service discovery
+エンドポイントから配信している公式 1EdTech CASE v1.1 OpenAPI 定義 — は
+このライセンスの**対象外**。[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照。
 
 ## 開発
 

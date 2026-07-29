@@ -5,8 +5,10 @@ Serves the official 1EdTech OpenAPI 3 schema as static JSON so CASE clients
 
 The schema file is shipped at `docs/reference/imscasev1p1_openapi3_v1p0.json`,
 an unmodified copy of the official 1EdTech OpenAPI definition (see
-`THIRD_PARTY_NOTICES.md`). Serving it here satisfies the REST/JSON Binding
-requirement for a service discovery endpoint. We resolve the
+`THIRD_PARTY_NOTICES.md`). The REST/JSON Binding requires a service provider to
+serve a *localized* OpenAPI file here; this copy is not localized yet (its
+`servers` block is the published template), which is a tracked conformance gap.
+We resolve the
 path from `__file__` so it works under the Docker deployment (`COPY . .`
 includes docs/) and editable installs (`pip install -e .`). A future PyPI
 distribution would need package-data inclusion, which is out of scope here.

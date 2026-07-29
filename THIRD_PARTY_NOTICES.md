@@ -16,31 +16,42 @@ package.
 | | |
 |---|---|
 | File | `docs/reference/imscasev1p1_openapi3_v1p0.json` |
-| Source | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/ |
+| Source | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json |
 | SHA-256 | `40f183b6ca3ce4979e4908d4414b9d099dd22493bea45694b60e7a72a19a22bf` |
 | Verified against upstream | 2026-07-28 (byte-identical) |
 | Terms | [1EdTech specification license](https://www.1edtech.org/standards/specification-license) |
 
-> © 2026 1EdTech® Consortium, Inc. All Rights Reserved.
->
-> Trademark information: https://www.1edtech.org/trademarks
+> © 2001-2023 1EdTech Consortium Inc. All Rights Reserved.
+
+This is the copyright legend carried by the CASE v1.1 specification itself. Legal
+and trademark information: https://www.1edtech.org/about/legal
 
 This is an unmodified, verbatim copy. The file's own `info.license` and
 `info.contact` metadata are preserved as published.
 
-**Why it is redistributed.** The CASE v1.1 REST/JSON Binding, §2.5 Service
-Discovery, states that "A Service Provider MUST provide a localized version of
-the OpenAPI file (version 3 JSON file format) to enable service discovery."
-COMPEITO serves this document at the endpoint the specification prescribes
-(`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`, implemented in
-`src/routers/discovery.py`). Shipping the file is therefore a condition of
-conforming to the specification, not a convenience.
+**Why it is here.** The CASE v1.1 REST/JSON Binding, §2.5 Service Discovery,
+requires a Service Provider to *provide a localized version of the OpenAPI file
+at a prescribed endpoint* in order to enable service discovery. COMPEITO
+implements that endpoint (`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`,
+see `src/routers/discovery.py`) and this file is the upstream artifact it serves
+from.
 
-**No derivative works.** 1EdTech grants no right to create modifications or
-derivatives of their documents, and publishing a derived document requires a
-separate agreement with 1EdTech. Accordingly this repository contains no
-restatement, summary or translation of the CASE specification; `docs/reference/`
-links to the official documents instead.
+Two things this does **not** claim. The specification does not require anyone to
+place the file in a public source repository; that is our packaging choice.
+And the copy shipped here is not yet localized — its `servers` block is still the
+published template — so COMPEITO does not currently meet §2.5 in full. That gap
+is tracked as a conformance item, separately from this notice.
+
+**No local mirror of the specification.** 1EdTech grants no right to create
+modifications or derivatives of their documents, and publishing a derived
+document requires a separate agreement with 1EdTech. Accordingly this repository
+keeps no comprehensive local mirror or restatement of the CASE specification, and
+`docs/reference/` links to the official documents instead.
+
+Documents such as `docs/spec/case-overview.md`, `docs/spec/data-model-overview.md`
+and `docs/spec/api-spec.md` do describe CASE concepts, but their purpose is to
+record what COMPEITO implements and how it differs from the specification. They
+cite the official documents rather than substituting for them.
 
 ## Contributor Covenant — Code of Conduct
 
@@ -85,8 +96,14 @@ in the resulting image, but their source is not vendored here.
 
 | Tool | Terms | Where |
 |------|-------|-------|
-| [uv](https://github.com/astral-sh/uv) | MIT or Apache-2.0 | `Dockerfile` (`ghcr.io/astral-sh/uv`) |
+| [uv](https://github.com/astral-sh/uv) | dual-licensed MIT or Apache-2.0; we rely on the MIT option | `Dockerfile` (`ghcr.io/astral-sh/uv`) |
 | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) standalone CLI | MIT | `Dockerfile` (release binary) |
+
+Both binaries remain in the built image. MIT requires the copyright and
+permission notice to travel with copies, so **before any container image is
+published**, the two license texts must be included in the image and the
+versions pinned (`uv:latest` is currently unpinned). This is a tracked follow-up;
+it does not affect source-only distribution of this repository.
 
 ## Interoperability targets referenced in documentation
 
@@ -108,8 +125,10 @@ Ministry of Education, Culture, Sports, Science and Technology (MEXT). MEXT's
 reuse — including adaptation and commercial use — with attribution, and are
 stated to be compatible with CC BY 4.0.
 
-Source: 文部科学省「学習指導要領」. Where wording has been shortened or adapted for
-examples, that is this project's adaptation and not the original text.
+Source: 文部科学省「高等学校学習指導要領（平成30年告示）」
+(https://www.mext.go.jp/), retrieved 2026. Where wording has been shortened or
+adapted for examples — for instance in `docs/spec/api-examples.md` — that is this
+project's adaptation and not the original text.
 
 ---
 
@@ -129,27 +148,36 @@ COMPEITO のライセンスは [Apache License 2.0](LICENSE)。これは本プ�
 | | |
 |---|---|
 | ファイル | `docs/reference/imscasev1p1_openapi3_v1p0.json` |
-| 取得元 | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/ |
+| 取得元 | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json |
 | SHA-256 | `40f183b6ca3ce4979e4908d4414b9d099dd22493bea45694b60e7a72a19a22bf` |
 | 上流との照合 | 2026-07-28（バイト単位で一致） |
 | 条項 | [1EdTech specification license](https://www.1edtech.org/standards/specification-license) |
 
-> © 2026 1EdTech® Consortium, Inc. All Rights Reserved.
->
-> 商標に関する情報: https://www.1edtech.org/trademarks
+> © 2001-2023 1EdTech Consortium Inc. All Rights Reserved.
+
+これは CASE v1.1 仕様自身が掲げている copyright legend。法務・商標に関する情報:
+https://www.1edtech.org/about/legal
 
 無改変の逐語コピー。ファイル自身が持つ `info.license` と `info.contact` は公開時のまま保持している。
 
-**再配布している理由。** CASE v1.1 REST/JSON Binding の §2.5 Service Discovery は
-「A Service Provider MUST provide a localized version of the OpenAPI file
-(version 3 JSON file format) to enable service discovery」と規定している。
-COMPEITO は仕様が定めるエンドポイント（`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`、
-実装は `src/routers/discovery.py`）でこの文書を配信している。したがって同梱は
-仕様準拠の条件であり、利便性のための選択ではない。
+**ここに置いてある理由。** CASE v1.1 REST/JSON Binding の §2.5 Service Discovery は、
+service discovery を可能にするため、Service Provider が*所定のエンドポイントで
+localized version の OpenAPI ファイルを提供すること*を要求している。COMPEITO は
+そのエンドポイント（`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`、
+実装は `src/routers/discovery.py`）を実装しており、このファイルはその配信元となる上流成果物である。
 
-**派生物は作らない。** 1EdTech は文書の改変・派生物を作る権利を付与しておらず、
-派生文書の公開には 1EdTech との別途の合意が必要である。よって本リポジトリには
-CASE 仕様の再構成・要約・翻訳を置かない。`docs/reference/` は公式文書へのリンクに留める。
+主張していないことが 2 つある。仕様は公開ソースリポジトリへのファイル配置を
+誰にも要求していない。それは当方のパッケージングの選択である。また同梱しているコピーは
+まだ localize されておらず（`servers` が公開時のテンプレートのまま）、現状 §2.5 を
+完全には満たしていない。このギャップは本表記とは別に適合性の課題として管理している。
+
+**仕様のローカルミラーは置かない。** 1EdTech は文書の改変・派生物を作る権利を付与しておらず、
+派生文書の公開には 1EdTech との別途の合意が必要である。よって本リポジトリは CASE 仕様の
+網羅的なローカルミラーや再構成を持たず、`docs/reference/` は公式文書へのリンクに留める。
+
+`docs/spec/case-overview.md`、`docs/spec/data-model-overview.md`、`docs/spec/api-spec.md` は
+CASE の概念に言及しているが、その目的は COMPEITO が何を実装し仕様とどう異なるかを
+記録することである。公式文書を代替するものではなく、公式文書を参照する位置づけである。
 
 ## Contributor Covenant — 行動規範
 
@@ -192,8 +220,13 @@ CASE 仕様の再構成・要約・翻訳を置かない。`docs/reference/` は
 
 | ツール | 条項 | 場所 |
 |-------|------|------|
-| [uv](https://github.com/astral-sh/uv) | MIT または Apache-2.0 | `Dockerfile`（`ghcr.io/astral-sh/uv`） |
+| [uv](https://github.com/astral-sh/uv) | MIT / Apache-2.0 のデュアルライセンス。当方は MIT を選択 | `Dockerfile`（`ghcr.io/astral-sh/uv`） |
 | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) standalone CLI | MIT | `Dockerfile`（リリースバイナリ） |
+
+どちらのバイナリもビルド後のイメージに残る。MIT は複製に著作権表示と許諾表示を
+同伴させることを求めるため、**コンテナイメージを公開する前に**この 2 つのライセンス本文を
+イメージに含め、版を固定する必要がある（`uv:latest` は現在未固定）。これは後続対応として
+管理しており、本リポジトリのソース配布には影響しない。
 
 ## ドキュメントで言及している相互運用先
 
@@ -212,5 +245,6 @@ CASE 仕様の再構成・要約・翻訳を置かない。`docs/reference/` は
 [ウェブサイト利用規約](https://www.mext.go.jp/b_menu/1351168.htm)は、出典表示を条件に
 翻案・商用利用を含む再利用を認めており、CC BY 4.0 と互換であるとされている。
 
-出典: 文部科学省「学習指導要領」。例示のために文言を短縮・改変した箇所は
+出典: 文部科学省「高等学校学習指導要領（平成30年告示）」（https://www.mext.go.jp/）、2026 年取得。
+例示のために文言を短縮・改変した箇所（`docs/spec/api-examples.md` 等）は
 本プロジェクトによる加工であり、原文そのものではない。

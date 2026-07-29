@@ -57,16 +57,11 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 
 ### CASE v1.1 (1EdTech Competency and Academic Standards Exchange)
 - Spec home: https://www.imsglobal.org/spec/case/v1p1
-- Information Model: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html
-  - §5 Data Model: definitions for CFDocument, CFItem, CFAssociation, etc.
-  - Official: [CASE v1.1 Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
-- REST/JSON Binding: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html
-  - §4 REST API: endpoints, request/response shape
-  - §6 UML to JSON Mappings: all DTypes and enumerated values
-  - §7 Conformance: required endpoints and compliance requirements
-  - Appendix B: OpenAPI definitions (YAML/JSON) — requires 1EdTech member login
-  - Appendix C: JSON Schema — requires 1EdTech member login
-  - Official: [CASE v1.1 REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
+- [Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
+  — authoritative definitions for CFDocument, CFItem, CFAssociation and the rest of the data model
+- [REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
+  — endpoints, request/response shapes, DTypes and enumerated values, conformance requirements, service discovery
+  - Appendix B (OpenAPI definitions) and Appendix C (JSON Schema) require a 1EdTech member login
 - OpenAPI 3 schema (authoritative): [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - Official source: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - Response format: plain JSON (no JSON-LD `@context` / `@type` for the REST API)
@@ -139,16 +134,11 @@ CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreS
 
 ### CASE v1.1 (1EdTech Competency and Academic Standards Exchange)
 - 仕様トップ: https://www.imsglobal.org/spec/case/v1p1
-- Information Model: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html
-  - §5 Data Model: CFDocument, CFItem, CFAssociation 等のフィールド定義
-  - 公式: [CASE v1.1 Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
-- REST/JSON Binding: https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html
-  - §4 REST API: エンドポイント一覧、リクエスト/レスポンス形式
-  - §6 UML to JSON Mappings: 全DType・列挙値の定義
-  - §7 Conformance: 必須エンドポイントと準拠要件
-  - 付録B: OpenAPI定義 (YAML/JSON) — 1EdTechメンバーログイン要
-  - 付録C: JSON Schema — 1EdTechメンバーログイン要
-  - 公式: [CASE v1.1 REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
+- [Information Model](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html)
+  — CFDocument, CFItem, CFAssociation 等、データモデルの権威的な定義
+- [REST/JSON Binding](https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html)
+  — エンドポイント、リクエスト/レスポンス形式、全 DType と列挙値、準拠要件、service discovery
+  - 付録B（OpenAPI 定義）と付録C（JSON Schema）は 1EdTech メンバーログインが必要
 - OpenAPI 3 スキーマ（権威的ソース）: [docs/reference/imscasev1p1_openapi3_v1p0.json](../reference/imscasev1p1_openapi3_v1p0.json)
   - 公式配布元: https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json
 - レスポンス形式: 標準JSON（JSON-LDの `@context` / `@type` はREST APIに含めない）

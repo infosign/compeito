@@ -219,7 +219,7 @@ uv run python cli.py doc update --tenant {tenant_id} --doc {old_doc_id} --displa
    - CSV メタデータ行: `#adoption_status` / `#status_start_date` / `#status_end_date`（スネークケース。日付は `YYYY-MM-DD`。csv-format.md）。
    - **メタデータ行のみ（データ行 0 件）の CSV は items/associations を温存**して CFDocument メタデータだけ更新（csv-format.md「Empty files / no data rows」、import-logic.md:178）。→ Step 6 の根拠。
    - CFItem にも `statusStartDate` / `statusEndDate` があり custom CSV に列がある（CFItem に adoptionStatus は無い — CASE v1.1 仕様どおり）。
-   - `adoptionStatus` は CASE 上 enum 無しの自由文字列（公式 Information Model 参照）。
+   - `adoptionStatus` は CASE 上 enum 無しの自由文字列（公式 Information Model 参照 — [docs/reference/README.md](../../reference/README.md)）。
 8. **URI の扱い**: CASE import はソースの `uri` を verbatim 温存、無ければ `{BASE_URL}/{tenant_id}/uri/{identifier}` を生成（`_resolve_uri`、case_import_service.py:54）。compeito 発のエクスポートは常に後者の形なので、UUID 全文置換で uri も自動的に整合する。
 9. **UI 表示**: ツリーページ（cftree.html:17-24）が `adoption_status` をバッジ表示（Adopted=緑 / Deprecated=ピンク / Draft=黄、その他はニュートラル）。詳細ヘッダにも表示（resource_detail.html:534）。詳細ペインの関連はタイプ注記付きで表示され、テナント内の別ドキュメントのノードも解決してリンクする（resource_detail.html の assoc_node_other_doc / cross_tenant 処理）。テナントのフレームワーク**一覧**（tenant.html）には adoptionStatus 表示は無い。
 10. **association の検証**: import は `identifier`（UUID 必須）/ `associationType` / `originNodeURI`・`destinationNodeURI`（各 `identifier`+`uri` サブフィールド必須）の欠落で skip。origin/destination が実在するかは検証しない（クロスドキュメント/外部参照を許容。import-logic.md:437）。ノード identifier は UUID なら小文字化して格納。

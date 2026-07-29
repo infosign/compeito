@@ -13,7 +13,7 @@ content of the CASE specification.
 | CASE v1.1 specification (entry point) | https://www.imsglobal.org/spec/case/v1p1 |
 | Information Model | https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html |
 | REST/JSON Binding | https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html |
-| OpenAPI 3 definition (JSON) | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/ |
+| OpenAPI 3 definition (JSON) | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json |
 
 Field types, cardinality, endpoint contracts and response shapes are defined
 there and only there. When you need the authoritative answer, follow the links
@@ -57,7 +57,7 @@ CASE 仕様の内容をミラーしたり再構成したりは**しない**。
 | CASE v1.1 仕様（入口） | https://www.imsglobal.org/spec/case/v1p1 |
 | Information Model | https://www.imsglobal.org/sites/default/files/spec/case/v1p1/information_model/caseservicev1p1_infomodelv1p0.html |
 | REST/JSON Binding | https://www.imsglobal.org/sites/default/files/spec/case/v1p1/rest_binding/caseservicev1p1_restbindv1p0.html |
-| OpenAPI 3 定義（JSON） | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/ |
+| OpenAPI 3 定義（JSON） | https://purl.imsglobal.org/spec/case/v1p1/schema/openapi/imscasev1p1_openapi3_v1p0.json |
 
 フィールドの型・必須性・エンドポイントの契約・レスポンス形は公式文書が唯一の権威。
 確実な答えが必要なときは上記を辿る。

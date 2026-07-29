@@ -24,7 +24,7 @@ CASE v1.1 仕様への準拠を確認するスキル。
 ### 2. レスポンス構造の確認 (`src/routers/`)
 
 - [ ] REST/JSON形式で返しているか（JSON-LDの `@context` / `@type` は不要）
-- [ ] ルートキーが正しい DType 名か（公式 REST/JSON Binding で確認）
+- [ ] ルートキーが正しい DType 名か（公式 REST/JSON Binding で確認。URL は `docs/reference/README.md`）
 - [ ] CFPackage レスポンスに CFDocument, CFItems, CFAssociations が含まれるか
 - [ ] CFItems, CFAssociations はデータがなくても空配列を返しているか
 - [ ] CFDefinitions はデータがなければキーごと省略しているか
