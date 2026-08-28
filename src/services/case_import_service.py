@@ -997,14 +997,18 @@ def _update_document(
     if data.get("adoptionStatus") is not None:
         doc.adoption_status = data["adoptionStatus"]
 
-    if data.get("statusStartDate") is not None:
+    # Lifecycle dates are the ONE exception to "null / missing -> preserve":
+    # an explicit `null` clears the value, so a retired item/document can be
+    # revived by a later package. A missing key still preserves (exporters that
+    # do not manage these fields must not wipe them). See docs/spec/import-logic.md.
+    if "statusStartDate" in data:
         doc.status_start_date = _parse_date_with_warning(
             data["statusStartDate"],
             "statusStartDate",
             "CFDocument",
             warnings,
         )
-    if data.get("statusEndDate") is not None:
+    if "statusEndDate" in data:
         doc.status_end_date = _parse_date_with_warning(
             data["statusEndDate"],
             "statusEndDate",
@@ -1218,9 +1222,11 @@ async def _import_items(
                 existing.subject = item_data["subject"]
             if item_data.get("subjectURI") is not None:
                 existing.subject_uri = item_data["subjectURI"]
-            if ssd is not None or item_data.get("statusStartDate") is not None:
+            # Lifecycle dates: explicit `null` clears, missing key preserves
+            # (see the CFDocument update above and docs/spec/import-logic.md).
+            if "statusStartDate" in item_data:
                 existing.status_start_date = ssd
-            if sed is not None or item_data.get("statusEndDate") is not None:
+            if "statusEndDate" in item_data:
                 existing.status_end_date = sed
             if item_type_uri:
                 existing.cf_item_type_id = item_type_id

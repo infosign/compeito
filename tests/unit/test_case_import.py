@@ -4,7 +4,7 @@ Uses httpx mock for HTTP calls and real DB for persistence tests.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -1966,3 +1966,97 @@ class TestLicenseUriInitialImport:
             )
         ).scalar_one()
         assert doc.cf_license_id is not None
+
+
+class TestLifecycleDateClearing:
+    """statusStartDate / statusEndDate: explicit null clears, missing key preserves.
+
+    These two fields are the sole exception to the "no external value -> keep
+    existing" update rule, so that a retired item (a tombstone carrying
+    statusEndDate) can be revived by a later package. See
+    docs/spec/import-logic.md and infosign/to-case#9.
+    """
+
+    @staticmethod
+    def _package(doc_id: uuid.UUID, item_id: uuid.UUID, *, doc_extra: dict, item_extra: dict) -> dict:
+        return {
+            "CFDocument": {
+                "identifier": str(doc_id),
+                "uri": f"https://example.com/uri/{doc_id}",
+                "title": "Lifecycle Framework",
+                "creator": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                **doc_extra,
+            },
+            "CFItems": [
+                {
+                    "identifier": str(item_id),
+                    "uri": f"https://example.com/uri/{item_id}",
+                    "fullStatement": "Retired item",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                    **item_extra,
+                }
+            ],
+            "CFAssociations": [],
+        }
+
+    async def _import(self, db_session: AsyncSession, tenant: Tenant, data: dict) -> None:
+        await import_case_from_dict(db_session, tenant.id, data)
+        await db_session.flush()
+
+    async def _fetch(self, db_session: AsyncSession, doc_id: uuid.UUID, item_id: uuid.UUID):
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
+        return doc, item
+
+    async def test_explicit_null_clears_tombstone(self, db_session: AsyncSession, tenant: Tenant):
+        """Re-importing with statusEndDate: null lifts the tombstone."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        dates = {"statusStartDate": "2021-04-01", "statusEndDate": "2022-03-14"}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
+
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date == date(2022, 3, 14)
+        assert doc.status_end_date == date(2022, 3, 14)
+
+        nulls = {"statusStartDate": None, "statusEndDate": None}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=nulls, item_extra=nulls))
+
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date is None
+        assert item.status_start_date is None
+        assert doc.status_end_date is None
+        assert doc.status_start_date is None
+
+    async def test_missing_key_preserves(self, db_session: AsyncSession, tenant: Tenant):
+        """A package that does not manage the fields must not wipe them.
+
+        Exporters that omit statusStartDate / statusEndDate entirely keep the
+        general "missing -> preserve" rule.
+        """
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        dates = {"statusStartDate": "2021-04-01", "statusEndDate": "2022-03-14"}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra={}, item_extra={}))
+
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_start_date == date(2021, 4, 1)
+        assert item.status_end_date == date(2022, 3, 14)
+        assert doc.status_start_date == date(2021, 4, 1)
+        assert doc.status_end_date == date(2022, 3, 14)
+
+    async def test_invalid_date_clears_with_warning(self, db_session: AsyncSession, tenant: Tenant):
+        """An unparsable date still clears the field and warns (unchanged behavior)."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        dates = {"statusEndDate": "2022-03-14"}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
+
+        bad = {"statusEndDate": "n/a"}
+        report = await import_case_from_dict(
+            db_session, tenant.id, self._package(doc_id, item_id, doc_extra=bad, item_extra=bad)
+        )
+        await db_session.flush()
+
+        _doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date is None
+        assert any("statusEndDate" in w for w in report.warnings)
