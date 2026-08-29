@@ -3,8 +3,10 @@
 Uses httpx mock for HTTP calls and real DB for persistence tests.
 """
 
+import json
 import uuid
 from datetime import date, datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -23,6 +25,7 @@ from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.tenant import Tenant
 from src.services.case_import_service import (
     VALID_ASSOCIATION_TYPES,
+    CaseImportReport,
     _is_v1p0,
     _normalize_concept_keywords_uri,
     _normalize_v1p0_package,
@@ -1969,12 +1972,13 @@ class TestLicenseUriInitialImport:
 
 
 class TestLifecycleDateClearing:
-    """statusStartDate / statusEndDate: explicit null clears, missing key preserves.
+    """statusStartDate / statusEndDate: clearing requires --allow-status-clear.
 
-    These two fields are the sole exception to the "no external value -> keep
-    existing" update rule, so that a retired item (a tombstone carrying
-    statusEndDate) can be revived by a later package. See
-    docs/spec/import-logic.md and infosign/to-case#9.
+    These fields carry a resource's retirement state (a "tombstone"), and many
+    exporters (OpenCASE, compeito's own `export case`) emit them as explicit
+    null even when they do not manage them. Honouring a null unconditionally
+    would silently revive every retired item on a routine re-import, so the
+    caller has to opt in. See docs/spec/import-logic.md and B8-1.
     """
 
     @staticmethod
@@ -2000,63 +2004,144 @@ class TestLifecycleDateClearing:
             "CFAssociations": [],
         }
 
-    async def _import(self, db_session: AsyncSession, tenant: Tenant, data: dict) -> None:
-        await import_case_from_dict(db_session, tenant.id, data)
+    async def _import(
+        self,
+        db_session: AsyncSession,
+        tenant: Tenant,
+        data: dict,
+        *,
+        allow_status_clear: bool = False,
+    ) -> CaseImportReport:
+        report = await import_case_from_dict(db_session, tenant.id, data, allow_status_clear=allow_status_clear)
         await db_session.flush()
+        return report
 
     async def _fetch(self, db_session: AsyncSession, doc_id: uuid.UUID, item_id: uuid.UUID):
         doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
         item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
         return doc, item
 
-    async def test_explicit_null_clears_tombstone(self, db_session: AsyncSession, tenant: Tenant):
-        """Re-importing with statusEndDate: null lifts the tombstone."""
+    async def _seed_tombstone(self, db_session: AsyncSession, tenant: Tenant):
+        """Import a document + item carrying both lifecycle dates."""
         doc_id, item_id = uuid.uuid4(), uuid.uuid4()
         dates = {"statusStartDate": "2021-04-01", "statusEndDate": "2022-03-14"}
         await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
+        return doc_id, item_id
+
+    async def test_explicit_null_preserved_by_default(self, db_session: AsyncSession, tenant: Tenant):
+        """The default keeps the tombstone and warns.
+
+        This is the OpenCASE round-trip case: the package carries
+        `"statusEndDate": null` for every resource without meaning to clear it.
+        """
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        nulls = {"statusStartDate": None, "statusEndDate": None}
+        report = await self._import(
+            db_session, tenant, self._package(doc_id, item_id, doc_extra=nulls, item_extra=nulls)
+        )
 
         doc, item = await self._fetch(db_session, doc_id, item_id)
         assert item.status_end_date == date(2022, 3, 14)
+        assert item.status_start_date == date(2021, 4, 1)
         assert doc.status_end_date == date(2022, 3, 14)
+        assert any("statusEndDate" in w and "kept" in w for w in report.warnings)
 
+    async def test_opencase_baseline_does_not_clear(self, db_session: AsyncSession, tenant: Tenant):
+        """Regression guard using a real OpenCASE export.
+
+        The baseline fixture emits `statusStartDate` / `statusEndDate` as null
+        on the CFDocument and on every CFItem.
+        """
+        fixture = json.loads(
+            (Path(__file__).parent.parent / "fixtures" / "opencase_round_trip_baseline.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        pkg = fixture.get("CFPackage", fixture)
+        assert pkg["CFDocument"]["statusEndDate"] is None
+        assert any("statusEndDate" in i and i["statusEndDate"] is None for i in pkg["CFItems"])
+
+        await self._import(db_session, tenant, fixture)
+        doc_id = uuid.UUID(pkg["CFDocument"]["identifier"])
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
+        doc.status_end_date = date(2026, 3, 31)
+        await db_session.flush()
+
+        await self._import(db_session, tenant, fixture)
+        await db_session.refresh(doc)
+        assert doc.status_end_date == date(2026, 3, 31)
+
+    async def test_explicit_null_clears_with_opt_in(self, db_session: AsyncSession, tenant: Tenant):
+        """--allow-status-clear lifts the tombstone and reports what it cleared."""
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
         nulls = {"statusStartDate": None, "statusEndDate": None}
-        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=nulls, item_extra=nulls))
+        report = await self._import(
+            db_session,
+            tenant,
+            self._package(doc_id, item_id, doc_extra=nulls, item_extra=nulls),
+            allow_status_clear=True,
+        )
 
         doc, item = await self._fetch(db_session, doc_id, item_id)
         assert item.status_end_date is None
         assert item.status_start_date is None
         assert doc.status_end_date is None
         assert doc.status_start_date is None
+        assert any("statusEndDate" in w and "cleared" in w for w in report.warnings)
 
     async def test_missing_key_preserves(self, db_session: AsyncSession, tenant: Tenant):
-        """A package that does not manage the fields must not wipe them.
-
-        Exporters that omit statusStartDate / statusEndDate entirely keep the
-        general "missing -> preserve" rule.
-        """
-        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
-        dates = {"statusStartDate": "2021-04-01", "statusEndDate": "2022-03-14"}
-        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
-        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra={}, item_extra={}))
+        """A key that is absent entirely preserves, with or without the flag."""
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        report = await self._import(
+            db_session,
+            tenant,
+            self._package(doc_id, item_id, doc_extra={}, item_extra={}),
+            allow_status_clear=True,
+        )
 
         doc, item = await self._fetch(db_session, doc_id, item_id)
         assert item.status_start_date == date(2021, 4, 1)
         assert item.status_end_date == date(2022, 3, 14)
         assert doc.status_start_date == date(2021, 4, 1)
         assert doc.status_end_date == date(2022, 3, 14)
+        assert not any("cleared" in w for w in report.warnings)
 
-    async def test_invalid_date_clears_with_warning(self, db_session: AsyncSession, tenant: Tenant):
-        """An unparsable date still clears the field and warns (unchanged behavior)."""
-        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
-        dates = {"statusEndDate": "2022-03-14"}
-        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=dates, item_extra=dates))
+    async def test_value_always_overwrites(self, db_session: AsyncSession, tenant: Tenant):
+        """Setting a tombstone never needs the flag; only clearing does."""
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        newer = {"statusEndDate": "2023-03-31"}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=newer, item_extra=newer))
 
-        bad = {"statusEndDate": "n/a"}
-        report = await import_case_from_dict(
-            db_session, tenant.id, self._package(doc_id, item_id, doc_extra=bad, item_extra=bad)
-        )
-        await db_session.flush()
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date == date(2023, 3, 31)
+        assert doc.status_end_date == date(2023, 3, 31)
+
+    async def test_empty_string_follows_the_same_rule(self, db_session: AsyncSession, tenant: Tenant):
+        """A blank string is a null, not a third case."""
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        blanks = {"statusEndDate": ""}
+        await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=blanks, item_extra=blanks))
 
         _doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date == date(2022, 3, 14)
+
+        await self._import(
+            db_session,
+            tenant,
+            self._package(doc_id, item_id, doc_extra=blanks, item_extra=blanks),
+            allow_status_clear=True,
+        )
+        doc, item = await self._fetch(db_session, doc_id, item_id)
         assert item.status_end_date is None
-        assert any("statusEndDate" in w for w in report.warnings)
+        assert doc.status_end_date is None
+
+    async def test_invalid_date_preserves_by_default(self, db_session: AsyncSession, tenant: Tenant):
+        """An unparsable date warns but must not wipe the stored value."""
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        bad = {"statusEndDate": "n/a"}
+        report = await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=bad, item_extra=bad))
+
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        assert item.status_end_date == date(2022, 3, 14)
+        assert doc.status_end_date == date(2022, 3, 14)
+        assert any("Invalid statusEndDate" in w for w in report.warnings)

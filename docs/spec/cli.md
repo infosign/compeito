@@ -82,6 +82,10 @@ uv run python cli.py import case --tenant {uuid} --url https://case.example.com/
 uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
 uv run python cli.py import case --tenant {uuid} --file framework.json
 uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framework.json
+# --allow-status-clear: let a null statusStartDate / statusEndDate clear the stored date.
+#   Off by default: OpenCASE and compeito's own `export case` emit these as null even when
+#   they do not manage them, so a routine re-import must not wipe a retirement date.
+uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
 
 # Export (custom format with UUIDs; editing + re-importing upserts)
 # --file: output path. Overwrites without confirmation if the file exists.
@@ -281,6 +285,10 @@ uv run python cli.py import case --tenant {uuid} --url https://case.example.com/
 uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --url https://server/ims/case/v1p1/CFPackages/{uuid}
 uv run python cli.py import case --tenant {uuid} --file framework.json
 uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framework.json
+# --allow-status-clear: null の statusStartDate / statusEndDate で既存の日付をクリアする。
+#   既定は無効。OpenCASE や compeito 自身の `export case` は、これらを管理していなくても
+#   null として出力するため、通常の再インポートで廃止日を消してはならない
+uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）

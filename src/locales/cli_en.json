@@ -43,6 +43,7 @@
     "help_csv_file": "CSV file path",
     "help_xlsx_file": "Path to an OpenSALT-format Excel (.xlsx) workbook",
     "help_doc_uuid_update": "Document UUID (for update)",
+    "help_allow_status_clear": "Clear statusStartDate / statusEndDate when the source sends null (default: keep)",
     "help_doc_title": "Document title",
     "help_doc_version": "Document version",
     "help_case_url": "CASE API URL or CFPackage URL",

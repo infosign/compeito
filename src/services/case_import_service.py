@@ -703,6 +703,7 @@ async def import_case_package(
     url: str,
     *,
     doc_identifier: uuid.UUID | None = None,
+    allow_status_clear: bool = False,
 ) -> CaseImportReport:
     """Import an external CASE v1.1 CFPackage into the database.
 
@@ -715,6 +716,8 @@ async def import_case_package(
         tenant_id: Target tenant UUID.
         url: Remote CASE API URL (direct CFPackage or base URL).
         doc_identifier: Optional --doc parameter (existing document UUID).
+        allow_status_clear: When True, an explicit null statusStartDate /
+            statusEndDate clears the stored value instead of preserving it.
 
     Returns:
         CaseImportReport with counts and warnings.
@@ -727,6 +730,7 @@ async def import_case_package(
         doc_identifier=doc_identifier,
         source_url=url,
         fetch_warnings=fetch_warnings,
+        allow_status_clear=allow_status_clear,
     )
 
 
@@ -738,6 +742,7 @@ async def import_case_from_dict(
     doc_identifier: uuid.UUID | None = None,
     source_url: str = "",
     fetch_warnings: list[str] | None = None,
+    allow_status_clear: bool = False,
 ) -> CaseImportReport:
     """Import an already-fetched CASE v1.1 CFPackage dict into the database.
 
@@ -753,6 +758,8 @@ async def import_case_from_dict(
         doc_identifier: Optional existing document UUID to update.
         source_url: Original URL; used only for v1.0 detection/normalization.
         fetch_warnings: Warnings collected during fetching, prepended to the report.
+        allow_status_clear: When True, an explicit null statusStartDate /
+            statusEndDate clears the stored value instead of preserving it.
 
     Returns:
         CaseImportReport with counts and warnings.
@@ -802,7 +809,7 @@ async def import_case_from_dict(
             is_update = True
 
     if is_update:
-        _update_document(tenant_id, doc, cf_doc_data, now, report)
+        _update_document(tenant_id, doc, cf_doc_data, now, report, allow_status_clear)
     else:
         doc = _create_document(tenant_id, cf_doc_data, now, report)
         session.add(doc)
@@ -842,7 +849,7 @@ async def import_case_from_dict(
 
     # Step 5: CFItems
     cf_items = pkg.get("CFItems", []) or []
-    await _import_items(session, tenant_id, doc, cf_items, now, report)
+    await _import_items(session, tenant_id, doc, cf_items, now, report, allow_status_clear)
     await session.flush()
 
     # Step 6: CFAssociations
@@ -876,6 +883,43 @@ async def import_case_from_dict(
 # ---------------------------------------------------------------------------
 # CFDocument create/update
 # ---------------------------------------------------------------------------
+
+
+def _lifecycle_date_update(
+    key: str,
+    data: dict,
+    parsed: date | None,
+    existing: date | None,
+    allow_clear: bool,
+    context: str,
+    warnings: list[str],
+) -> tuple[bool, date | None]:
+    """Decide whether to write a statusStartDate / statusEndDate update.
+
+    These two fields carry the retirement state of a resource (a "tombstone"),
+    so clearing them is destructive in a way the other nullable fields are not.
+    Many exporters — OpenCASE, and compeito's own ``export case`` — emit them as
+    explicit ``null`` even when they do not manage them, so honouring a null
+    unconditionally would silently revive every retired item on a routine
+    re-import. Clearing therefore requires the caller to opt in
+    (``import case --allow-status-clear``).
+
+    Returns ``(should_assign, value)``.
+    """
+    if key not in data:
+        return False, None
+    if parsed is not None:
+        return True, parsed
+    if not allow_clear:
+        if existing is not None:
+            warnings.append(
+                f"{context}: {key} is null/blank in the source; existing value '{existing}' kept "
+                f"(pass --allow-status-clear to clear it)"
+            )
+        return False, None
+    if existing is not None:
+        warnings.append(f"{context}: {key} cleared (was '{existing}')")
+    return True, None
 
 
 def _is_blank_creator(value) -> bool:
@@ -951,6 +995,7 @@ def _update_document(
     data: dict,
     now: datetime,
     report: CaseImportReport,
+    allow_status_clear: bool = False,
 ) -> None:
     warnings = report.warnings
 
@@ -997,24 +1042,16 @@ def _update_document(
     if data.get("adoptionStatus") is not None:
         doc.adoption_status = data["adoptionStatus"]
 
-    # Lifecycle dates are the ONE exception to "null / missing -> preserve":
-    # an explicit `null` clears the value, so a retired item/document can be
-    # revived by a later package. A missing key still preserves (exporters that
-    # do not manage these fields must not wipe them). See docs/spec/import-logic.md.
-    if "statusStartDate" in data:
-        doc.status_start_date = _parse_date_with_warning(
-            data["statusStartDate"],
-            "statusStartDate",
-            "CFDocument",
-            warnings,
+    # Lifecycle dates: a value overwrites as usual, but clearing them (explicit
+    # null / blank) requires allow_status_clear. See _lifecycle_date_update.
+    context = f"CFDocument '{doc.identifier}'"
+    for key, attr in (("statusStartDate", "status_start_date"), ("statusEndDate", "status_end_date")):
+        parsed = _parse_date_with_warning(data.get(key), key, "CFDocument", warnings)
+        assign, value = _lifecycle_date_update(
+            key, data, parsed, getattr(doc, attr), allow_status_clear, context, warnings
         )
-    if "statusEndDate" in data:
-        doc.status_end_date = _parse_date_with_warning(
-            data["statusEndDate"],
-            "statusEndDate",
-            "CFDocument",
-            warnings,
-        )
+        if assign:
+            setattr(doc, attr, value)
 
     if data.get("officialSourceURL") is not None:
         doc.official_source_url = data["officialSourceURL"]
@@ -1127,6 +1164,7 @@ async def _import_items(
     items_data: list[dict],
     now: datetime,
     report: CaseImportReport,
+    allow_status_clear: bool = False,
 ) -> None:
     # Preload lookups + existing items once (removes the per-row FK / existence
     # N+1). A fresh tenant yields empty maps and the fastest insert path.
@@ -1222,12 +1260,17 @@ async def _import_items(
                 existing.subject = item_data["subject"]
             if item_data.get("subjectURI") is not None:
                 existing.subject_uri = item_data["subjectURI"]
-            # Lifecycle dates: explicit `null` clears, missing key preserves
-            # (see the CFDocument update above and docs/spec/import-logic.md).
-            if "statusStartDate" in item_data:
-                existing.status_start_date = ssd
-            if "statusEndDate" in item_data:
-                existing.status_end_date = sed
+            # Lifecycle dates: clearing requires opt-in (see _lifecycle_date_update).
+            item_context = f"CFItem '{existing.identifier}'"
+            for key, attr, parsed in (
+                ("statusStartDate", "status_start_date", ssd),
+                ("statusEndDate", "status_end_date", sed),
+            ):
+                assign, value = _lifecycle_date_update(
+                    key, item_data, parsed, getattr(existing, attr), allow_status_clear, item_context, report.warnings
+                )
+                if assign:
+                    setattr(existing, attr, value)
             if item_type_uri:
                 existing.cf_item_type_id = item_type_id
             if concept_uri:
