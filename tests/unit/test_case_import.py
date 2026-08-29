@@ -2298,6 +2298,17 @@ class TestWhitespacePreservation:
         assert report.items_skipped == 1
         assert any("fullStatement is empty" in w for w in report.warnings)
 
+    async def test_document_title_verbatim_on_update_too(self, db_session: AsyncSession, tenant: Tenant):
+        """The update branch is a separate assignment from the create branch, so
+        it needs its own guard: without this, reverting _update_document alone
+        would keep the suite green."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "stmt", title="Plain"))
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "stmt", title="\u3000Indented "))
+
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
+        assert doc.title == "\u3000Indented "
+
     async def test_document_title_is_stored_verbatim(self, db_session: AsyncSession, tenant: Tenant):
         """Same rule for the document title: the round-trip verification on the
         producer side compares it field by field."""
