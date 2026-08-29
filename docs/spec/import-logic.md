@@ -298,7 +298,7 @@ Same as CSV import: on update, Step 3 acquires `SELECT ... FOR UPDATE` on the ta
 Mapping from the external CFPackage's CFDocument object to DB columns:
 - `identifier` → `identifier` (used only on create; on update keep existing).
 - `uri` → `uri` (FR-7.2: source URI preserved verbatim on **both** create and update via `_resolve_uri()` in `case_import_service.py`. Same rule applies to CFItem / CFAssociation / CFRubric* / lookup resources).
-- `title` → `title`.
+- `title` → `title` (stored verbatim, like `fullStatement`; a whitespace-only title is rejected by structure validation).
 - `creator` → `creator` (required in CASE v1.1 OpenAPI but nullable here. On create, missing / null / blank emits a warning and stores NULL. On update, follow the rule "no external value → keep existing": missing / null retains existing silently; a blank string emits a warning and still retains existing (the existing `creator` is not overwritten with an empty string). `null` / key absent / empty string / whitespace-only are all treated as "missing".).
 - `publisher` → `publisher`.
 - `description` → `description`.
@@ -331,7 +331,7 @@ Map camelCase external CASE fields to snake_case DB columns. The common fields (
 Mapping from the external CFPackage's CFItem object to DB columns:
 - `identifier` → `identifier` (create only; update keeps existing).
 - `uri` → `uri` (FR-7.2: source URI preserved verbatim on **both** create and update — `_resolve_uri()` in `case_import_service.py`. Falls back to `{BASE_URL}/{tenant}/uri/{identifier}` only when the source omits `uri`. The same rule applies to CFDocument / CFAssociation / CFRubric* / lookup resources).
-- `fullStatement` → `full_statement` (stored after trimming surrounding whitespace; empty → skip).
+- `fullStatement` → `full_statement` (**stored verbatim**, surrounding whitespace included; the blank check trims, so a whitespace-only statement still skips the item). CASE does not declare surrounding whitespace meaningless, and in Japanese a leading U+3000 is paragraph indentation rather than padding — the same "do not rewrite the source" rule the importer applies to `identifier` and `uri`. The CSV / xlsx path still trims (see above), for structural reasons rather than taste: the xlsx reader trims every cell in one place (`_get_cell`), and the simple CSV format derives an item's depth from its leading whitespace, so preserving it there is not merely undesirable but impossible.
 - `humanCodingScheme` → `human_coding_scheme`.
 - `abbreviatedStatement` → `abbreviated_statement`.
 - `listEnumeration` → `list_enumeration`.
@@ -883,7 +883,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 外部 CFPackage の CFDocument オブジェクトから DB カラムへのマッピング:
 - `identifier` → `identifier`（新規作成時のみ使用。更新時は既存値を保持）
 - `uri` → `uri`（FR-7.2: source URI を **新規・更新の両方で** verbatim 保持。CFItem 側と同じ `_resolve_uri()` で処理）
-- `title` → `title`
+- `title` → `title`（`fullStatement` と同じく原文のまま保存する。空白のみのタイトルは構造検証で弾かれる）
 - `creator` → `creator`（CASE v1.1 OpenAPI では required だが本システムは nullable で受け入れる。新規作成時に欠落・null・空白文字列のいずれかであれば警告を出力した上で NULL として保存する。更新時はインポート規約「外部 CFPackage に値がない → 既存値を保持」に従い、キー未存在・null は既存値を保持し警告は出さない。空白文字列のみが指定された場合は警告を出した上で既存値を保持する（既存 creator を空文字へ上書きしない）。`null` 値・キー未存在・空文字列・空白のみは「missing」として同一扱い）
 - `publisher` → `publisher`
 - `description` → `description`
@@ -916,7 +916,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 外部 CFPackage の CFItem オブジェクトから DB カラムへのマッピング:
 - `identifier` → `identifier`（新規作成時のみ使用。更新時は既存値を保持）
 - `uri` → `uri`（FR-7.2: source URI を **新規・更新の両方で** verbatim 保持 — `case_import_service.py` の `_resolve_uri()`。source に `uri` が無い場合だけ `{BASE_URL}/{tenant}/uri/{identifier}` にフォールバック。同じルールが CFDocument / CFAssociation / CFRubric* / lookup リソースに適用される）
-- `fullStatement` → `full_statement`（前後空白トリム後に保存。空の場合はスキップ）
+- `fullStatement` → `full_statement`（**原文のまま保存**する。前後の空白も保持する。空判定はトリムして行うので、空白のみの場合は従来どおり項目をスキップする）。CASE は前後の空白が無意味とは規定しておらず、日本語では先頭の U+3000 が段落の字下げにあたる。`identifier` や `uri` と同じく「入力を書き換えない」規則を適用する。CSV / xlsx 経路は従来どおりトリムする。好みの問題ではなく構造的な理由による。xlsx は `_get_cell` が全セルを一律にトリムしており、簡易 CSV 形式は**先頭の空白から depth を算出する**ため、そちらでの原文保持はそもそも成立しない
 - `humanCodingScheme` → `human_coding_scheme`
 - `abbreviatedStatement` → `abbreviated_statement`
 - `listEnumeration` → `list_enumeration`

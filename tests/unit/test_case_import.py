@@ -2232,3 +2232,96 @@ class TestLifecycleDateClearing:
         await db_session.refresh(item)
         assert item.status_end_date == date(2026, 3, 31)
         assert item.status_start_date == date(2020, 4, 1)
+
+
+class TestWhitespacePreservation:
+    """Surrounding whitespace in fullStatement / title survives import (#26).
+
+    CASE does not declare it meaningless, and in Japanese a leading U+3000 is
+    paragraph indentation. The blank check still trims, so a whitespace-only
+    statement is still skipped.
+    """
+
+    @staticmethod
+    def _package(doc_id: uuid.UUID, item_id: uuid.UUID, statement: str, title: str = "Framework") -> dict:
+        return {
+            "CFDocument": {
+                "identifier": str(doc_id),
+                "uri": f"https://example.com/uri/{doc_id}",
+                "title": title,
+                "creator": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [
+                {
+                    "identifier": str(item_id),
+                    "uri": f"https://example.com/uri/{item_id}",
+                    "fullStatement": statement,
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFAssociations": [],
+        }
+
+    async def _import(self, db_session: AsyncSession, tenant: Tenant, data: dict) -> None:
+        await import_case_from_dict(db_session, tenant.id, data)
+        await db_session.flush()
+
+    @pytest.mark.parametrize(
+        "statement",
+        [
+            "\u3000幼児期の教育は，生涯にわたる人格形成の基礎を培う",  # leading ideographic space
+            "trailing space ",
+            "  both  ",
+        ],
+    )
+    async def test_full_statement_is_stored_verbatim(self, db_session: AsyncSession, tenant: Tenant, statement: str):
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        await self._import(db_session, tenant, self._package(doc_id, item_id, statement))
+
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
+        assert item.full_statement == statement
+
+    async def test_verbatim_on_update_too(self, db_session: AsyncSession, tenant: Tenant):
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "plain"))
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "\u3000indented"))
+
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
+        assert item.full_statement == "\u3000indented"
+
+    async def test_whitespace_only_statement_is_still_skipped(self, db_session: AsyncSession, tenant: Tenant):
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        report = await import_case_from_dict(db_session, tenant.id, self._package(doc_id, item_id, "\u3000  "))
+        await db_session.flush()
+
+        assert report.items_skipped == 1
+        assert any("fullStatement is empty" in w for w in report.warnings)
+
+    async def test_document_title_verbatim_on_update_too(self, db_session: AsyncSession, tenant: Tenant):
+        """The update branch is a separate assignment from the create branch, so
+        it needs its own guard: without this, reverting _update_document alone
+        would keep the suite green."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "stmt", title="Plain"))
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "stmt", title="\u3000Indented "))
+
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
+        assert doc.title == "\u3000Indented "
+
+    async def test_document_title_is_stored_verbatim(self, db_session: AsyncSession, tenant: Tenant):
+        """Same rule for the document title: the round-trip verification on the
+        producer side compares it field by field."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        await self._import(db_session, tenant, self._package(doc_id, item_id, "stmt", title="\u3000Framework "))
+
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == doc_id))).scalar_one()
+        assert doc.title == "\u3000Framework "
+
+    async def test_whitespace_only_title_is_rejected(self, db_session: AsyncSession, tenant: Tenant):
+        """Storing the title verbatim does not weaken the blank check: a
+        whitespace-only title still fails structure validation (it would violate
+        the NOT NULL contract on create)."""
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        with pytest.raises(ValueError, match="title is missing or empty"):
+            await import_case_from_dict(db_session, tenant.id, self._package(doc_id, item_id, "stmt", title="   "))

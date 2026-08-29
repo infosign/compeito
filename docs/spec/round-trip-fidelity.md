@@ -50,7 +50,7 @@ flat-file formats predate those fields and have no column for them.
 | Field | JSON | Excel | CSV (Custom) | CSV (OpenSALT) | Notes |
 |-------|:----:|:-----:|:------------:|:--------------:|-------|
 | identifier | ✓ | ✓ | ✓ | ✓ | find-or-create key |
-| title | ✓ | ✓ | ✓ | ✓ | |
+| title | ✓ | ✓ | ✓ | ✓ | JSON keeps surrounding whitespace verbatim; the flat formats trim it |
 | creator | ✓ | ✓ | ✓ | ✓ | |
 | publisher | ✓ | ✓ | ✓ | ✓ | |
 | description | ✓ | ✓ | ✓ | ✓ | |
@@ -76,7 +76,7 @@ flat-file formats predate those fields and have no column for them.
 | Field | JSON | Excel | CSV (Custom) | CSV (OpenSALT) | Notes |
 |-------|:----:|:-----:|:------------:|:--------------:|-------|
 | identifier | ✓ | ✓ | ✓ | ✓ | blank → new UUID |
-| fullStatement | ✓ | ✓ | ✓ | ✓ | |
+| fullStatement | ✓ | ✓ | ✓ | ✓ | JSON keeps surrounding whitespace verbatim; the flat formats trim it (the simple CSV format reads leading whitespace as depth, so it cannot preserve it) |
 | humanCodingScheme | ✓ | ✓ | ✓ | ✓ | |
 | abbreviatedStatement | ✓ | ✓ | ✓ | ✓ | |
 | notes | ✓ | ✓ | ✓ | ✓ | |
