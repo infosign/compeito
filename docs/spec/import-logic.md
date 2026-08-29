@@ -83,7 +83,7 @@ Each row is converted to the internal representation. Errors are collected with 
 - Parse `conceptKeywords` → split on comma into a string array (trim each value; drop empties after trimming). `"分析, 評価"` → `["分析", "評価"]`; `"分析,,評価"` → `["分析", "評価"]`.
 - `parentIdentifier` / `Is Child Of` is non-empty but not a UUID → warning ("Row N: parentIdentifier 'xxx' is not a valid UUID, treated as root"). Treat as root level.
 - `sequenceNumber` → convert to integer. On failure, error (skip the row; warning "Row N: Invalid sequenceNumber 'xxx', skipped"). Values outside the PostgreSQL INTEGER range (-2147483648 .. 2147483647) are treated as conversion failure too.
-- `statusStartDate` → when non-empty, validate `YYYY-MM-DD`. On invalid format or value (e.g., `2025-13-45`), emit a warning ("Row N: Invalid statusStartDate 'xxx', set to null") and treat the field as NULL (don't skip the row).
+- `statusStartDate` → when non-empty, validate `YYYY-MM-DD`. On invalid format or value (e.g., `2025-13-45`), emit a warning ("Row N: Invalid statusStartDate 'xxx', existing value kept") and treat the field as **absent** — on update the stored date is preserved, on create it stays NULL. (Unlike the other fields, a malformed lifecycle date must not wipe a retirement date: the CSV / xlsx path has no explicit clearing mechanism. Same policy as the CASE JSON path.)
 - `statusEndDate` → same rule as `statusStartDate` (warning name uses `statusEndDate`).
 - `license` → same lookup pattern as CFItemType. Step 5 find-or-creates `cf_license` and sets the FK on `cf_item.cf_license_id`. Empty cell → NULL on create, keep existing on update.
 - `language` → when non-empty, validate length ≤ 10. If too long, emit a warning ("Row N: language 'xxx' exceeds 10 characters, set to null") and treat as NULL (don't skip the row; prevents the `VARCHAR(10)` constraint from rolling back the whole transaction).
@@ -91,7 +91,7 @@ Each row is converted to the internal representation. Errors are collected with 
 **Metadata validation:**
 - `#adoption_status` → values outside the standard set (`Draft` / `Private Draft` / `Adopted` / `Deprecated`) emit a warning ("Invalid adoption_status 'xxx', storing as-is") and the value is stored as-is (no error). It is also returned as-is in API responses.
 - `#language` → validate length ≤ 10. Too long → warning ("Metadata #language 'xxx' exceeds 10 characters, set to null"); treat as NULL.
-- `#status_start_date` / `#status_end_date` → when non-empty, validate `YYYY-MM-DD`. Invalid format or value → warning ("Invalid #status_start_date 'xxx', set to null"); treat as NULL.
+- `#status_start_date` / `#status_end_date` → when non-empty, validate `YYYY-MM-DD`. Invalid format or value → warning ("Invalid #status_start_date 'xxx', existing value kept"); treat as **absent** (the stored date is preserved on update, NULL on create) — same lifecycle-date policy as the item columns.
 
 ### Step 5: lookup table auto-creation
 
@@ -669,7 +669,7 @@ OpenSALT形式の場合、Step 3 で CFDocument を特定するために `Is Par
 - `conceptKeywords` のパース → カンマ区切りで文字列配列に変換（各値の前後空白をトリムし、トリム後の空文字列はフィルタする。例: `"分析, 評価"` → `["分析", "評価"]`、`"分析,,評価"` → `["分析", "評価"]`）
 - `parentIdentifier` / `Is Child Of` が非空かつUUID形式でない → 警告（「Row N: parentIdentifier 'xxx' is not a valid UUID, treated as root」）。ドキュメント直下として扱う
 - `sequenceNumber` → 整数に変換。変換失敗時はエラー（行スキップ。警告「Row N: Invalid sequenceNumber 'xxx', skipped」）。値が PostgreSQL INTEGER 範囲（-2147483648 ～ 2147483647）を超える場合も変換失敗として同じ扱い
-- `statusStartDate` → 非空の場合、`YYYY-MM-DD` 形式の有効な日付かを検証する。形式不正または無効な日付（例: `2025-13-45`）の場合は警告を出力し（「Row N: Invalid statusStartDate 'xxx', set to null」）、該当フィールドを NULL として扱う（行スキップではない）
+- `statusStartDate` → 非空の場合、`YYYY-MM-DD` 形式の有効な日付かを検証する。形式不正または無効な日付（例: `2025-13-45`）の場合は警告を出力し（「Row N: Invalid statusStartDate 'xxx', existing value kept」）、該当フィールドを**未指定**として扱う（更新時は既存の日付を保持、新規作成時は NULL。行スキップではない）。他のフィールドと違い、壊れたライフサイクル日付で廃止日を消してはならない（CSV / xlsx 経路にはクリア手段が無い）。CASE JSON 経路と同じ方針
 - `statusEndDate` → `statusStartDate` と同じバリデーションルール（警告メッセージのフィールド名は `statusEndDate`）
 - `license` → CFItemType と同じ lookup パターン。Step 5 で cf_license を find or create し、`cf_item.cf_license_id` に FK を設定する。空セルなら NULL（新規作成時）、または既存値を保持（更新時）
 - `language` → 非空の場合、10文字以下であることを検証する。超過の場合は警告を出力し（「Row N: language 'xxx' exceeds 10 characters, set to null」）、値を NULL として扱う（行スキップではない。DB の `VARCHAR(10)` 制約によるトランザクション全体のロールバックを防止する）
@@ -677,7 +677,7 @@ OpenSALT形式の場合、Step 3 で CFDocument を特定するために `Is Par
 **メタデータのバリデーション:**
 - `#adoption_status` → 有効値（`Draft` / `Private Draft` / `Adopted` / `Deprecated`）以外の場合は警告を出力し（「Invalid adoption_status 'xxx', storing as-is」）、値をそのまま DB に保存する（エラーにしない）。APIレスポンスでもそのまま出力される
 - `#language` → 10文字以下であることを検証する。超過の場合は警告を出力し（「Metadata #language 'xxx' exceeds 10 characters, set to null」）、値を NULL として扱う
-- `#status_start_date` / `#status_end_date` → 非空の場合、`YYYY-MM-DD` 形式の有効な日付かを検証する。形式不正または無効な日付の場合は警告を出力し（「Invalid #status_start_date 'xxx', set to null」）、値を NULL として扱う
+- `#status_start_date` / `#status_end_date` → 非空の場合、`YYYY-MM-DD` 形式の有効な日付かを検証する。形式不正または無効な日付の場合は警告を出力し（「Invalid #status_start_date 'xxx', existing value kept」）、**未指定**として扱う（更新時は既存の日付を保持、新規作成時は NULL）。アイテム列と同じライフサイクル日付の方針
 
 ### ステップ5: lookup系テーブル自動生成
 

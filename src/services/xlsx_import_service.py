@@ -28,7 +28,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from openpyxl import load_workbook
 from sqlalchemy import select
@@ -80,17 +80,40 @@ _ITEM_LANGUAGE = 8
 _ITEM_EDUCATION_LEVEL = 9
 _ITEM_CF_ITEM_TYPE = 10
 # 11: license — managed at the document level
-# 12-13: statusStartDate / statusEndDate — compeito extension to the OpenSALT
-# layout (see xlsx_export_service). Absent in genuine OpenSALT workbooks, in
-# which case _row_values() pads them to "" and the existing values are kept.
-_ITEM_STATUS_START = 12
-_ITEM_STATUS_END = 13
+# 12-13 by default: statusStartDate / statusEndDate — a compeito extension to
+# the OpenSALT layout (see xlsx_export_service). They are located by HEADER NAME,
+# never by position: OpenSALT emits its registered AdditionalFields from column
+# 13 onward in arbitrary order, so a fixed index would read someone else's custom
+# field (e.g. "difficulty") as a date. A workbook without these headers keeps the
+# stored values, like every other absent column in the CSV path.
+_ITEM_EXTENSION_HEADERS = {"statusstartdate": "status_start_date", "statusenddate": "status_end_date"}
+
+
+def _lifecycle_columns(header_row: list[str]) -> dict[str, int]:
+    """Map "status_start_date" / "status_end_date" → column index, by header name."""
+    found: dict[str, int] = {}
+    for idx, name in enumerate(header_row):
+        key = _ITEM_EXTENSION_HEADERS.get(name.strip().lower().replace(" ", ""))
+        if key is not None and key not in found:
+            found[key] = idx
+    return found
 
 
 def _cell(value) -> str:
-    """openpyxl cell value → trimmed string ('' for None)."""
+    """openpyxl cell value → trimmed string ('' for None).
+
+    Date-formatted cells come back as ``datetime`` / ``date`` (openpyxl converts
+    them), and ``str()`` on those yields ``"2021-04-01 00:00:00"``, which the CSV
+    date parser rejects. Normalise them to ``YYYY-MM-DD`` — Excel round-trips
+    turn a plain ``2021-04-01`` string into a date cell, so this is the common
+    case, not an edge case.
+    """
     if value is None:
         return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
     return str(value).strip()
 
 
@@ -114,7 +137,11 @@ def _smartlevel_seq(sl: str) -> str:
     return last if last.isdigit() else ""
 
 
-def _build_custom_csv(doc_row: list[str], item_rows: list[list[str]]) -> bytes:
+def _build_custom_csv(
+    doc_row: list[str],
+    item_rows: list[list[str]],
+    lifecycle_cols: dict[str, int] | None = None,
+) -> bytes:
     """Convert CF Doc + CF Item sheet rows to compeito custom-format CSV bytes."""
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
@@ -129,6 +156,12 @@ def _build_custom_csv(doc_row: list[str], item_rows: list[list[str]]) -> bytes:
         writer.writerow(["#subject"] + [s.strip() for s in subject.split("|") if s.strip()])
 
     # --- ensure every item has an identifier, then map smartLevel → identifier ---
+    lifecycle_cols = lifecycle_cols or {}
+
+    def lifecycle(r: list[str], key: str) -> str:
+        col = lifecycle_cols.get(key)
+        return r[col] if col is not None and col < len(r) else ""
+
     smart_to_ident: dict[str, str] = {}
     for r in item_rows:
         if not r[_ITEM_IDENTIFIER] or not _is_valid_uuid(r[_ITEM_IDENTIFIER]):
@@ -158,8 +191,8 @@ def _build_custom_csv(doc_row: list[str], item_rows: list[list[str]]) -> bytes:
                 r[_ITEM_LANGUAGE],  # language
                 r[_ITEM_LIST_ENUM],  # listEnumeration
                 "",  # license (document-level)
-                r[_ITEM_STATUS_START],  # statusStartDate (compeito extension)
-                r[_ITEM_STATUS_END],  # statusEndDate
+                lifecycle(r, "status_start_date"),  # compeito extension column
+                lifecycle(r, "status_end_date"),
             ]
         )
 
@@ -291,7 +324,11 @@ async def import_xlsx(
         raise ValueError("'CF Doc' sheet has no data row")
     doc_row = doc_rows[1]  # row 1 is the header
 
-    item_rows_all = _row_values(wb["CF Item"], 14)
+    item_rows_all = _row_values(wb["CF Item"], 12)
+    if not item_rows_all:
+        raise ValueError("'CF Item' sheet is empty")
+    # The compeito extension columns are found by header name, not position.
+    lifecycle_cols = _lifecycle_columns(item_rows_all[0])
     # Drop header row; keep rows that have a fullStatement.
     item_rows = [r for r in item_rows_all[1:] if r[_ITEM_FULL_STATEMENT]]
 
@@ -303,7 +340,7 @@ async def import_xlsx(
     wb.close()
 
     # --- items + hierarchy + doc via the custom-CSV import path ---
-    csv_bytes = _build_custom_csv(doc_row, item_rows)
+    csv_bytes = _build_custom_csv(doc_row, item_rows, lifecycle_cols)
     report = await import_csv(session, tenant_id, csv_bytes, doc_identifier=doc_identifier, profile="custom")
     await session.flush()
 
