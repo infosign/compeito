@@ -302,6 +302,22 @@ class TestXlsxLifecycleColumns:
         assert child.status_end_date == date(2022, 3, 14)
         assert not any("Invalid status" in w for w in report.warnings)
 
+    async def test_duplicate_header_warns_and_uses_the_leftmost(self, db_session: AsyncSession):
+        """Two statusEndDate columns are ambiguous — warn instead of guessing."""
+
+        def duplicate(ws):
+            ws.cell(1, 15).value = "statusEndDate"
+            for row in range(2, ws.max_row + 1):
+                ws.cell(row, 15).value = "2099-12-31"
+
+        data = await self._export_with_item_sheet(db_session, duplicate)
+        report = await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+
+        child = await self._child(db_session)
+        assert child.status_end_date == date(2022, 3, 14)  # leftmost column
+        assert any("duplicate" in w for w in report.warnings)
+
     async def test_invalid_value_keeps_the_stored_date(self, db_session: AsyncSession):
         """A malformed cell warns; it must not wipe the retirement date.
 
@@ -321,6 +337,60 @@ class TestXlsxLifecycleColumns:
         child = await self._child(db_session)
         assert child.status_end_date == date(2022, 3, 14)
         assert any("Invalid statusEndDate" in w and "kept" in w for w in report.warnings)
+
+
+class TestXlsxDocumentLifecycleDates:
+    """CF Doc sheet lifecycle dates (the #status_* metadata rows)."""
+
+    async def _doc(self, db_session: AsyncSession):
+        from src.models.cf_document import CFDocument
+
+        return (
+            await db_session.execute(
+                select(CFDocument).where(CFDocument.identifier == uuid.UUID("dddddddd-0000-0000-0000-000000000001"))
+            )
+        ).scalar_one()
+
+    async def test_invalid_doc_date_keeps_stored_value(self, db_session: AsyncSession):
+        """The #identifier branch must not wipe the document's retirement date.
+
+        A plain `import xlsx` (no --doc) resolves the document from the CF Doc
+        sheet's identifier, which is a different code path from --doc.
+        """
+        src_doc = await _seed_source(db_session)
+        doc = await self._doc(db_session)
+        doc.status_end_date = date(2026, 3, 31)
+        await db_session.flush()
+
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+        wb = load_workbook(io.BytesIO(data))
+        wb["CF Doc"].cell(2, 13).value = "n/a"  # statusEndDate (CF Doc col M)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        report = await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+        await db_session.refresh(doc)
+        assert doc.status_end_date == date(2026, 3, 31)
+        assert any("#status_end_date" in w for w in report.warnings)
+
+    async def test_invalid_doc_date_keeps_stored_value_with_doc_flag(self, db_session: AsyncSession):
+        """Same rule on the --doc branch."""
+        src_doc = await _seed_source(db_session)
+        doc = await self._doc(db_session)
+        doc.status_end_date = date(2026, 3, 31)
+        await db_session.flush()
+
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+        wb = load_workbook(io.BytesIO(data))
+        wb["CF Doc"].cell(2, 13).value = "n/a"
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        await import_xlsx(db_session, TENANT_ID, buf.getvalue(), doc_identifier=src_doc)
+        await db_session.flush()
+        await db_session.refresh(doc)
+        assert doc.status_end_date == date(2026, 3, 31)
 
 
 class TestXlsxAssociationGrouping:

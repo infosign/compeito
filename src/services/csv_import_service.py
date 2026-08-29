@@ -434,7 +434,9 @@ def _parse_custom_rows(
         if ssd_raw:
             ssd = _parse_date(ssd_raw)
             if ssd is None:
-                warnings.append(f"Row {row_num}: Invalid statusStartDate '{ssd_raw}', existing value kept")
+                warnings.append(
+                    f"Row {row_num}: Invalid statusStartDate '{ssd_raw}', ignored; existing value kept on update"
+                )
             else:
                 present.add("status_start_date")
 
@@ -443,7 +445,9 @@ def _parse_custom_rows(
         if sed_raw:
             sed = _parse_date(sed_raw)
             if sed is None:
-                warnings.append(f"Row {row_num}: Invalid statusEndDate '{sed_raw}', existing value kept")
+                warnings.append(
+                    f"Row {row_num}: Invalid statusEndDate '{sed_raw}', ignored; existing value kept on update"
+                )
             else:
                 present.add("status_end_date")
 
@@ -1361,14 +1365,16 @@ async def import_csv(
     if meta_ssd_raw:
         meta_ssd = _parse_date(meta_ssd_raw)
         if meta_ssd is None:
-            report.warnings.append(f"Invalid #status_start_date '{meta_ssd_raw}', existing value kept")
+            report.warnings.append(
+                f"Invalid #status_start_date '{meta_ssd_raw}', ignored; existing value kept on update"
+            )
 
     meta_sed_raw = metadata.get("status_end_date", "")
     meta_sed: date | None = None
     if meta_sed_raw:
         meta_sed = _parse_date(meta_sed_raw)
         if meta_sed is None:
-            report.warnings.append(f"Invalid #status_end_date '{meta_sed_raw}', existing value kept")
+            report.warnings.append(f"Invalid #status_end_date '{meta_sed_raw}', ignored; existing value kept on update")
 
     meta_adoption = metadata.get("adoption_status")
     if meta_adoption:
@@ -1540,9 +1546,11 @@ async def import_csv(
                 doc.adoption_status = meta_adoption
             if metadata.get("official_source_url"):
                 doc.official_source_url = metadata["official_source_url"]
-            if meta_ssd_raw:
+            # Lifecycle dates: an unparsable value is "absent", not a clear
+            # request (same rule as the --doc branch and the item columns).
+            if meta_ssd is not None:
                 doc.status_start_date = meta_ssd
-            if meta_sed_raw:
+            if meta_sed is not None:
                 doc.status_end_date = meta_sed
             doc.last_change_date_time = now
         else:

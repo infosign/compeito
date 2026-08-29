@@ -89,13 +89,25 @@ _ITEM_CF_ITEM_TYPE = 10
 _ITEM_EXTENSION_HEADERS = {"statusstartdate": "status_start_date", "statusenddate": "status_end_date"}
 
 
-def _lifecycle_columns(header_row: list[str]) -> dict[str, int]:
-    """Map "status_start_date" / "status_end_date" → column index, by header name."""
+def _lifecycle_columns(header_row: list[str], warnings: list[str] | None = None) -> dict[str, int]:
+    """Map "status_start_date" / "status_end_date" → column index, by header name.
+
+    A duplicated header is ambiguous — the leftmost column wins and the caller is
+    told, rather than silently picking one of two conflicting values.
+    """
     found: dict[str, int] = {}
     for idx, name in enumerate(header_row):
         key = _ITEM_EXTENSION_HEADERS.get(name.strip().lower().replace(" ", ""))
-        if key is not None and key not in found:
-            found[key] = idx
+        if key is None:
+            continue
+        if key in found:
+            if warnings is not None:
+                warnings.append(
+                    f"CF Item sheet: duplicate '{name.strip()}' column (col {idx + 1}); "
+                    f"using the leftmost one (col {found[key] + 1})"
+                )
+            continue
+        found[key] = idx
     return found
 
 
@@ -328,7 +340,8 @@ async def import_xlsx(
     if not item_rows_all:
         raise ValueError("'CF Item' sheet is empty")
     # The compeito extension columns are found by header name, not position.
-    lifecycle_cols = _lifecycle_columns(item_rows_all[0])
+    header_warnings: list[str] = []
+    lifecycle_cols = _lifecycle_columns(item_rows_all[0], header_warnings)
     # Drop header row; keep rows that have a fullStatement.
     item_rows = [r for r in item_rows_all[1:] if r[_ITEM_FULL_STATEMENT]]
 
@@ -342,6 +355,7 @@ async def import_xlsx(
     # --- items + hierarchy + doc via the custom-CSV import path ---
     csv_bytes = _build_custom_csv(doc_row, item_rows, lifecycle_cols)
     report = await import_csv(session, tenant_id, csv_bytes, doc_identifier=doc_identifier, profile="custom")
+    report.warnings[:0] = header_warnings
     await session.flush()
 
     # --- non-isChildOf associations ---
