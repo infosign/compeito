@@ -23,6 +23,8 @@ compeito は当初 OpenSALT (CASE v1.0) との双方向互換を思想として�
 | backlog | 差異 | 現状の実害 |
 |---|---|---|
 | C16 | optional フィールドの `null` emit（`exclude_none` 未使用） | 公式スキーマは nullable を定義しないため**型違反**。現状最大の schema-invalid 源（2026-07 外部レビュー N1）。`?strict=1` でも残る |
+
+> **C16 を実装するときの注意（利用側との契約）**: 生成側のラウンドトリップ比較は「キー欠落と `null` は同義」という前提で作られている。`exclude_none=True` はその前提を満たす方向の変更なので比較は壊れない。壊れるのは逆で、**`null` に「値が無い」以上の意味を持つフィールドを増やしたとき**である（現状は `statusStartDate` / `statusEndDate` の2つだけ。[import-logic.md](../../spec/import-logic.md) の「例外：ライフサイクル日付」）。3つ目を作る場合は、出荷前に利用側へ周知する。
 | C1 | 単一リソース取得の wrapper `{"CFDocument": {...}}`（OpenSALT 流） | 公式は flat DType をルートに返す契約 |
 | C2 | パッケージ内 `CFPackageURI` / `CFDocumentURI` echo | 公式 `CFPckg*DType` は `additionalProperties:false` で非許容。既存 `?strict=1` は CFPackages のみ・この除去のみ |
 | C8/N6 出力側 | `caseVersion` を保持値のまま emit（`1.0` 等） | v1.1 サーバーとして `"1.1"` を宣言すべき局面で保持値が出る |
