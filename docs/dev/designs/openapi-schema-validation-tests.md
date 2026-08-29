@@ -223,7 +223,7 @@ async def test_strict_response_conforms_full(db_client, full_seed, case):
     assert_conformant(resp.json(), case.schema)
 ```
 
-- **リクエストは全エンドポイントで `?strict=1` を付ける**（2026-08 以降は全ルートで有効。実装後に
+- **リクエストは全エンドポイントで `?strict=1` を付ける**（2026-08 以降は全ルートで有効なので、
   そのまま strict 応答の検証になる。strict-output 側がクエリ名/値を変える場合はここを追随）。
 - アサートは「HTTP 200」+「ボディがスキーマ valid」のみ。**値の正しさは既存テストの責務**であり重複させない。
 - `pytest.ini_options` に marker 登録を追加（`-m conformance` で単独実行できるように）:
@@ -280,7 +280,7 @@ markers = ["conformance: official CASE v1.1 OpenAPI schema validation tests"]
 | CFSubjects/{id} | CFSubjectSetDType | C16 | 同上 |
 | CFItemTypes/{id} | CFItemTypeSetDType | C16 | 同上 |
 | CFLicenses/{id} | CFLicenseDType | C1, C16 | wrapper + null |
-| CFPackages/{id} | CFPackageDType | （C3 のみ） | `?strict=1` で C2 の URI 除去と C16 の null 除去はいずれも解消済み。残るのはデータ起因の required 欠落（C3） |
+| CFPackages/{id} | CFPackageDType | C16 | `?strict=1` で C2 は除去済み。null のみ残る |
 | CFRubrics/{id} | CFRubricDType | C1, C16 | wrapper + null |
 
 `minimal` シード側（上表の gaps に加えて、該当エンドポイントに **C3** を追加。

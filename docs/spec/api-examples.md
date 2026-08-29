@@ -1,6 +1,6 @@
 # API Request / Response Examples
 
-Every response uses the CASE v1.1 DType name as the root key (no custom wrappers such as `{"data": ...}`).
+Every response on this page is **compat** output (the default); every one uses the CASE v1.1 DType name as the root key (no custom wrappers such as `{"data": ...}`).
 The tenant UUID `550e8400-e29b-41d4-a716-446655440000` is used as an example throughout.
 
 ## CFDocuments
@@ -832,7 +832,7 @@ An empty array is returned (this is not an error).
 
 # APIリクエスト/レスポンス例（日本語）
 
-全レスポンスは CASE v1.1 の DType 名をルートキーとして配置する（`{"data": ...}` 等のカスタムラッパーは追加しない）。
+本ページの全レスポンスは **compat** 出力（既定）である。CASE v1.1 の DType 名をルートキーとして配置する（`{"data": ...}` 等のカスタムラッパーは追加しない）。
 テナントUUID `550e8400-e29b-41d4-a716-446655440000` を例として使用。
 
 ## CFDocuments
