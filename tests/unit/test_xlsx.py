@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import uuid
+from datetime import date
 
 import pytest
 from openpyxl import load_workbook
@@ -37,7 +38,7 @@ SOURCE_CSV = (
     "#subject,情報科学,データ\n"
     "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,language,listEnumeration,license,statusStartDate,statusEndDate\n"  # noqa: E501
     "10000000-0000-0000-0000-000000000001,Root A,A,,10,領域,13,,Root A short,,,,,\n"
-    '10000000-0000-0000-0000-000000000002,Child A1,A-1,10000000-0000-0000-0000-000000000001,10,知識,"13,14","kw1,kw2",Child A1 short,,,,,\n'  # noqa: E501
+    '10000000-0000-0000-0000-000000000002,Child A1,A-1,10000000-0000-0000-0000-000000000001,10,知識,"13,14","kw1,kw2",Child A1 short,,,,2021-04-01,2022-03-14\n'  # noqa: E501
     "10000000-0000-0000-0000-000000000003,Root B,B,,20,領域,14,,Root B short,,,,,\n"
 )
 
@@ -96,6 +97,11 @@ class TestXlsxExport:
         assert by_stmt["Root B"][3] == "2"
         assert by_stmt["Child A1"][10] == "知識"  # CFItemType col K
         assert by_stmt["Child A1"][9] == "13,14"  # educationLevel col J
+        # Lifecycle dates (compeito extension, cols M-N): without them the
+        # retirement state is lost on an export -> re-import round trip.
+        assert by_stmt["Child A1"][12] == "2021-04-01"
+        assert by_stmt["Child A1"][13] == "2022-03-14"
+        assert not by_stmt["Root A"][13]  # openpyxl reads an empty cell as None
 
         # CF Association: the isRelatedTo (isChildOf NOT repeated here)
         assoc_ws = wb["CF Association"]
@@ -139,6 +145,10 @@ class TestXlsxRoundTrip:
         child = by_stmt["Child A1"]
         assert child.item_type is not None and child.item_type.title == "知識"
         assert child.education_level == ["13", "14"]
+        # Retirement state survives the round-trip (B8-2): without cols M-N the
+        # tombstone would come back as a live item.
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
 
         # isChildOf rebuilt from smartLevel: Child A1 → Root A.
         ischild = list(
@@ -168,6 +178,35 @@ class TestXlsxRoundTrip:
             ).scalars()
         )
         assert len(related) == 1
+
+
+class TestXlsxOpenSaltCompatibility:
+    async def test_workbook_without_lifecycle_columns_preserves_dates(self, db_session: AsyncSession):
+        """A genuine OpenSALT workbook stops at col L and must not wipe the dates.
+
+        Missing columns are padded to "" by the reader, which the CSV path
+        treats as "no value → preserve".
+        """
+        src_doc = await _seed_source(db_session)
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+
+        # Truncate the CF Item sheet back to the 12-column OpenSALT layout.
+        wb = load_workbook(io.BytesIO(data))
+        ws = wb["CF Item"]
+        ws.delete_cols(13, 2)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+
+        child = (
+            await db_session.execute(
+                select(CFItem).where(CFItem.identifier == uuid.UUID("10000000-0000-0000-0000-000000000002"))
+            )
+        ).scalar_one()
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
 
 
 class TestXlsxAssociationGrouping:

@@ -13,11 +13,19 @@ Column layouts mirror OpenSALT's ``ExcelExport.php`` / ``ExcelImport.php``:
   statusStartDate, statusEndDate, licenseTitle, licenseText, notes
 - **CF Item** (A-L): identifier, fullStatement, humanCodingScheme, smartLevel,
   listEnumeration, abbreviatedStatement, conceptKeywords, notes, language,
-  educationLevel, CFItemType, license
+  educationLevel, CFItemType, license, **statusStartDate, statusEndDate** (M-N)
 - **CF Association** (A-J): identifier, originNodeURI, originNodeIdentifier,
   originNodeHumanCodingScheme, associationType, destinationNodeURI,
   destinationNodeIdentifier, destinationNodeHumanCodingScheme,
   associationGroupIdentifier, associationGroupName
+
+``statusStartDate`` / ``statusEndDate`` (CF Item cols M-N) are a **compeito
+extension** to the OpenSALT layout: without them, an item's retirement state
+(see the tombstone policy in docs/dev/backlog.md, B8) is lost on an
+xlsx export → re-import round trip, silently turning a retired item back into a
+live one. OpenSALT reads columns from the 13th onward as AdditionalField (custom
+fields), so a compeito-exported workbook still imports there — the two dates
+simply surface as custom fields rather than as native lifecycle metadata.
 
 ``notes`` (CFItem col H / CF Doc col P) is now populated from the CASE v1.1
 ``notes`` field. ``alternativeLabel`` / ``extensions`` have no column in the
@@ -73,6 +81,8 @@ CF_ITEM_HEADER = [
     "educationLevel",
     "CFItemType",
     "license",
+    "statusStartDate",
+    "statusEndDate",
 ]
 
 CF_ASSOCIATION_HEADER = [
@@ -191,6 +201,8 @@ async def export_xlsx(
                 _jsonb_list_to_csv(item.education_level),
                 item.item_type.title if item.item_type else "",
                 "",  # license — managed at the document level
+                str(item.status_start_date) if item.status_start_date else "",
+                str(item.status_end_date) if item.status_end_date else "",
             ]
         )
 

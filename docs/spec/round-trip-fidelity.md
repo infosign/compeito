@@ -86,8 +86,8 @@ flat-file formats predate those fields and have no column for them.
 | CFItemType (label) | ✓ | ✓ | ✓ | ✓ | find-or-create by title |
 | listEnumeration | ✓ | ✓ | ✓ | ✗ | no column in OpenSALT item sheet |
 | alternativeLabel | ✓ | ✗ | ✓ | ✗ | Excel forces `""`; not in OpenSALT |
-| statusStartDate | ✓ | ✗ | ✓ | ✗ | not in OpenSALT item sheet |
-| statusEndDate | ✓ | ✗ | ✓ | ✗ | not in OpenSALT item sheet |
+| statusStartDate | ✓ | ✓ | ✓ | ✗ | Excel: compeito extension (col M); not in OpenSALT item sheet |
+| statusEndDate | ✓ | ✓ | ✓ | ✗ | Excel: compeito extension (col N); not in OpenSALT item sheet |
 | licenseURI | ✓ | ✗ | △ | ✗ | Custom CSV: `title` only; Excel column unused; OpenSALT ignores it |
 | subject | ✓ | ✗ | ✗ | ✗ | v1.1 (item-level) |
 | subjectURI | ✓ | ✗ | ✗ | ✗ | v1.1 (item-level) |

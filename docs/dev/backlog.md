@@ -34,7 +34,7 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 | # | 項目 | 状態 |
 |---|------|:--:|
 | B8-1 | `statusStartDate` / `statusEndDate` のクリア手段。既定では null / 欠落とも既存値を保持し、`import case --allow-status-clear` のときだけクリアする（OpenCASE や compeito 自身のエクスポートは null を出力するため、既定でクリアすると再インポートで墓標が消える） | 実装中 |
-| B8-2 | xlsx エクスポートの CFItem 行に `statusStartDate` / `statusEndDate` 列を追加。現状 CFDocument 側にしか列が無く、xlsx 往復で墓標が「生きた項目」に戻る | 未着手 |
+| B8-2 | xlsx エクスポートの CFItem 行に `statusStartDate` / `statusEndDate` 列を追加。現状 CFDocument 側にしか列が無く、xlsx 往復で墓標が「生きた項目」に戻る | 実装中 |
 | B8-3 | CFItem の廃止表示。詳細ページの廃止バナー（`statusEndDate` を明示）と `replacedBy` の後継リンク（1 ホップ）、ツリー上の区別 | 未着手 |
 | B8-4 | ツリーの非表示規則。サブツリー全体が廃止のときのみ既定非表示とし、生きた子孫がいる場合は区別表示で残す（単純フィルタでは生きた子孫まで消える） | 未着手 |
 

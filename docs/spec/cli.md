@@ -69,6 +69,8 @@ uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile o
 # OpenSALT Excel (.xlsx) import — the full-fidelity OpenSALT interchange format
 # (3 sheets: CF Doc / CF Item / CF Association). Hierarchy is carried by
 # smartLevel; CFItemType / educationLevel are preserved (unlike OpenSALT's CSV).
+# The CF Item sheet carries two compeito extension columns (M-N): statusStartDate /
+# statusEndDate, so an item's retirement state survives an export -> re-import.
 # Verified against a running OpenSALT (round-trips items, hierarchy, item types).
 uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
 uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framework.xlsx
@@ -273,7 +275,9 @@ uv run python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framewor
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile opensalt
 
 # OpenSALT Excel (.xlsx) インポート — OpenSALT の完全交換形式（CF Doc / CF Item /
-# CF Association の 3 シート）。階層は smartLevel で表現され、CFItemType /
+# CF Association の 3 シート）。CF Item シートには compeito 拡張の M-N 列
+# （statusStartDate / statusEndDate）があり、廃止状態が往復で失われない。
+# 階層は smartLevel で表現され、CFItemType /
 # educationLevel も保持される（OpenSALT の CSV では落ちる項目）。
 # 稼働中の OpenSALT で動作確認済（アイテム・階層・item type が往復する）。
 uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx

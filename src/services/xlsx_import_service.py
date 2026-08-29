@@ -14,7 +14,11 @@ non-isChildOf associations are then imported in a dedicated second pass
 (isChildOf is already materialised from smartLevel, so it is skipped here).
 
 ``notes`` (CF Item col H / CF Doc col P) is imported into the CASE v1.1
-``notes`` field. ``alternativeLabel`` / ``extensions`` have no column in the
+``notes`` field. CF Item cols M-N (``statusStartDate`` / ``statusEndDate``) are
+a compeito extension; genuine OpenSALT workbooks lack them, and an empty cell
+preserves the stored value as everywhere else in the CSV path.
+
+``alternativeLabel`` / ``extensions`` have no column in the
 OpenSALT Excel layout, so they are not read here (they round-trip via CASE JSON
 instead).
 """
@@ -76,6 +80,11 @@ _ITEM_LANGUAGE = 8
 _ITEM_EDUCATION_LEVEL = 9
 _ITEM_CF_ITEM_TYPE = 10
 # 11: license — managed at the document level
+# 12-13: statusStartDate / statusEndDate — compeito extension to the OpenSALT
+# layout (see xlsx_export_service). Absent in genuine OpenSALT workbooks, in
+# which case _row_values() pads them to "" and the existing values are kept.
+_ITEM_STATUS_START = 12
+_ITEM_STATUS_END = 13
 
 
 def _cell(value) -> str:
@@ -149,8 +158,8 @@ def _build_custom_csv(doc_row: list[str], item_rows: list[list[str]]) -> bytes:
                 r[_ITEM_LANGUAGE],  # language
                 r[_ITEM_LIST_ENUM],  # listEnumeration
                 "",  # license (document-level)
-                "",  # statusStartDate (item-level; not in OpenSALT item sheet)
-                "",  # statusEndDate
+                r[_ITEM_STATUS_START],  # statusStartDate (compeito extension)
+                r[_ITEM_STATUS_END],  # statusEndDate
             ]
         )
 
@@ -282,7 +291,7 @@ async def import_xlsx(
         raise ValueError("'CF Doc' sheet has no data row")
     doc_row = doc_rows[1]  # row 1 is the header
 
-    item_rows_all = _row_values(wb["CF Item"], 12)
+    item_rows_all = _row_values(wb["CF Item"], 14)
     # Drop header row; keep rows that have a fullStatement.
     item_rows = [r for r in item_rows_all[1:] if r[_ITEM_FULL_STATEMENT]]
 
