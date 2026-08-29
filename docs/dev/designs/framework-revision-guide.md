@@ -2,6 +2,7 @@
 
 > **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
 > Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
+> 2026-08: バックログ B8-6（日付の意味の書き分け・墓標の保持方針）を本設計に畳み込んだ。ガイド執筆時に §6 の該当箇所を書くこと。
 > 成果物は**コードではなく運用ガイド文書** `docs/guide/framework-revision.md`（EN/JP 併記）。
 > 本仕様書は「そのガイドに何をどう書くか」の設計であり、実装変更は一切伴わない（実装ゼロ・ドキュメントのみ）。
 > 執筆担当はこの仕様書だけを頼りにガイドを書き上げられることを目標とする。
@@ -175,7 +176,20 @@ uv run python cli.py doc update --tenant {tenant_id} --doc {old_doc_id} --displa
 - **ルーブリックの改訂**: `export case` の出力には `CFRubrics`（criteria / levels 含む）が入り、UUID 差し替えスクリプトが rubric 系の identifier も新規採番するので、**ルーブリックは新版で自動的に複製される**。criteria の `CFItemURI` は item UUID の置換に追従する（全文置換方式のため）。旧版のルーブリックは旧版と共に凍結される。ルーブリック基準の実質的変更も「新版を起こす」判断基準に含める（§2 の表参照）。
 - **多版並存時の表示**: テナントのフレームワーク一覧には全版が並ぶ（一覧に adoptionStatus バッジは出ない。バッジが出るのはツリーページと詳細）。`doc update --display-order` で現行版を上に。版が増えてきたら、Deprecated の古い版を一覧の下方に送る運用を書く。タイトルに年度を含める規約（例: 「◯◯コンピテンシー標準（2026年度版）」）を推奨。
 - **年度サイクルとの対応**: 日本の教育機関を想定した対応例を書く — `statusStartDate=2026-04-01`（新年度開始）/ 旧版 `statusEndDate=2026-03-31`。改訂作業は前年度中に `Draft` で新版を作り、年度切替時に `Adopted` へ更新（これもメタデータ行のみ CSV で 1 コマンド）。「Draft の間も新版はテナント上に公開される（compeito はアクセス制御に adoptionStatus を使わない）」ことを注記し、非公開で準備したい場合は private テナントで作って本番テナントへ `export case` → `import case` する手を紹介。
-- **後継の無い項目（廃止）**: replacedBy を張らず、（任意で）item 単位の `statusEndDate`（CFItem にも列がある。custom CSV に `statusStartDate` / `statusEndDate` 列あり）を設定できることに触れる。
+- **後継の無い項目（廃止）**: replacedBy を張らず、item 単位の `statusEndDate` を設定する（CFItem にも列がある。custom CSV / xlsx に `statusStartDate` / `statusEndDate` 列あり）。**日付の意味は CFDocument と CFItem で異なるので、必ず書き分ける**（下記「日付の意味」）。
+- **日付の意味（書き分け）**: この2つを混同すると1日ぶんずれ、UI の表示にも影響する。
+
+  | | 意味 | 例 |
+  |---|---|---|
+  | `CFDocument.statusEndDate` | **有効期間の最終日**。その日までは有効 | 年度末の `2026-03-31` |
+  | `CFItem.statusEndDate` | **廃止が確定した日**。その日から無効 | 改版が公表された `2022-03-14` |
+
+  compeito の Web UI は CFItem について「`statusEndDate <= 今日` なら廃止」と判定し、既定でツリーから隠す（判定日は UTC）。未来日は「廃止予定」として生きた項目のまま表示するので、年度末日を前もって設定する運用と衝突しない。詳細は [retired-item-ui.md](./retired-item-ui.md)。
+- **廃止項目（墓標）の保持**: 廃止した項目は**削除しない**。CASE には削除操作が無く、compeito のインポートも additive only である。発行済み OB v3 バッジの alignment 先を壊さないためでもある。ガイドには次を書く。
+  - 廃止項目はテナントに残り続ける。UI では既定で隠れ、`?includeRetired=1` で表示できる（生きた子孫を持つ廃止項目は経路を保つため隠れず、バッジ付きで残る）
+  - permalink（`/{tenant}/uri/{uuid}`）は廃止後も解決し、廃止バナーと後継リンクを表示する
+  - 誤って廃止にした項目を戻すには、`statusEndDate` を明示的な `null` にした CASE パッケージを `import case --allow-status-clear` で取り込む。**CSV / xlsx では戻せない**（空セルは「未指定」の意味で、クリアを表現できない）
+  - 外部の生成側と連携する場合、墓標と取り消しは**毎版すべて含める**前提で設計する（取り込む側が全ての版を順に適用するとは限らない）
 - **1 項目が複数に分割された場合**: replacedBy は複数張れる（CSV では `|` 区切り、JSON では association を複数個）。統合（多→1）も同様に各旧項目から同じ新項目へ。
 - **テナントをまたぐ参照**: destinationNodeURI に他テナント/外部の完全 URI も書ける（CSV では完全 URI セル、検証無しで verbatim 格納）が、本プロトコルは同一テナント内の新旧 2 ドキュメントを想定、と範囲を明示。
 
@@ -215,7 +229,7 @@ uv run python cli.py doc update --tenant {tenant_id} --doc {old_doc_id} --displa
 6. **document-level rebuild**: ヘッダーに列が存在する association タイプはドキュメント全体で削除→再生成。列が無いタイプは温存（import-logic.md Step 7.5）。
 7. **adoptionStatus / statusStartDate / statusEndDate**:
    - CFDocument スキーマ・DB・API filter（`case_query_params.py` の filter フィールドに 3 つとも登録済み）でサポート。
-   - CASE import: `_create_document` は 3 フィールドとも取り込み。**更新時は非 null のみ上書き**（case_import_service.py:997 付近）→ import で null に戻すことはできない。
+   - CASE import: `_create_document` は 3 フィールドとも取り込み。更新時は原則として**非 null のみ上書き**だが、`statusStartDate` / `statusEndDate` は例外で、`import case --allow-status-clear` を付けた場合に限り明示的な `null` でクリアできる（既定は保持。import-logic.md「例外：ライフサイクル日付」）。`adoptionStatus` にクリア手段は無い。
    - CSV メタデータ行: `#adoption_status` / `#status_start_date` / `#status_end_date`（スネークケース。日付は `YYYY-MM-DD`。csv-format.md）。
    - **メタデータ行のみ（データ行 0 件）の CSV は items/associations を温存**して CFDocument メタデータだけ更新（csv-format.md「Empty files / no data rows」、import-logic.md:178）。→ Step 6 の根拠。
    - CFItem にも `statusStartDate` / `statusEndDate` があり custom CSV に列がある（CFItem に adoptionStatus は無い — CASE v1.1 仕様どおり）。
