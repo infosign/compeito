@@ -194,6 +194,39 @@ async def search_fragment(
 - `?item=` と `?q=` が同時に付いた場合は両方独立に処理する（ペインは item、結果ブロックは q）。
 - ページ自体の Cache-Control は既存どおり `public, max-age=3600`（変更なし）。
 
+## 廃止項目の扱い（B8-5）
+
+検索結果からは、**廃止された CFItem を既定で除外する**。`?includeRetired=1` を付けたときだけ含め、そのときは結果行に廃止バッジを出す（ツリーと同じ見え方。[retired-item-ui.md](./retired-item-ui.md)）。
+
+### ツリーの `hidden_identifiers` を流用しない
+
+ツリーは「廃止済みでも、生きた子孫を持つなら残す」規則を採っている。生きた項目への経路が切れるからである。
+
+**検索結果に経路は無い。** 平坦な一覧なので、廃止項目を残す理由がそのまま消える。したがって判定は `retirement.is_retired(item, today)` を直接使い、`hidden_identifiers()` は使わない。流用すると「生きた子孫を持つ廃止項目」が検索結果に出続け、除外した意味が薄くなる。
+
+### SQL で絞る（後段フィルタにしない）
+
+条件は `_list_items_where` の `conditions` に足す。
+
+```python
+if not include_retired:
+    conditions.append(
+        or_(CFItem.status_end_date.is_(None), CFItem.status_end_date > today)
+    )
+```
+
+**取得後に Python で除くのは誤りである。** この設計は `limit=51` を取って 51 件目の有無で `has_more` を決める。後段で除くと、除いた件数だけページが目減りし、`has_more` も嘘になる。「次へ」を押すと項目が飛ぶ。
+
+`today` は呼び出し側が UTC で1回求めて渡す（SQL 側で `CURRENT_DATE` を使わない。テストで日付を固定できなくなる）。
+
+### パラメータの引き継ぎ
+
+`includeRetired` は検索フォームの hidden input と、結果の「もっと見る」の URL に載せる。ツリー側のリンクにも同じ値が乗るので（B8-4 で実装済み）、検索とツリーを行き来してもモードが落ちない。
+
+### インデックス
+
+`status_end_date` の条件が付いても、既存の `ix_cf_items_tenant_document_coding` で対象ドキュメントに絞ってから ILIKE と日付の両方を評価する形は変わらない。B8-4 で足した部分インデックス `ix_cf_items_doc_retired` は墓標だけを含むので、この用途（生きた項目を残す条件）には効かない。追加のインデックスは要らない。
+
 ## リポジトリ（src/repositories/cf_item_repository.py）
 
 既存の `_list_items_where` ヘルパ（label/link 列 + doc join + 安定ソート + offset/limit）を
@@ -212,6 +245,8 @@ async def search_items(
     query: str,
     *,
     document_id: uuid.UUID | None = None,
+    include_retired: bool = False,
+    today: date | None = None,
     offset: int = 0,
     limit: int = 51,
 ) -> list[dict]:
@@ -232,6 +267,10 @@ async def search_items(
     ]
     if document_id is not None:
         conditions.append(CFItem.cf_document_id == document_id)
+    if not include_retired:
+        # B8-5: retired items are dropped in SQL, never after the fetch — the
+        # limit+1 has_more trick breaks if rows disappear afterwards.
+        conditions.append(or_(CFItem.status_end_date.is_(None), CFItem.status_end_date > today))
     return await _list_items_where(session, conditions, offset, limit)
 ```
 

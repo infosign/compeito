@@ -85,6 +85,11 @@ compeito には常駐ワーカー/キューが無いため、**明示的な CLI 
   - `Cache-Control`: 既定方針（public, max-age=3600）に合わせる。
   - **テナント秘匿**: 検索は `tenant_id` スコープ厳守（プライベートテナントの秘匿性を壊さない）。
   - **パス配置**: `/ims/case/v1p1/` 配下に置かない（CASE 標準 API と混同させない）。`/{tenant}/search` 等の拡張パス。
+- **廃止項目の扱い（B8-5）**: 既定で除外し、`includeRetired=1` のときだけ含める（含めた項目には `statusEndDate` を返し、UI 側でバッジを出せるようにする）。
+  - 判定は `retirement.is_retired()` の規則（`statusEndDate <= 今日`、日付は UTC）。ツリーの `hidden_identifiers()` は使わない。あちらが「廃止済みでも生きた子孫があれば残す」のは経路を保つためで、平坦な検索結果にその理由は無い（[web-ui-keyword-search.md](./web-ui-keyword-search.md) の同名節と同じ判断）。
+  - **絞り込みは近傍検索の WHERE 句に入れる**。`ORDER BY embedding <=> :q LIMIT k` の結果から後段で除くと、返る件数が k を下回り、しかも「除いたぶん次の候補が繰り上がる」ことも起きない。利用者から見ると、廃止項目が多い文書ほど検索結果が静かに痩せる。
+  - HNSW は近似検索なので、選択率の低い WHERE と組むと `ef_search` 次第で取りこぼす。**墓標は全体のごく一部**という前提（B8 の想定）では選択率は高いままなので実害は無いが、墓標が増えた文書で件数が不足する兆候が出たら `ef_search` の引き上げか反復取得を検討する。この注意は実装時に測ってから判断する。
+
 - 後続: Web UI（ツリーに検索ボックス、HTMX）／CLI `search`。今回は API のみ。
 
 ## 設定（config.py）
