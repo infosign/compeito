@@ -121,7 +121,7 @@ def _visibility(is_private: bool) -> str:
 #   6. NOT one of the reserved tokens that collide with top-level mounts
 #      (`/health`, `/static`, and a few defensive ones for future expansion)
 #
-# Examples of valid slugs:   `ikenohata-u`, `mext-curriculum-2025`, `acme`
+# Examples of valid slugs:   `ikenohata-u`, `sample-framework-2025`, `acme`
 # Examples of invalid slugs: `Ikenohata` (uppercase), `池之端大学` (non-ASCII),
 #                            `-acme` (leading hyphen), `acme-` (trailing hyphen),
 #                            `a` (too short), `health` (reserved).

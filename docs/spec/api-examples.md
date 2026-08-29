@@ -21,10 +21,10 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
     {
       "identifier": "d86774f2-1234-5678-9abc-def012345678",
       "uri": "https://case.example.com/550e8400-e29b-41d4-a716-446655440000/uri/d86774f2-1234-5678-9abc-def012345678",
-      "title": "高等学校学習指導要領",
-      "creator": "文部科学省",
-      "publisher": "文部科学省",
-      "description": "高等学校学習指導要領（平成30年告示）",
+      "title": "サンプル教育課程フレームワーク",
+      "creator": "サンプル教育委員会",
+      "publisher": "サンプル教育委員会",
+      "description": "サンプル教育課程フレームワーク（2025年版）",
       "frameworkType": null,
       "caseVersion": null,
       "language": "ja",
@@ -33,15 +33,15 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
       "statusStartDate": "2018-03-30",
       "statusEndDate": null,
       "licenseURI": null,
-      "officialSourceURL": "https://www.mext.go.jp/...",
-      "subject": ["国語", "地理歴史", "公民"],
+      "officialSourceURL": "https://example.org/framework/...",
+      "subject": ["言語表現", "社会探究", "市民性"],
       "subjectURI": [
-        {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
-        {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
-        {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+        {"title": "言語表現", "identifier": "aaa-...", "uri": "https://..."},
+        {"title": "社会探究", "identifier": "bbb-...", "uri": "https://..."},
+        {"title": "市民性", "identifier": "ccc-sub-...", "uri": "https://..."}
       ],
       "CFPackageURI": {
-        "title": "高等学校学習指導要領",
+        "title": "サンプル教育課程フレームワーク",
         "identifier": "d86774f2-1234-5678-9abc-def012345678",
         "uri": "https://case.example.com/550e8400-.../ims/case/v1p1/CFPackages/d86774f2-1234-5678-9abc-def012345678"
       },
@@ -59,10 +59,10 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
   "CFDocument": {
     "identifier": "d86774f2-1234-5678-9abc-def012345678",
     "uri": "https://case.example.com/550e8400-.../uri/d86774f2-1234-5678-9abc-def012345678",
-    "title": "高等学校学習指導要領",
-    "creator": "文部科学省",
-    "publisher": "文部科学省",
-    "description": "高等学校学習指導要領（平成30年告示）",
+    "title": "サンプル教育課程フレームワーク",
+    "creator": "サンプル教育委員会",
+    "publisher": "サンプル教育委員会",
+    "description": "サンプル教育課程フレームワーク（2025年版）",
     "frameworkType": null,
     "caseVersion": null,
     "language": "ja",
@@ -71,15 +71,15 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
     "statusStartDate": "2018-03-30",
     "statusEndDate": null,
     "licenseURI": null,
-    "officialSourceURL": "https://www.mext.go.jp/...",
-    "subject": ["国語", "地理歴史", "公民"],
+    "officialSourceURL": "https://example.org/framework/...",
+    "subject": ["言語表現", "社会探究", "市民性"],
     "subjectURI": [
-      {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
-      {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
-      {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+      {"title": "言語表現", "identifier": "aaa-...", "uri": "https://..."},
+      {"title": "社会探究", "identifier": "bbb-...", "uri": "https://..."},
+      {"title": "市民性", "identifier": "ccc-sub-...", "uri": "https://..."}
     ],
     "CFPackageURI": {
-      "title": "高等学校学習指導要領",
+      "title": "サンプル教育課程フレームワーク",
       "identifier": "d86774f2-1234-5678-9abc-def012345678",
       "uri": "https://case.example.com/550e8400-.../ims/case/v1p1/CFPackages/d86774f2-1234-5678-9abc-def012345678"
     },
@@ -101,10 +101,10 @@ Nullable fields are always included in the response (Pydantic `exclude_none=Fals
   "CFItem": {
     "identifier": "e97885g3-2345-6789-abcd-ef0123456789",
     "uri": "https://case.example.com/550e8400-.../uri/e97885g3-2345-6789-abcd-ef0123456789",
-    "fullStatement": "実社会に必要な国語の知識や技能を身に付けるようにする。",
+    "fullStatement": "実務に必要な言語表現の知識と技能を身に付ける。",
     "humanCodingScheme": "A-1-(1)",
     "abbreviatedStatement": null,
-    "conceptKeywords": ["言葉", "国語"],
+    "conceptKeywords": ["表現", "言語表現"],
     "conceptKeywordsURI": {"title": "言語能力", "identifier": "ccc-concept-...", "uri": "https://..."},
     "educationLevel": ["10", "11", "12"],
     "subject": null,
@@ -121,7 +121,7 @@ Nullable fields are always included in the response (Pydantic `exclude_none=Fals
     "statusEndDate": null,
     "listEnumeration": "1",
     "CFDocumentURI": {
-      "title": "高等学校学習指導要領",
+      "title": "サンプル教育課程フレームワーク",
       "identifier": "d86774f2-1234-5678-9abc-def012345678",
       "uri": "https://case.example.com/550e8400-.../uri/d86774f2-1234-5678-9abc-def012345678"
     },
@@ -143,10 +143,10 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
   "CFItem": {
     "identifier": "e97885g3-2345-6789-abcd-ef0123456789",
     "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
-    "fullStatement": "実社会に必要な国語の知識や技能を身に付けるようにする。",
+    "fullStatement": "実務に必要な言語表現の知識と技能を身に付ける。",
     "humanCodingScheme": "A-1-(1)",
     "abbreviatedStatement": null,
-    "conceptKeywords": ["言葉", "国語"],
+    "conceptKeywords": ["表現", "言語表現"],
     "conceptKeywordsURI": null,
     "educationLevel": ["10", "11", "12"],
     "subject": null,
@@ -158,7 +158,7 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
     "statusStartDate": null,
     "statusEndDate": null,
     "listEnumeration": "1",
-    "CFDocumentURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://..."},
+    "CFDocumentURI": {"title": "サンプル教育課程フレームワーク", "identifier": "d86774f2-...", "uri": "https://..."},
     "lastChangeDateTime": "2025-10-08T12:00:00Z"
   },
   "CFAssociations": [
@@ -167,13 +167,13 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
       "uri": "https://case.example.com/550e8400-.../uri/aaa11111-1111-1111-1111-111111111111",
       "associationType": "isChildOf",
       "originNodeURI": {
-        "title": "実社会に必要な国語の知識や技能を...",
+        "title": "実務に必要な言語表現の知識と技能を...",
         "identifier": "e97885g3-2345-6789-abcd-ef0123456789",
         "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
         "targetType": null
       },
       "destinationNodeURI": {
-        "title": "言葉の特徴や使い方に関する事項",
+        "title": "表現技法に関する事項",
         "identifier": "f08896h4-3456-7890-bcde-f01234567890",
         "uri": "https://case.example.com/550e8400-.../uri/f08896h4-...",
         "targetType": null
@@ -196,13 +196,13 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
     "uri": "https://case.example.com/550e8400-.../uri/aaa11111-1111-1111-1111-111111111111",
     "associationType": "isChildOf",
     "originNodeURI": {
-      "title": "実社会に必要な国語の知識や技能を...",
+      "title": "実務に必要な言語表現の知識と技能を...",
       "identifier": "e97885g3-...",
       "uri": "https://...",
       "targetType": null
     },
     "destinationNodeURI": {
-      "title": "言葉の特徴や使い方に関する事項",
+      "title": "表現技法に関する事項",
       "identifier": "f08896h4-...",
       "uri": "https://...",
       "targetType": null
@@ -210,7 +210,7 @@ This is the CASE v1.1 `CFAssociationSetDType`. Each association inside `CFAssoci
     "sequenceNumber": 10,
     "CFAssociationGroupingURI": null,
     "CFDocumentURI": {
-      "title": "高等学校学習指導要領",
+      "title": "サンプル教育課程フレームワーク",
       "identifier": "d86774f2-...",
       "uri": "https://..."
     },
@@ -245,10 +245,10 @@ The response is a `CFPackageDType` returned at the top level (no `CFPackage` wra
   "CFDocument": {
     "identifier": "d86774f2-...",
     "uri": "https://...",
-    "title": "高等学校学習指導要領",
-    "creator": "文部科学省",
-    "publisher": "文部科学省",
-    "description": "高等学校学習指導要領（平成30年告示）",
+    "title": "サンプル教育課程フレームワーク",
+    "creator": "サンプル教育委員会",
+    "publisher": "サンプル教育委員会",
+    "description": "サンプル教育課程フレームワーク（2025年版）",
     "frameworkType": null,
     "caseVersion": null,
     "language": "ja",
@@ -257,12 +257,12 @@ The response is a `CFPackageDType` returned at the top level (no `CFPackage` wra
     "statusStartDate": "2018-03-30",
     "statusEndDate": null,
     "licenseURI": null,
-    "officialSourceURL": "https://www.mext.go.jp/...",
-    "subject": ["国語", "地理歴史", "公民"],
+    "officialSourceURL": "https://example.org/framework/...",
+    "subject": ["言語表現", "社会探究", "市民性"],
     "subjectURI": [
-      {"title": "国語", "identifier": "aaa-...", "uri": "https://..."},
-      {"title": "地理歴史", "identifier": "bbb-...", "uri": "https://..."},
-      {"title": "公民", "identifier": "ccc-sub-...", "uri": "https://..."}
+      {"title": "言語表現", "identifier": "aaa-...", "uri": "https://..."},
+      {"title": "社会探究", "identifier": "bbb-...", "uri": "https://..."},
+      {"title": "市民性", "identifier": "ccc-sub-...", "uri": "https://..."}
     ],
     "lastChangeDateTime": "2025-10-08T12:00:00Z"
   },
@@ -270,7 +270,7 @@ The response is a `CFPackageDType` returned at the top level (no `CFPackage` wra
     {
       "identifier": "e97885g3-...",
       "uri": "https://case.example.com/550e8400-.../uri/e97885g3-...",
-      "fullStatement": "国語",
+      "fullStatement": "言語表現",
       "humanCodingScheme": "A",
       "abbreviatedStatement": null,
       "conceptKeywords": null,
@@ -293,8 +293,8 @@ The response is a `CFPackageDType` returned at the top level (no `CFPackage` wra
       "identifier": "aaa11111-...",
       "uri": "https://case.example.com/550e8400-.../uri/aaa11111-...",
       "associationType": "isChildOf",
-      "originNodeURI": {"title": "国語", "identifier": "e97885g3-...", "uri": "https://...", "targetType": null},
-      "destinationNodeURI": {"title": "高等学校学習指導要領", "identifier": "d86774f2-...", "uri": "https://...", "targetType": null},
+      "originNodeURI": {"title": "言語表現", "identifier": "e97885g3-...", "uri": "https://...", "targetType": null},
+      "destinationNodeURI": {"title": "サンプル教育課程フレームワーク", "identifier": "d86774f2-...", "uri": "https://...", "targetType": null},
       "sequenceNumber": 10,
       "CFAssociationGroupingURI": null,
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
@@ -316,7 +316,7 @@ The response is a `CFPackageDType` returned at the top level (no `CFPackage` wra
       {
         "identifier": "aaa-...",
         "uri": "https://...",
-        "title": "国語",
+        "title": "言語表現",
         "description": null,
         "hierarchyCode": null,
         "lastChangeDateTime": "2025-10-08T12:00:00Z"
@@ -429,7 +429,7 @@ CASE v1.1 returns a Set type (`CFConceptSetDType`). The first array element is t
       "uri": "https://case.example.com/550e8400-.../uri/ccc-concept-1111-...",
       "title": "言語能力",
       "description": null,
-      "keywords": "言葉|表現|理解",
+      "keywords": "表現|表現|理解",
       "hierarchyCode": null,
       "lastChangeDateTime": "2025-10-08T12:00:00Z"
     }
@@ -448,7 +448,7 @@ CASE v1.1 returns a Set type (`CFSubjectSetDType`). The first array element is t
     {
       "identifier": "aaa-subject-1111-...",
       "uri": "https://case.example.com/550e8400-.../uri/aaa-subject-1111-...",
-      "title": "国語",
+      "title": "言語表現",
       "description": null,
       "hierarchyCode": null,
       "lastChangeDateTime": "2025-10-08T12:00:00Z"

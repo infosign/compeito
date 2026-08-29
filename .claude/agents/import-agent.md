@@ -45,17 +45,17 @@ ItemType,fullStatement,humanCodingScheme,ParentCoding,abbreviatedStatement,educa
 ### フォーマット3: 独自フォーマット (拡張)
 
 Import Children形式を上位互換として拡張。CSVメタデータ行を追加可能。
-実証済み: opensalt.net の高等学校学習指導要領(1557アイテム)を完全変換・未解決参照ゼロ確認。
+実証済み: 外部 CASE サーバーの 1,557 アイテム規模のフレームワークを完全変換・未解決参照ゼロ確認。
 
 ```
 #title,#version,#description,#publisher,#language
 "コンピテンシーフレームワーク","1.0","説明","株式会社A","ja"
 Identifier,fullStatement,humanCodingScheme,IsChildOf,SequenceNumber,abbreviatedStatement,conceptKeywords,language,educationLevel,CFItemType
-,国語,第１節,,1,,,ja,,教科等
-,現代の国語,第１,第１節,1,,,ja,,科目
+,言語表現,第１節,,1,,,ja,,教科等
+,言語表現I,第１,第１節,1,,,ja,,科目
 _cat_1,〔知識及び技能〕,,第１,1,,,ja,,
-,言葉の特徴や...,1,_cat_1,1,,,ja,,CompetencyDefinition
-,言葉には...,ア,1,1,,,ja,,CompetencyDefinition
+,表現の特徴や...,1,_cat_1,1,,,ja,,CompetencyDefinition
+,表現には...,ア,1,1,,,ja,,CompetencyDefinition
 ```
 
 #### Identifier 列のルール
@@ -143,8 +143,8 @@ python cli.py import csv --tenant {uuid} --doc {doc-uuid} --file framework_v2.cs
 #identifier,#title,#version,#description,#publisher,#language
 "d86774f2-...","コンピテンシーフレームワーク","1.0","説明","株式会社A","ja"
 Identifier,fullStatement,humanCodingScheme,IsChildOf,SequenceNumber,abbreviatedStatement,conceptKeywords,language,educationLevel,CFItemType
-550e8400-...,国語,第１節,,1,,,ja,,教科等
-6ba7b810-...,現代の国語,第１,550e8400-...,1,,,ja,,科目
+550e8400-...,言語表現,第１節,,1,,,ja,,教科等
+6ba7b810-...,言語表現I,第１,550e8400-...,1,,,ja,,科目
 ```
 
 - **メタデータ行**: `#identifier`（CFDocument UUID）, `#title`, `#version`, `#description`, `#publisher`, `#language`

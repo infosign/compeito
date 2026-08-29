@@ -311,14 +311,14 @@ class TestMetadataOutput:
             identifier=uuid.UUID("aaaaaaaa-2222-0000-0000-000000000001"),
             uri="https://example.com/doc",
             title="Subject Doc",
-            subject=["国語", "数学", "英語"],
+            subject=["言語表現", "数学", "英語"],
             last_change_date_time=LCT,
         )
         db_session.add(doc)
         await db_session.flush()
 
         csv_str = await export_csv(db_session, tenant.id, doc.identifier)
-        assert "#subject,国語,数学,英語" in csv_str
+        assert "#subject,言語表現,数学,英語" in csv_str
 
     async def test_empty_subject_not_output(self, db_session: AsyncSession, tenant: Tenant):
         doc = CFDocument(
@@ -468,8 +468,8 @@ class TestRoundTrip:
             "#title,Round Trip Test\n"
             "#language,ja\n"
             "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType\n"
-            "11110000-0000-0000-0000-000000000001,国語,K-1,,10,教科\n"
-            "11110000-0000-0000-0000-000000000002,現代の国語,K-1-1,11110000-0000-0000-0000-000000000001,10,科目\n"
+            "11110000-0000-0000-0000-000000000001,言語表現,K-1,,10,教科\n"
+            "11110000-0000-0000-0000-000000000002,言語表現I,K-1-1,11110000-0000-0000-0000-000000000001,10,科目\n"
             "11110000-0000-0000-0000-000000000003,古典,K-1-2,11110000-0000-0000-0000-000000000001,20,科目\n"
         ).encode("utf-8")
 
@@ -489,11 +489,11 @@ class TestRoundTrip:
         data_lines = [line for line in lines if not line.startswith("#") and not line.startswith("Identifier")]
         assert len(data_lines) == 3
 
-        # First should be 国語 (root, seq 10)
-        assert "国語" in data_lines[0]
-        # Second should be 現代の国語 (child of 国語, seq 10)
-        assert "現代の国語" in data_lines[1]
-        # Third should be 古典 (child of 国語, seq 20)
+        # First should be 言語表現 (root, seq 10)
+        assert "言語表現" in data_lines[0]
+        # Second should be 言語表現I (child of 言語表現, seq 10)
+        assert "言語表現I" in data_lines[1]
+        # Third should be 古典 (child of 言語表現, seq 20)
         assert "古典" in data_lines[2]
 
         # Re-import into same document
@@ -649,7 +649,7 @@ class TestOpenSALTExport:
             cf_document_id=doc.id,
             identifier=uuid.UUID("eeeeeeee-0000-0000-0000-000000000001"),
             uri="https://example.com/item/map",
-            full_statement="国語",
+            full_statement="言語表現",
             abbreviated_statement="Kokugo",
             language="ja",
             cf_item_type_id=item_type.id,
@@ -670,7 +670,7 @@ class TestOpenSALTExport:
         data = dict(zip(header, rows[1]))
 
         assert data["Identifier"] == str(item.identifier)
-        assert data["Full Statement"] == "国語"
+        assert data["Full Statement"] == "言語表現"
         assert data["Abbreviated Statement"] == "Kokugo"
         assert data["CF Item Type"] == "教科"
         assert data["Language"] == "ja"
@@ -685,8 +685,8 @@ class TestOpenSALTRoundTrip:
             "#title,OpenSALT RT\n"
             "#language,ja\n"
             "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType\n"
-            "11110000-0000-0000-0000-000000000001,国語,K-1,,10,\n"
-            "11110000-0000-0000-0000-000000000002,現代の国語,K-1-1,11110000-0000-0000-0000-000000000001,10,\n"
+            "11110000-0000-0000-0000-000000000001,言語表現,K-1,,10,\n"
+            "11110000-0000-0000-0000-000000000002,言語表現I,K-1-1,11110000-0000-0000-0000-000000000001,10,\n"
         ).encode("utf-8")
 
         report1 = await import_csv(db_session, tenant.id, csv_input)

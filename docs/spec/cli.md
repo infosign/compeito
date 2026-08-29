@@ -25,14 +25,14 @@ uv run python cli.py tenant list
 
 uv run python cli.py tenant list --with-docs
 # 550e8400-...  ikenohata-u  池之端大学  public
-#   ├─ d86774f2-...  National Curriculum  (1557 items)
+#   ├─ d86774f2-...  Sample Curriculum Framework  (1557 items)
 #   └─ a3f9c201-...  Engineering Competencies  (42 items)
 
 # Framework (CFDocument) management
 # --tenant takes the tenant UUID (the slug is a Web-UI convenience, not a CLI resolver key).
 uv run python cli.py doc list --tenant {tenant-uuid}
 # UUID                                  TITLE                     ITEMS  UPDATED
-# d86774f2-...                          National Curriculum       1557   2025-10-08
+# d86774f2-...                          Sample Curriculum Framework       1557   2025-10-08
 
 # Tenant update
 # --private / --public are mutually exclusive (combining them is an error).
@@ -137,8 +137,8 @@ uv run python cli.py tenant delete --tenant {uuid}
 
 # doc delete → confirmation prompt → success message
 uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
-# Delete document 'National Curriculum' (d86774f2-..., 1557 items)? [y/N]: y
-# Deleted document: d86774f2-... (National Curriculum)
+# Delete document 'Sample Curriculum Framework' (d86774f2-..., 1557 items)? [y/N]: y
+# Deleted document: d86774f2-... (Sample Curriculum Framework)
 ```
 
 ### Delete side effects
@@ -241,14 +241,14 @@ uv run python cli.py tenant list
 
 uv run python cli.py tenant list --with-docs
 # 550e8400-...  ikenohata-u  池之端大学  public
-#   ├─ d86774f2-...  高等学校学習指導要領  (1557 items)
+#   ├─ d86774f2-...  サンプル教育課程フレームワーク  (1557 items)
 #   └─ a3f9c201-...  工学部コンピテンシー  (42 items)
 
 # フレームワーク(CFDocument)管理
 # --tenant はテナント UUID を取る（slug は Web UI 上の URL 別名であり、CLI の resolver キーではない）
 uv run python cli.py doc list --tenant {tenant-uuid}
 # UUID                                  TITLE                     ITEMS  UPDATED
-# d86774f2-...                          高等学校学習指導要領        1557   2025-10-08
+# d86774f2-...                          サンプル教育課程フレームワーク        1557   2025-10-08
 
 # テナント更新
 # --private / --public は相互排他（同時指定はエラー終了）
@@ -344,8 +344,8 @@ uv run python cli.py tenant delete --tenant {uuid}
 
 # doc delete → 削除確認プロンプト → 成功メッセージ
 uv run python cli.py doc delete --tenant {uuid} --doc {doc-uuid}
-# Delete document '高等学校学習指導要領' (d86774f2-..., 1557 items)? [y/N]: y
-# Deleted document: d86774f2-... (高等学校学習指導要領)
+# Delete document 'サンプル教育課程フレームワーク' (d86774f2-..., 1557 items)? [y/N]: y
+# Deleted document: d86774f2-... (サンプル教育課程フレームワーク)
 ```
 
 ### 削除の副作用

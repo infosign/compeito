@@ -699,8 +699,8 @@ CSVの `CFItemType` 列・`license` 列・メタデータ `#subject`・メタデ
 | cf_subject | メタデータ `#subject` | カンマ区切り。cf_documentの `subject` / `subject_uri` に格納 |
 
 **JSONB配列の構築ルール（新規作成・更新共通）:**
-- `cf_document.subject`: メタデータ `#subject` の値をそのまま文字列配列として格納（例: `["国語", "地理歴史"]`）
-- `cf_document.subject_uri`: 各 cf_subject レコードの `{title, identifier, uri}` から LinkURI オブジェクト配列を構築（例: `[{"title":"国語","identifier":"<cf_subject.identifier>","uri":"<cf_subject.uri>"}]`）
+- `cf_document.subject`: メタデータ `#subject` の値をそのまま文字列配列として格納（例: `["言語表現", "社会探究"]`）
+- `cf_document.subject_uri`: 各 cf_subject レコードの `{title, identifier, uri}` から LinkURI オブジェクト配列を構築（例: `[{"title":"言語表現","identifier":"<cf_subject.identifier>","uri":"<cf_subject.uri>"}]`）
 - `cf_item.concept_keywords`: CSVの `conceptKeywords` の値をそのまま文字列配列として格納（例: `["分析", "評価"]`）
 
 **cf_item.cf_concept_id について:** CSV に conceptKeywordsURI に対応するカラムは存在しない。CSV インポートでは `cf_concept_id` は設定されない（新規作成時は NULL、更新時は既存値を保持）。cf_concept レコードは外部 CASE ソースインポートの CFDefinitions.CFConcepts でのみ作成される。
@@ -801,7 +801,7 @@ BFS 中に訪問済みノード（既に depth が割り当てられたノード
 
 ```
 Import Result:
-  Document:     高等学校学習指導要領 (d86774f2-...)
+  Document:     サンプル教育課程フレームワーク (d86774f2-...)
   Items:        1523 created, 34 updated, 3 skipped
   Associations: 2045 created, 0 updated, 0 skipped
   ItemTypes:    5 created, 0 updated, 2 existing, 0 skipped
@@ -1113,7 +1113,7 @@ Imported into 'Document Title' (doc-uuid)
 
 ### 独自形式エクスポート
 
-- CFDocumentの非NULLかつ非空のフィールドからメタデータ行を出力する（VARCHAR 型フィールドは NULL なら出力しない。FK 参照型フィールド `cf_license_id` は NULL なら出力しない、非 NULL なら `cf_license.title` を解決して `#license` として出力する。JSONB 配列型フィールド `subject` は NULL または空配列 `[]` なら出力しない。**round-trip 制約**: `[]`（空配列）は出力されないため、新規ドキュメントとしての re-import 時に `subject` / `subject_uri` は NULL に変わる。既存ドキュメントの更新時はキー未記載→既存値保持のため問題ない）。出力順: `#identifier`（再インポート時に CFDocument UUID を保持するため先頭に出力）, `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式で出力する。メタデータ行もCSV行として出力するため、値にカンマ・改行・ダブルクォートが含まれる場合はRFC 4180に従いダブルクォートで囲む（例: `#description,"情報I, 情報II向け"`）。`#subject` は JSONB配列の各要素を個別のCSVフィールドとして出力する（単一のクォート文字列にまとめない。例: `#subject,国語,地理歴史,公民`）。個々の subject 値にカンマ等が含まれる場合は RFC 4180 に従い個別にクォートする（例: `#subject,国語,"情報I, 情報II",地理歴史`）
+- CFDocumentの非NULLかつ非空のフィールドからメタデータ行を出力する（VARCHAR 型フィールドは NULL なら出力しない。FK 参照型フィールド `cf_license_id` は NULL なら出力しない、非 NULL なら `cf_license.title` を解決して `#license` として出力する。JSONB 配列型フィールド `subject` は NULL または空配列 `[]` なら出力しない。**round-trip 制約**: `[]`（空配列）は出力されないため、新規ドキュメントとしての re-import 時に `subject` / `subject_uri` は NULL に変わる。既存ドキュメントの更新時はキー未記載→既存値保持のため問題ない）。出力順: `#identifier`（再インポート時に CFDocument UUID を保持するため先頭に出力）, `#title`, `#version`, `#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#status_start_date`, `#status_end_date`, `#license`, `#official_source_url`, `#subject`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式で出力する。メタデータ行もCSV行として出力するため、値にカンマ・改行・ダブルクォートが含まれる場合はRFC 4180に従いダブルクォートで囲む（例: `#description,"情報I, 情報II向け"`）。`#subject` は JSONB配列の各要素を個別のCSVフィールドとして出力する（単一のクォート文字列にまとめない。例: `#subject,言語表現,社会探究,市民性`）。個々の subject 値にカンマ等が含まれる場合は RFC 4180 に従い個別にクォートする（例: `#subject,言語表現,"情報I, 情報II",社会探究`）
 - ヘッダー行を出力する（`Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,notes,language,listEnumeration,license,statusStartDate,statusEndDate` に続けて 9 つの association 列 `isPeerOf,isPartOf,exactMatchOf,precedes,isRelatedTo,replacedBy,exemplar,hasSkillLevel,isTranslationOf`、25列）
 - 全列を出力（Identifier含む）
 - `parentIdentifier` には親アイテムのUUIDを出力。ルートレベルアイテム（親が CFDocument）の場合は空セル。1つのアイテムが複数の `isChildOf` association を持つ場合（外部CASEソースインポート由来）は、`sequence_number` が最小の association の親を採用する（NULL は非NULLの後に配置する。`sequence_number` が同じ場合は `destination_node_identifier` の辞書順で最初のもの）。**round-trip 制約**: 複数の isChildOf 親を持つアイテムは、エクスポート時に1つの親に集約される。このCSVを再インポートすると、選択されなかった親子関係は isChildOf 全削除→再生成により失われる
