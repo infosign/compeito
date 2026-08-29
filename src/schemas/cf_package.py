@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import ConfigDict, Field, model_serializer
+from pydantic import ConfigDict, Field, SerializationInfo, model_serializer
 
 from src.schemas.cf_association import CFPckgAssociationDType
 from src.schemas.cf_association_grouping import CFAssociationGroupingDType
@@ -26,9 +26,15 @@ class CFDefinitionsDType(CASEBaseSchema):
     )
     extensions: dict | None = None
 
-    @model_serializer
-    def serialize_model(self) -> dict[str, Any]:
-        """Exclude keys with None or empty lists."""
+    @model_serializer(mode="plain")
+    def serialize_model(self, info: SerializationInfo) -> dict[str, Any]:
+        """Exclude keys with None or empty lists.
+
+        A custom serializer bypasses pydantic's own dump options, so
+        ``exclude_none`` has to be forwarded by hand — otherwise strict output
+        would keep every nested ``null`` (C16).
+        """
+        exclude_none = bool(info.exclude_none)
         result: dict[str, Any] = {}
         field_map = {
             "cf_item_types": "CFItemTypes",
@@ -40,7 +46,7 @@ class CFDefinitionsDType(CASEBaseSchema):
         for attr, alias in field_map.items():
             value = getattr(self, attr)
             if value:
-                result[alias] = [item.model_dump(by_alias=True) for item in value]
+                result[alias] = [item.model_dump(by_alias=True, exclude_none=exclude_none) for item in value]
         if self.extensions:
             result["extensions"] = self.extensions
         return result
@@ -56,18 +62,21 @@ class CFPackageDType(CASEBaseSchema):
     cf_rubrics: list[CFRubricDType] = Field(default_factory=list, alias="CFRubrics")
     extensions: dict | None = None
 
-    @model_serializer
-    def serialize_model(self) -> dict[str, Any]:
+    @model_serializer(mode="plain")
+    def serialize_model(self, info: SerializationInfo) -> dict[str, Any]:
+        exclude_none = bool(info.exclude_none)
         result: dict[str, Any] = {
-            "CFDocument": self.cf_document.model_dump(by_alias=True),
-            "CFItems": [item.model_dump(by_alias=True) for item in self.cf_items],
-            "CFAssociations": [assoc.model_dump(by_alias=True) for assoc in self.cf_associations],
+            "CFDocument": self.cf_document.model_dump(by_alias=True, exclude_none=exclude_none),
+            "CFItems": [item.model_dump(by_alias=True, exclude_none=exclude_none) for item in self.cf_items],
+            "CFAssociations": [
+                assoc.model_dump(by_alias=True, exclude_none=exclude_none) for assoc in self.cf_associations
+            ],
         }
         if self.cf_definitions is not None:
-            definitions = self.cf_definitions.model_dump(by_alias=True)
+            definitions = self.cf_definitions.model_dump(by_alias=True, exclude_none=exclude_none)
             if definitions:
                 result["CFDefinitions"] = definitions
-        result["CFRubrics"] = [r.model_dump(by_alias=True) for r in self.cf_rubrics]
+        result["CFRubrics"] = [r.model_dump(by_alias=True, exclude_none=exclude_none) for r in self.cf_rubrics]
         if self.extensions:
             result["extensions"] = self.extensions
         return result

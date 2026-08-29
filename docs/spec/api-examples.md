@@ -1,6 +1,6 @@
 # API Request / Response Examples
 
-Every response uses the CASE v1.1 DType name as the root key (no custom wrappers such as `{"data": ...}`).
+Every response on this page is **compat** output (the default); every one uses the CASE v1.1 DType name as the root key (no custom wrappers such as `{"data": ...}`).
 The tenant UUID `550e8400-e29b-41d4-a716-446655440000` is used as an example throughout.
 
 ## CFDocuments
@@ -88,7 +88,7 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
 }
 ```
 
-Nullable fields are always included in the response (Pydantic `exclude_none=False`). The list and single-resource endpoints share the same schema and the same field set.
+In compat output (the default, and what every example on this page shows) nullable fields are always included (Pydantic `exclude_none=False`). The list and single-resource endpoints share the same schema and the same field set. Under `?strict=1` the null-valued keys are omitted; see api-spec.md.
 `CFPackageURI` is required and must always be included.
 
 ## CFItems
@@ -832,7 +832,7 @@ An empty array is returned (this is not an error).
 
 # APIリクエスト/レスポンス例（日本語）
 
-全レスポンスは CASE v1.1 の DType 名をルートキーとして配置する（`{"data": ...}` 等のカスタムラッパーは追加しない）。
+本ページの全レスポンスは **compat** 出力（既定）である。CASE v1.1 の DType 名をルートキーとして配置する（`{"data": ...}` 等のカスタムラッパーは追加しない）。
 テナントUUID `550e8400-e29b-41d4-a716-446655440000` を例として使用。
 
 ## CFDocuments
@@ -852,7 +852,7 @@ GET /550e8400-e29b-41d4-a716-446655440000/ims/case/v1p1/CFDocuments?limit=10&off
 
 **レスポンス (200):** 上記の英語版と同一の JSON。
 
-null 許容フィールドは全てレスポンスに含める（Pydantic の `exclude_none=False`）。一覧エンドポイントと単一取得エンドポイントで同一のスキーマ・同一のフィールドセットを返す。
+compat 出力（既定。本ページの例はすべてこの形）では null 許容フィールドを全て含める（Pydantic の `exclude_none=False`）。一覧エンドポイントと単一取得エンドポイントで同一のスキーマ・同一のフィールドセットを返す。`?strict=1` の場合は値が null のキーを省略する（api-spec.md 参照）。
 `CFPackageURI` は必須フィールドであり、常に含めなければならない。
 
 ## CFItems

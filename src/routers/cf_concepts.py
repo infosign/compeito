@@ -3,10 +3,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
-from src.dependencies import require_tenant, validate_uuid
+from src.dependencies import output_mode, require_tenant, validate_uuid
 from src.errors import ResourceNotFoundError, imsx_error_response
 from src.models.tenant import Tenant
 from src.services import case_query_service
+from src.services.case_serializer import OutputMode, dump_collection
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ async def list_cf_concepts(
     tenant_obj: Tenant = Depends(require_tenant),
     limit: int = Query(default=100),
     offset: int = Query(default=0),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     if limit < 0:
@@ -31,7 +33,7 @@ async def list_cf_concepts(
     limit = min(limit, 500)
     offset = min(offset, 100000)
     items = await case_query_service.list_cf_concepts(session, tenant_obj.id, limit, offset)
-    content = {"CFConcepts": [i.model_dump(by_alias=True) for i in items]}
+    content = dump_collection(items, mode, wrapper="CFConcepts")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
 
 
@@ -39,6 +41,7 @@ async def list_cf_concepts(
 async def get_cf_concept(
     id: str,
     tenant_obj: Tenant = Depends(require_tenant),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     obj_uuid = validate_uuid(id)
@@ -46,5 +49,5 @@ async def get_cf_concept(
     if objs is None:
         raise ResourceNotFoundError(f"CFConcept not found: '{id}'")
     # CFConceptSetDType: requested concept first, descendants by hierarchyCode follow
-    content = {"CFConcepts": [o.model_dump(by_alias=True) for o in objs]}
+    content = dump_collection(objs, mode, wrapper="CFConcepts")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

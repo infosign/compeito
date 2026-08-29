@@ -1,6 +1,10 @@
 # CASE API strict/compat 出力層 実装方針 — conformance backlog C16 / C1 / C2 / C3
 
-> **ステータス: 設計レビュー済み（実装着手可・実装順未定）**
+> **ステータス: 実装済み（2026-08）**
+> C16 / C1 / C2 / C8 出力側 / N7 を実装。C3 は本設計の決定（案 (a)）どおり、strict でキー省略＝データ起因の残ギャップとして conformance backlog に残す。
+> 第 2 段（既定の strict 反転）は未実施。`settings.case_output_default`（環境変数 `CASE_OUTPUT_DEFAULT`）の変更 1 つで行える状態にしてある。
+>
+> 実装で設計から変えた点（軽微）: 競合時のメッセージは `Cannot request both strict and compat output; specify at most one`。truthy 判定は前後空白をトリムしてから行う（`?strict=%201%20` を受理する。受理が広がるだけで既定側には倒れない）。
 > Codex レビュー 1 ラウンド（技術的前提の実コード検証・仕様間整合・方針整合）＋指摘反映済み（2026-07）。
 > [case-v1p1-conformance-backlog.md](../case-v1p1-conformance-backlog.md) の P1 項目群（C16 / C1 / C2 / C3、および C8/N6 の出力側・N7 文言修正）をまとめて解消する設計。
 > 目的: CASE API の出力を **compat（現状互換・既定）** と **strict（公式 OpenAPI スキーマ適合）** の 2 モードで対称に切り替えられるようにする。

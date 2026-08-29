@@ -23,6 +23,8 @@ API path: `/{tenant}/ims/case/v1p1/` (COMPEITO's current API path; the tenant pr
 | GET /{tenant}/ims/case/v1p1/CFSubjects/{id} | `{"CFSubjects": [...]}` | Get subject set | ✓ |
 | GET /{tenant}/ims/case/v1p1/CFRubrics/{id} | `{"CFRubric": {...}}` | Get a rubric | ✓ |
 
+> The root keys above are the **compat** (default) shape. Under `?strict=1` the six single-resource routes return the DType at the root instead, with no wrapper (see "Intentional divergences" 1 and the strict output mode below).
+
 **Custom listing endpoints** (outside the CASE v1.1 spec; provided for convenience to list all resources within a tenant):
 
 | Path | Response root key | Description |
@@ -71,15 +73,19 @@ The response IS a `CFPackageDType` (no wrapper key). This matches CASE v1.1 and 
 - Scope of `CFDefinitions`: only definitions referenced from this document's resources (not all tenant definitions). Specifically: CFItemTypes referenced by `cf_item_type_id` from the document's items; CFSubjects referenced via `subject_uri` from the CFDocument or its items; CFConcepts referenced by `cf_concept_id` from the document's items; CFLicenses referenced by `cf_license_id` from the CFDocument or its items; CFAssociationGroupings referenced by `cf_association_grouping_id` from the document's associations.
 - `CFRubrics` is always included as an array, empty if no data (like `CFItems` / `CFAssociations`; `CFRubrics` is an array type and the CFDefinitions object-type omission rule does not apply).
 - **Sort order within CFPackage**: every array in CFItems / CFAssociations / CFDefinitions is sorted by `identifier ASC` (consistent with the listing endpoints' default; guarantees deterministic output).
-- **CFPckg* schemas inside CFPackage**: CASE v1.1 defines CFPckg-specific shapes inside CFPackage. compeito's default output keeps the structural distinction but **emits the LinkURI fields anyway** (`CFPackageURI` / `CFDocumentURI`) for round-trip parity with OpenCASE / OpenSALT (see [round_trip_status.md](../dev/round_trip_status.md) cat B / D). ⚠️ The official CASE v1.1 OpenAPI schema for `CFPckgDocumentDType` / `CFPckgItemDType` uses `additionalProperties: false` and does **not** list these URIs, so a strict validator would reject them. They are kept for real-world interop (OpenCASE/OpenSALT emit them too); pass **`?strict=1`** on `GET /CFPackages/{id}` to omit them. ⚠️ Note that `?strict=1` currently **only** removes these package-context URIs — it does not yet make the output fully official-schema-valid (optional-field `null`s, nullable required fields, and `caseVersion` values other than `"1.1"` remain; see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C16/C3).
+- **`CFPckg*` schemas inside CFPackage**: CASE v1.1 defines CFPckg-specific shapes inside CFPackage. compeito's default output keeps the structural distinction but **emits the LinkURI fields anyway** (`CFPackageURI` / `CFDocumentURI`) for round-trip parity with OpenCASE / OpenSALT (see [round_trip_status.md](../dev/round_trip_status.md) cat B / D). ⚠️ The official CASE v1.1 OpenAPI schema for `CFPckgDocumentDType` / `CFPckgItemDType` uses `additionalProperties: false` and does **not** list these URIs, so a strict validator would reject them. They are kept for real-world interop (OpenCASE/OpenSALT emit them too); pass **`?strict=1`** on `GET /CFPackages/{id}` to omit them. `?strict=1` is the **CASE output mode**, accepted on every CASE GET endpoint (not just this one). It applies four transformations: single-resource wrappers are removed (the official binding returns the DType at the root), optional fields whose value is null are omitted (no DType is nullable), package-context URIs are stripped, and `caseVersion` is declared as `"1.1"`. `?compat=1` asks for today's shape explicitly; asking for both is a 400. The default for a request that asks for neither is `case_output_default` (env `CASE_OUTPUT_DEFAULT`), currently `compat`; flipping it to `strict` is the planned major-version change.
   - `CFPckgDocument`: includes `CFPackageURI` by default (omitted under `?strict=1`).
   - `CFPckgItem`: includes `CFDocumentURI` by default (omitted under `?strict=1`).
   - `CFPckgAssociation`: standalone `CFAssociation` minus `CFDocumentURI`.
   - Each CFDefinitions resource (CFItemType, CFSubject, etc.) uses the same schema as the standalone form.
+
+  ⚠️ **Behaviour change**: `?strict=1` previously removed only the package-context URIs on `GET /CFPackages/{id}`. It now applies all four transformations on every CASE GET endpoint. Clients that relied on the older, partial behaviour see flat single resources and absent null keys.
+
+  Two known gaps remain in strict output, both tracked in the [conformance backlog](../dev/case-v1p1-conformance-backlog.md): **C3** is data-driven — a field the official schema marks required but the imported data left empty is omitted rather than fabricated, so the output is short of a required key — and **C4**, an empty result still emits `[]` where the Set types declare `minItems: 1`.
 - **Container `extensions`**: `CFPackage.extensions` and `CFDefinitions.extensions` are preserved (stored on the owning document) and emitted when present.
 
 Do **not** add custom wrappers (`{"data": ...}` etc.) to the response.
-**Null fields**: include nullable fields in the response (Pydantic `exclude_none=False`). The policy is consistent across every endpoint for consistency.
+**Null fields**: **in compat output (the default)** nullable fields are included in the response (Pydantic `exclude_none=False`), consistently across every endpoint. **Under `?strict=1` they are omitted instead** — no DType in the official schema is nullable, so an echoed `null` is a type violation (see the strict output mode above).
 On error, return `{"imsx_codeMajor": "failure", ...}` directly at the root (see the error format section).
 
 ## CFItemAssociations response shape
@@ -123,7 +129,7 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 - `filter` — predicates `field <op> value` where op ∈ `=` `!=` `>` `>=` `<` `<=` `~` (`~` = case-insensitive contains, string fields only), joined by a single `AND` or `OR` (mixing both → 400). String values are single-quoted (`title='Math'`); dates `YYYY-MM-DD`. String `=` / `!=` are **case-insensitive** (per the REST binding's Unicode Collation guidance); ordering comparisons stay case-sensitive. `subject` (JSONB array) is filterable: `subject~'x'` = any element contains `x`; `subject='x'` = array contains the exact element. Invalid field/value/predicate → 400 (`invalid_selection_field`).
 - `fields` — comma-separated CFDocument field names; the response objects are projected to exactly those keys. Unknown field → 400 (`invalid_selection_field`). NOTE: the REST binding prose says an unknown field should return the full record (and only a *blank* field is `invalid_selection_field`); similarly it says an unknown `sort` should fall back to the default order. compeito intentionally returns 400 in both cases (typos are visible to the client). This is an intentional divergence (see [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7).
 - These are currently implemented for `GET /CFDocuments` only (the only listing endpoint the CASE v1.1 OpenAPI defines these params on); the extension listing endpoints (`CFItemTypes`, etc.) accept `limit`/`offset` only.
-- Note: served only by the dynamic API. A static-publishing deployment bakes the default (unsorted/unfiltered/full) listing, so sort/filter/fields require dynamic serving.
+- Note: served only by the dynamic API. A static-publishing deployment bakes the default (unsorted/unfiltered/full) listing, so sort/filter/fields require dynamic serving. **The same applies to `?strict=1` / `?compat=1`**: a static deployment serves whatever `case_output_default` was set to at bake time, and cannot switch per request.
 **`X-Total-Count`**: `GET /CFDocuments` returns the total number of matching documents (after `filter`, before pagination) in the `X-Total-Count` response header.
 
 **`Link`** (RFC 8288): `GET /CFDocuments` returns a `Link` response header with `first` / `prev` / `next` / `last` relations (whichever apply), comma-separated in a single header. Relations are omitted at the series boundaries (no `prev`/`first` on the first page; no `next` on the last page). The header is absent when the whole result fits a single page at `offset=0`, when the result is empty, or when `limit=0`. (An out-of-range `offset` past the end still emits `first`/`prev`/`last` so the client can rewind.) Notes:
@@ -132,6 +138,7 @@ Applies to: `CFDocuments`, `CFItemAssociations/{id}`, `CFItemTypes`, `CFSubjects
 - `next`/`last` never point past the `offset` cap (100000): a target that would be re-clamped to the cap (and thus loop back to the current page) is omitted. With more than `cap + limit` rows the true final page is unreachable by paging — use a narrower `filter`.
 - `filter`/`fields` are carried through, URL-encoded; a very long `filter` lengthens the header.
 - Served only by the dynamic API (like `sort`/`filter`/`fields`); a static-publishing deployment does not emit `Link`.
+- `strict`/`compat` are carried through as well, so paging keeps the output mode.
 Default sort order: every listing endpoint sorts by `identifier ASC` to guarantee deterministic ordering and avoid duplicates / gaps across pages.
 Scope: every listing endpoint returns all tenant rows (no document filtering). `CFDocuments` returns every document in the tenant. `CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` return every lookup in the tenant. `CFItems/{id}/associations` searches all documents in the tenant (see the validation section). CFDefinitions inside CFPackage is narrowed to definitions referenced from the document, but listing endpoints are not narrowed.
 
@@ -223,7 +230,7 @@ JOIN on `cf_license_id` and use the CFLicense's `{title, identifier, uri}`. When
 JOIN on `cf_association_grouping_id` and use the CFAssociationGrouping's `{title, identifier, uri}`. When `cf_association_grouping_id` is NULL, it's null (included as JSON `null`).
 
 **Constructing `originNodeURI` / `destinationNodeURI` (inside CFAssociation):**
-Built directly from the DB columns `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` (no JOIN). To support external references, the stored values are used as-is. CASE v1.1 uses `LinkGenURIDType`: `identifier` is not restricted to UUID, and `targetType` is a new field. When `targetType` is NULL, we still emit `null` in the response. (CASE v1.1 OpenAPI defines `targetType` as `anyOf` (`"CASE"` enum / `ext:` pattern) and does not permit null, but in practice unset targetType is common, so we include `null`. Strict output with `exclude_none` is tracked as [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C16.)
+Built directly from the DB columns `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` (no JOIN). To support external references, the stored values are used as-is. CASE v1.1 uses `LinkGenURIDType`: `identifier` is not restricted to UUID, and `targetType` is a new field. When `targetType` is NULL, we still emit `null` in the response. (CASE v1.1 OpenAPI defines `targetType` as `anyOf` (`"CASE"` enum / `ext:` pattern) and does not permit null, but in practice unset targetType is common, so we include `null`. Under `?strict=1` the key is omitted instead, which resolves this type violation.)
 
 **Constructing `subject` / `subjectURI` (inside CFDocument / CFItem):**
 The DB columns `subject` (JSONB string array) and `subject_uri` (JSONB LinkURI object array) are emitted as-is. When NULL, the value is null (included as JSON `null`). CASE v1.1 defines both fields on CFDocument and CFItem.
@@ -301,7 +308,7 @@ Standard values per the CASE v1.1 information model:
 
 Notable design choices that diverge from the CASE v1.1 OpenAPI schema. Historical note: most of these stem from COMPEITO's original goal of full OpenSALT (CASE v1.0) compatibility with two-way data exchange. As of 2026-07 the project instead aims to pass the 1EdTech CASE v1.1 conformance test (imports from OpenSALT / OpenCASE stay tolerant and one-way), so the output-side OpenSALT-flavoured behaviours below are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md):
 
-1. **Response wrapper structure:** strictly per the OpenAPI schema, single-resource fetches (`GET /CFDocuments/{id}`, etc.) return the DType at the root (no wrapper). We wrap with a root key — `{"CFDocument": {...}}` — to match the convention used by OpenSALT and other CASE implementations. **Exception:** `GET /CFPackages/{id}` returns the `CFPackageDType` at the top level (no wrapper) so that CASE clients reading `CFDocument` / `CFItems` from the root can interpret the framework. OpenSALT does the same.
+1. **Response wrapper structure:** strictly per the OpenAPI schema, single-resource fetches (`GET /CFDocuments/{id}`, etc.) return the DType at the root (no wrapper). We wrap with a root key — `{"CFDocument": {...}}` — to match the convention used by OpenSALT and other CASE implementations. **Under `?strict=1` the wrapper is removed** and the DType is returned at the root, per the official binding. **Exception:** `GET /CFPackages/{id}` returns the `CFPackageDType` at the top level (no wrapper) so that CASE clients reading `CFDocument` / `CFItems` from the root can interpret the framework. OpenSALT does the same.
 2. **Empty arrays allowed:** `CFDocumentSetDType` (`minItems: 1`) and `CFAssociationSetDType` (`minItems: 1`) are documented as non-empty in the spec, but we return empty arrays when the result is 0 (see relevant sections).
 3. **Invalid UUID → 400:** CASE v1.1 lumps invalid UUIDs into 404; we split into 400 (see validation section).
 4. **`limit=0` accepted:** OpenAPI says `minimum: 1`, but we accept it and return an empty array (see pagination section).
@@ -313,7 +320,7 @@ Notable design choices that diverge from the CASE v1.1 OpenAPI schema. Historica
 10. **405 Method Not Allowed:** not defined in CASE v1.1 OpenAPI, but reasonable for a GET-only API; we add it.
 11. **401 / 403 not implemented:** defined for every endpoint in CASE v1.1 OpenAPI, but our CASE API is public (no auth) so they're irrelevant.
 12. **CFDocument `creator` nullable:** required in CASE v1.1 OpenAPI (in the CFDocumentDType required list), but nullable in our DB to accommodate CSV imports that omit it. The API response can return `null`. External CFPackage import behavior: on create, missing / null / blank `creator` emits a warning and stores `null`; on update, missing / null retains the existing value silently, and a blank string emits a warning while still retaining the existing value (the existing `creator` is not overwritten with an empty string). Phase 2 will consider an empty-string default for Conformance.
-13. **Required lookup fields nullable:** `description` / `hierarchyCode` on CFItemType, `hierarchyCode` on CFSubject and CFConcept, and `licenseText` on CFLicense are treated as nullable (see "Compliance note for required lookup fields" above). `LinkGenURIDType.title` (origin/destination node) is likewise emitted as-is and may be `null`. This is a deliberate lenient-import / value-preservation policy: compeito ingests imperfect external data rather than rejecting it, so API output of these spec-"required" fields may be null/empty. Certification-grade strict output (fallback synthesis or import-time rejection) is a separate, future option.
+13. **Required lookup fields nullable:** `description` / `hierarchyCode` on CFItemType, `hierarchyCode` on CFSubject and CFConcept, and `licenseText` on CFLicense are treated as nullable (see "Compliance note for required lookup fields" above). `LinkGenURIDType.title` (origin/destination node) is likewise emitted as-is and may be `null`. This is a deliberate lenient-import / value-preservation policy: compeito ingests imperfect external data rather than rejecting it, so API output of these spec-"required" fields may be null/empty. Under `?strict=1` these are omitted rather than emitted as null, which turns a type violation into a missing required key — a data-quality gap to be closed by supplying the values on import, not by fabricating them in the output (see docs/dev/designs/strict-output.md §7).
 
 ## Security posture
 
@@ -369,6 +376,8 @@ CASE v1.1 の 12 エンドポイント（公式 Provider エンドポイント�
 | GET /{tenant}/ims/case/v1p1/CFSubjects/{id} | `{"CFSubjects": [...]}` | 教科取得 | ○ |
 | GET /{tenant}/ims/case/v1p1/CFRubrics/{id} | `{"CFRubric": {...}}` | ルーブリック取得 | ○ |
 
+> 上表のルートキーは **compat**（既定）の形である。`?strict=1` の場合、単一リソースの6ルートは wrapper 無しで DType をルートに返す（「意図的な差異」1、および後述の strict 出力モードを参照）。
+
 **独自拡張エンドポイント**（CASE v1.1 仕様外。テナント内の全リソースを一覧取得。利便性のため提供）:
 
 | Path | レスポンスルートキー | 説明 |
@@ -417,15 +426,19 @@ Phase 1 ではこれらのフィールドを DB 上 nullable として扱い、�
 - `CFDefinitions` に含めるスコープ: このドキュメントのリソースから参照されている定義のみ（テナント内の全定義ではない）。具体的には: CFItemTypes = ドキュメント配下の CFItem が `cf_item_type_id` で参照するもの、CFSubjects = CFDocument および配下の CFItem の `subject_uri` から参照されるもの、CFConcepts = ドキュメント配下の CFItem が `cf_concept_id` で参照するもの、CFLicenses = CFDocument または配下の CFItem が `cf_license_id` で参照するもの、CFAssociationGroupings = ドキュメント配下の CFAssociation が `cf_association_grouping_id` で参照するもの
 - `CFRubrics` は `CFItems` / `CFAssociations` と同様に空配列 `[]` として常に含める（`CFRubrics` は配列型であり、CFDefinitions のオブジェクト型省略ルールとは異なる）
 - **CFPackage 内のソート順**: CFItems・CFAssociations・CFDefinitions 内の各配列は `identifier ASC` で並べる（一覧エンドポイントのデフォルトソート順と統一し、決定的な出力を保証する）
-- **CFPackage 内のリソーススキーマ（CFPckg* 型）**: CASE v1.1 では CFPackage 内のリソースはスタンドアロン型とは異なる CFPckg* 型を定義する。compeito の既定出力は構造上の区別は維持しつつ、**OpenCASE / OpenSALT round-trip の整合性を取るため `CFPackageURI` / `CFDocumentURI` の LinkURI 系を emit する**（[round_trip_status.md](../dev/round_trip_status.md) cat B / D）。⚠️ 公式 CASE v1.1 OpenAPI の `CFPckgDocumentDType` / `CFPckgItemDType` は `additionalProperties: false` で**これらの URI を定義していない**ため、厳密な検証では弾かれる。実世界の相互運用のため既定では含める（OpenCASE/OpenSALT も出す）が、`GET /CFPackages/{id}` に **`?strict=1`** を付けると除去する。⚠️ ただし現状の `?strict=1` はこのパッケージ内 URI の除去**のみ**で、出力全体が公式スキーマ適合になるわけではない（optional フィールドの `null`、nullable な required、`"1.1"` 以外の `caseVersion` は残る。[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C16/C3 参照）:
+- **CFPackage 内のリソーススキーマ（`CFPckg*` 型）**: CASE v1.1 では CFPackage 内のリソースはスタンドアロン型とは異なる CFPckg* 型を定義する。compeito の既定出力は構造上の区別は維持しつつ、**OpenCASE / OpenSALT round-trip の整合性を取るため `CFPackageURI` / `CFDocumentURI` の LinkURI 系を emit する**（[round_trip_status.md](../dev/round_trip_status.md) cat B / D）。⚠️ 公式 CASE v1.1 OpenAPI の `CFPckgDocumentDType` / `CFPckgItemDType` は `additionalProperties: false` で**これらの URI を定義していない**ため、厳密な検証では弾かれる。実世界の相互運用のため既定では含める（OpenCASE/OpenSALT も出す）が、`GET /CFPackages/{id}` に **`?strict=1`** を付けると除去する。`?strict=1` は **CASE 出力モード**であり、このエンドポイントに限らず全ての CASE GET エンドポイントで受け付ける。適用する変換は4つ: 単一リソースの wrapper を外す（公式バインディングは DType をルートに返す）、値が null の optional フィールドを省く（nullable な DType は1つも無い）、パッケージ内 URI を除去する、`caseVersion` を `"1.1"` として宣言する。`?compat=1` は現状の形を明示的に要求する。両方を指定すると 400 になる。どちらも指定しない場合の既定は `case_output_default`（環境変数 `CASE_OUTPUT_DEFAULT`）で、現状は `compat`。これを `strict` に反転するのがメジャーバージョンでの予定変更である。
   - `CFPckgDocument`: 既定で `CFPackageURI` を含む（`?strict=1` で除去）
   - `CFPckgItem`: 既定で `CFDocumentURI` を含む（`?strict=1` で除去）
   - `CFPckgAssociation`: スタンドアロン `CFAssociation` から `CFDocumentURI` を**除外**
-- **コンテナの `extensions`**: `CFPackage.extensions` / `CFDefinitions.extensions` を保持（所有 document に格納）し、存在時に出力する。
   - CFDefinitions 内の各リソース（CFItemType, CFSubject 等）はスタンドアロンと同一スキーマ
 
+  ⚠️ **挙動の変更**: 従来の `?strict=1` は `GET /CFPackages/{id}` でパッケージ内 URI を除去するだけだった。現在は全 CASE GET エンドポイントで4つの変換を適用する。従来の部分的な挙動に依存していたクライアントからは、単一リソースが flat になり null のキーが消えたように見える。
+
+  strict 出力に残る既知のギャップは2つで、いずれも [conformance backlog](../dev/case-v1p1-conformance-backlog.md) で管理している。**C3** はデータ起因で、公式スキーマが required とするフィールドがインポート元で空だった場合、捏造せずに省くため required キーの欠落として残る。**C4** は 0 件の結果で `[]` を出す点で、Set 型の `minItems: 1` に反する。
+- **コンテナの `extensions`**: `CFPackage.extensions` / `CFDefinitions.extensions` を保持（所有 document に格納）し、存在時に出力する。
+
 レスポンスにカスタムラッパー (`{"data": ...}` 等) を**追加してはならない**。
-**null フィールドの扱い:** null 許容フィールドはレスポンスに含める方針とする（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用し、一貫性を優先する。
+**null フィールドの扱い:** **compat 出力（既定）では** null 許容フィールドをレスポンスに含める（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用する。**`?strict=1` の場合は省略する**。公式スキーマに nullable な DType は1つも無いため、`null` の echo は型違反になる（上記の strict 出力モードを参照）。
 エラー時は `{"imsx_codeMajor": "failure", ...}` をルートレベルに直接返す（エラー形式参照）。
 
 ## CFItemAssociations レスポンス構造
@@ -469,7 +482,7 @@ CASE v1.1 のページネーションは `GET /CFDocuments` に実装。compeito
 - `filter` — `field <op> value`（op = `=` `!=` `>` `>=` `<` `<=` `~`、`~` は大小無視の contains で文字列フィールドのみ）を単一の `AND` か `OR` で結合（混在は 400）。文字列値は単一引用符（`title='Math'`）、日付は `YYYY-MM-DD`。文字列の `=` / `!=` は**大小無視**（REST binding の Unicode Collation 指針に準拠）。ordering 比較（`>` 等）は大小区別のまま。`subject`（JSONB 配列）もフィルタ可能: `subject~'x'` = いずれかの要素が `x` を含む、`subject='x'` = 配列が `x` という要素を含む。不正なフィールド/値/述語 → 400（`invalid_selection_field`）
 - `fields` — カンマ区切りの CFDocument フィールド名。レスポンスを指定キーのみに射影。未知フィールド → 400（`invalid_selection_field`）。注: REST binding の散文では未知フィールドは全件返す（空フィールドのみ `invalid_selection_field`）、未知 `sort` は既定順にフォールバックする、とされる。compeito は両ケースとも意図的に 400 を返す（typo をクライアントに可視化）。意図的差異（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) C7 参照）
 - 現状 `GET /CFDocuments` のみ（公式 OpenAPI がこれらを定義する唯一の list エンドポイント）。拡張 list エンドポイント（`CFItemTypes` 等）は `limit`/`offset` のみ
-- 動的 API でのみ提供。静的公開のデプロイでは既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要
+- 動的 API でのみ提供。静的公開のデプロイでは既定（未ソート/未フィルタ/全フィールド）を焼くため、sort/filter/fields は動的公開が必要。**`?strict=1` / `?compat=1` も同様**で、静的公開では焼いた時点の `case_output_default` の形になり、リクエストごとの切り替えはできない
 **`X-Total-Count`**: `GET /CFDocuments` は条件に一致するドキュメントの総件数（`filter` 適用後・ページネーション前）を `X-Total-Count` レスポンスヘッダーで返す。
 
 **`Link`**（RFC 8288）: `GET /CFDocuments` は `first` / `prev` / `next` / `last`（該当するもの）をカンマ区切りで 1 つの `Link` レスポンスヘッダーに載せて返す。系列の端では該当 rel を省略する（先頭ページは `prev`/`first` なし、最終ページは `next` なし）。結果全体が `offset=0` の 1 ページに収まる場合・空の場合・`limit=0` の場合はヘッダー自体を付けない（範囲外の `offset` では巻き戻し用に `first`/`prev`/`last` を出す）。補足:
@@ -478,6 +491,7 @@ CASE v1.1 のページネーションは `GET /CFDocuments` に実装。compeito
 - `next`/`last` は `offset` 上限（100000）を超えるページを指さない。上限に再丸めされて現在ページにループする宛先は省略する。`上限 + limit` を超える件数では最終ページにページ送りで到達できない（`filter` で絞ること）。
 - `filter`/`fields` は URL エンコードして引き継ぐ。極端に長い `filter` はヘッダー長を増やす。
 - `sort`/`filter`/`fields` 同様、動的 API でのみ提供（静的公開デプロイでは `Link` を出さない）。
+- `strict`/`compat` も伝播するため、ページ送りで出力モードが落ちない。
 デフォルトソート順: 全一覧エンドポイントは `identifier ASC` で並べる（決定的な順序を保証し、ページ間の重複・欠落を防ぐ）。
 スコープ: 全一覧エンドポイントはテナント内の全件を返す（ドキュメントでフィルタリングしない）。`CFDocuments` はテナント内の全ドキュメント、`CFItemTypes` / `CFSubjects` / `CFConcepts` / `CFLicenses` / `CFAssociationGroupings` はテナント内の全 lookup リソースを返す。`CFItems/{id}/associations` はテナント内の全ドキュメントを横断して検索する（api-spec.md バリデーション節参照）。CFPackage 内の CFDefinitions はドキュメントから参照されている定義のみに絞り込むが、一覧APIは絞り込まない。
 
@@ -570,7 +584,7 @@ JOINで解決できない外部参照に備え、cf_association の originNodeUR
 `cf_association_grouping_id` FK で JOIN し、CFAssociationGrouping の `{title, identifier, uri}` を使用する。`cf_association_grouping_id` が NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。
 
 **originNodeURI / destinationNodeURI の構築（CFAssociation 内）:**
-DBの `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` カラムから直接構築する（JOINしない）。外部参照のリソースに対応するため、保存時点の値をそのまま使用する。CASE v1.1 では `LinkGenURIDType` を使用し、`identifier` は UUID 制限なし、`targetType` フィールドが追加されている。`targetType` は NULL の場合レスポンスに null として含める（CASE v1.1 OpenAPI では `targetType` は anyOf（`"CASE"` enum / `ext:` パターン）で null を許容しない定義だが、実運用上 targetType が未設定のケースは一般的であるため null を含める方針とする。strict な準拠が必要な場合は `exclude_none` で省略する対応を Phase 2 で検討する）。
+DBの `origin_node_identifier`, `origin_node_uri`, `origin_node_title`, `origin_node_target_type` カラムから直接構築する（JOINしない）。外部参照のリソースに対応するため、保存時点の値をそのまま使用する。CASE v1.1 では `LinkGenURIDType` を使用し、`identifier` は UUID 制限なし、`targetType` フィールドが追加されている。`targetType` は NULL の場合レスポンスに null として含める（CASE v1.1 OpenAPI では `targetType` は anyOf（`"CASE"` enum / `ext:` パターン）で null を許容しない定義だが、実運用上 targetType が未設定のケースは一般的であるため null を含める方針とする。`?strict=1` を付けた場合はキー自体を省略するため、この型違反は解消する）。
 
 **subject / subjectURI の構築（CFDocument / CFItem 内）:**
 DB の `subject` JSONB カラム（文字列配列）と `subject_uri` JSONB カラム（LinkURI オブジェクト配列）をそのまま出力する。NULL の場合は null（`exclude_none=False` のため JSON に `null` として含まれる）。CASE v1.1 では `subject` と `subjectURI` は CFDocument と CFItem の両方に定義されている。
@@ -648,7 +662,7 @@ CASE v1.1 情報モデルで定義されている標準値:
 
 以下は CASE v1.1 OpenAPI スキーマとの差異のうち、意図的な設計判断として本システムで採用しているもの。歴史的経緯: これらの多くは、当初の開発思想「OpenSALT (CASE v1.0) との完全互換・双方向データ交換」に由来する。2026-07 の方針転換により現在は **CASE v1.1 コンフォーマンステストのパス**を目標としており（OpenSALT / OpenCASE からの import は寛容な一方通行として維持）、出力側の OpenSALT 互換挙動は段階的な退役対象（詳細は [conformance backlog](../dev/case-v1p1-conformance-backlog.md)）:
 
-1. **レスポンスラッパー構造:** OpenAPI スキーマの strict な読み方では、単一リソース取得（`GET /CFDocuments/{id}` 等）は DType をルートに直接返す（ラッパーなし）。本システムでは `{"CFDocument": {...}}` のようにルートキーでラップする。これは OpenSALT 等の既存 CASE 実装の慣行に合わせた設計。**例外:** `GET /CFPackages/{id}` は `CFPackageDType` をトップレベルで返す（ラッパーなし）。これは CASE クライアントがトップレベルから `CFDocument` / `CFItems` を読めるようにするため。OpenSALT も同じ形式
+1. **レスポンスラッパー構造:** OpenAPI スキーマの strict な読み方では、単一リソース取得（`GET /CFDocuments/{id}` 等）は DType をルートに直接返す（ラッパーなし）。本システムでは `{"CFDocument": {...}}` のようにルートキーでラップする。これは OpenSALT 等の既存 CASE 実装の慣行に合わせた設計。**`?strict=1` を付けた場合は wrapper を外し**、公式バインディングどおり DType をルートに返す。**例外:** `GET /CFPackages/{id}` は `CFPackageDType` をトップレベルで返す（ラッパーなし）。これは CASE クライアントがトップレベルから `CFDocument` / `CFItems` を読めるようにするため。OpenSALT も同じ形式
 2. **空配列の許容:** `CFDocumentSetDType` (`minItems: 1`) や `CFAssociationSetDType` (`minItems: 1`) に対して、0 件時に空配列を返す（上記各セクション参照）
 3. **invalid UUID → 400:** CASE v1.1 では invalid UUID も 404 に含むが、本システムでは 400 に分離（上記バリデーション節参照）
 4. **`limit=0` の許容:** OpenAPI は `minimum: 1` だが、本システムでは空配列を返す有効リクエストとして扱う（上記ページネーション節参照）
