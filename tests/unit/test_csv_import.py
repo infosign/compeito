@@ -135,17 +135,17 @@ class TestMetadataParsing:
 
     def test_subject_multi_value(self):
         lines = [
-            ["#subject", "国語", "地理歴史", "公民"],
+            ["#subject", "言語表現", "社会探究", "市民性"],
         ]
         meta, subjects, warnings = _parse_metadata_lines(lines)
-        assert subjects == ["国語", "地理歴史", "公民"]
+        assert subjects == ["言語表現", "社会探究", "市民性"]
 
     def test_subject_trim_and_filter(self):
         lines = [
-            ["#subject", "国語", "", "地理歴史"],
+            ["#subject", "言語表現", "", "社会探究"],
         ]
         meta, subjects, warnings = _parse_metadata_lines(lines)
-        assert subjects == ["国語", "地理歴史"]
+        assert subjects == ["言語表現", "社会探究"]
 
     def test_unknown_key(self):
         lines = [
@@ -191,8 +191,8 @@ class TestImportCustomFormat:
             "#title,Test Doc\n"
             "#language,ja\n"
             "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType\n"
-            ",国語,,,10,教科\n"
-            ",現代の国語,,,20,科目\n"
+            ",言語表現,,,10,教科\n"
+            ",言語表現I,,,20,科目\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -355,7 +355,7 @@ class TestImportCustomFormat:
         csv = (
             "#title,Lookup Test\n"
             "#license,CC BY 4.0\n"
-            "#subject,国語,数学\n"
+            "#subject,言語表現,数学\n"
             "Identifier,fullStatement,CFItemType,license\n"
             ",Item 1,知識及び技能,MIT\n"
             ",Item 2,知識及び技能,\n"
@@ -366,7 +366,7 @@ class TestImportCustomFormat:
 
         assert report.item_types_created == 1  # 知識及び技能 (reused)
         assert report.licenses_created == 2  # CC BY 4.0 + MIT
-        assert report.subjects_created == 2  # 国語, 数学
+        assert report.subjects_created == 2  # 言語表現, 数学
         assert report.item_types_existing == 0
 
         # Second reference to same item type should reuse
@@ -453,7 +453,7 @@ class TestImportCustomFormat:
         csv = (
             "#title,HCS Dup Test\n"
             "Identifier,fullStatement,humanCodingScheme\n"
-            "aaaa0001-0001-0001-0001-000000000001,国語のア,ア\n"
+            "aaaa0001-0001-0001-0001-000000000001,言語表現のア,ア\n"
             "aaaa0001-0001-0001-0001-000000000002,数学のア,ア\n"
             "aaaa0001-0001-0001-0001-000000000003,理科のア,ア\n"
         ).encode("utf-8")
@@ -487,8 +487,8 @@ class TestImportOpenSALTFormat:
             "#title,OpenSALT Test\n"
             "Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,"
             "Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of\n"
-            "aaaa2222-1111-1111-1111-111111111111,国語,,,,,教科,ja,,,,\n"
-            "bbbb2222-1111-1111-1111-111111111111,現代の国語,,,,,科目,ja,,aaaa2222-1111-1111-1111-111111111111,10,\n"
+            "aaaa2222-1111-1111-1111-111111111111,言語表現,,,,,教科,ja,,,,\n"
+            "bbbb2222-1111-1111-1111-111111111111,言語表現I,,,,,科目,ja,,aaaa2222-1111-1111-1111-111111111111,10,\n"
         ).encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
@@ -518,7 +518,7 @@ class TestImportOpenSALTFormat:
 
 class TestImportSimpleFormat:
     async def test_basic_simple(self, db_session: AsyncSession, tenant: Tenant):
-        csv = ("#title,Simple Test\n国語\n  現代の国語\n    言葉の特徴\n  言語文化\n地理歴史\n").encode("utf-8")
+        csv = ("#title,Simple Test\n言語表現\n  言語表現I\n    言葉の特徴\n  言語文化\n社会探究\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()
@@ -540,7 +540,7 @@ class TestImportSimpleFormat:
         assert depths == [0, 0, 1, 1, 2]
 
     async def test_simple_with_hcs_and_type(self, db_session: AsyncSession, tenant: Tenant):
-        csv = ("#title,Simple HCS\n国語,K-1,教科\n  現代の国語,K-1-1,科目\n").encode("utf-8")
+        csv = ("#title,Simple HCS\n言語表現,K-1,教科\n  言語表現I,K-1-1,科目\n").encode("utf-8")
 
         report = await import_csv(db_session, tenant.id, csv)
         await db_session.flush()

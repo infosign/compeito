@@ -40,14 +40,14 @@ The format is decided from the header row (line 1, or the first non-empty line a
 Lines starting with `#` may appear at the top of the file (optional). The rule applies to all formats.
 
 ```csv
-#title,High School National Curriculum Standard
+#title,Sample Curriculum Framework
 #version,1.0
-#creator,Ministry of Education
-#publisher,Ministry of Education
-#description,High School National Curriculum (announced 2018)
+#creator,Sample Education Board
+#publisher,Sample Education Board
+#description,Sample Curriculum Framework (2025 edition)
 #language,en
 #adoption_status,Adopted
-#official_source_url,https://www.mext.go.jp/...
+#official_source_url,https://example.org/framework/...
 #license,CC BY 4.0
 #status_start_date,2018-03-30
 #status_end_date,2028-03-31
@@ -99,7 +99,7 @@ Lines starting with `#` may appear at the top of the file (optional). The rule a
 ### Example
 
 ```csv
-#title,High School National Curriculum
+#title,Sample Curriculum Framework
 #language,en
 Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords
 ,Japanese,,,,Subject,,
@@ -361,24 +361,24 @@ Rows are processed top-down. When a Criterion row has an empty `RubricIdentifier
 CSVファイルの先頭に `#` で始まるメタデータ行を配置できる（任意）。全フォーマット共通。
 
 ```csv
-#title,高等学校学習指導要領
+#title,サンプル教育課程フレームワーク
 #version,1.0
-#creator,文部科学省
-#publisher,文部科学省
-#description,高等学校学習指導要領（平成30年告示）
+#creator,サンプル教育委員会
+#publisher,サンプル教育委員会
+#description,サンプル教育課程フレームワーク（2025年版）
 #language,ja
 #adoption_status,Adopted
-#official_source_url,https://www.mext.go.jp/...
+#official_source_url,https://example.org/framework/...
 #license,CC BY 4.0
 #status_start_date,2018-03-30
 #status_end_date,2028-03-31
-#subject,国語,地理歴史,公民
+#subject,言語表現,社会探究,市民性
 ```
 
 - `#identifier`: CFDocument の UUID。指定するとインポート時に **find-or-create** で振る舞う: 同一テナント内に同じ `identifier` の CFDocument があればその場で更新、なければ指定された UUID で新規作成する。seed CSV を再インポート idempotent にしたい場合や、エクスポート → 再インポートで URI を保持したい場合に使う。UUID として不正な値は警告を出して無視し、UUID 自動生成にフォールバックする。CLI `--doc` フラグが同時指定されていた場合は `--doc` が優先される（差異がある場合は警告を出力）
 - `#title`: CFDocumentのタイトル。CLI `--doc-title` が指定されている場合はCLI引数を優先
 - `#version`: CFDocumentのバージョン。CLI `--doc-version` が指定されている場合はCLI引数を優先
-- `#subject`: 教科・科目。カンマ区切りで複数指定可（例: `#subject,国語,地理歴史`）。cf_subject lookup を自動生成。各値の前後空白をトリムし、トリム後の空文字列はフィルタする（例: `#subject,国語,,地理歴史` → `["国語", "地理歴史"]`）
+- `#subject`: 教科・科目。カンマ区切りで複数指定可（例: `#subject,言語表現,社会探究`）。cf_subject lookup を自動生成。各値の前後空白をトリムし、トリム後の空文字列はフィルタする（例: `#subject,言語表現,,社会探究` → `["言語表現", "社会探究"]`）
 - `#license`: ライセンス名（例: `CC BY 4.0`）。cf_license lookup を自動生成し、CFDocument の `cf_license_id` に FK で紐づける。CFItemType と同じ title ベースの lookup パターン
 - その他 (`#creator`, `#publisher`, `#description`, `#notes`, `#language`, `#adoption_status`, `#official_source_url`, `#status_start_date`, `#status_end_date`): 対応するCFDocumentフィールドにマッピング（`#notes` → CASE v1.1 CFDocument.notes）。これらは**単一値フィールド**であり、CSVパース後の2番目のフィールドのみを値として使用する（3番目以降のフィールドは無視）。値にカンマを含める場合はダブルクォートで囲むこと（例: `#description,"情報I, 情報II向け"`）。`#status_start_date` / `#status_end_date` は `YYYY-MM-DD` 形式
 - メタデータ行はヘッダー行より前に配置すること。ヘッダー行の後に `#` で始まる行があっても、メタデータとしては処理されずデータ行として扱われる（独自形式の場合、先頭列 `Identifier` として解釈されるため UUID バリデーションで行スキップとなる）
@@ -411,13 +411,13 @@ CSVファイルの先頭に `#` で始まるメタデータ行を配置できる
 ### 例
 
 ```csv
-#title,高等学校学習指導要領
+#title,サンプル教育課程フレームワーク
 #language,ja
 Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords
-,国語,,,,教科,,
-,現代の国語,,,10,科目,,
-,言葉の特徴や使い方に関する事項,A-1,,10,知識及び技能,"10,11,12",言葉
-a1b2c3d4-...,実社会に必要な国語の知識や技能を身に付けるようにする。,A-1-(1),<親のUUID>,10,,,
+,言語表現,,,,教科,,
+,言語表現I,,,10,科目,,
+,表現技法に関する事項,A-1,,10,知識及び技能,"10,11,12",表現
+a1b2c3d4-...,実務に必要な言語表現の知識と技能を身に付ける。,A-1-(1),<親のUUID>,10,,,
 ```
 
 ### 階層構造の表現
@@ -453,8 +453,8 @@ OpenSALTのCSVインポートとの相互運用を意図した形式。ただし
 
 ```csv
 Identifier,Full Statement,Human Coding Scheme,Abbreviated Statement,Concept Keywords,Education Level,CF Item Type,Language,License,Is Child Of,Sequence Number,Is Part Of
-d86774f2-...,国語,,,,,教科,ja,,,,a1b2c3d4-...
-e97885g3-...,現代の国語,,,,,科目,ja,,d86774f2-...,10,a1b2c3d4-...
+d86774f2-...,言語表現,,,,,教科,ja,,,,a1b2c3d4-...
+e97885g3-...,言語表現I,,,,,科目,ja,,d86774f2-...,10,a1b2c3d4-...
 ```
 
 ### OpenSALT形式の注意事項
@@ -491,19 +491,19 @@ fullStatement の先頭のインデントで階層を判定する:
 - **タブとスペースの混在**: 行ごとに先頭の空白文字で判定する。タブはスペース2つに展開してから depth を計算する（例: タブ1つ+スペース2つ = depth 2）。ファイル内でタブ行とスペース行が混在しても許容する
 
 ```csv
-国語
-  現代の国語
-    言葉の特徴や使い方に関する事項
+言語表現
+  言語表現I
+    表現技法に関する事項
     話すこと・聞くことに関する事項
   言語文化
     我が国の言語文化に関する事項
-地理歴史
+社会探究
   地理総合
 ```
 
 ### インデントと fullStatement の保存
 
-簡易形式のインデント（先頭の空白）は階層判定のみに使用し、fullStatement には**含めずに保存する**。処理順序: インデント解析（depth 算出）→ 先頭・末尾の空白をトリム → トリム後の値を fullStatement として保存。例: `"  現代の国語"` → depth=1, fullStatement=`"現代の国語"`。
+簡易形式のインデント（先頭の空白）は階層判定のみに使用し、fullStatement には**含めずに保存する**。処理順序: インデント解析（depth 算出）→ 先頭・末尾の空白をトリム → トリム後の値を fullStatement として保存。例: `"  言語表現I"` → depth=1, fullStatement=`"言語表現I"`。
 
 ### 簡易形式の制約
 
