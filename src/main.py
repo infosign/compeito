@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.errors import InvalidUUIDError, ResourceNotFoundError, imsx_error_response
+from src.errors import InvalidUUIDError, OutputModeConflictError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
 from src.routers.web import router as web_router
 
@@ -79,6 +79,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(InvalidUUIDError)
 async def invalid_uuid_handler(request: Request, exc: InvalidUUIDError):
     return imsx_error_response(400, exc.message, "invalid_uuid")
+
+
+@app.exception_handler(OutputModeConflictError)
+async def output_mode_conflict_handler(request: Request, exc: OutputModeConflictError):
+    return imsx_error_response(400, exc.message, "invalid_selection_field", field_name="strict")
 
 
 @app.exception_handler(ResourceNotFoundError)

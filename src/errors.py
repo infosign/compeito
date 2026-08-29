@@ -41,6 +41,14 @@ class InvalidUUIDError(Exception):
         self.message = message
 
 
+class OutputModeConflictError(Exception):
+    """Raised when a request asks for both strict and compat output at once."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
 class ResourceNotFoundError(Exception):
     def __init__(self, message: str):
         self.message = message

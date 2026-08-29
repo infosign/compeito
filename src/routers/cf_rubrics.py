@@ -3,10 +3,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
-from src.dependencies import require_tenant, validate_uuid
+from src.dependencies import output_mode, require_tenant, validate_uuid
 from src.errors import ResourceNotFoundError, imsx_error_response
 from src.models.tenant import Tenant
 from src.services import case_query_service
+from src.services.case_serializer import OutputMode, dump_collection, dump_single
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ async def list_cf_rubrics(
     tenant_obj: Tenant = Depends(require_tenant),
     limit: int = Query(default=100),
     offset: int = Query(default=0),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     doc_uuid = validate_uuid(doc)
@@ -33,7 +35,7 @@ async def list_cf_rubrics(
     limit = min(limit, 500)
     offset = min(offset, 100000)
     rubrics = await case_query_service.list_cf_rubrics(session, tenant_obj.id, doc_uuid, limit, offset)
-    content = {"CFRubrics": [r.model_dump(by_alias=True) for r in rubrics]}
+    content = dump_collection(rubrics, mode, wrapper="CFRubrics")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
 
 
@@ -41,11 +43,12 @@ async def list_cf_rubrics(
 async def get_cf_rubric(
     id: str,
     tenant_obj: Tenant = Depends(require_tenant),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     obj_uuid = validate_uuid(id)
     obj = await case_query_service.get_cf_rubric(session, tenant_obj.id, obj_uuid)
     if obj is None:
         raise ResourceNotFoundError(f"CFRubric not found: '{id}'")
-    content = {"CFRubric": obj.model_dump(by_alias=True)}
+    content = dump_single(obj, mode, compat_wrapper="CFRubric")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

@@ -3,10 +3,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
-from src.dependencies import require_tenant, validate_uuid
+from src.dependencies import output_mode, require_tenant, validate_uuid
 from src.errors import ResourceNotFoundError, imsx_error_response
 from src.models.tenant import Tenant
 from src.services import case_query_service
+from src.services.case_serializer import OutputMode, dump_collection
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ async def list_cf_item_types(
     tenant_obj: Tenant = Depends(require_tenant),
     limit: int = Query(default=100),
     offset: int = Query(default=0),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     if limit < 0:
@@ -31,7 +33,7 @@ async def list_cf_item_types(
     limit = min(limit, 500)
     offset = min(offset, 100000)
     items = await case_query_service.list_cf_item_types(session, tenant_obj.id, limit, offset)
-    content = {"CFItemTypes": [i.model_dump(by_alias=True) for i in items]}
+    content = dump_collection(items, mode, wrapper="CFItemTypes")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
 
 
@@ -39,6 +41,7 @@ async def list_cf_item_types(
 async def get_cf_item_type(
     id: str,
     tenant_obj: Tenant = Depends(require_tenant),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     obj_uuid = validate_uuid(id)
@@ -46,5 +49,5 @@ async def get_cf_item_type(
     if objs is None:
         raise ResourceNotFoundError(f"CFItemType not found: '{id}'")
     # CFItemTypeSetDType: requested item type first, descendants by hierarchyCode follow
-    content = {"CFItemTypes": [o.model_dump(by_alias=True) for o in objs]}
+    content = dump_collection(objs, mode, wrapper="CFItemTypes")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})

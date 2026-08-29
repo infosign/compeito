@@ -2,13 +2,22 @@
 
 import uuid
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
 from src.errors import InvalidUUIDError, ResourceNotFoundError
 from src.models.tenant import Tenant
+from src.services.case_serializer import OutputMode, resolve_output_mode
 from src.services.tenant_service import resolve_tenant
+
+
+def output_mode(
+    strict: str | None = Query(default=None),
+    compat: str | None = Query(default=None),
+) -> OutputMode:
+    """Resolve the CASE output mode for this request (see case_serializer)."""
+    return resolve_output_mode(strict, compat)
 
 
 def validate_uuid(value: str) -> uuid.UUID:

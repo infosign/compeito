@@ -39,8 +39,9 @@ class CFPckgDocumentDType(CASEBaseSchema):
     too). NOTE: the official CASE v1.1 OpenAPI schema for CFPckgDocumentDType
     uses `additionalProperties: false` and does NOT list `CFPackageURI`, so
     strict schema validation of package output would reject it. compeito echoes
-    it by default for real-world interop; request `?strict=1` on
-    GET /CFPackages/{id} to omit it for strict conformance.
+    it by default for real-world interop. `?strict=1` (the CASE output mode,
+    accepted on every CASE GET endpoint) omits it; the stripping itself lives in
+    src/services/case_serializer.py.
     """
 
     identifier: str

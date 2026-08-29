@@ -4,10 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.database import get_session
-from src.dependencies import require_tenant, validate_uuid
+from src.dependencies import output_mode, require_tenant, validate_uuid
 from src.errors import ResourceNotFoundError, imsx_error_response
 from src.models.tenant import Tenant
 from src.services import case_query_params, case_query_service
+from src.services.case_serializer import OutputMode, dump_model, dump_single
 
 router = APIRouter()
 
@@ -23,6 +24,11 @@ async def list_cf_documents(
     orderBy: str | None = Query(default=None),  # noqa: N803 — CASE spec query param name
     filter: str | None = Query(default=None),  # noqa: A002 — CASE spec query param name (shadows builtin)
     fields: str | None = Query(default=None),
+    # The raw values are needed twice: the dependency resolves them into a mode,
+    # and the Link header has to carry them forward or paging drops the mode.
+    strict: str | None = Query(default=None),
+    compat: str | None = Query(default=None),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     if limit < 0:
@@ -51,9 +57,9 @@ async def list_cf_documents(
     docs = await case_query_service.list_cf_documents(
         session, tenant_obj.id, limit, offset, filter_clause=filter_clause, order_by=order_by
     )
-    content = {
-        "CFDocuments": [case_query_params.project_fields(doc.model_dump(by_alias=True), field_list) for doc in docs]
-    }
+    # Projection runs AFTER the strict dump: a field dropped because it was None
+    # is simply absent, and asking for it via `fields` does not resurrect it.
+    content = {"CFDocuments": [case_query_params.project_fields(dump_model(doc, mode), field_list) for doc in docs]}
     headers = {"Cache-Control": CACHE_CONTROL, "X-Total-Count": str(total)}
 
     # RFC 8288 Link header (next/prev/first/last). Tenant segment is always the
@@ -63,7 +69,14 @@ async def list_cf_documents(
         limit,
         offset,
         total,
-        extra_params={"sort": sort, "orderBy": orderBy, "filter": filter, "fields": fields},
+        extra_params={
+            "sort": sort,
+            "orderBy": orderBy,
+            "filter": filter,
+            "fields": fields,
+            "strict": strict,
+            "compat": compat,
+        },
     )
     if link is not None:
         headers["Link"] = link
@@ -75,11 +88,12 @@ async def list_cf_documents(
 async def get_cf_document(
     id: str,
     tenant_obj: Tenant = Depends(require_tenant),
+    mode: OutputMode = Depends(output_mode),
     session: AsyncSession = Depends(get_session),
 ) -> JSONResponse:
     doc_uuid = validate_uuid(id)
     doc = await case_query_service.get_cf_document(session, tenant_obj.id, doc_uuid)
     if doc is None:
         raise ResourceNotFoundError(f"CFDocument not found: '{id}'")
-    content = {"CFDocument": doc.model_dump(by_alias=True)}
+    content = dump_single(doc, mode, compat_wrapper="CFDocument")
     return JSONResponse(content=content, headers={"Cache-Control": CACHE_CONTROL})
