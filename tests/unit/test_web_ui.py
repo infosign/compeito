@@ -1,10 +1,12 @@
 """Tests for Web UI: tenant list and framework list (Issue #36)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
+from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
 from src.models.tenant import Tenant
@@ -360,3 +362,152 @@ class TestTenantPageErrors:
     async def test_404_no_cache_control(self, db_client):
         resp = await db_client.get("/99999999-9999-9999-9999-999999999999/")
         assert "cache-control" not in resp.headers
+
+
+# ---------------------------------------------------------------------------
+# Retired items in the UI (B8-3 / B8-4)
+# ---------------------------------------------------------------------------
+
+
+def _retired_item(tenant: Tenant, doc: CFDocument, statement: str, end: date | None) -> CFItem:
+    ident = uuid.uuid4()
+    return CFItem(
+        tenant_id=tenant.id,
+        cf_document_id=doc.id,
+        identifier=ident,
+        uri=f"https://example.com/uri/{ident}",
+        full_statement=statement,
+        status_end_date=end,
+        depth=0,
+        last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+
+
+def _replaced_by(doc: CFDocument, origin: CFItem, dest_ident: str, dest_uri: str) -> CFAssociation:
+    return CFAssociation(
+        tenant_id=doc.tenant_id,
+        cf_document_id=doc.id,
+        identifier=uuid.uuid4(),
+        uri=f"https://example.com/assoc/{uuid.uuid4()}",
+        association_type="replacedBy",
+        origin_node_uri=f"https://example.com/uri/{origin.identifier}",
+        origin_node_identifier=str(origin.identifier),
+        destination_node_uri=dest_uri,
+        destination_node_identifier=dest_ident,
+        last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+
+
+class TestRetirementBanner:
+    async def test_banner_on_a_retired_item(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        past = date.today() - timedelta(days=1)
+        dead = _retired_item(tenant, sample_document, "Retired statement", past)
+        db_session.add(dead)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{dead.identifier}")
+        assert resp.status_code == 200, "a retired item must stay resolvable (issued badges point at it)"
+        assert str(past) in resp.text
+        assert 'role="note"' in resp.text
+
+    async def test_no_banner_for_a_future_end_date(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """A scheduled end date is not a retirement yet."""
+        scheduled = _retired_item(tenant, sample_document, "Scheduled", date.today() + timedelta(days=30))
+        db_session.add(scheduled)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{scheduled.identifier}")
+        assert resp.status_code == 200
+        assert 'role="note"' not in resp.text
+
+    async def test_successor_is_linked(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        past = date.today() - timedelta(days=1)
+        dead = _retired_item(tenant, sample_document, "Old code", past)
+        successor = _retired_item(tenant, sample_document, "New code", None)
+        db_session.add_all([dead, successor])
+        await db_session.flush()
+        db_session.add(
+            _replaced_by(
+                sample_document,
+                dead,
+                str(successor.identifier),
+                f"{settings.base_url}/{tenant.id}/uri/{successor.identifier}",
+            )
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{dead.identifier}")
+        assert "New code" in resp.text
+
+    async def test_successor_in_a_private_tenant_is_not_surfaced(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """Dropping the row entirely, not just the link: a title alone would
+        already reveal that the private tenant holds that item."""
+        private = Tenant(name="Private", is_private=True)
+        db_session.add(private)
+        await db_session.flush()
+        private_doc = CFDocument(
+            tenant_id=private.id,
+            identifier=uuid.uuid4(),
+            uri="https://example.com/uri/private-doc",
+            title="Private doc",
+            creator="t",
+            last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        )
+        db_session.add(private_doc)
+        await db_session.flush()
+        secret = _retired_item(private, private_doc, "SECRET SUCCESSOR", None)
+        db_session.add(secret)
+        await db_session.flush()
+
+        dead = _retired_item(tenant, sample_document, "Old code", date.today() - timedelta(days=1))
+        db_session.add(dead)
+        await db_session.flush()
+        db_session.add(
+            _replaced_by(
+                sample_document,
+                dead,
+                str(secret.identifier),
+                f"{settings.base_url}/{private.id}/uri/{secret.identifier}",
+            )
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/uri/{dead.identifier}")
+        assert resp.status_code == 200
+        assert "SECRET SUCCESSOR" not in resp.text
+
+
+class TestRetiredToggle:
+    async def test_tree_hides_retired_and_offers_the_toggle(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        past = date.today() - timedelta(days=1)
+        live = _retired_item(tenant, sample_document, "Live item", None)
+        dead = _retired_item(tenant, sample_document, "Dead item", past)
+        db_session.add_all([live, dead])
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert "Live item" in resp.text
+        assert "Dead item" not in resp.text
+        assert "includeRetired=1" in resp.text
+
+        shown = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}?includeRetired=1")
+        assert "Dead item" in shown.text
+
+    async def test_no_toggle_without_tombstones(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        db_session.add(_retired_item(tenant, sample_document, "Live item", None))
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert "includeRetired=1" not in resp.text

@@ -41,15 +41,22 @@
                hx-swap="innerHTML"
                hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}"
                onclick="document.querySelectorAll('[data-tree-item]').forEach(el => el.classList.remove('bg-violet-50','ring-1','ring-inset','ring-violet-200'));">{{ doc.title }}</a>
+            {# Retired-item toggle (B8-4). A plain link — no JS — so the state
+               lives in the URL and is shareable. Offered only when it would
+               change what is on screen. #}
+            {% if has_retired_hidden %}
+            <a href="/{{ tenant_url }}/cftree/doc/{{ doc.identifier }}{% if not include_retired %}?includeRetired=1{% endif %}"
+               class="block mt-1 text-xs text-stone-500 hover:text-violet-700 transition-colors">{{ t("hide_retired") if include_retired else t("show_retired") }}</a>
+            {% endif %}
         </div>
         <div class="p-2">
             {% if root_nodes or orphan_nodes %}
-                {% with nodes=root_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                {% with nodes=root_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item, include_retired=include_retired %}
                     {% include "fragments/tree_nodes.html" %}
                 {% endwith %}
                 {% if orphan_nodes %}
                 <div class="mt-2 pt-2 border-t border-stone-100">
-                    {% with nodes=orphan_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item %}
+                    {% with nodes=orphan_nodes, tenant_url=tenant_url, doc_identifier=doc.identifier|string, selected_item=selected_item, include_retired=include_retired %}
                         {% include "fragments/tree_nodes.html" %}
                     {% endwith %}
                 </div>

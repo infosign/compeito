@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import date
 
 import natsort
-from sqlalchemy import select
+from sqlalchemy import Text, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
+from src.services.retirement import is_retired
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -28,6 +30,7 @@ class TreeNode:
     has_children: bool = False
     children: list[TreeNode] = field(default_factory=list)
     is_expanded: bool = False  # True = ▼, False = ▶
+    is_retired: bool = False  # statusEndDate has passed (B8-3): shown muted
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +89,8 @@ async def get_children_bulk(
     session: AsyncSession,
     doc_id: uuid.UUID,
     parent_identifiers: list[str],
+    hidden: set[str] | None = None,
+    today: date | None = None,
 ) -> dict[str, list[TreeNode]]:
     """Children of MANY parents in a fixed 3 queries (vs N+1 per parent).
 
@@ -133,16 +138,20 @@ async def get_children_bulk(
         items_by_ident = {str(i.identifier): i for i in item_result.scalars().unique().all()}
 
     # 3. one batch check of which of those children have their own children.
-    has_children_set = await _get_idents_with_children(session, doc_id, list(all_child_idents))
+    has_children_set = await _get_idents_with_children(session, doc_id, list(all_child_idents), hidden)
 
+    hidden = hidden or set()
     result: dict[str, list[TreeNode]] = {}
     for parent, info in children_by_parent.items():
         nodes = []
         for ident, seq in info.items():
+            if ident in hidden:
+                continue
             item = items_by_ident.get(ident)
             if item is not None:
                 node = TreeNode(item=item, seq=seq)
                 node.has_children = ident in has_children_set
+                node.is_retired = today is not None and is_retired(item, today)
                 nodes.append(node)
         if nodes:
             nodes.sort(key=_child_sort_key)
@@ -154,6 +163,8 @@ async def get_children(
     session: AsyncSession,
     doc_id: uuid.UUID,
     parent_identifier: str,
+    hidden: set[str] | None = None,
+    today: date | None = None,
 ) -> list[TreeNode]:
     """Get child items of a parent via isChildOf associations within a document.
 
@@ -161,13 +172,15 @@ async def get_children(
     `get_children_bulk` for the single-parent case (the /children/ lazy-expand
     route and ancestor-path expansion).
     """
-    by_parent = await get_children_bulk(session, doc_id, [parent_identifier])
+    by_parent = await get_children_bulk(session, doc_id, [parent_identifier], hidden, today)
     return by_parent.get(parent_identifier, [])
 
 
 async def get_orphan_items(
     session: AsyncSession,
     doc_id: uuid.UUID,
+    hidden: set[str] | None = None,
+    today: date | None = None,
 ) -> list[TreeNode]:
     """Get items with no isChildOf association within the same document.
 
@@ -191,14 +204,16 @@ async def get_orphan_items(
     )
     depth0_items = item_result.scalars().unique().all()
 
-    orphans = [i for i in depth0_items if str(i.identifier) not in origin_idents]
-    nodes = [TreeNode(item=i, seq=None) for i in orphans]
+    hidden = hidden or set()
+    orphans = [i for i in depth0_items if str(i.identifier) not in origin_idents and str(i.identifier) not in hidden]
+    nodes = [TreeNode(item=i, seq=None, is_retired=today is not None and is_retired(i, today)) for i in orphans]
 
     if nodes:
         has_children_set = await _get_idents_with_children(
             session,
             doc_id,
             [str(n.item.identifier) for n in nodes],
+            hidden,
         )
         for n in nodes:
             n.has_children = str(n.item.identifier) in has_children_set
@@ -271,7 +286,7 @@ async def build_full_tree(
         selected_item = await _resolve_selected_item(session, doc_id, selected_item_ident)
         if selected_item is not None:
             sid = str(selected_item.identifier)
-            expand_set = set(await _get_ancestor_path(session, doc, sid))
+            expand_set = set(await ancestor_path(session, doc, sid))
             expand_set.add(sid)
 
     def build(parent_ident: str, depth: int, ancestry: frozenset[str]) -> list[TreeNode]:
@@ -314,6 +329,8 @@ async def build_ssr_tree(
     session: AsyncSession,
     doc: CFDocument,
     selected_item_ident: uuid.UUID | None = None,
+    hidden: set[str] | None = None,
+    today: date | None = None,
 ) -> tuple[list[TreeNode], list[TreeNode], CFItem | None]:
     """Build the initial SSR tree (depth 0-1).
 
@@ -326,11 +343,11 @@ async def build_ssr_tree(
     doc_ident = str(doc.identifier)
 
     # Root children (children of the document)
-    root_nodes = await get_children(session, doc_id, doc_ident)
+    root_nodes = await get_children(session, doc_id, doc_ident, hidden, today)
 
     # Expand depth 0 → depth 1 for ALL roots in one bulk fetch (no per-root query).
     expandable = [str(n.item.identifier) for n in root_nodes if n.has_children]
-    children_by_parent = await get_children_bulk(session, doc_id, expandable)
+    children_by_parent = await get_children_bulk(session, doc_id, expandable, hidden, today)
     for node in root_nodes:
         kids = children_by_parent.get(str(node.item.identifier))
         if kids:
@@ -338,7 +355,7 @@ async def build_ssr_tree(
             node.is_expanded = True
 
     # Orphan items
-    orphan_nodes = await get_orphan_items(session, doc_id)
+    orphan_nodes = await get_orphan_items(session, doc_id, hidden, today)
 
     # Handle ?item= deep link
     selected_item = None
@@ -355,6 +372,8 @@ async def build_ssr_tree(
                 root_nodes,
                 orphan_nodes,
                 selected_item,
+                hidden,
+                today,
             )
 
     return root_nodes, orphan_nodes, selected_item
@@ -390,20 +409,39 @@ async def _get_idents_with_children(
     session: AsyncSession,
     doc_id: uuid.UUID,
     idents: list[str],
+    hidden: set[str] | None = None,
 ) -> set[str]:
-    """Return subset of idents that are a destination in isChildOf (= have children)."""
+    """Return subset of idents that have at least one *renderable* child.
+
+    "Renderable" excludes two kinds of child: one hidden as a retired dead end
+    (``hidden``, a document-wide set — the origins counted here are grandchildren
+    of the level being rendered, so a level-scoped set would not contain them),
+    and one whose CFItem row does not exist at all. Both would otherwise leave an
+    expander that opens to nothing.
+    """
     if not idents:
         return set()
     result = await session.execute(
-        select(CFAssociation.destination_node_identifier)
+        select(
+            CFAssociation.destination_node_identifier,
+            CFAssociation.origin_node_identifier,
+        )
+        .join(
+            # Cast the UUID side to text: association identifiers are free-form
+            # strings and a malformed one would break a text->uuid cast.
+            CFItem,
+            cast(CFItem.identifier, Text) == CFAssociation.origin_node_identifier,
+        )
         .where(
             CFAssociation.cf_document_id == doc_id,
             CFAssociation.association_type == "isChildOf",
             CFAssociation.destination_node_identifier.in_(idents),
+            CFItem.cf_document_id == doc_id,
         )
         .distinct()
     )
-    return {row[0] for row in result.all()}
+    hidden = hidden or set()
+    return {parent for parent, child in result.all() if child not in hidden}
 
 
 def dfs_index(root_nodes: list[TreeNode], orphan_nodes: list[TreeNode]) -> dict[str, int]:
@@ -483,7 +521,7 @@ async def _resolve_selected_item(
     return result.scalars().unique().one_or_none()
 
 
-async def _get_ancestor_path(
+async def ancestor_path(
     session: AsyncSession,
     doc: CFDocument,
     item_ident: str,
@@ -534,10 +572,18 @@ async def _expand_ancestor_path(
     root_nodes: list[TreeNode],
     orphan_nodes: list[TreeNode],
     selected_item: CFItem,
+    hidden: set[str] | None = None,
+    today: date | None = None,
 ) -> None:
-    """Expand tree nodes along the ancestor path to the selected item."""
+    """Expand tree nodes along the ancestor path to the selected item.
+
+    ``hidden`` must be the same (already exempt-subtracted) set the tree was
+    built with: recomputing it here would drop the ?item= exemption and cut the
+    path to the named item, while passing nothing would leave the levels loaded
+    here unfiltered.
+    """
     item_ident = str(selected_item.identifier)
-    ancestors = await _get_ancestor_path(session, doc, item_ident)
+    ancestors = await ancestor_path(session, doc, item_ident)
 
     # All identifiers that need expansion (ancestors + selected item itself)
     expand_set = set(ancestors)
@@ -551,6 +597,8 @@ async def _expand_ancestor_path(
                     session,
                     doc.id,
                     nid,
+                    hidden,
+                    today,
                 )
                 node.is_expanded = True
             if node.children:

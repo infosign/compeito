@@ -1,7 +1,7 @@
 """Tests for Web UI: tree view (Issue #37)."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from src.models.cf_rubric import CFRubric
 from src.models.cf_rubric_criterion import CFRubricCriterion
 from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.tenant import Tenant
-from src.services import tree_service
+from src.services import retirement, tree_service
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -2775,3 +2775,182 @@ class TestErrorFragmentEscaping:
         assert "<script>alert(1)</script>" not in body
         assert "&lt;script&gt;" in body
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Retired items (B8-3 / B8-4)
+# ---------------------------------------------------------------------------
+
+
+class TestRetiredItemsInTree:
+    """Default-hiding of retired items, and the toggle that brings them back."""
+
+    RETIRED_ON = date(2022, 3, 14)
+    TODAY = date(2026, 8, 29)
+
+    def _retire(self, item: CFItem, when: date | None = None) -> CFItem:
+        item.status_end_date = when or self.RETIRED_ON
+        return item
+
+    async def _hidden(self, db_session: AsyncSession, doc: CFDocument) -> set[str]:
+        return await retirement.hidden_identifiers(db_session, doc.id, self.TODAY)
+
+    async def test_retired_leaf_is_dropped_from_the_tree(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        live = _make_item(tenant, sample_document, full_statement="Live")
+        dead = self._retire(_make_item(tenant, sample_document, full_statement="Dead"))
+        db_session.add_all([live, dead])
+        for i in (live, dead):
+            db_session.add(_make_is_child_of(sample_document, i.identifier, sample_document.identifier, seq=1))
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, hidden, self.TODAY)
+        assert [n.item.full_statement for n in roots] == ["Live"]
+
+    async def test_toggle_brings_it_back_marked(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        dead = self._retire(_make_item(tenant, sample_document, full_statement="Dead"))
+        db_session.add(dead)
+        db_session.add(_make_is_child_of(sample_document, dead.identifier, sample_document.identifier, seq=1))
+        await db_session.flush()
+
+        roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, set(), self.TODAY)
+        assert [n.item.full_statement for n in roots] == ["Dead"]
+        assert roots[0].is_retired is True
+
+    async def test_retired_parent_of_a_live_child_stays_and_is_marked(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        parent = self._retire(_make_item(tenant, sample_document, full_statement="Retired parent"))
+        live = _make_item(tenant, sample_document, full_statement="Live child")
+        db_session.add_all([parent, live])
+        db_session.add(_make_is_child_of(sample_document, parent.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, live.identifier, parent.identifier, seq=1))
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, hidden, self.TODAY)
+        assert [n.item.full_statement for n in roots] == ["Retired parent"]
+        assert roots[0].is_retired is True
+        assert [c.item.full_statement for c in roots[0].children] == ["Live child"]
+
+    async def test_expander_is_not_shown_when_every_child_is_hidden(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        """Otherwise the node opens onto nothing: has_children must count only
+        children that will actually be rendered."""
+        live = _make_item(tenant, sample_document, full_statement="Live parent")
+        dead = self._retire(_make_item(tenant, sample_document, full_statement="Dead child"))
+        db_session.add_all([live, dead])
+        db_session.add(_make_is_child_of(sample_document, live.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, dead.identifier, live.identifier, seq=1))
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, hidden, self.TODAY)
+        assert len(roots) == 1
+        assert roots[0].has_children is False
+
+    async def test_dangling_child_does_not_create_an_expander(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        """An isChildOf pointing at a missing CFItem is not a renderable child.
+
+        Independent of retirement: this holds in a document with no tombstones
+        at all (the hidden set is empty there).
+        """
+        parent = _make_item(tenant, sample_document, full_statement="Parent")
+        db_session.add(parent)
+        db_session.add(_make_is_child_of(sample_document, parent.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, uuid.uuid4(), parent.identifier, seq=1))
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        assert hidden == set()
+        roots, _orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, hidden, self.TODAY)
+        assert roots[0].has_children is False
+
+    async def test_retired_orphan_is_dropped(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        orphan = self._retire(_make_item(tenant, sample_document, full_statement="Dead orphan"))
+        db_session.add(orphan)
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        _roots, orphans, _sel = await tree_service.build_ssr_tree(db_session, sample_document, None, hidden, self.TODAY)
+        assert orphans == []
+
+    async def test_no_tombstones_costs_one_extra_query(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        """The common case must stay cheap: one indexed lookup that finds
+        nothing, after which every filter is a no-op."""
+        from sqlalchemy import event
+
+        item = _make_item(tenant, sample_document, full_statement="Live")
+        db_session.add(item)
+        db_session.add(_make_is_child_of(sample_document, item.identifier, sample_document.identifier, seq=1))
+        await db_session.flush()
+
+        count = 0
+
+        def _before(*args, **kwargs):
+            nonlocal count
+            count += 1
+
+        sync_engine = db_session.bind.sync_engine
+        event.listen(sync_engine, "before_cursor_execute", _before)
+        try:
+            await retirement.hidden_identifiers(db_session, sample_document.id, self.TODAY)
+        finally:
+            event.remove(sync_engine, "before_cursor_execute", _before)
+
+        assert count == 1, f"hidden_identifiers used {count} queries on a document with no tombstones"
+
+    async def test_deep_linked_retired_item_is_exempt(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        """A named item that cannot be seen reads as a bug, so ?item= wins over
+        the default filter — for the item and for its ancestor path."""
+        parent = self._retire(_make_item(tenant, sample_document, full_statement="Dead parent"))
+        child = self._retire(_make_item(tenant, sample_document, full_statement="Dead child"))
+        db_session.add_all([parent, child])
+        db_session.add(_make_is_child_of(sample_document, parent.identifier, sample_document.identifier, seq=1))
+        db_session.add(_make_is_child_of(sample_document, child.identifier, parent.identifier, seq=1))
+        await db_session.flush()
+
+        hidden = await self._hidden(db_session, sample_document)
+        assert hidden == {str(parent.identifier), str(child.identifier)}
+
+        exempt = {str(child.identifier)} | set(
+            await tree_service.ancestor_path(db_session, sample_document, str(child.identifier))
+        )
+        roots, _orphans, selected = await tree_service.build_ssr_tree(
+            db_session, sample_document, child.identifier, hidden - exempt, self.TODAY
+        )
+        assert selected is not None
+        assert [n.item.full_statement for n in roots] == ["Dead parent"]
+        assert roots[0].has_children is True
+        assert [c.item.full_statement for c in roots[0].children] == ["Dead child"]
+
+    async def test_doc_tree_index_keeps_retired_items(
+        self, db_session: AsyncSession, tenant: Tenant, sample_document: CFDocument
+    ):
+        """Regression guard for the related-list wipeout.
+
+        The DFS index decides whether a related destination counts as "an item in
+        this document". Filtering it would make associations pointing at retired
+        items fall through to the "internal URI that did not resolve" branch and
+        disappear from the detail pane without a trace.
+        """
+        dead = self._retire(_make_item(tenant, sample_document, full_statement="Dead"))
+        db_session.add(dead)
+        db_session.add(_make_is_child_of(sample_document, dead.identifier, sample_document.identifier, seq=1))
+        await db_session.flush()
+
+        index = await tree_service.doc_tree_index(db_session, sample_document)
+        assert str(dead.identifier) in index

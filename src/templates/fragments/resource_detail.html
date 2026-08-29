@@ -332,6 +332,31 @@
             {{ copy_chip(t("f_cf_items_api"), item_api_url) }}
         {% endcall %}
 
+        {# Retirement banner (B8-3). `retired_today` is set by the view; a future
+           statusEndDate is "scheduled", not retired, so it gets no banner. The
+           successors list is already filtered by the view: a target we may not
+           surface (private tenant / unresolvable internal URI) is absent from it
+           entirely, not merely unlinked. #}
+        {% if retired_today %}
+        <div role="note" class="mb-4 rounded border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-800">
+            <span class="font-medium">{{ t("retired_badge") }}</span>
+            <span class="ml-1">{{ t("retired_banner", date=resource.status_end_date|string) }}</span>
+            {% if successors %}
+            <div class="mt-1 text-gray-800">
+                <span class="text-xs text-stone-500 uppercase tracking-wide">{{ t("retired_successor") }}</span>
+                <ul class="ml-4 mt-0.5 space-y-0.5">
+                    {% for suc in successors %}
+                    <li>
+                        {{ classified_ref(suc.identifier, suc.label, suc.uri, suc.in_doc, suc.other) }}
+                        {% if suc.status_end_date %}<span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-pink-100 text-pink-700 align-middle">{{ t("retired_badge") }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if resource.abbreviated_statement or resource.alternative_label or resource.notes %}
         <dl class="space-y-4">
             {{ optional_field(t("f_abbreviated_statement"), resource.abbreviated_statement) }}

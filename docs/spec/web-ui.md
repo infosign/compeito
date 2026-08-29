@@ -113,7 +113,19 @@ Items without any `isChildOf` association (e.g., when associations were skipped 
 
 **Orphan items**: items without any `isChildOf` association (e.g., when associations were skipped during external CASE source import) are not returned via the children query. They are appended at the end of the root level: depth=0 items that are **not** an origin of any `isChildOf` within the **same document** (items that only appear as origins of `isChildOf` in other documents are also treated as orphans in the current document). The sort order is the same as above, with `sequence_number` always treated as NULL.
 
-**Expand icons (▶/▼)**: a node has children when it is a `destination_node_identifier` of some `isChildOf` in the same document. Nodes with children render as `<details>` with a ▶ triangle (rotated to point down when open); leaves render a `●`. `get_children` / `build_ssr_tree` determine `has_children` per level from a bulk association fetch (no N+1).
+### Retired items
+
+A CFItem whose `statusEndDate` has passed is **retired** (a "tombstone"): the source stopped publishing it, but CASE has no delete operation and compeito's import is additive only, so it stays in the tenant. A **future** `statusEndDate` is a scheduled retirement and is treated as live — the framework revision protocol sets an end-of-year date ahead of time. The comparison date is **UTC** (it rolls over at 09:00 JST).
+
+- **Tree (default)**: a retired item is hidden **only when no descendant of it is live**. A retired item that still leads to live items stays, marked with a "Retired" badge and a muted statement (never by colour alone) — hiding it would cut the path to those live items.
+- **Toggle**: `?includeRetired=1` shows everything, marked. A plain link in the tree header (no JS), so the state lives in the URL and is shareable. It is offered only when something is actually hidden, and it rides along on every link a node emits (`href`, `hx-get`, `hx-push-url`) — dropping it from any one of them would reset the view on the next click.
+- **Deep links win over the filter**: `/item/{id}` (or `?item=`) always shows the named item and its ancestor path, retired or not. A named item that cannot be seen reads as a bug.
+- **Detail page / permalink**: always resolves, retired or not — issued Open Badges point at these URIs. A retirement banner shows the date and the `replacedBy` successor (one hop; A→B→C shows B, and C is one click further). A successor that cannot be surfaced (private tenant, unresolvable internal URI) is omitted **entirely**, not merely unlinked.
+- **Not affected**: the CASE API (which returns everything — the exclusion is a UI concern), the detail pane's "Related" list, the cross-document hierarchy sections, "items setting this subject" / "items of this type", and incoming references.
+
+**Accepted staleness**: retirement is date-dependent while pages are cached for an hour and HTMX fragments for a day, so an item retiring today can linger in the tree for up to that long. Retirement is an editorial event that happens a few times a year, so this is not worth splitting the cache over.
+
+**Expand icons (▶/▼)**: a node has children when it is a `destination_node_identifier` of some `isChildOf` in the same document, **the child's CFItem row exists, and the child is not hidden as a retired dead end** — otherwise the expander would open onto nothing. Nodes with children render as `<details>` with a ▶ triangle (rotated to point down when open); leaves render a `●`. `get_children` / `build_ssr_tree` determine `has_children` per level from a bulk association fetch (no N+1).
 
 > Note: `origin isChildOf destination` reads as "origin is a child of destination". To find children, search on the destination side.
 
