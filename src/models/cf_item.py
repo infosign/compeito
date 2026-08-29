@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +25,21 @@ class CFItem(Base):
         # auto-index FK columns, so the tenant-wide `WHERE tenant_id=? AND
         # cf_item_type_id=?` query would seq-scan without this.
         Index("ix_cf_items_tenant_item_type", "tenant_id", "cf_item_type_id"),
+        # Retired-item (tombstone) lookups — see docs/dev/designs/retired-item-ui.md.
+        # Partial: "which items of this document are retired?" runs on every tree
+        # page and lazy-expand, and usually finds nothing; without it, proving the
+        # absence walks the whole document.
+        Index(
+            "ix_cf_items_doc_retired",
+            "cf_document_id",
+            "status_end_date",
+            postgresql_where=text("status_end_date IS NOT NULL"),
+        ),
+        # Expression index for the tree's join to cf_associations, which compares
+        # identifier::text with the free-form origin_node_identifier (casting the
+        # other way would fail the whole query on one malformed row). A plain uuid
+        # index cannot serve that predicate.
+        Index("ix_cf_items_identifier_text", text("(identifier::text)")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

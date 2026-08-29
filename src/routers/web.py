@@ -842,6 +842,21 @@ async def _hidden_set(
     return hidden
 
 
+def _toggle_url(request: Request, include_retired: bool) -> str:
+    """Current URL with the retired-items flag flipped, as a root-relative path.
+
+    Root-relative on purpose: every other link in the tree is, and an absolute
+    URL here would be built from the Host / scheme uvicorn sees. Behind a proxy
+    that is plain http, so the toggle would bounce an https visitor to http.
+    """
+    url = (
+        request.url.remove_query_params("includeRetired")
+        if include_retired
+        else request.url.include_query_params(includeRetired="1")
+    )
+    return url.path + (f"?{url.query}" if url.query else "")
+
+
 async def _render_tree_page(
     tenant: str,
     doc_id: str,
@@ -1060,11 +1075,7 @@ async def _render_tree_page(
             # Toggle target = the current URL with the flag flipped, so pressing
             # it keeps the selected item, the pane and the expanded branches.
             # Rebuilding it from the document root would throw all of that away.
-            "retired_toggle_url": str(
-                request.url.remove_query_params("includeRetired")
-                if include_retired
-                else request.url.include_query_params(includeRetired="1")
-            ),
+            "retired_toggle_url": _toggle_url(request, include_retired),
             # Offer the toggle only when it would change something: with every
             # retired item still visible (each keeps a live descendant) the link
             # would do nothing. Always offer the way back.

@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
+from src.i18n import get_translator
 from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.cf_item import CFItem
@@ -467,8 +468,20 @@ class TestRetirementBanner:
         resp = await db_client.get(f"/{tenant.id}/uri/{dead.identifier}")
         # Scope to the banner: the related list renders the same label, so an
         # unscoped assertion would pass even if the banner never rendered.
-        banner = resp.text.split('role="note"', 1)[1].split("</div>", 3)[0] if 'role="note"' in resp.text else ""
-        assert "New code" in banner
+        assert 'role="note"' in resp.text
+        # Scope to the successor block of the banner: the related list renders
+        # the same label further down, so an unscoped assertion would pass even
+        # if the banner never rendered. Anchored on the "Replaced by" label
+        # rather than on markup, which would break as soon as classified_ref
+        # emits a different element.
+        # The page language follows Accept-Language, so accept either rendering.
+        label = next(
+            (lbl for lbl in (get_translator(lang)("retired_successor") for lang in ("en", "ja")) if lbl in resp.text),
+            None,
+        )
+        assert label is not None, "the banner's successor label is missing"
+        successor_block = resp.text.split(label, 1)[1][:500]
+        assert "New code" in successor_block
 
     async def test_successor_in_a_private_tenant_is_not_surfaced(
         self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
