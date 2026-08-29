@@ -17,7 +17,8 @@ a one-line change to ``settings.case_output_default``.
 
 from __future__ import annotations
 
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 from src.config import settings
 from src.errors import OutputModeConflictError
@@ -36,6 +37,8 @@ CASE_VERSION_EMIT = "1.1"
 
 
 def _is_truthy(value: str | None) -> bool:
+    # Surrounding whitespace is tolerated (`?strict=%201%20`): it can only come
+    # from a hand-built URL, and the intent is unambiguous.
     return value is not None and value.strip().lower() in TRUTHY
 
 

@@ -97,7 +97,17 @@ async def populated(db_session: AsyncSession, tenant: Tenant, sample_document: C
         title="Rubric",
         last_change_date_time=LCT,
     )
-    db_session.add_all([item, grouping, item_type, concept, subject, license_, rubric])
+    # A second document: with only one, `limit=1` yields no next/last rel and the
+    # Link header is absent — a conditional assertion on it would never run.
+    second_document = CFDocument(
+        tenant_id=tenant.id,
+        identifier=uuid.uuid4(),
+        uri="https://example.com/uri/doc2",
+        title="Second",
+        creator="Creator",
+        last_change_date_time=LCT,
+    )
+    db_session.add_all([item, grouping, item_type, concept, subject, license_, rubric, second_document])
     await db_session.flush()
     db_session.add(
         CFAssociation(
@@ -226,7 +236,34 @@ class TestModeSelection:
     async def test_conflict_is_a_400(self, db_client: AsyncClient, populated):
         resp = await db_client.get(f"{CASE_PATH}/CFDocuments/{DOC_IDENTIFIER}?strict=1&compat=1")
         assert resp.status_code == 400
-        assert resp.json()["imsx_codeMajor"] == "failure"
+        body = resp.json()
+        assert body["imsx_codeMajor"] == "failure"
+        # The field name is what tells the caller which parameter to fix.
+        field = body["imsx_codeMinor"]["imsx_codeMinorField"][0]
+        assert field["imsx_codeMinorFieldName"] == "strict"
+        assert field["imsx_codeMinorFieldValue"] == "invalid_selection_field"
+
+    async def test_config_default_applies_through_the_router(self, db_client: AsyncClient, populated, monkeypatch):
+        """The planned default flip has to work end to end, not just in the
+        resolver: this is the rehearsal for that one-setting change."""
+        from src.config import settings
+
+        monkeypatch.setattr(settings, "case_output_default", "strict")
+        resp = await db_client.get(f"{CASE_PATH}/CFDocuments/{DOC_IDENTIFIER}")
+        assert "CFDocument" not in resp.json()
+        assert resp.json()["caseVersion"] == CASE_VERSION_EMIT
+
+    @pytest.mark.parametrize(
+        "route",
+        ["CFItemTypes", "CFConcepts", "CFSubjects", "CFLicenses", "CFAssociationGroupings"],
+    )
+    async def test_extension_lists_honour_strict(self, db_client: AsyncClient, populated, route):
+        """The compeito-only list routes take the mode too — strict has to be
+        uniform across all 18 CASE GET routes, not just the official ones."""
+        resp = await db_client.get(f"{CASE_PATH}/{route}?strict=1")
+        assert resp.status_code == 200
+        payload = resp.json()[route]
+        assert payload and not any(_has_null(entry) for entry in payload)
 
     async def test_explicit_compat_matches_the_default(self, db_client: AsyncClient, populated):
         default = await db_client.get(f"{CASE_PATH}/CFDocuments/{DOC_IDENTIFIER}")
@@ -236,12 +273,10 @@ class TestModeSelection:
     async def test_link_header_carries_the_mode(self, db_client: AsyncClient, populated):
         """Otherwise paging silently drops back to the default mode."""
         resp = await db_client.get(f"{CASE_PATH}/CFDocuments?strict=1&limit=1&offset=0")
-        link = resp.headers.get("Link")
-        if link is not None:  # only present when there is another page
-            assert "strict=1" in link
+        link = resp.headers["Link"]
+        assert "strict=1" in link
 
     async def test_no_link_params_when_mode_not_requested(self, db_client: AsyncClient, populated):
         resp = await db_client.get(f"{CASE_PATH}/CFDocuments?limit=1&offset=0")
-        link = resp.headers.get("Link")
-        if link is not None:
-            assert "strict" not in link and "compat" not in link
+        link = resp.headers["Link"]
+        assert "strict" not in link and "compat" not in link

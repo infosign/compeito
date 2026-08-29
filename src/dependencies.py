@@ -12,7 +12,7 @@ from src.services.case_serializer import OutputMode, resolve_output_mode
 from src.services.tenant_service import resolve_tenant
 
 
-def output_mode(
+async def output_mode(
     strict: str | None = Query(default=None),
     compat: str | None = Query(default=None),
 ) -> OutputMode:

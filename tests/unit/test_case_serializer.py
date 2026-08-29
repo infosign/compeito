@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 import pytest
 
 from src.errors import OutputModeConflictError
+from src.schemas.cf_association import CFAssociationDType
 from src.schemas.cf_document import CFDocumentDType, CFPckgDocumentDType
 from src.schemas.cf_item import CFPckgItemDType
 from src.schemas.cf_package import CFPackageDType
@@ -115,8 +116,25 @@ class TestDumpModel:
         assert dump_model(doc, "compat")["extensions"] == {}
 
     def test_strict_recurses_into_nested_models(self):
-        dumped = dump_model(_document(), "strict")
-        assert "targetType" not in dumped["CFPackageURI"]  # None on a nested LinkURI
+        """A nested LinkGenURIDType has its own optional fields; pydantic has to
+        apply exclude_none down there too.
+
+        (CFPackageURI is a LinkURIType and has no optional field at all, so it
+        cannot show this — asserting on it would pass with or without strict.)
+        """
+        assoc = CFAssociationDType(
+            identifier=str(uuid.uuid4()),
+            uri="https://example.com/assoc",
+            associationType="isChildOf",
+            originNodeURI={"identifier": str(uuid.uuid4()), "uri": "https://example.com/o"},
+            destinationNodeURI={"identifier": str(uuid.uuid4()), "uri": "https://example.com/d"},
+            CFDocumentURI=_link(),
+            lastChangeDateTime=NOW,
+        )
+        compat = dump_model(assoc, "compat")["originNodeURI"]
+        strict = dump_model(assoc, "strict")["originNodeURI"]
+        assert compat["targetType"] is None and compat["title"] is None
+        assert "targetType" not in strict and "title" not in strict
 
 
 class TestDumpSingle:
@@ -189,3 +207,86 @@ class TestDumpPackage:
     def test_strict_declares_case_version_on_the_package_document(self):
         content = dump_package(self._package(), "strict")
         assert content["CFDocument"]["caseVersion"] == CASE_VERSION_EMIT
+
+
+def _walk_nulls(node, path="$") -> list[str]:
+    """Every path in a JSON-ish structure whose value is None."""
+    found = []
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if v is None:
+                found.append(f"{path}.{k}")
+            else:
+                found += _walk_nulls(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for n, v in enumerate(node):
+            found += _walk_nulls(v, f"{path}[{n}]")
+    return found
+
+
+class TestStrictPackageNesting:
+    """The custom serializer has to carry exclude_none into every nested level,
+    including the ones the plain package fixture does not reach."""
+
+    @staticmethod
+    def _package_with_definitions_and_rubrics() -> CFPackageDType:
+        from src.schemas.cf_item_type import CFItemTypeDType
+        from src.schemas.cf_package import CFDefinitionsDType
+        from src.schemas.cf_rubric import CFRubricCriterionDType, CFRubricCriterionLevelDType, CFRubricDType
+
+        level = CFRubricCriterionLevelDType(
+            identifier=str(uuid.uuid4()),
+            uri="https://example.com/level",
+            description="Level",
+            lastChangeDateTime=NOW,
+        )
+        criterion = CFRubricCriterionDType(
+            identifier=str(uuid.uuid4()),
+            uri="https://example.com/criterion",
+            category="Cat",
+            lastChangeDateTime=NOW,
+            CFRubricCriterionLevels=[level],
+        )
+        return CFPackageDType(
+            CFDocument=CFPckgDocumentDType(
+                identifier=str(uuid.uuid4()),
+                uri="https://example.com/doc",
+                title="Doc",
+                creator="Creator",
+                lastChangeDateTime=NOW,
+                CFPackageURI=_link(),
+            ),
+            CFItems=[],
+            CFAssociations=[],
+            CFDefinitions=CFDefinitionsDType(
+                CFItemTypes=[
+                    CFItemTypeDType(
+                        identifier=str(uuid.uuid4()),
+                        uri="https://example.com/type",
+                        title="Type",
+                        lastChangeDateTime=NOW,
+                    )
+                ]
+            ),
+            CFRubrics=[
+                CFRubricDType(
+                    identifier=str(uuid.uuid4()),
+                    uri="https://example.com/rubric",
+                    title="Rubric",
+                    lastChangeDateTime=NOW,
+                    CFRubricCriteria=[criterion],
+                )
+            ],
+        )
+
+    def test_no_null_survives_anywhere_in_strict(self):
+        content = dump_package(self._package_with_definitions_and_rubrics(), "strict")
+        assert content["CFDefinitions"]["CFItemTypes"], "fixture must reach the definitions level"
+        assert content["CFRubrics"][0]["CFRubricCriteria"][0]["CFRubricCriterionLevels"], "must reach the level level"
+        assert _walk_nulls(content) == []
+
+    def test_compat_keeps_them_at_the_same_depths(self):
+        content = dump_package(self._package_with_definitions_and_rubrics(), "compat")
+        nulls = _walk_nulls(content)
+        assert any(".CFDefinitions." in p for p in nulls)
+        assert any(".CFRubricCriterionLevels" in p for p in nulls)
