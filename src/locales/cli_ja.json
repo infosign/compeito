@@ -43,6 +43,7 @@
     "help_csv_file": "CSVファイルパス",
     "help_xlsx_file": "OpenSALT 形式の Excel (.xlsx) ファイルのパス",
     "help_doc_uuid_update": "ドキュメントUUID（更新時）",
+    "help_allow_status_clear": "statusStartDate / statusEndDate が null のとき既存値をクリアする（既定は保持）",
     "help_doc_title": "ドキュメントタイトル",
     "help_doc_version": "ドキュメントバージョン",
     "help_case_url": "CASE API URLまたはCFPackage URL",

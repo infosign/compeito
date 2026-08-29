@@ -916,7 +916,19 @@ def import_xlsx_cmd(tenant_id: str, file_path: str, doc_id: str | None):
     help=t("help_case_file"),
 )
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
-def import_case(tenant_id: str, url: str | None, file_path: str | None, doc_id: str | None):
+@click.option(
+    "--allow-status-clear",
+    is_flag=True,
+    default=False,
+    help=t("help_allow_status_clear"),
+)
+def import_case(
+    tenant_id: str,
+    url: str | None,
+    file_path: str | None,
+    doc_id: str | None,
+    allow_status_clear: bool,
+):
     """Import a CASE CFPackage from a URL (--url) or a local JSON file (--file).
 
     Exactly one of --url / --file must be given. --file is useful when the
@@ -976,6 +988,7 @@ def import_case(tenant_id: str, url: str | None, file_path: str | None, doc_id: 
                         tid,
                         data,
                         doc_identifier=did,
+                        allow_status_clear=allow_status_clear,
                     )
                 else:
                     report = await import_case_package(
@@ -983,6 +996,7 @@ def import_case(tenant_id: str, url: str | None, file_path: str | None, doc_id: 
                         tid,
                         url,
                         doc_identifier=did,
+                        allow_status_clear=allow_status_clear,
                     )
                 await session.commit()
 

@@ -105,6 +105,8 @@ The license you set in OpenCASE is preserved as `licenseURI` metadata on the imp
 
 When you edit and republish the framework in OpenCASE, simply re-run the same `import case` command. COMPEITO upserts based on the framework's UUID, so items / associations are updated in place.
 
+> **Retirement dates are never cleared by a routine re-import.** OpenCASE emits `statusStartDate` / `statusEndDate` as `null` on every resource, even when it does not manage them. COMPEITO therefore keeps any stored date and reports how many resources it kept. Pass `import case --allow-status-clear` only when the package you are importing is the authority on those dates — it applies package-wide, to every CFDocument and CFItem, not to one item.
+
 ## Topology B: private OpenCASE → public COMPEITO
 
 When OpenCASE is on a private network (LAN, `localhost`, behind a corporate firewall, etc.), COMPEITO cannot reach OpenCASE's CFPackage URL. Two alternatives:
@@ -156,6 +158,8 @@ The file's `licenseURI` (if set) is preserved as metadata on the imported CFDocu
 ### Updating
 
 Re-export and re-run `import case --file` with the same `--tenant`. COMPEITO upserts by framework UUID.
+
+> **Retirement dates are never cleared by a routine re-import.** OpenCASE emits `statusStartDate` / `statusEndDate` as `null` on every resource, even when it does not manage them. COMPEITO therefore keeps any stored date and reports how many resources it kept. Pass `import case --allow-status-clear` only when the package you are importing is the authority on those dates — it applies package-wide, to every CFDocument and CFItem, not to one item.
 
 > **Note**: `import case --file` accepts CFPackage JSON exported from **any CASE-conformant tool**, not just OpenCASE — OpenSALT, Standards Satchel, or a hand-edited JSON all work the same way.
 
@@ -323,6 +327,8 @@ OpenCASE で設定したライセンスはインポートされた CFDocument �
 
 OpenCASE で編集して再公開した場合は、同じ `import case` コマンドを再実行するだけです。COMPEITO はフレームワーク UUID で upsert するため、items / associations は同一行で更新されます。
 
+> **通常の再インポートで廃止日が消えることはない。** OpenCASE は `statusStartDate` / `statusEndDate` を管理していなくても、全リソースに `null` として出力する。COMPEITO は保存済みの日付を保持し、何件保持したかをレポートに出す。`import case --allow-status-clear` を付けるのは、取り込むパッケージがそれらの日付の権威である場合だけにする。このフラグはパッケージ全体（全 CFDocument・全 CFItem）に効き、特定の項目だけを対象にはできない。
+
 ## トポロジー B: プライベート OpenCASE → 公開 COMPEITO
 
 OpenCASE がプライベートネットワーク（LAN、`localhost`、社内 firewall 内など）にあって COMPEITO から CFPackage URL に到達できないケースです。2 つの選択肢があります:
@@ -374,6 +380,8 @@ docker compose exec app uv run python cli.py import case \
 ### 更新時
 
 再エクスポートして同じ `--tenant` で `import case --file` を再実行するだけです。COMPEITO はフレームワーク UUID で upsert します。
+
+> **通常の再インポートで廃止日が消えることはない。** OpenCASE は `statusStartDate` / `statusEndDate` を管理していなくても、全リソースに `null` として出力する。COMPEITO は保存済みの日付を保持し、何件保持したかをレポートに出す。`import case --allow-status-clear` を付けるのは、取り込むパッケージがそれらの日付の権威である場合だけにする。このフラグはパッケージ全体（全 CFDocument・全 CFItem）に効き、特定の項目だけを対象にはできない。
 
 > **補足**: `import case --file` は OpenCASE 限定ではなく、**任意の CASE 準拠ツール**がエクスポートした CFPackage JSON を受け入れます — OpenSALT、Standards Satchel、手書きの JSON もすべて同じように動作します。
 
