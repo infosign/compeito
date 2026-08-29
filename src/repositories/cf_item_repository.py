@@ -57,7 +57,9 @@ async def map_identifiers_to_items(
     """Like `map_identifiers_to_documents` but also returns the item's own label
     fields. Used by the cross-document hierarchy sections (上位/下位 別FW) which
     need both the item's display label and its owning document. Returns
-    ``{identifier: {full_statement, human_coding_scheme, doc_identifier, doc_title}}``.
+    ``{identifier: {full_statement, human_coding_scheme, status_end_date,
+    doc_identifier, doc_title}}`` (``status_end_date`` lets a caller mark a
+    retired target — the successor banner does).
     """
     uuids: list[uuid.UUID] = []
     for ident in identifiers:
@@ -72,6 +74,7 @@ async def map_identifiers_to_items(
             CFItem.identifier,
             CFItem.full_statement,
             CFItem.human_coding_scheme,
+            CFItem.status_end_date,
             CFDocument.identifier,
             CFDocument.title,
         )
@@ -82,10 +85,11 @@ async def map_identifiers_to_items(
         str(item_ident): {
             "full_statement": full_statement,
             "human_coding_scheme": hcs,
+            "status_end_date": status_end_date,
             "doc_identifier": str(doc_ident),
             "doc_title": doc_title,
         }
-        for item_ident, full_statement, hcs, doc_ident, doc_title in rows.all()
+        for item_ident, full_statement, hcs, status_end_date, doc_ident, doc_title in rows.all()
     }
 
 

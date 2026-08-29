@@ -9,10 +9,17 @@
    Expand/collapse is native <details> (keyboard + screen-reader friendly). The
    label is a real <a href> to /item/{id} (works without JS — non-JS clients,
    crawlers and middle-click reach the item's full SSR page). Uses: nodes,
-   tenant_url, doc_identifier, selected_item, t. #}
+   tenant_url, doc_identifier, selected_item, include_retired, t.
+
+   Retired items (B8-3): a node that survived the filter because it still leads
+   to live items is marked with a badge and a muted statement — never by colour
+   alone. `include_retired` rides along on every URL the node emits (href,
+   hx-get, hx-push-url); dropping it from any one of them silently resets the
+   view to the default on the next click. #}
 {% for node in nodes %}
 {% set is_sel = selected_item and node.item.identifier == selected_item.identifier %}
-{% set item_url = "/" ~ tenant_url ~ "/cftree/doc/" ~ doc_identifier ~ "/item/" ~ node.item.identifier|string %}
+{% set retired_qs = "?includeRetired=1" if include_retired else "" %}
+{% set item_url = "/" ~ tenant_url ~ "/cftree/doc/" ~ doc_identifier ~ "/item/" ~ node.item.identifier|string ~ retired_qs %}
 {% set label_attrs %}href="{{ item_url }}"
        class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
        hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/detail/{{ node.item.identifier }}"
@@ -20,7 +27,7 @@
        hx-swap="innerHTML"
        hx-push-url="{{ item_url }}"
        hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"{% endset %}
-{% set label_body %}{% if node.item.item_type %}<span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>{% endif %}{% if node.item.human_coding_scheme %}<span class="font-medium">{{ node.item.human_coding_scheme }}</span> {% endif %}<span>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>{% endset %}
+{% set label_body %}{% if node.is_retired %}<span class="inline-block px-1.5 py-0.5 text-xs bg-pink-100 text-pink-700 rounded mr-1">{{ t("retired_badge") }}</span>{% endif %}{% if node.item.item_type %}<span class="inline-block px-1.5 py-0.5 text-xs bg-stone-100 text-stone-500 rounded mr-1">{{ node.item.item_type.title }}</span>{% endif %}{% if node.item.human_coding_scheme %}<span class="font-medium">{{ node.item.human_coding_scheme }}</span> {% endif %}<span{% if node.is_retired %} class="text-stone-500"{% endif %}>{{ node.item.full_statement[:100] }}{% if node.item.full_statement|length > 100 %}...{% endif %}</span>{% endset %}
 {% set sel_classes = "bg-violet-50 ring-1 ring-inset ring-violet-200" if is_sel else "hover:bg-stone-100" %}
 {% if node.has_children %}
 <details class="mt-1"{% if node.is_expanded %} open{% endif %}>
@@ -31,12 +38,12 @@
     {% if node.children %}
     {# loaded branch — children already SSR'd inline #}
     <div class="ml-4">
-        {% with nodes=node.children %}{% include "fragments/tree_nodes.html" %}{% endwith %}
+        {% with nodes=node.children, include_retired=include_retired %}{% include "fragments/tree_nodes.html" %}{% endwith %}
     </div>
     {% else %}
     {# lazy branch — fetch one level of children on first open #}
     <div class="ml-4" aria-busy="true"
-         hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}"
+         hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_identifier }}/children/{{ node.item.identifier }}{{ retired_qs }}"
          hx-trigger="toggle[event.target.open] once from:closest details"
          hx-target="this"
          hx-swap="innerHTML"

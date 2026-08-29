@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -15,7 +16,7 @@ from src.config import settings
 from src.database import get_session
 from src.i18n import get_translator, parse_accept_language
 from src.repositories import cf_association_repository, cf_item_repository, cf_rubric_repository
-from src.services import cf_view_service, tenant_service, tree_service, uri_service
+from src.services import cf_view_service, retirement, tenant_service, tree_service, uri_service
 
 router = APIRouter()
 
@@ -199,6 +200,65 @@ async def _related_groups(session: AsyncSession, tenant_id, item_identifier) -> 
             order.append(key)
         buckets[key]["items"].append(a)
     return [buckets[k] for k in order]
+
+
+def _is_external_uri(uri: str | None) -> bool:
+    """An absolute http(s) URI that is not this instance's own."""
+    return bool(uri) and uri.startswith(("http://", "https://")) and uri_service.parse_internal_tenant_id(uri) is None
+
+
+async def _successors(
+    session: AsyncSession,
+    tenant_id,
+    related_groups: list[dict],
+    related_in_doc: set[str],
+    related_other_doc: dict[str, dict],
+    related_other_tenant: dict[str, dict],
+    today: date,
+) -> list[dict]:
+    """`replacedBy` targets of a retired item, for the retirement banner.
+
+    One hop only: for A → B → C the banner shows B, and C is one click further
+    on B's page. Rows that cannot be resolved to something we may surface are
+    dropped **entirely** — not merely unlinked. The related list already skips
+    such rows so a private tenant's item is not revealed by its title alone, and
+    the banner must not become a second exit around that.
+    """
+    dests = [a for grp in related_groups for a in grp["items"] if a.association_type == "replacedBy"]
+    if not dests:
+        return []
+
+    labels = await cf_item_repository.map_identifiers_to_items(
+        session, tenant_id, {a.destination_node_identifier for a in dests}
+    )
+    out: list[dict] = []
+    for a in dests:
+        ident = a.destination_node_identifier
+        other = related_other_doc.get(ident) or related_other_tenant.get(a.destination_node_uri)
+        in_doc = ident in related_in_doc
+        external = not in_doc and other is None and _is_external_uri(a.destination_node_uri)
+        if not (in_doc or other or external):
+            continue  # private tenant / unresolvable internal URI: surface nothing
+        info = labels.get(ident) or {}
+        successor_end = info.get("status_end_date")
+        label = (
+            " ".join(filter(None, [info.get("human_coding_scheme"), info.get("full_statement")]))
+            or a.destination_node_title
+            or ident
+        )
+        out.append(
+            {
+                "identifier": ident,
+                "label": label,
+                "uri": a.destination_node_uri,
+                "in_doc": in_doc,
+                "other": other,
+                # A future end date is a scheduled retirement, not a retirement:
+                # same rule as the banner itself.
+                "is_retired": successor_end is not None and successor_end <= today,
+            }
+        )
+    return out
 
 
 async def _resolve_cross_tenant(
@@ -428,6 +488,7 @@ async def _detail_extras(
     rubrics: list = []
     referring_criteria: list = []
     related_groups: list[dict] = []
+    successors: list[dict] = []
     # Identifiers of related targets that are items in this document's tree → can
     # navigate in-pane within the current tree.
     related_in_doc: set[str] = set()
@@ -574,6 +635,15 @@ async def _detail_extras(
             ]
             if unresolved:
                 related_other_tenant = await _resolve_cross_tenant(session, tenant_id, unresolved)
+            successors = await _successors(
+                session,
+                tenant_id,
+                related_groups,
+                related_in_doc,
+                related_other_doc,
+                related_other_tenant,
+                _utc_today(),
+            )
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
         incoming_refs = await _incoming_refs(session, tenant_id, resource)
     elif resource_type == "CFSubject":
@@ -625,6 +695,7 @@ async def _detail_extras(
         "related_in_doc": related_in_doc,
         "related_other_doc": related_other_doc,
         "related_other_tenant": related_other_tenant,
+        "successors": successors,
         "assoc_node_in_doc": assoc_node_in_doc,
         "assoc_node_other_doc": assoc_node_other_doc,
         "assoc_node_cross_tenant": assoc_node_cross_tenant,
@@ -644,6 +715,7 @@ _DETAIL_EXTRAS_KEYS = (
     "related_in_doc",
     "related_other_doc",
     "related_other_tenant",
+    "successors",
     "assoc_node_in_doc",
     "assoc_node_other_doc",
     "assoc_node_cross_tenant",
@@ -682,6 +754,9 @@ def _detail_pane_context(
         "lang": lang,
     }
     ctx.update({k: extras[k] for k in _DETAIL_EXTRAS_KEYS})
+    # Retirement banner (B8-3): computed here, not in the template, so the date
+    # comparison lives in one place and every render site agrees.
+    ctx["retired_today"] = resource_type == "CFItem" and retirement.is_retired(resource, _utc_today())
     return ctx
 
 
@@ -740,12 +815,55 @@ async def tenant_page(
     return response
 
 
+def _utc_today() -> date:
+    """The date retirement is judged against (UTC; JST rolls over at 09:00)."""
+    return datetime.now(timezone.utc).date()
+
+
+async def _hidden_set(
+    session: AsyncSession,
+    doc,
+    today: date,
+    include_retired: bool,
+    exempt: set[str] | None = None,
+) -> set[str]:
+    """Identifiers to drop from the rendered tree.
+
+    Empty when ``?includeRetired=1`` asked for everything. ``exempt`` keeps a
+    deep-linked item (and its ancestor path) visible whatever the toggle says —
+    a named item that cannot be seen reads as a bug. Subtracting once is enough
+    because the set is document-wide.
+    """
+    if include_retired:
+        return set()
+    hidden = await retirement.hidden_identifiers(session, doc.id, today)
+    if hidden and exempt:
+        hidden -= exempt
+    return hidden
+
+
+def _toggle_url(request: Request, include_retired: bool) -> str:
+    """Current URL with the retired-items flag flipped, as a root-relative path.
+
+    Root-relative on purpose: every other link in the tree is, and an absolute
+    URL here would be built from the Host / scheme uvicorn sees. Behind a proxy
+    that is plain http, so the toggle would bounce an https visitor to http.
+    """
+    url = (
+        request.url.remove_query_params("includeRetired")
+        if include_retired
+        else request.url.include_query_params(includeRetired="1")
+    )
+    return url.path + (f"?{url.query}" if url.query else "")
+
+
 async def _render_tree_page(
     tenant: str,
     doc_id: str,
     request: Request,
     item: str | None,
     session: AsyncSession,
+    include_retired: bool = False,
 ) -> HTMLResponse:
     """Render the tree page, optionally with `item` selected (its full detail
     SSR'd into the right pane). Shared by the query-string route (`?item=`) and
@@ -774,6 +892,17 @@ async def _render_tree_page(
     # Parse optional ?item= parameter (ignore if invalid)
     selected_ident = _parse_uuid(item) if item else None
 
+    # Retired items (B8-4). The ancestor path has to be resolved BEFORE the tree
+    # is filtered: once the ancestors are gone, _expand_ancestor_path can no
+    # longer find the nodes it needs to open.
+    today = _utc_today()
+    exempt: set[str] = set()
+    ancestors: list[str] = []
+    if selected_ident is not None:
+        ancestors = await tree_service.ancestor_path(session, doc, str(selected_ident))
+        exempt = {str(selected_ident)} | set(ancestors)
+    hidden = await _hidden_set(session, doc, today, include_retired, exempt)
+
     # Lazy tree: SSR only depth 0-1 (+ the ancestor path to a deep-linked item).
     # Deeper branches load one level on demand via the /children/ route. Keeps
     # the initial page small for large frameworks (and within the Lambda/API GW
@@ -782,6 +911,9 @@ async def _render_tree_page(
         session,
         doc,
         selected_ident,
+        hidden,
+        today,
+        ancestors,
     )
 
     # Fetch rubrics + definitions for this document (right-pane default view +
@@ -795,6 +927,7 @@ async def _render_tree_page(
     # an HTMX round-trip.
     referring_criteria: list = []
     related_groups: list[dict] = []
+    successors: list[dict] = []
     related_in_doc: set[str] = set()
     related_other_doc: dict[str, dict] = {}
     related_other_tenant: dict[str, dict] = {}
@@ -870,6 +1003,7 @@ async def _render_tree_page(
                 related_in_doc = extras["related_in_doc"]
                 related_other_doc = extras["related_other_doc"]
                 related_other_tenant = extras["related_other_tenant"]
+                successors = extras["successors"]
                 hierarchy_upper = extras["hierarchy_upper"]
                 hierarchy_lower = extras["hierarchy_lower"]
                 incoming_refs = extras["incoming_refs"]
@@ -897,6 +1031,7 @@ async def _render_tree_page(
         "related_in_doc": related_in_doc,
         "related_other_doc": related_other_doc,
         "related_other_tenant": related_other_tenant,
+        "successors": successors,
         "assoc_node_in_doc": set(),
         "assoc_node_other_doc": {},
         "assoc_node_cross_tenant": {},
@@ -936,6 +1071,15 @@ async def _render_tree_page(
             "rubrics_section_open": rubrics_section_open,
             "open_rubric_ids": open_rubric_ids,
             "definitions": definitions,
+            "include_retired": include_retired,
+            # Toggle target = the current URL with the flag flipped, so pressing
+            # it keeps the selected item, the pane and the expanded branches.
+            # Rebuilding it from the document root would throw all of that away.
+            "retired_toggle_url": _toggle_url(request, include_retired),
+            # Offer the toggle only when it would change something: with every
+            # retired item still visible (each keeps a live descendant) the link
+            # would do nothing. Always offer the way back.
+            "has_retired_hidden": include_retired or bool(hidden),
         }
     )
     response = templates.TemplateResponse(request, "cftree.html", ctx)
@@ -949,10 +1093,12 @@ async def tree_view(
     doc_id: str,
     request: Request,
     item: str = Query(default=None),
+    includeRetired: str = Query(default=None),  # noqa: N803 (query-string casing)
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Tree view page. `?item=` selects an item (kept for back-compat)."""
-    return await _render_tree_page(tenant, doc_id, request, item, session)
+    include_retired = includeRetired == "1"
+    return await _render_tree_page(tenant, doc_id, request, item, session, include_retired)
 
 
 @router.get("/{tenant}/cftree/doc/{doc_id}/item/{item_id}", response_class=HTMLResponse)
@@ -961,13 +1107,15 @@ async def tree_view_item(
     doc_id: str,
     item_id: str,
     request: Request,
+    includeRetired: str = Query(default=None),  # noqa: N803 (query-string casing)
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """Tree view with an item selected via the URL path. This is the canonical,
     shareable, reload-safe form that in-tree navigation pushes; opening /
     reloading / sharing it reconstructs the tree (the ancestor path expanded to
     the item) + the item's full detail in the pane via SSR."""
-    return await _render_tree_page(tenant, doc_id, request, item_id, session)
+    include_retired = includeRetired == "1"
+    return await _render_tree_page(tenant, doc_id, request, item_id, session, include_retired)
 
 
 @router.get("/{tenant}/uri/{resource_id}", response_class=HTMLResponse)
@@ -1154,6 +1302,7 @@ async def children_fragment(
     doc_id: str,
     parent_id: str,
     request: Request,
+    includeRetired: str = Query(default=None),  # noqa: N803 (query-string casing)
     session: AsyncSession = Depends(get_session),
 ) -> HTMLResponse:
     """HTMX fragment: one level of a parent item's children, for the lazy tree.
@@ -1180,12 +1329,19 @@ async def children_fragment(
     if parent is None:
         return _error_fragment(404, t("error_item_not_found"))
 
-    nodes = await tree_service.get_children(session, doc.id, str(parent_uuid))
+    # This route takes no ?item=, so there is no exemption to honour: the
+    # ancestor path of a deep-linked item is SSR'd inline by the page route and
+    # never re-fetched here (<details> toggling is native).
+    include_retired = includeRetired == "1"
+    today = _utc_today()
+    hidden = await _hidden_set(session, doc, today, include_retired)
+    nodes = await tree_service.get_children(session, doc.id, str(parent_uuid), hidden, today)
     ctx = {
         "nodes": nodes,
         "tenant_url": _tenant_url_segment(tenant, tenant_obj),
         "doc_identifier": str(doc.identifier),
         "selected_item": None,
+        "include_retired": include_retired,
         "t": t,
     }
     response = templates.TemplateResponse(request, "fragments/tree_nodes.html", ctx)

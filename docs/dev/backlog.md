@@ -36,8 +36,8 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 |---|------|:--:|
 | B8-1 | `statusStartDate` / `statusEndDate` のクリア手段。既定では null / 欠落とも既存値を保持し、`import case --allow-status-clear` のときだけクリアする（OpenCASE や compeito 自身のエクスポートは null を出力するため、既定でクリアすると再インポートで墓標が消える） | 完了 |
 | B8-2 | xlsx の CFItem シートに `statusStartDate` / `statusEndDate` 列（compeito 拡張、ヘッダ名で探索）を追加。列が無いと xlsx 往復で墓標が「生きた項目」に戻る | 完了 |
-| B8-3 | CFItem の廃止表示。詳細ページの廃止バナー（`statusEndDate` を明示）と `replacedBy` の後継リンク（1 ホップ）、ツリー上の区別 | 設計済み → [designs/retired-item-ui.md](./designs/retired-item-ui.md) |
-| B8-4 | ツリーの非表示規則。サブツリー全体が廃止のときのみ既定非表示とし、生きた子孫がいる場合は区別表示で残す（単純フィルタでは生きた子孫まで消える） | 設計済み → [designs/retired-item-ui.md](./designs/retired-item-ui.md) |
+| B8-3 | CFItem の廃止表示。詳細ページの廃止バナー（`statusEndDate` を明示）と `replacedBy` の後継リンク（1 ホップ）、ツリー上の区別 | 実装中 → [designs/retired-item-ui.md](./designs/retired-item-ui.md) |
+| B8-4 | ツリーの非表示規則。サブツリー全体が廃止のときのみ既定非表示とし、生きた子孫がいる場合は区別表示で残す（単純フィルタでは生きた子孫まで消える） | 実装中 → [designs/retired-item-ui.md](./designs/retired-item-ui.md) |
 
 後続:
 
