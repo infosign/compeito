@@ -22,7 +22,7 @@
 | FR-2.7 | LinkURI types (CFPackageURI, CFDocumentURI, etc.) are returned as composite objects `{title, identifier, uri}` | 1 |
 | FR-2.8 | Requests to `/ims/case/v1p0/` are 301-redirected to `/ims/case/v1p1/` | 1 |
 | FR-2.9 | Non-GET requests (POST/PUT/DELETE/PATCH) on CASE API paths return 405 Method Not Allowed | 1 |
-| FR-2.10 | Nullable fields are included in responses as `null` (`exclude_none=False`). CASE v1.1 allows either inclusion or omission; we always include for consistency | 1 |
+| FR-2.10 | In compat output (the default) nullable fields are included as `null` (`exclude_none=False`); under `?strict=1` they are omitted, which the official schema requires (no DType is nullable) | 1 |
 | FR-2.11 | Provide CFRubric API endpoints | 2 |
 | FR-2.12 | Provide the CASE v1.1 Service Discovery endpoint at `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`. Currently returns the official OpenAPI 3 schema as static JSON; §2.5 requires a *localized* version, which is outstanding (C18) | 3 |
 | FR-2.13 | Persist and emit the CASE v1.1 optional fields `notes` (CFItem / CFAssociation / CFDocument), `alternativeLabel` (CFItem), and `extensions` (all resources) | 3 |
@@ -166,7 +166,7 @@
 | FR-2.7 | LinkURI型（CFPackageURI, CFDocumentURI 等）は `{title, identifier, uri}` の複合オブジェクトで返す | 1 |
 | FR-2.8 | `/ims/case/v1p0/` パスへのリクエストを `/ims/case/v1p1/` に301リダイレクトする | 1 |
 | FR-2.9 | CASE API パスへの非GETリクエスト（POST/PUT/DELETE/PATCH）には 405 Method Not Allowed を返す | 1 |
-| FR-2.10 | null 許容フィールドはレスポンスに `null` として含める（`exclude_none=False`）。CASE v1.1 仕様は含めるか省略するかを許容するが、本システムでは一貫性のため常に含める方針とする | 1 |
+| FR-2.10 | compat 出力（既定）では null 許容フィールドを `null` として含める（`exclude_none=False`）。`?strict=1` では省略する（公式スキーマに nullable な DType は無いため、省略が適合形） | 1 |
 | FR-2.11 | CFRubric API エンドポイントを提供する | 2 |
 | FR-2.12 | CASE v1.1 Service Discovery エンドポイントを `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で提供する。現状は公式 OpenAPI 3 スキーマを静的 JSON として返しており、§2.5 が要求する *localized* 版は未対応（C18） | 3 |
 | FR-2.13 | CASE v1.1 オプションフィールド `notes`（CFItem / CFAssociation / CFDocument）、`alternativeLabel`（CFItem）、`extensions`（全リソース）を DB に永続化し API レスポンスに含める | 3 |

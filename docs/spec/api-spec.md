@@ -72,18 +72,18 @@ The response IS a `CFPackageDType` (no wrapper key). This matches CASE v1.1 and 
 - `CFRubrics` is always included as an array, empty if no data (like `CFItems` / `CFAssociations`; `CFRubrics` is an array type and the CFDefinitions object-type omission rule does not apply).
 - **Sort order within CFPackage**: every array in CFItems / CFAssociations / CFDefinitions is sorted by `identifier ASC` (consistent with the listing endpoints' default; guarantees deterministic output).
 - **CFPckg* schemas inside CFPackage**: CASE v1.1 defines CFPckg-specific shapes inside CFPackage. compeito's default output keeps the structural distinction but **emits the LinkURI fields anyway** (`CFPackageURI` / `CFDocumentURI`) for round-trip parity with OpenCASE / OpenSALT (see [round_trip_status.md](../dev/round_trip_status.md) cat B / D). ⚠️ The official CASE v1.1 OpenAPI schema for `CFPckgDocumentDType` / `CFPckgItemDType` uses `additionalProperties: false` and does **not** list these URIs, so a strict validator would reject them. They are kept for real-world interop (OpenCASE/OpenSALT emit them too); pass **`?strict=1`** on `GET /CFPackages/{id}` to omit them. `?strict=1` is the **CASE output mode**, accepted on every CASE GET endpoint (not just this one). It applies four transformations: single-resource wrappers are removed (the official binding returns the DType at the root), optional fields whose value is null are omitted (no DType is nullable), package-context URIs are stripped, and `caseVersion` is declared as `"1.1"`. `?compat=1` asks for today's shape explicitly; asking for both is a 400. The default for a request that asks for neither is `case_output_default` (env `CASE_OUTPUT_DEFAULT`), currently `compat`; flipping it to `strict` is the planned major-version change.
-
-⚠️ **Behaviour change**: `?strict=1` previously removed only the package-context URIs on `GET /CFPackages/{id}`. It now applies all four transformations on every CASE GET endpoint. Clients that relied on the older, partial behaviour see flat single resources and absent null keys.
-
-Two known gaps remain in strict output, both tracked in the [conformance backlog](../dev/case-v1p1-conformance-backlog.md): **C3** is data-driven — a field the official schema marks required but the imported data left empty is omitted rather than fabricated, so the output is short of a required key — and **C4**, an empty result still emits `[]` where the Set types declare `minItems: 1`.
   - `CFPckgDocument`: includes `CFPackageURI` by default (omitted under `?strict=1`).
   - `CFPckgItem`: includes `CFDocumentURI` by default (omitted under `?strict=1`).
   - `CFPckgAssociation`: standalone `CFAssociation` minus `CFDocumentURI`.
   - Each CFDefinitions resource (CFItemType, CFSubject, etc.) uses the same schema as the standalone form.
+
+  ⚠️ **Behaviour change**: `?strict=1` previously removed only the package-context URIs on `GET /CFPackages/{id}`. It now applies all four transformations on every CASE GET endpoint. Clients that relied on the older, partial behaviour see flat single resources and absent null keys.
+
+  Two known gaps remain in strict output, both tracked in the [conformance backlog](../dev/case-v1p1-conformance-backlog.md): **C3** is data-driven — a field the official schema marks required but the imported data left empty is omitted rather than fabricated, so the output is short of a required key — and **C4**, an empty result still emits `[]` where the Set types declare `minItems: 1`.
 - **Container `extensions`**: `CFPackage.extensions` and `CFDefinitions.extensions` are preserved (stored on the owning document) and emitted when present.
 
 Do **not** add custom wrappers (`{"data": ...}` etc.) to the response.
-**Null fields**: include nullable fields in the response (Pydantic `exclude_none=False`). The policy is consistent across every endpoint for consistency.
+**Null fields**: **in compat output (the default)** nullable fields are included in the response (Pydantic `exclude_none=False`), consistently across every endpoint. **Under `?strict=1` they are omitted instead** — no DType in the official schema is nullable, so an echoed `null` is a type violation (see the strict output mode above).
 On error, return `{"imsx_codeMajor": "failure", ...}` directly at the root (see the error format section).
 
 ## CFItemAssociations response shape
@@ -423,18 +423,18 @@ Phase 1 ではこれらのフィールドを DB 上 nullable として扱い、�
 - `CFRubrics` は `CFItems` / `CFAssociations` と同様に空配列 `[]` として常に含める（`CFRubrics` は配列型であり、CFDefinitions のオブジェクト型省略ルールとは異なる）
 - **CFPackage 内のソート順**: CFItems・CFAssociations・CFDefinitions 内の各配列は `identifier ASC` で並べる（一覧エンドポイントのデフォルトソート順と統一し、決定的な出力を保証する）
 - **CFPackage 内のリソーススキーマ（CFPckg* 型）**: CASE v1.1 では CFPackage 内のリソースはスタンドアロン型とは異なる CFPckg* 型を定義する。compeito の既定出力は構造上の区別は維持しつつ、**OpenCASE / OpenSALT round-trip の整合性を取るため `CFPackageURI` / `CFDocumentURI` の LinkURI 系を emit する**（[round_trip_status.md](../dev/round_trip_status.md) cat B / D）。⚠️ 公式 CASE v1.1 OpenAPI の `CFPckgDocumentDType` / `CFPckgItemDType` は `additionalProperties: false` で**これらの URI を定義していない**ため、厳密な検証では弾かれる。実世界の相互運用のため既定では含める（OpenCASE/OpenSALT も出す）が、`GET /CFPackages/{id}` に **`?strict=1`** を付けると除去する。`?strict=1` は **CASE 出力モード**であり、このエンドポイントに限らず全ての CASE GET エンドポイントで受け付ける。適用する変換は4つ: 単一リソースの wrapper を外す（公式バインディングは DType をルートに返す）、値が null の optional フィールドを省く（nullable な DType は1つも無い）、パッケージ内 URI を除去する、`caseVersion` を `"1.1"` として宣言する。`?compat=1` は現状の形を明示的に要求する。両方を指定すると 400 になる。どちらも指定しない場合の既定は `case_output_default`（環境変数 `CASE_OUTPUT_DEFAULT`）で、現状は `compat`。これを `strict` に反転するのがメジャーバージョンでの予定変更である。
-
-⚠️ **挙動の変更**: 従来の `?strict=1` は `GET /CFPackages/{id}` でパッケージ内 URI を除去するだけだった。現在は全 CASE GET エンドポイントで4つの変換を適用する。従来の部分的な挙動に依存していたクライアントからは、単一リソースが flat になり null のキーが消えたように見える。
-
-strict 出力に残る既知のギャップは2つで、いずれも [conformance backlog](../dev/case-v1p1-conformance-backlog.md) で管理している。**C3** はデータ起因で、公式スキーマが required とするフィールドがインポート元で空だった場合、捏造せずに省くため required キーの欠落として残る。**C4** は 0 件の結果で `[]` を出す点で、Set 型の `minItems: 1` に反する:
   - `CFPckgDocument`: 既定で `CFPackageURI` を含む（`?strict=1` で除去）
   - `CFPckgItem`: 既定で `CFDocumentURI` を含む（`?strict=1` で除去）
   - `CFPckgAssociation`: スタンドアロン `CFAssociation` から `CFDocumentURI` を**除外**
-- **コンテナの `extensions`**: `CFPackage.extensions` / `CFDefinitions.extensions` を保持（所有 document に格納）し、存在時に出力する。
   - CFDefinitions 内の各リソース（CFItemType, CFSubject 等）はスタンドアロンと同一スキーマ
 
+  ⚠️ **挙動の変更**: 従来の `?strict=1` は `GET /CFPackages/{id}` でパッケージ内 URI を除去するだけだった。現在は全 CASE GET エンドポイントで4つの変換を適用する。従来の部分的な挙動に依存していたクライアントからは、単一リソースが flat になり null のキーが消えたように見える。
+
+  strict 出力に残る既知のギャップは2つで、いずれも [conformance backlog](../dev/case-v1p1-conformance-backlog.md) で管理している。**C3** はデータ起因で、公式スキーマが required とするフィールドがインポート元で空だった場合、捏造せずに省くため required キーの欠落として残る。**C4** は 0 件の結果で `[]` を出す点で、Set 型の `minItems: 1` に反する。
+- **コンテナの `extensions`**: `CFPackage.extensions` / `CFDefinitions.extensions` を保持（所有 document に格納）し、存在時に出力する。
+
 レスポンスにカスタムラッパー (`{"data": ...}` 等) を**追加してはならない**。
-**null フィールドの扱い:** null 許容フィールドはレスポンスに含める方針とする（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用し、一貫性を優先する。
+**null フィールドの扱い:** **compat 出力（既定）では** null 許容フィールドをレスポンスに含める（Pydantic の `exclude_none=False`）。全エンドポイントで同一の方針を適用する。**`?strict=1` の場合は省略する** — 公式スキーマに nullable な DType は1つも無いため、`null` の echo は型違反になる（上記の strict 出力モードを参照）。
 エラー時は `{"imsx_codeMajor": "failure", ...}` をルートレベルに直接返す（エラー形式参照）。
 
 ## CFItemAssociations レスポンス構造

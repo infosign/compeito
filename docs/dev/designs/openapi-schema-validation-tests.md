@@ -106,9 +106,9 @@ compeito のパスは `/{tenant}/ims/case/v1p1/` プレフィックス付き。2
 - #2,3,5,6,10,12 は `{"CFDocument": {...}}` 等の **wrapper 付き**（= C1。`src/routers/cf_*.py`）。
 - #1 (`{"CFDocuments": [...]}`), #4 (`{"CFItem": ..., "CFAssociations": [...]}`),
   #7–9（lookup は Set 形 `{"CFConcepts": [...]}` 等）, #11（flat な `CFPackageDType`）は**形は既に公式どおり**。
-- #11 のみ `?strict=1` が実装済み（`CFPackageURI` / `CFDocumentURI` の除去 = C2 対応、`src/routers/cf_packages.py`）。
-  他エンドポイントでは `?strict=1` は現状**無視される**（未知クエリはエラーにならない）ので、
-  strict 実装前からテストは同一 URL で実行でき、strict-output 実装が入った時点で挙動だけが変わる。
+- **（2026-08 更新）`?strict=1` は全 CASE GET エンドポイントで有効になった**（`src/services/case_serializer.py`。wrapper 除去・`exclude_none`・パッケージ内 URI 除去・`caseVersion="1.1"`）。
+  この設計を書いた時点の前提（「#11 以外では無視される no-op」）はもう成立しない。
+  期待値を組むときは、単一リソース6ルートが strict では **flat** になり、値が null のキーは**存在しない**ことを前提にすること。
 
 ## 検証ライブラリの選定
 
@@ -223,7 +223,7 @@ async def test_strict_response_conforms_full(db_client, full_seed, case):
     assert_conformant(resp.json(), case.schema)
 ```
 
-- **リクエストは全エンドポイントで `?strict=1` を付ける**（#11 以外は現状 no-op。strict-output 実装後に
+- **リクエストは全エンドポイントで `?strict=1` を付ける**（2026-08 以降は全ルートで有効。実装後に
   そのまま strict 応答の検証になる。strict-output 側がクエリ名/値を変える場合はここを追随）。
 - アサートは「HTTP 200」+「ボディがスキーマ valid」のみ。**値の正しさは既存テストの責務**であり重複させない。
 - `pytest.ini_options` に marker 登録を追加（`-m conformance` で単独実行できるように）:
@@ -280,7 +280,7 @@ markers = ["conformance: official CASE v1.1 OpenAPI schema validation tests"]
 | CFSubjects/{id} | CFSubjectSetDType | C16 | 同上 |
 | CFItemTypes/{id} | CFItemTypeSetDType | C16 | 同上 |
 | CFLicenses/{id} | CFLicenseDType | C1, C16 | wrapper + null |
-| CFPackages/{id} | CFPackageDType | C16 | `?strict=1` で C2 は除去済み。null のみ残る |
+| CFPackages/{id} | CFPackageDType | （C3 のみ） | `?strict=1` で C2 の URI 除去と C16 の null 除去はいずれも解消済み。残るのはデータ起因の required 欠落（C3） |
 | CFRubrics/{id} | CFRubricDType | C1, C16 | wrapper + null |
 
 `minimal` シード側（上表の gaps に加えて、該当エンドポイントに **C3** を追加。
