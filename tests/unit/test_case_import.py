@@ -2158,6 +2158,32 @@ class TestLifecycleDateClearing:
         # No "kept" / "cleared" line: the invalid value is not a clear request.
         assert not any("cleared" in w or "kept" in w for w in report.warnings)
 
+    @pytest.mark.parametrize("allow_clear", [False, True])
+    async def test_whitespace_only_is_blank_not_invalid(
+        self, db_session: AsyncSession, tenant: Tenant, allow_clear: bool
+    ):
+        """A whitespace-only value follows the blank rule, with no "Invalid" warning.
+
+        The parse helper and the update helper must agree on what counts as
+        blank; otherwise the report says "invalid, existing retained" while the
+        row is actually cleared.
+        """
+        doc_id, item_id = await self._seed_tombstone(db_session, tenant)
+        blanks = {"statusEndDate": "   "}
+        report = await self._import(
+            db_session,
+            tenant,
+            self._package(doc_id, item_id, doc_extra=blanks, item_extra=blanks),
+            allow_status_clear=allow_clear,
+        )
+
+        doc, item = await self._fetch(db_session, doc_id, item_id)
+        expected = None if allow_clear else date(2022, 3, 14)
+        assert item.status_end_date == expected
+        assert doc.status_end_date == expected
+        assert not any("Invalid statusEndDate" in w for w in report.warnings)
+        assert any(("cleared" if allow_clear else "kept") in w for w in report.warnings)
+
     async def test_item_warnings_are_aggregated(self, db_session: AsyncSession, tenant: Tenant):
         """A large package must not emit one warning per item."""
         doc_id = uuid.uuid4()

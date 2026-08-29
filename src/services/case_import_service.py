@@ -221,7 +221,10 @@ def _parse_date_with_warning(
     dates pass their own note because an unparsable value does not wipe an
     existing date there (see :func:`_lifecycle_date_update`).
     """
-    if not val:
+    # Whitespace-only is "unspecified", not a malformed date — the same rule the
+    # CSV path uses. _lifecycle_date_update() relies on this agreeing with its own
+    # blank check, so a blank value never warns AND clears at the same time.
+    if val is None or (isinstance(val, str) and not val.strip()):
         return None
     d = _parse_date(val)
     if d is None:
@@ -936,7 +939,7 @@ def _lifecycle_date_update(
     return True, None, ("cleared" if existing is not None else None)
 
 
-def _summarize_lifecycle_events(events: dict[str, int], resource: str, warnings: list[str]) -> None:
+def _summarize_lifecycle_events(events: dict[tuple[str, str], int], resource: str, warnings: list[str]) -> None:
     """Emit one warning per (field, outcome) instead of one per resource."""
     for (key, event), count in sorted(events.items()):
         if event == "kept":
