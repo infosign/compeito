@@ -1139,3 +1139,49 @@ class TestImportNonChildAssociations:
             ).scalars()
         )
         assert len(is_part) == 0
+
+
+class TestCsvLifecycleDates:
+    """CSV has no way to express "clear this date" — and must not invent one by
+    accident. See #23 and docs/spec/import-logic.md ("Exception — lifecycle dates").
+    """
+
+    HEADER = (
+        "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,"
+        "CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,alternativeLabel,"
+        "notes,language,listEnumeration,license,statusStartDate,statusEndDate\n"
+    )
+    IDENT = "aaaa5555-1111-1111-1111-111111111111"
+
+    def _csv(self, end_cell: str, doc_ident: str) -> bytes:
+        return (
+            f"#identifier,{doc_ident}\n#title,Lifecycle\n{self.HEADER}{self.IDENT},Item,,,,,,,,,,,,,,{end_cell}\n"
+        ).encode("utf-8")
+
+    async def _item(self, db_session: AsyncSession) -> CFItem:
+        return (await db_session.execute(select(CFItem).where(CFItem.identifier == uuid.UUID(self.IDENT)))).scalar_one()
+
+    async def test_invalid_date_keeps_the_stored_value(self, db_session: AsyncSession, tenant: Tenant):
+        """The half of #23 that was a bug: a typo used to wipe the date."""
+        doc_ident = str(uuid.uuid4())
+        await import_csv(db_session, tenant.id, self._csv("2022-03-14", doc_ident))
+        await db_session.flush()
+
+        report = await import_csv(db_session, tenant.id, self._csv("n/a", doc_ident))
+        await db_session.flush()
+
+        assert (await self._item(db_session)).status_end_date == date(2022, 3, 14)
+        assert any("Invalid statusEndDate" in w for w in report.warnings)
+
+    async def test_empty_cell_keeps_the_stored_value(self, db_session: AsyncSession, tenant: Tenant):
+        """The half of #23 that is by design: an empty cell means "not supplied",
+        not "clear it". Clearing is only expressible in CASE JSON, where an
+        explicit null plus --allow-status-clear says so unambiguously."""
+        doc_ident = str(uuid.uuid4())
+        await import_csv(db_session, tenant.id, self._csv("2022-03-14", doc_ident))
+        await db_session.flush()
+
+        await import_csv(db_session, tenant.id, self._csv("", doc_ident))
+        await db_session.flush()
+
+        assert (await self._item(db_session)).status_end_date == date(2022, 3, 14)

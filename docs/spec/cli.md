@@ -90,6 +90,9 @@ uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framewo
 #   Package-wide: it applies to every CFDocument / CFItem in the package, not to one item.
 #   Use it only when the package is the authority on those dates.
 uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
+# `import csv` / `import xlsx` have no such flag: those formats cannot express
+# "clear this date" at all (an empty cell means "not supplied"). Clearing a
+# retirement date is only possible through CASE JSON.
 
 # Export (custom format with UUIDs; editing + re-importing upserts)
 # --file: output path. Overwrites without confirmation if the file exists.
@@ -297,6 +300,9 @@ uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framewo
 #   効果はパッケージ全体（全 CFDocument・全 CFItem）に及ぶ。特定の項目だけは対象にできない。
 #   取り込むパッケージがそれらの日付の権威である場合にだけ使う
 uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
+# `import csv` / `import xlsx` にこのフラグは無い。これらの形式は「この日付を
+# 消す」を表現できない（空セルは「未指定」の意味）。廃止日のクリアは CASE JSON
+# 経由でのみ行える
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)
 # --file: 出力先ファイルパス。既に存在する場合は上書きする（確認なし）
