@@ -16,6 +16,7 @@ from datetime import date
 
 from sqlalchemy import Text, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from src.models.cf_association import CFAssociation
 from src.models.cf_item import CFItem
@@ -47,6 +48,9 @@ async def hidden_identifiers(
     asks about *grandchildren* of the level being rendered: a set scoped to the
     rendered level would not contain them.
 
+    Cost: one query for the retired set, one for their children. A document with
+    no tombstones stops after the first.
+
     **Invariant (the most fragile premise here): every retired item enters the
     frontier in step 1.** Pruning below (step 3) reduces the traversal, not the
     set of items being judged — a retired item under a live node is still judged,
@@ -66,49 +70,44 @@ async def hidden_identifiers(
     if not retired:
         return set()
 
-    # 2-3. Walk down from the retired items, one level per query, pruning at live
-    #      nodes (a live node fixes hidden=False for itself and for every ancestor
-    #      reaching it, so its descendants cannot change any answer).
-    #      The join drops children whose CFItem row does not exist: they are never
-    #      rendered, so counting them as visible would leave an empty expander.
-    children: dict[str, list[str]] = {}
-    frontier = list(retired)
-    seen_as_parent: set[str] = set()
-
-    while frontier:
-        batch = [ident for ident in frontier if ident not in seen_as_parent]
-        seen_as_parent.update(batch)
-        if not batch:
-            break
-        rows = await session.execute(
-            select(
-                CFAssociation.destination_node_identifier,
-                CFAssociation.origin_node_identifier,
-            )
-            .join(
-                CFItem,
-                # Cast the UUID side to text, never the other way round: the
-                # association columns are free-form strings and a malformed one
-                # would make a text->uuid cast raise for the whole query.
-                cast(CFItem.identifier, Text) == CFAssociation.origin_node_identifier,
-            )
-            .where(
-                CFAssociation.cf_document_id == doc_id,
-                CFAssociation.association_type == "isChildOf",
-                CFAssociation.destination_node_identifier.in_(batch),
-                CFItem.cf_document_id == doc_id,
-            )
+    # 2-3. Children of the retired items, in one query. Only a retired child can
+    #      hide anything, so a live child is a leaf for our purposes and its
+    #      descendants are never fetched (without that pruning, a single tombstone
+    #      below the root would drag in every live item under it).
+    #      Two joins do the work: the parent side restricts to retired parents,
+    #      the child side proves the child's CFItem row exists — a dangling
+    #      isChildOf points at nothing renderable, so counting it as a live child
+    #      would keep a dead subtree on screen.
+    #      The retired set goes in as a correlated subquery, not as bind
+    #      parameters: a fully retired document would otherwise blow past
+    #      asyncpg's 32767-parameter limit.
+    retired_idents = select(cast(CFItem.identifier, Text)).where(
+        CFItem.cf_document_id == doc_id,
+        CFItem.status_end_date.is_not(None),
+        CFItem.status_end_date <= today,
+    )
+    child_item = aliased(CFItem)
+    rows = await session.execute(
+        select(
+            CFAssociation.destination_node_identifier,
+            CFAssociation.origin_node_identifier,
         )
-        next_frontier: list[str] = []
-        for parent, child in rows.all():
-            kids = children.setdefault(parent, [])
-            if child in kids:
-                continue
+        .join(
+            child_item,
+            cast(child_item.identifier, Text) == CFAssociation.origin_node_identifier,
+        )
+        .where(
+            CFAssociation.cf_document_id == doc_id,
+            CFAssociation.association_type == "isChildOf",
+            CFAssociation.destination_node_identifier.in_(retired_idents),
+            child_item.cf_document_id == doc_id,
+        )
+    )
+    children: dict[str, list[str]] = {}
+    for parent, child in rows.all():
+        kids = children.setdefault(parent, [])
+        if child not in kids:
             kids.append(child)
-            # Only retired children can hide anything, so only they are explored.
-            if child in retired and child not in seen_as_parent:
-                next_frontier.append(child)
-        frontier = next_frontier
 
     # 4-6. Fold bottom-up. memo holds settled answers; on_stack is the current
     #      DFS path, and only an edge back into it counts as a cycle (a plain

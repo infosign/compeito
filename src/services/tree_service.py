@@ -331,6 +331,7 @@ async def build_ssr_tree(
     selected_item_ident: uuid.UUID | None = None,
     hidden: set[str] | None = None,
     today: date | None = None,
+    ancestors: list[str] | None = None,
 ) -> tuple[list[TreeNode], list[TreeNode], CFItem | None]:
     """Build the initial SSR tree (depth 0-1).
 
@@ -374,6 +375,7 @@ async def build_ssr_tree(
                 selected_item,
                 hidden,
                 today,
+                ancestors,
             )
 
     return root_nodes, orphan_nodes, selected_item
@@ -574,6 +576,7 @@ async def _expand_ancestor_path(
     selected_item: CFItem,
     hidden: set[str] | None = None,
     today: date | None = None,
+    ancestors: list[str] | None = None,
 ) -> None:
     """Expand tree nodes along the ancestor path to the selected item.
 
@@ -583,7 +586,10 @@ async def _expand_ancestor_path(
     here unfiltered.
     """
     item_ident = str(selected_item.identifier)
-    ancestors = await ancestor_path(session, doc, item_ident)
+    # The caller has usually walked the path already (to exempt it from the
+    # retirement filter); walking it again costs one query per level.
+    if ancestors is None:
+        ancestors = await ancestor_path(session, doc, item_ident)
 
     # All identifiers that need expansion (ancestors + selected item itself)
     expand_set = set(ancestors)

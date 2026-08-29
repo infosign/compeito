@@ -53,7 +53,7 @@ async def hidden_identifiers(
 アルゴリズム:
 
 1. `cf_items` から `cf_document_id = doc_id AND status_end_date IS NOT NULL AND status_end_date <= today` の identifier を引く。**空なら即 `set()` を返す**（以降の処理も、ツリー側のフィルタも全て no-op になる）。
-2. 廃止項目を起点に `isChildOf` の子を辿る。**1階層あたり1クエリ**（`cf_associations` に `cf_items` を join し、`CFItem` 行が実在する子だけを返す。`origin_node_identifier` は `String`、`identifier` は `UUID` なのでキャストが要る。`_strs_to_uuids` に前例がある）。
+2. 廃止項目の子を**1クエリ**で引く（`cf_associations` に `cf_items` を join し、`CFItem` 行が実在する子だけを返す。`origin_node_identifier` は `String`、`identifier` は `UUID` なのでキャストが要る。`_strs_to_uuids` に前例がある）。
    子が廃止かどうかの判定に item を読む必要は無い。ステップ1が文書内の全廃止 identifier を返しているので、集合の membership で足りる。join が要るのは**行の実在確認**のため（ステップ7）。
 3. **生きた子で枝刈りする**。生きたノード c は `hidden(c) = false` が確定しており、その子孫は誰の判定にも影響しない（親は c が生きている時点で false に確定する）。したがって**フロンティアに積むのは廃止の子だけ**。生きた子はそこで止める。
    これにより、探索範囲は「廃止領域 ＋ その直下の生存フリンジ」に収まる。**枝刈りをしないと、ルート直下に墓標が1つあるだけで配下の生きた2万項目を辿ることになる。**
@@ -92,7 +92,7 @@ async def hidden_identifiers(
 | 状況 | 追加クエリ |
 |---|---|
 | 墓標が1件も無い文書 | 1本（ステップ1のみ。以降は no-op） |
-| 墓標がある | 1本 ＋ 廃止サブツリーの深さ × 1本 |
+| 墓標がある | 2本（ステップ1＋廃止項目の子をまとめて引く1本） |
 | トグルリンクの出し分け | 0本（ステップ1の結果から分かる） |
 
 **この費用はページ1回あたりではなく、`children_fragment` の1リクエストごとにも掛かる**（遅延展開のクリックごと）。フラグメントは `max-age=86400` でキャッシュされるので繰り返しの負荷は小さい。
@@ -105,12 +105,16 @@ async def hidden_identifiers(
 
 ### インデックス
 
-ステップ1のために部分インデックスを1本足す。
+ステップ1のために部分インデックスを、join のために式インデックスを足す。
 
 ```sql
 CREATE INDEX ix_cf_items_doc_retired ON cf_items (cf_document_id, status_end_date)
 WHERE status_end_date IS NOT NULL;
+
+CREATE INDEX ix_cf_items_identifier_text ON cf_items ((identifier::text));
 ```
+
+式インデックスのほうは、`cf_associations` と `cf_items` を `identifier::text = origin_node_identifier` で join するために要る（キャストの向きは逆にできない。association 側は自由文字列で、uuid へ倒すと不正な1行でクエリ全体が落ちる）。素の uuid インデックスはこの述語に使えないため、無いと階層展開のたびに文書全体とのハッシュ結合になる。
 
 既存の4本（`(tenant_id, cf_document_id, human_coding_scheme)` / `(cf_document_id, depth)` / `subject_uri` の GIN / `(tenant_id, cf_item_type_id)`）とは重複しない。`ix_cf_items_document_depth` でも索引走査はできるが、墓標が0件の文書では「無いことを証明するために当該文書の全エントリを走査する」形になる。墓標だけを含む極小の索引なので入れて損はない。Alembic マイグレーションを1本追加する。
 

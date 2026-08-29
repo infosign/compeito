@@ -348,7 +348,7 @@
                     {% for suc in successors %}
                     <li>
                         {{ classified_ref(suc.identifier, suc.label, suc.uri, suc.in_doc, suc.other) }}
-                        {% if suc.status_end_date %}<span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-pink-100 text-pink-700 align-middle">{{ t("retired_badge") }}</span>{% endif %}
+                        {% if suc.is_retired %}<span class="ml-1 inline-block px-1.5 py-0.5 text-[10px] rounded bg-pink-100 text-pink-700 align-middle">{{ t("retired_badge") }}</span>{% endif %}
                     </li>
                     {% endfor %}
                 </ul>

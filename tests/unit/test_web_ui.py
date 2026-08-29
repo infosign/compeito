@@ -383,7 +383,24 @@ def _retired_item(tenant: Tenant, doc: CFDocument, statement: str, end: date | N
     )
 
 
-def _replaced_by(doc: CFDocument, origin: CFItem, dest_ident: str, dest_uri: str) -> CFAssociation:
+def _is_child_of(doc: CFDocument, child_ident, parent_ident) -> CFAssociation:
+    return CFAssociation(
+        tenant_id=doc.tenant_id,
+        cf_document_id=doc.id,
+        identifier=uuid.uuid4(),
+        uri=f"https://example.com/assoc/{uuid.uuid4()}",
+        association_type="isChildOf",
+        origin_node_uri=f"https://example.com/uri/{child_ident}",
+        origin_node_identifier=str(child_ident),
+        destination_node_uri=f"https://example.com/uri/{parent_ident}",
+        destination_node_identifier=str(parent_ident),
+        last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+
+
+def _replaced_by(
+    doc: CFDocument, origin: CFItem, dest_ident: str, dest_uri: str, dest_title: str | None = None
+) -> CFAssociation:
     return CFAssociation(
         tenant_id=doc.tenant_id,
         cf_document_id=doc.id,
@@ -394,11 +411,16 @@ def _replaced_by(doc: CFDocument, origin: CFItem, dest_ident: str, dest_uri: str
         origin_node_identifier=str(origin.identifier),
         destination_node_uri=dest_uri,
         destination_node_identifier=dest_ident,
+        destination_node_title=dest_title,
         last_change_date_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
     )
 
 
 class TestRetirementBanner:
+    """Dates here are relative (today ± n) rather than fixed: the view compares
+    against the UTC date, and a fixed date would flip meaning depending on when
+    the suite runs. The ±1 day margins keep that harmless."""
+
     async def test_banner_on_a_retired_item(
         self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
     ):
@@ -443,7 +465,10 @@ class TestRetirementBanner:
         await db_session.flush()
 
         resp = await db_client.get(f"/{tenant.id}/uri/{dead.identifier}")
-        assert "New code" in resp.text
+        # Scope to the banner: the related list renders the same label, so an
+        # unscoped assertion would pass even if the banner never rendered.
+        banner = resp.text.split('role="note"', 1)[1].split("</div>", 3)[0] if 'role="note"' in resp.text else ""
+        assert "New code" in banner
 
     async def test_successor_in_a_private_tenant_is_not_surfaced(
         self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
@@ -476,6 +501,10 @@ class TestRetirementBanner:
                 dead,
                 str(secret.identifier),
                 f"{settings.base_url}/{private.id}/uri/{secret.identifier}",
+                # The association carries a snapshot of the title. Without this
+                # the test could not fail: the label would fall back to the UUID
+                # even with the guard removed.
+                dest_title="SECRET SUCCESSOR",
             )
         )
         await db_session.flush()
@@ -502,6 +531,102 @@ class TestRetiredToggle:
 
         shown = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}?includeRetired=1")
         assert "Dead item" in shown.text
+
+    async def test_toggle_offered_for_a_deep_tombstone(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """The initial page only renders depth 0-1, but the judgement is
+        document-wide, so a tombstone three levels down still surfaces the
+        toggle. (Judging only the rendered levels would make the feature
+        unreachable in exactly the frameworks that need it.)"""
+        root = _retired_item(tenant, sample_document, "Root", None)
+        mid = _retired_item(tenant, sample_document, "Mid", None)
+        deep = _retired_item(tenant, sample_document, "Deep dead", date.today() - timedelta(days=1))
+        db_session.add_all([root, mid, deep])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                _is_child_of(sample_document, root.identifier, sample_document.identifier),
+                _is_child_of(sample_document, mid.identifier, root.identifier),
+                _is_child_of(sample_document, deep.identifier, mid.identifier),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}")
+        assert "Deep dead" not in resp.text  # not rendered at depth 0-1 anyway
+        assert "includeRetired=1" in resp.text
+
+    async def test_toggle_keeps_the_selected_item(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """Pressing the toggle must not throw away the open item and branch."""
+        live = _retired_item(tenant, sample_document, "Live item", None)
+        dead = _retired_item(tenant, sample_document, "Dead item", date.today() - timedelta(days=1))
+        db_session.add_all([live, dead])
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{live.identifier}")
+        assert f"/item/{live.identifier}?includeRetired=1" in resp.text
+
+    async def test_flag_rides_on_every_link_of_a_node(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """href, hx-push-url and the lazy hx-get all have to carry it; a miss on
+        any one of them resets the view on the next click."""
+        parent = _retired_item(tenant, sample_document, "Parent", None)
+        child = _retired_item(tenant, sample_document, "Child", None)
+        grandchild = _retired_item(tenant, sample_document, "Grandchild", None)
+        db_session.add_all([parent, child, grandchild])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                _is_child_of(sample_document, parent.identifier, sample_document.identifier),
+                _is_child_of(sample_document, child.identifier, parent.identifier),
+                _is_child_of(sample_document, grandchild.identifier, child.identifier),
+            ]
+        )
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}?includeRetired=1")
+        assert (
+            f'href="/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{parent.identifier}?includeRetired=1"'
+            in resp.text
+        )
+        assert (
+            f'hx-push-url="/{tenant.id}/cftree/doc/{sample_document.identifier}/item/{parent.identifier}?includeRetired=1"'
+            in resp.text
+        )
+        # The lazy branch (depth 1 -> 2) fetches through /children/.
+        assert f"/children/{child.identifier}?includeRetired=1" in resp.text
+
+    async def test_children_fragment_honours_the_flag(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        parent = _retired_item(tenant, sample_document, "Parent", None)
+        dead = _retired_item(tenant, sample_document, "Dead child", date.today() - timedelta(days=1))
+        db_session.add_all([parent, dead])
+        await db_session.flush()
+        db_session.add(_is_child_of(sample_document, dead.identifier, parent.identifier))
+        await db_session.flush()
+
+        base = f"/{tenant.id}/cftree/doc/{sample_document.identifier}/children/{parent.identifier}"
+        assert "Dead child" not in (await db_client.get(base)).text
+        assert "Dead child" in (await db_client.get(f"{base}?includeRetired=1")).text
+
+    async def test_detail_fragment_shows_the_banner(
+        self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument
+    ):
+        """The HTMX pane renders the same card as the permalink page."""
+        past = date.today() - timedelta(days=1)
+        dead = _retired_item(tenant, sample_document, "Dead item", past)
+        db_session.add(dead)
+        await db_session.flush()
+
+        resp = await db_client.get(f"/{tenant.id}/cftree/doc/{sample_document.identifier}/detail/{dead.identifier}")
+        assert resp.status_code == 200
+        assert 'role="note"' in resp.text
+        assert str(past) in resp.text
 
     async def test_no_toggle_without_tombstones(
         self, db_session: AsyncSession, db_client, tenant: Tenant, sample_document: CFDocument

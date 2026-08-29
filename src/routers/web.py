@@ -214,6 +214,7 @@ async def _successors(
     related_in_doc: set[str],
     related_other_doc: dict[str, dict],
     related_other_tenant: dict[str, dict],
+    today: date,
 ) -> list[dict]:
     """`replacedBy` targets of a retired item, for the retirement banner.
 
@@ -239,6 +240,7 @@ async def _successors(
         if not (in_doc or other or external):
             continue  # private tenant / unresolvable internal URI: surface nothing
         info = labels.get(ident) or {}
+        successor_end = info.get("status_end_date")
         label = (
             " ".join(filter(None, [info.get("human_coding_scheme"), info.get("full_statement")]))
             or a.destination_node_title
@@ -251,7 +253,9 @@ async def _successors(
                 "uri": a.destination_node_uri,
                 "in_doc": in_doc,
                 "other": other,
-                "status_end_date": info.get("status_end_date"),
+                # A future end date is a scheduled retirement, not a retirement:
+                # same rule as the banner itself.
+                "is_retired": successor_end is not None and successor_end <= today,
             }
         )
     return out
@@ -638,6 +642,7 @@ async def _detail_extras(
                 related_in_doc,
                 related_other_doc,
                 related_other_tenant,
+                _utc_today(),
             )
         hierarchy_upper, hierarchy_lower = await _cross_doc_hierarchy(session, tenant_id, resource, doc)
         incoming_refs = await _incoming_refs(session, tenant_id, resource)
@@ -877,8 +882,10 @@ async def _render_tree_page(
     # longer find the nodes it needs to open.
     today = _utc_today()
     exempt: set[str] = set()
+    ancestors: list[str] = []
     if selected_ident is not None:
-        exempt = {str(selected_ident)} | set(await tree_service.ancestor_path(session, doc, str(selected_ident)))
+        ancestors = await tree_service.ancestor_path(session, doc, str(selected_ident))
+        exempt = {str(selected_ident)} | set(ancestors)
     hidden = await _hidden_set(session, doc, today, include_retired, exempt)
 
     # Lazy tree: SSR only depth 0-1 (+ the ancestor path to a deep-linked item).
@@ -891,6 +898,7 @@ async def _render_tree_page(
         selected_ident,
         hidden,
         today,
+        ancestors,
     )
 
     # Fetch rubrics + definitions for this document (right-pane default view +
@@ -1049,6 +1057,14 @@ async def _render_tree_page(
             "open_rubric_ids": open_rubric_ids,
             "definitions": definitions,
             "include_retired": include_retired,
+            # Toggle target = the current URL with the flag flipped, so pressing
+            # it keeps the selected item, the pane and the expanded branches.
+            # Rebuilding it from the document root would throw all of that away.
+            "retired_toggle_url": str(
+                request.url.remove_query_params("includeRetired")
+                if include_retired
+                else request.url.include_query_params(includeRetired="1")
+            ),
             # Offer the toggle only when it would change something: with every
             # retired item still visible (each keeps a live descendant) the link
             # would do nothing. Always offer the way back.

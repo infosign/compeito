@@ -2,31 +2,33 @@
    Level). Mirrors fragments/tree_nodes.html: a real <a href> (works without JS)
    with HTMX layered on to swap the detail pane, plus the selection-highlight
    onclick. `branch_summary` is the <summary> of an expandable node (caller wraps
-   it in <details> and renders children); `leaf` is a terminal node. #}
+   it in <details> and renders children); `leaf` is a terminal node.
+   `retired_qs` carries the ?includeRetired=1 flag so clicking a rubric node
+   does not silently reset the tree to the default view. #}
 
-{% macro branch_summary(tenant_url, doc_id, ident, label, selected_ident) -%}
+{% macro branch_summary(tenant_url, doc_id, ident, label, selected_ident, retired_qs="") -%}
 {% set is_sel = selected_ident == ident|string %}
 <summary data-tree-item data-item-id="{{ ident }}"{% if is_sel %} aria-current="true"{% endif %} class="tree-summary flex items-center py-1.5 px-2 rounded cursor-pointer {% if is_sel %}bg-violet-50 ring-1 ring-inset ring-violet-200{% else %}hover:bg-stone-100{% endif %}">
     <span class="tree-tri w-5 h-5 flex-shrink-0 text-violet-500 select-none text-center" aria-hidden="true">▶</span>
-    <a href="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}"
+    <a href="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}{{ retired_qs }}"
        class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
        hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/detail/{{ ident }}"
        hx-target="#detail-pane" hx-swap="innerHTML"
-       hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}"
+       hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}{{ retired_qs }}"
        hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"
        onclick="event.stopPropagation(); markSelected(this);">{{ label }}</a>
 </summary>
 {%- endmacro %}
 
-{% macro leaf(tenant_url, doc_id, ident, label, selected_ident) -%}
+{% macro leaf(tenant_url, doc_id, ident, label, selected_ident, retired_qs="") -%}
 {% set is_sel = selected_ident == ident|string %}
 <div data-tree-item data-item-id="{{ ident }}"{% if is_sel %} aria-current="true"{% endif %} class="mt-1 flex items-center py-1.5 px-2 rounded {% if is_sel %}bg-violet-50 ring-1 ring-inset ring-violet-200{% else %}hover:bg-stone-100{% endif %}">
     <span class="w-5 h-5 flex-shrink-0 text-violet-200 text-center select-none" aria-hidden="true">●</span>
-    <a href="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}"
+    <a href="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}{{ retired_qs }}"
        class="cursor-pointer flex-1 min-w-0 ml-1 text-sm text-gray-800"
        hx-get="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/detail/{{ ident }}"
        hx-target="#detail-pane" hx-swap="innerHTML"
-       hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}"
+       hx-push-url="/{{ tenant_url }}/cftree/doc/{{ doc_id }}/item/{{ ident }}{{ retired_qs }}"
        hx-on::after-swap="if(window.innerWidth<768){document.getElementById('detail-pane').scrollIntoView({behavior:'smooth',block:'start'})}"
        onclick="markSelected(this);">{{ label }}</a>
 </div>
