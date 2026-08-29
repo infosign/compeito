@@ -105,6 +105,8 @@ OpenCASE round-trip 完了を受け、次は OpenSALT round-trip を同じ playb
 
 - **CF Doc** シート（1 行目ヘッダ・2 行目データ、列 A–P）: `identifier, creator, title, lastChangeDate, officialSourceURL, publisher, description, subject(`\|` 区切り), language, version, adoptionStatus, statusStartDate, statusEndDate, licenseTitle, licenseText, notes`
 - **CF Item** シート（列 A–L、データは 2 行目以降）: `identifier, fullStatement, humanCodingScheme, smartLevel, listEnumeration, abbreviatedStatement, conceptKeywords, notes, language, educationLevel, CFItemType, license`。**階層は `smartLevel`（`1` / `1.1` / `1.1.1` …）で表現**し、最終セグメントが親内 sequence。13 列目以降は AdditionalField（custom field）
+
+  > compeito の xlsx エクスポートは、この後ろに **M-N 列 `statusStartDate` / `statusEndDate` を足す**（compeito 拡張）。列が無いと、廃止項目（墓標）が xlsx 往復で「生きた項目」に戻るため。OpenSALT 側に取り込んだ場合、同名の AdditionalField が OpenSALT に登録済みならその custom field に入り、未登録なら無視される（ネイティブのライフサイクル項目にはならない）。compeito の xlsx インポートはこの2列を**ヘッダ名で探す**（位置固定ではない）。OpenSALT は 13 列目以降に登録済み AdditionalField を任意の順で出すため、位置で読むと他人の custom field を日付として読んでしまう。ヘッダが無いワークブック（本来の OpenSALT 形式）では既存値を保持する
 - **CF Association** シート（列 A–J）: `identifier, originNodeURI, originNodeIdentifier, originNodeHumanCodingScheme, associationType, destinationNodeURI, destinationNodeIdentifier, destinationNodeHumanCodingScheme, associationGroupIdentifier, associationGroupName`。`isChildOf` は CF Item の smartLevel から自動生成されるため、ここでの CHILD_OF 行は重複時スキップ
 
 ### 3. OpenSALT の CSV import は限定的で compeito の CSV と非互換

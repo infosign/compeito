@@ -425,23 +425,31 @@ def _parse_custom_rows(
         if lic is not None:
             present.add("license")
 
-        # statusStartDate
+        # statusStartDate / statusEndDate. An unparsable value is NOT treated as
+        # "present": these two fields carry an item's retirement state, the CSV /
+        # xlsx path has no explicit clearing mechanism, and wiping a retirement
+        # date because a cell says "n/a" is silent data loss. Warn and preserve.
         ssd_raw = _get_cell(row, col_map, "statusstartdate").strip()
         ssd: date | None = None
         if ssd_raw:
-            present.add("status_start_date")
             ssd = _parse_date(ssd_raw)
             if ssd is None:
-                warnings.append(f"Row {row_num}: Invalid statusStartDate '{ssd_raw}', set to null")
+                warnings.append(
+                    f"Row {row_num}: Invalid statusStartDate '{ssd_raw}', ignored; existing value kept on update"
+                )
+            else:
+                present.add("status_start_date")
 
-        # statusEndDate
         sed_raw = _get_cell(row, col_map, "statusenddate").strip()
         sed: date | None = None
         if sed_raw:
-            present.add("status_end_date")
             sed = _parse_date(sed_raw)
             if sed is None:
-                warnings.append(f"Row {row_num}: Invalid statusEndDate '{sed_raw}', set to null")
+                warnings.append(
+                    f"Row {row_num}: Invalid statusEndDate '{sed_raw}', ignored; existing value kept on update"
+                )
+            else:
+                present.add("status_end_date")
 
         results.append(
             ParsedRow(
@@ -1357,14 +1365,16 @@ async def import_csv(
     if meta_ssd_raw:
         meta_ssd = _parse_date(meta_ssd_raw)
         if meta_ssd is None:
-            report.warnings.append(f"Invalid #status_start_date '{meta_ssd_raw}', set to null")
+            report.warnings.append(
+                f"Invalid #status_start_date '{meta_ssd_raw}', ignored; existing value kept on update"
+            )
 
     meta_sed_raw = metadata.get("status_end_date", "")
     meta_sed: date | None = None
     if meta_sed_raw:
         meta_sed = _parse_date(meta_sed_raw)
         if meta_sed is None:
-            report.warnings.append(f"Invalid #status_end_date '{meta_sed_raw}', set to null")
+            report.warnings.append(f"Invalid #status_end_date '{meta_sed_raw}', ignored; existing value kept on update")
 
     meta_adoption = metadata.get("adoption_status")
     if meta_adoption:
@@ -1485,9 +1495,11 @@ async def import_csv(
             doc.adoption_status = meta_adoption
         if metadata.get("official_source_url"):
             doc.official_source_url = metadata["official_source_url"]
-        if meta_ssd_raw:
+        # An unparsable lifecycle date is treated as absent (see the item-level
+        # rule above): it must not wipe the document's retirement date.
+        if meta_ssd is not None:
             doc.status_start_date = meta_ssd
-        if meta_sed_raw:
+        if meta_sed is not None:
             doc.status_end_date = meta_sed
         doc.last_change_date_time = now
 
@@ -1534,9 +1546,11 @@ async def import_csv(
                 doc.adoption_status = meta_adoption
             if metadata.get("official_source_url"):
                 doc.official_source_url = metadata["official_source_url"]
-            if meta_ssd_raw:
+            # Lifecycle dates: an unparsable value is "absent", not a clear
+            # request (same rule as the --doc branch and the item columns).
+            if meta_ssd is not None:
                 doc.status_start_date = meta_ssd
-            if meta_sed_raw:
+            if meta_sed is not None:
                 doc.status_end_date = meta_sed
             doc.last_change_date_time = now
         else:

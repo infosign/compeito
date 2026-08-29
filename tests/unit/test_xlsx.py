@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import uuid
+from datetime import date
 
 import pytest
 from openpyxl import load_workbook
@@ -37,7 +38,7 @@ SOURCE_CSV = (
     "#subject,情報科学,データ\n"
     "Identifier,fullStatement,humanCodingScheme,parentIdentifier,sequenceNumber,CFItemType,educationLevel,conceptKeywords,abbreviatedStatement,language,listEnumeration,license,statusStartDate,statusEndDate\n"  # noqa: E501
     "10000000-0000-0000-0000-000000000001,Root A,A,,10,領域,13,,Root A short,,,,,\n"
-    '10000000-0000-0000-0000-000000000002,Child A1,A-1,10000000-0000-0000-0000-000000000001,10,知識,"13,14","kw1,kw2",Child A1 short,,,,,\n'  # noqa: E501
+    '10000000-0000-0000-0000-000000000002,Child A1,A-1,10000000-0000-0000-0000-000000000001,10,知識,"13,14","kw1,kw2",Child A1 short,,,,2021-04-01,2022-03-14\n'  # noqa: E501
     "10000000-0000-0000-0000-000000000003,Root B,B,,20,領域,14,,Root B short,,,,,\n"
 )
 
@@ -96,6 +97,11 @@ class TestXlsxExport:
         assert by_stmt["Root B"][3] == "2"
         assert by_stmt["Child A1"][10] == "知識"  # CFItemType col K
         assert by_stmt["Child A1"][9] == "13,14"  # educationLevel col J
+        # Lifecycle dates (compeito extension, cols M-N): without them the
+        # retirement state is lost on an export -> re-import round trip.
+        assert by_stmt["Child A1"][12] == "2021-04-01"
+        assert by_stmt["Child A1"][13] == "2022-03-14"
+        assert not by_stmt["Root A"][13]  # openpyxl reads an empty cell as None
 
         # CF Association: the isRelatedTo (isChildOf NOT repeated here)
         assoc_ws = wb["CF Association"]
@@ -114,6 +120,17 @@ class TestXlsxRoundTrip:
     async def test_roundtrip_into_new_document(self, db_session: AsyncSession):
         src_doc = await _seed_source(db_session)
         data = await export_xlsx(db_session, TENANT_ID, src_doc)
+
+        # Wipe the stored dates so the re-imported values can only come from the
+        # workbook (an empty cell would preserve, hiding a missing column).
+        child_before = (
+            await db_session.execute(
+                select(CFItem).where(CFItem.identifier == uuid.UUID("10000000-0000-0000-0000-000000000002"))
+            )
+        ).scalar_one()
+        child_before.status_start_date = None
+        child_before.status_end_date = None
+        await db_session.flush()
 
         # Re-import the workbook (same identifiers → upsert in place).
         report = await import_xlsx(db_session, TENANT_ID, data)
@@ -139,6 +156,10 @@ class TestXlsxRoundTrip:
         child = by_stmt["Child A1"]
         assert child.item_type is not None and child.item_type.title == "知識"
         assert child.education_level == ["13", "14"]
+        # Retirement state survives the round-trip (B8-2): without cols M-N the
+        # tombstone would come back as a live item.
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
 
         # isChildOf rebuilt from smartLevel: Child A1 → Root A.
         ischild = list(
@@ -168,6 +189,208 @@ class TestXlsxRoundTrip:
             ).scalars()
         )
         assert len(related) == 1
+
+
+class TestXlsxOpenSaltCompatibility:
+    async def test_workbook_without_lifecycle_columns_preserves_dates(self, db_session: AsyncSession):
+        """A genuine OpenSALT workbook stops at col L and must not wipe the dates.
+
+        Missing columns are padded to "" by the reader, which the CSV path
+        treats as "no value → preserve".
+        """
+        src_doc = await _seed_source(db_session)
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+
+        # Truncate the CF Item sheet back to the 12-column OpenSALT layout.
+        wb = load_workbook(io.BytesIO(data))
+        ws = wb["CF Item"]
+        ws.delete_cols(13, 2)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+
+        child = (
+            await db_session.execute(
+                select(CFItem).where(CFItem.identifier == uuid.UUID("10000000-0000-0000-0000-000000000002"))
+            )
+        ).scalar_one()
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
+
+
+class TestXlsxLifecycleColumns:
+    """The compeito extension columns (statusStartDate / statusEndDate)."""
+
+    async def _export_with_item_sheet(self, db_session: AsyncSession, mutate):
+        src_doc = await _seed_source(db_session)
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+        wb = load_workbook(io.BytesIO(data))
+        mutate(wb["CF Item"])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    async def _child(self, db_session: AsyncSession) -> CFItem:
+        return (
+            await db_session.execute(
+                select(CFItem).where(CFItem.identifier == uuid.UUID("10000000-0000-0000-0000-000000000002"))
+            )
+        ).scalar_one()
+
+    async def test_columns_are_found_by_header_name(self, db_session: AsyncSession):
+        """OpenSALT emits its AdditionalFields from col 13 in arbitrary order.
+
+        A fixed index would read someone else's custom field as a date, so the
+        columns must be located by header name even when they move.
+        """
+
+        def move_columns(ws):
+            ws.insert_cols(13)
+            ws.cell(1, 13).value = "difficulty"
+            for row in range(2, ws.max_row + 1):
+                ws.cell(row, 13).value = "high"
+
+        data = await self._export_with_item_sheet(db_session, move_columns)
+        child = await self._child(db_session)
+        child.status_start_date = None
+        child.status_end_date = None
+        await db_session.flush()
+
+        await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+        await db_session.refresh(child)
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
+
+    async def test_unregistered_custom_field_is_not_read_as_a_date(self, db_session: AsyncSession):
+        """A workbook with a custom field but no lifecycle headers preserves."""
+
+        def replace_headers(ws):
+            ws.cell(1, 13).value = "difficulty"
+            ws.cell(1, 14).value = "reviewedBy"
+
+        data = await self._export_with_item_sheet(db_session, replace_headers)
+        await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+
+        child = await self._child(db_session)
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
+
+    async def test_date_formatted_cells(self, db_session: AsyncSession):
+        """Editing the workbook in Excel turns the strings into date cells."""
+
+        def to_date_cells(ws):
+            for row in range(2, ws.max_row + 1):
+                if ws.cell(row, 13).value:
+                    ws.cell(row, 13).value = date(2021, 4, 1)
+                if ws.cell(row, 14).value:
+                    ws.cell(row, 14).value = date(2022, 3, 14)
+
+        data = await self._export_with_item_sheet(db_session, to_date_cells)
+        child = await self._child(db_session)
+        child.status_start_date = None
+        child.status_end_date = None
+        await db_session.flush()
+
+        report = await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+        await db_session.refresh(child)
+        assert child.status_start_date == date(2021, 4, 1)
+        assert child.status_end_date == date(2022, 3, 14)
+        assert not any("Invalid status" in w for w in report.warnings)
+
+    async def test_duplicate_header_warns_and_uses_the_leftmost(self, db_session: AsyncSession):
+        """Two statusEndDate columns are ambiguous — warn instead of guessing."""
+
+        def duplicate(ws):
+            ws.cell(1, 15).value = "statusEndDate"
+            for row in range(2, ws.max_row + 1):
+                ws.cell(row, 15).value = "2099-12-31"
+
+        data = await self._export_with_item_sheet(db_session, duplicate)
+        report = await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+
+        child = await self._child(db_session)
+        assert child.status_end_date == date(2022, 3, 14)  # leftmost column
+        assert any("duplicate" in w for w in report.warnings)
+
+    async def test_invalid_value_keeps_the_stored_date(self, db_session: AsyncSession):
+        """A malformed cell warns; it must not wipe the retirement date.
+
+        The xlsx / CSV path has no explicit clearing mechanism, so "n/a" cannot
+        be an authoritative "remove the retirement date" instruction.
+        """
+
+        def break_cells(ws):
+            for row in range(2, ws.max_row + 1):
+                if ws.cell(row, 14).value:
+                    ws.cell(row, 14).value = "n/a"
+
+        data = await self._export_with_item_sheet(db_session, break_cells)
+        report = await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+
+        child = await self._child(db_session)
+        assert child.status_end_date == date(2022, 3, 14)
+        assert any("Invalid statusEndDate" in w and "kept" in w for w in report.warnings)
+
+
+class TestXlsxDocumentLifecycleDates:
+    """CF Doc sheet lifecycle dates (the #status_* metadata rows)."""
+
+    async def _doc(self, db_session: AsyncSession):
+        from src.models.cf_document import CFDocument
+
+        return (
+            await db_session.execute(
+                select(CFDocument).where(CFDocument.identifier == uuid.UUID("dddddddd-0000-0000-0000-000000000001"))
+            )
+        ).scalar_one()
+
+    async def test_invalid_doc_date_keeps_stored_value(self, db_session: AsyncSession):
+        """The #identifier branch must not wipe the document's retirement date.
+
+        A plain `import xlsx` (no --doc) resolves the document from the CF Doc
+        sheet's identifier, which is a different code path from --doc.
+        """
+        src_doc = await _seed_source(db_session)
+        doc = await self._doc(db_session)
+        doc.status_end_date = date(2026, 3, 31)
+        await db_session.flush()
+
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+        wb = load_workbook(io.BytesIO(data))
+        wb["CF Doc"].cell(2, 13).value = "n/a"  # statusEndDate (CF Doc col M)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        report = await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+        await db_session.refresh(doc)
+        assert doc.status_end_date == date(2026, 3, 31)
+        assert any("#status_end_date" in w for w in report.warnings)
+
+    async def test_invalid_doc_date_keeps_stored_value_with_doc_flag(self, db_session: AsyncSession):
+        """Same rule on the --doc branch."""
+        src_doc = await _seed_source(db_session)
+        doc = await self._doc(db_session)
+        doc.status_end_date = date(2026, 3, 31)
+        await db_session.flush()
+
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+        wb = load_workbook(io.BytesIO(data))
+        wb["CF Doc"].cell(2, 13).value = "n/a"
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        await import_xlsx(db_session, TENANT_ID, buf.getvalue(), doc_identifier=src_doc)
+        await db_session.flush()
+        await db_session.refresh(doc)
+        assert doc.status_end_date == date(2026, 3, 31)
 
 
 class TestXlsxAssociationGrouping:
