@@ -997,7 +997,7 @@ def _create_document(
         tenant_id=tenant_id,
         identifier=ident,
         uri=_resolve_uri(data, tenant_id, ident),
-        title=data["title"].strip(),
+        title=data["title"],  # verbatim, like fullStatement (see _import_items)
         creator=creator,
         publisher=data.get("publisher"),
         description=data.get("description"),
@@ -1035,8 +1035,8 @@ def _update_document(
     # other "missing → keep existing" semantics in this function.
     if "CFPackageURI" in data:
         doc.cf_package_uri_source = _extract_link_uri_source(data.get("CFPackageURI"))
-    if data.get("title"):
-        doc.title = data["title"].strip()
+    if data.get("title") and str(data["title"]).strip():
+        doc.title = data["title"]  # verbatim; blank-only titles are rejected by validation
     if "creator" in data:
         raw_creator = data["creator"]
         if _is_blank_creator(raw_creator):
@@ -1224,8 +1224,13 @@ async def _import_items(
             report.warnings.append(f"Skipped CFItem: identifier is not a valid UUID. identifier='{ident_str}'")
             continue
 
-        fs = str(fs_raw).strip() if fs_raw else ""
-        if not fs:
+        # Blank-check on the trimmed value, but STORE THE SOURCE VERBATIM: CASE
+        # does not declare surrounding whitespace meaningless, and in Japanese
+        # text a leading U+3000 is paragraph indentation, not padding. Rewriting
+        # the input here would also be the one place we break the rule that the
+        # rest of the importer follows (identifiers and URIs are kept as sent).
+        fs = str(fs_raw) if fs_raw else ""
+        if not fs.strip():
             report.items_skipped += 1
             report.warnings.append(f"Skipped CFItem: fullStatement is empty. identifier='{ident_str}'")
             continue
