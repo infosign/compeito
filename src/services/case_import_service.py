@@ -205,17 +205,27 @@ def _parse_date(val: str | None) -> date | None:
         return None
 
 
+_LIFECYCLE_INVALID_NOTE = "value ignored (an existing date is retained; a new resource stores null)"
+
+
 def _parse_date_with_warning(
     val: str | None,
     field_name: str,
     context: str,
     warnings: list[str],
+    invalid_note: str = "set to null",
 ) -> date | None:
+    """Parse a CASE date, warning (not raising) on an unparsable value.
+
+    ``invalid_note`` describes what happens to the field afterwards. Lifecycle
+    dates pass their own note because an unparsable value does not wipe an
+    existing date there (see :func:`_lifecycle_date_update`).
+    """
     if not val:
         return None
     d = _parse_date(val)
     if d is None:
-        warnings.append(f"{context}: Invalid {field_name} '{val}', set to null")
+        warnings.append(f"{context}: Invalid {field_name} '{val}', {invalid_note}")
     return d
 
 
@@ -891,9 +901,7 @@ def _lifecycle_date_update(
     parsed: date | None,
     existing: date | None,
     allow_clear: bool,
-    context: str,
-    warnings: list[str],
-) -> tuple[bool, date | None]:
+) -> tuple[bool, date | None, str | None]:
     """Decide whether to write a statusStartDate / statusEndDate update.
 
     These two fields carry the retirement state of a resource (a "tombstone"),
@@ -904,22 +912,40 @@ def _lifecycle_date_update(
     re-import. Clearing therefore requires the caller to opt in
     (``import case --allow-status-clear``).
 
-    Returns ``(should_assign, value)``.
+    An unparsable value (e.g. ``"n/a"``) is NOT a clear request: it already
+    produced an "Invalid ..." warning, and treating a malformed date as an
+    authoritative "remove the retirement date" instruction would be the same
+    silent data loss by another route. It preserves regardless of ``allow_clear``.
+
+    Returns ``(should_assign, value, event)`` where event is ``None``,
+    ``"kept"`` or ``"cleared"`` — the caller aggregates events so a large
+    package reports one summary line instead of one warning per resource.
     """
     if key not in data:
-        return False, None
+        return False, None, None
     if parsed is not None:
-        return True, parsed
+        return True, parsed, None
+
+    raw = data[key]
+    is_blank = raw is None or (isinstance(raw, str) and not raw.strip())
+    if not is_blank:
+        # Unparsable value: _parse_date_with_warning already warned.
+        return False, None, None
     if not allow_clear:
-        if existing is not None:
+        return False, None, ("kept" if existing is not None else None)
+    return True, None, ("cleared" if existing is not None else None)
+
+
+def _summarize_lifecycle_events(events: dict[str, int], resource: str, warnings: list[str]) -> None:
+    """Emit one warning per (field, outcome) instead of one per resource."""
+    for (key, event), count in sorted(events.items()):
+        if event == "kept":
             warnings.append(
-                f"{context}: {key} is null/blank in the source; existing value '{existing}' kept "
-                f"(pass --allow-status-clear to clear it)"
+                f"{resource}: {key} is null/blank in the source for {count} resource(s); "
+                f"existing value(s) kept (pass --allow-status-clear to clear)"
             )
-        return False, None
-    if existing is not None:
-        warnings.append(f"{context}: {key} cleared (was '{existing}')")
-    return True, None
+        else:
+            warnings.append(f"{resource}: {key} cleared on {count} resource(s) (--allow-status-clear)")
 
 
 def _is_blank_creator(value) -> bool:
@@ -1044,14 +1070,18 @@ def _update_document(
 
     # Lifecycle dates: a value overwrites as usual, but clearing them (explicit
     # null / blank) requires allow_status_clear. See _lifecycle_date_update.
-    context = f"CFDocument '{doc.identifier}'"
+    doc_context = f"CFDocument '{doc.identifier}'"
+    doc_events: dict[tuple[str, str], int] = {}
     for key, attr in (("statusStartDate", "status_start_date"), ("statusEndDate", "status_end_date")):
-        parsed = _parse_date_with_warning(data.get(key), key, "CFDocument", warnings)
-        assign, value = _lifecycle_date_update(
-            key, data, parsed, getattr(doc, attr), allow_status_clear, context, warnings
+        parsed = _parse_date_with_warning(
+            data.get(key), key, doc_context, warnings, invalid_note=_LIFECYCLE_INVALID_NOTE
         )
+        assign, value, event = _lifecycle_date_update(key, data, parsed, getattr(doc, attr), allow_status_clear)
         if assign:
             setattr(doc, attr, value)
+        if event:
+            doc_events[(key, event)] = doc_events.get((key, event), 0) + 1
+    _summarize_lifecycle_events(doc_events, doc_context, warnings)
 
     if data.get("officialSourceURL") is not None:
         doc.official_source_url = data["officialSourceURL"]
@@ -1173,6 +1203,9 @@ async def _import_items(
     license_map = await _load_lookup_map(session, tenant_id, CFLicense)
     existing_items = await _load_existing_by_identifier(session, tenant_id, CFItem)
 
+    # Lifecycle-date outcomes are aggregated: a 23k-item package must not emit
+    # one warning per item (see _summarize_lifecycle_events).
+    item_events: dict[tuple[str, str], int] = {}
     pending = 0
     for item_data in items_data:
         ident_str = item_data.get("identifier")
@@ -1214,12 +1247,14 @@ async def _import_items(
             "statusStartDate",
             ctx,
             report.warnings,
+            invalid_note=_LIFECYCLE_INVALID_NOTE,
         )
         sed = _parse_date_with_warning(
             item_data.get("statusEndDate"),
             "statusEndDate",
             ctx,
             report.warnings,
+            invalid_note=_LIFECYCLE_INVALID_NOTE,
         )
         ldt = _parse_datetime_with_warning(
             item_data.get("lastChangeDateTime"),
@@ -1261,16 +1296,17 @@ async def _import_items(
             if item_data.get("subjectURI") is not None:
                 existing.subject_uri = item_data["subjectURI"]
             # Lifecycle dates: clearing requires opt-in (see _lifecycle_date_update).
-            item_context = f"CFItem '{existing.identifier}'"
             for key, attr, parsed in (
                 ("statusStartDate", "status_start_date", ssd),
                 ("statusEndDate", "status_end_date", sed),
             ):
-                assign, value = _lifecycle_date_update(
-                    key, item_data, parsed, getattr(existing, attr), allow_status_clear, item_context, report.warnings
+                assign, value, event = _lifecycle_date_update(
+                    key, item_data, parsed, getattr(existing, attr), allow_status_clear
                 )
                 if assign:
                     setattr(existing, attr, value)
+                if event:
+                    item_events[(key, event)] = item_events.get((key, event), 0) + 1
             if item_type_uri:
                 existing.cf_item_type_id = item_type_id
             if concept_uri:
@@ -1315,6 +1351,8 @@ async def _import_items(
         pending += 1
         if pending % 5000 == 0:
             await session.flush()
+
+    _summarize_lifecycle_events(item_events, "CFItems", report.warnings)
 
 
 # ---------------------------------------------------------------------------

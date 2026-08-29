@@ -85,6 +85,8 @@ uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framewo
 # --allow-status-clear: let a null statusStartDate / statusEndDate clear the stored date.
 #   Off by default: OpenCASE and compeito's own `export case` emit these as null even when
 #   they do not manage them, so a routine re-import must not wipe a retirement date.
+#   Package-wide: it applies to every CFDocument / CFItem in the package, not to one item.
+#   Use it only when the package is the authority on those dates.
 uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
 
 # Export (custom format with UUIDs; editing + re-importing upserts)
@@ -288,6 +290,8 @@ uv run python cli.py import case --tenant {uuid} --doc {doc-uuid} --file framewo
 # --allow-status-clear: null の statusStartDate / statusEndDate で既存の日付をクリアする。
 #   既定は無効。OpenCASE や compeito 自身の `export case` は、これらを管理していなくても
 #   null として出力するため、通常の再インポートで廃止日を消してはならない
+#   効果はパッケージ全体（全 CFDocument・全 CFItem）に及ぶ。特定の項目だけは対象にできない。
+#   取り込むパッケージがそれらの日付の権威である場合にだけ使う
 uv run python cli.py import case --tenant {uuid} --file framework.json --allow-status-clear
 
 # エクスポート (UUID付き独自形式 → 編集後にimportでupsert可能)

@@ -140,7 +140,7 @@ uv run python cli.py import csv --tenant {tenant_id} --doc {old_doc_id} --file d
 
 - キーは**スネークケース**（`#adoption_status` / `#status_end_date`。JSON のキャメルケースと異なる点を明記）。日付は `YYYY-MM-DD`。
 - 「No data rows in CSV; metadata updated, existing items and isChildOf preserved」という警告が出るが、これは**期待どおりの動作**であることを書く。
-- 代替: `framework-2025-with-links.json` の `CFDocument` に `"adoptionStatus": "Deprecated"`, `"statusEndDate": "2026-03-31"` を入れて Step 5 の再 import に相乗りさせてもよい（1 回の import で済む）。CASE import の doc 更新は**非 null フィールドのみ**上書きなので、null で消すことはできない点に触れる。
+- 代替: `framework-2025-with-links.json` の `CFDocument` に `"adoptionStatus": "Deprecated"`, `"statusEndDate": "2026-03-31"` を入れて Step 5 の再 import に相乗りさせてもよい（1 回の import で済む）。CASE import の doc 更新は原則として**非 null フィールドのみ**上書きする。ただし `statusStartDate` / `statusEndDate` は例外で、`import case --allow-status-clear` を付けた場合に限り null で消せる（既定では保持）点に触れる。
 - `adoptionStatus` は CASE 上は自由文字列だが、compeito の Web UI は `Adopted`（緑）/ `Deprecated`（ピンク）/ `Draft`（黄）の 3 値をバッジ色分け表示する。この 3 値に揃えることを推奨。
 
 **Step 7 — 確認と表示順**

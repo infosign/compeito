@@ -2135,13 +2135,74 @@ class TestLifecycleDateClearing:
         assert item.status_end_date is None
         assert doc.status_end_date is None
 
-    async def test_invalid_date_preserves_by_default(self, db_session: AsyncSession, tenant: Tenant):
-        """An unparsable date warns but must not wipe the stored value."""
+    @pytest.mark.parametrize("allow_clear", [False, True])
+    async def test_invalid_date_never_clears(self, db_session: AsyncSession, tenant: Tenant, allow_clear: bool):
+        """An unparsable date warns but must not wipe the stored value.
+
+        A malformed date is not an authoritative "remove the retirement date"
+        instruction, so it preserves even under --allow-status-clear.
+        """
         doc_id, item_id = await self._seed_tombstone(db_session, tenant)
         bad = {"statusEndDate": "n/a"}
-        report = await self._import(db_session, tenant, self._package(doc_id, item_id, doc_extra=bad, item_extra=bad))
+        report = await self._import(
+            db_session,
+            tenant,
+            self._package(doc_id, item_id, doc_extra=bad, item_extra=bad),
+            allow_status_clear=allow_clear,
+        )
 
         doc, item = await self._fetch(db_session, doc_id, item_id)
         assert item.status_end_date == date(2022, 3, 14)
         assert doc.status_end_date == date(2022, 3, 14)
         assert any("Invalid statusEndDate" in w for w in report.warnings)
+        # No "kept" / "cleared" line: the invalid value is not a clear request.
+        assert not any("cleared" in w or "kept" in w for w in report.warnings)
+
+    async def test_item_warnings_are_aggregated(self, db_session: AsyncSession, tenant: Tenant):
+        """A large package must not emit one warning per item."""
+        doc_id = uuid.uuid4()
+        item_ids = [uuid.uuid4() for _ in range(5)]
+        dates = {"statusStartDate": "2021-04-01", "statusEndDate": "2022-03-14"}
+
+        def package(extra: dict) -> dict:
+            pkg = self._package(doc_id, item_ids[0], doc_extra={}, item_extra=extra)
+            pkg["CFItems"] = [
+                {
+                    "identifier": str(iid),
+                    "uri": f"https://example.com/uri/{iid}",
+                    "fullStatement": "Retired item",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                    **extra,
+                }
+                for iid in item_ids
+            ]
+            return pkg
+
+        await self._import(db_session, tenant, package(dates))
+        report = await self._import(db_session, tenant, package({"statusEndDate": None}))
+
+        kept = [w for w in report.warnings if "kept" in w]
+        assert len(kept) == 1
+        assert "5 resource(s)" in kept[0]
+
+    async def test_opencase_baseline_does_not_clear_items(self, db_session: AsyncSession, tenant: Tenant):
+        """The CFItem side of the OpenCASE round-trip regression."""
+        fixture = json.loads(
+            (Path(__file__).parent.parent / "fixtures" / "opencase_round_trip_baseline.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        pkg = fixture.get("CFPackage", fixture)
+        assert all(i.get("statusEndDate") is None for i in pkg["CFItems"])
+
+        await self._import(db_session, tenant, fixture)
+        item_id = uuid.UUID(pkg["CFItems"][0]["identifier"])
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
+        item.status_end_date = date(2026, 3, 31)
+        item.status_start_date = date(2020, 4, 1)
+        await db_session.flush()
+
+        await self._import(db_session, tenant, fixture)
+        await db_session.refresh(item)
+        assert item.status_end_date == date(2026, 3, 31)
+        assert item.status_start_date == date(2020, 4, 1)

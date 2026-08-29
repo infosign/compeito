@@ -33,7 +33,7 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 
 | # | 項目 | 状態 |
 |---|------|:--:|
-| B8-1 | `statusStartDate` / `statusEndDate` のクリア手段。既定では null / 欠落とも既存値を保持し、明示的な opt-in のときだけクリアする（OpenCASE や compeito 自身のエクスポートは null を出力するため、既定でクリアすると再インポートで墓標が消える） | 実装中 |
+| B8-1 | `statusStartDate` / `statusEndDate` のクリア手段。既定では null / 欠落とも既存値を保持し、`import case --allow-status-clear` のときだけクリアする（OpenCASE や compeito 自身のエクスポートは null を出力するため、既定でクリアすると再インポートで墓標が消える） | 実装中 |
 | B8-2 | xlsx エクスポートの CFItem 行に `statusStartDate` / `statusEndDate` 列を追加。現状 CFDocument 側にしか列が無く、xlsx 往復で墓標が「生きた項目」に戻る | 未着手 |
 | B8-3 | CFItem の廃止表示。詳細ページの廃止バナー（`statusEndDate` を明示）と `replacedBy` の後継リンク（1 ホップ）、ツリー上の区別 | 未着手 |
 | B8-4 | ツリーの非表示規則。サブツリー全体が廃止のときのみ既定非表示とし、生きた子孫がいる場合は区別表示で残す（単純フィルタでは生きた子孫まで消える） | 未着手 |
@@ -45,6 +45,11 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 | B8-5 | キーワード検索（B4）・意味検索（B2）の設計に、廃止項目の既定除外と `includeRetired` 相当の切り替えを追記 | 未着手 |
 | B8-6 | 改訂プロトコル運用ガイド（B5）に、日付の意味の書き分け（CFItem = 廃止が確定した日／CFDocument = 有効期間の最終日）と墓標の保持方針を追記 | 未着手 |
 | B8-7 | 誤って張られた `replacedBy` の取り消し手段。association は additive only なので、パッケージの再インポートでは消せない | 未着手 |
+
+B6（インポート dry-run / validation report）へ引き継ぐ2点:
+
+- ライフサイクル日付の保持・クリアの件数はレポートで集約している（リソースごとに1行ではない）。B6 で識別子のサンプルを出す場合は、そこで想定しているサンプル上限に合流させる。
+- 公式スキーマに `nullable` は無く、`"statusEndDate": null` は厳密には型違反である。ただし `--allow-status-clear` と組み合わせたときは意味を持つ入力なので、単なる型違反として潰さない。
 
 外部の変換ツールとの取り決めの経緯は [infosign/to-case#9](https://github.com/infosign/to-case/issues/9)。
 

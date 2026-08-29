@@ -252,7 +252,7 @@ Same as CSV import: on update, Step 3 acquires `SELECT ... FOR UPDATE` on the ta
 **Update rules (same for CFDocument / CFItem / CFAssociation / CFDefinitions):**
 - External CFPackage has a value → overwrite.
 - External CFPackage lacks a value (null / missing) → preserve the existing value.
-- **Exception — lifecycle dates.** `statusStartDate` / `statusEndDate` (CFDocument and CFItem) carry a resource's retirement state, so clearing them is destructive in a way the other nullable fields are not. A value always overwrites, but a null / blank value **preserves** the existing date unless the import opts in with `import case --allow-status-clear`; the report warns either way (kept / cleared) when a stored value was involved. The opt-in exists because many exporters — OpenCASE, and compeito's own `export case` (`exclude_none=False`) — emit these fields as explicit `null` even when they do not manage them, so honouring a null unconditionally would silently revive every retired item on a routine re-import. A blank string behaves exactly like `null`. Applies to CFPackage (CASE JSON) import only — CSV / xlsx keep the "empty cell → preserve" rule and have no clearing path.
+- **Exception — lifecycle dates.** `statusStartDate` / `statusEndDate` (CFDocument and CFItem) carry a resource's retirement state, so clearing them is destructive in a way the other nullable fields are not. A value always overwrites, but a null / blank value **preserves** the existing date unless the import opts in with `import case --allow-status-clear`; the report warns either way (kept / cleared) when a stored value was involved. The opt-in exists because many exporters — OpenCASE, and compeito's own `export case` (`exclude_none=False`) — emit these fields as explicit `null` even when they do not manage them, so honouring a null unconditionally would silently revive every retired item on a routine re-import. A blank string behaves exactly like `null`; an unparsable value (e.g. `"n/a"`) is not a clear request at all and preserves regardless of the flag. Outcomes are aggregated in the report — one line per field per outcome, not one per resource. Applies to CFPackage (CASE JSON) import only — CSV / xlsx keep the "empty cell → preserve" rule and have no clearing path.
 - `identifier` → preserve the existing value (no overwrite). `identifier` is the upsert match key; changing it would violate UNIQUE constraints and break association / URI references. If `--doc` specifies an external CFDocument with a different identifier, keep the existing document's identifier.
 - `last_change_date_time` → use the external value as-is (fall back to the import-time UTC timestamp if missing).
 - Existing CFItem / CFAssociation are upserted by **tenant-wide** identifier match. When a match belongs to a different document, reattach `cf_document_id` to the current document (no match → create new). When reattaching, emit a warning ("Item '{identifier}' moved from document '{old_doc_identifier}' to current document" — same policy as the equivalent CSV warning).
@@ -307,7 +307,7 @@ Mapping from the external CFPackage's CFDocument object to DB columns:
 - `language` → `language` (validate length ≤ 10; too long → NULL with a warning — same rule as CSV import).
 - `version` → `version`.
 - `adoptionStatus` → `adoption_status`.
-- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` string → DATE. Invalid format → NULL with a warning — same rule as CFItem).
+- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` string → DATE. On create, an invalid format stores NULL with a warning. On update, an invalid format warns and **retains** the stored date — an unparsable value is not a clear request. Same rule as CFItem).
 - `statusEndDate` → `status_end_date` (same rule as `statusStartDate`). On update, a null / blank value preserves the stored date unless `--allow-status-clear` is given (see "Exception — lifecycle dates" above).
 - `licenseURI` → `cf_license_id` (resolve `licenseURI.identifier` against `cf_license` in the same tenant; set the internal PK. No match → `cf_license_id = NULL` with a warning. Same pattern as CFItem's CFItemTypeURI FK resolution).
 - `officialSourceURL` → `official_source_url`.
@@ -337,7 +337,7 @@ Mapping from the external CFPackage's CFItem object to DB columns:
 - `listEnumeration` → `list_enumeration`.
 - `language` → `language` (validate length ≤ 10; too long → NULL with a warning — same as CSV).
 - `licenseURI` → `cf_license_id` (resolve `licenseURI.identifier` against `cf_license` in the tenant; set the internal PK; no match → NULL with a warning — same pattern as CFDocument's licenseURI).
-- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` → DATE; invalid → NULL with a warning).
+- `statusStartDate` → `status_start_date` (`YYYY-MM-DD` → DATE. On create, invalid → NULL with a warning. On update, invalid warns and **retains** the stored date).
 - `statusEndDate` → `status_end_date` (same as `statusStartDate`). On update, a null / blank value preserves the stored date unless `--allow-status-clear` is given (see "Exception — lifecycle dates" above).
 - `educationLevel` → `education_level` (JSONB; stored as-is).
 - `subject` → `subject` (JSONB string array; stored as-is; v1.1 new).
@@ -837,7 +837,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 **更新時の動作（CFDocument / CFItem / CFAssociation / CFDefinitions 共通）:**
 - 外部 CFPackage に値があるフィールド → 上書き
 - 外部 CFPackage に値がないフィールド（null/未存在） → 既存値を保持
-- **例外：ライフサイクル日付**。`statusStartDate` / `statusEndDate`（CFDocument および CFItem）は、リソースの廃止状態を表すため、クリアが他の nullable フィールドより破壊的である。値がある場合は通常どおり上書きするが、null / 空文字列の場合は既存の日付を**保持**する。クリアするには `import case --allow-status-clear` で明示的に opt-in する。既存値があった場合はいずれの経路でもレポートに警告を出す（保持／クリア）。この opt-in が必要な理由は、OpenCASE や compeito 自身の `export case`（`exclude_none=False`）を含む多くのエクスポーターが、これらのフィールドを管理していなくても明示的な `null` として出力するためである。null を無条件にクリアと解釈すると、通常の再インポートで廃止項目がすべて無警告で復活してしまう。空文字列は `null` と同じ扱いとする。CFPackage（CASE JSON）インポートのみに適用され、CSV / xlsx は「空セル → 保持」の規則のままでクリア手段を持たない。
+- **例外：ライフサイクル日付**。`statusStartDate` / `statusEndDate`（CFDocument および CFItem）は、リソースの廃止状態を表すため、クリアが他の nullable フィールドより破壊的である。値がある場合は通常どおり上書きするが、null / 空文字列の場合は既存の日付を**保持**する。クリアするには `import case --allow-status-clear` で明示的に opt-in する。既存値があった場合はいずれの経路でもレポートに警告を出す（保持／クリア）。この opt-in が必要な理由は、OpenCASE や compeito 自身の `export case`（`exclude_none=False`）を含む多くのエクスポーターが、これらのフィールドを管理していなくても明示的な `null` として出力するためである。null を無条件にクリアと解釈すると、通常の再インポートで廃止項目がすべて無警告で復活してしまう。空文字列は `null` と同じ扱いとする。パースできない値（例: `"n/a"`）はクリア指示ではなく、フラグの有無にかかわらず既存値を保持する。結果はレポートで集約する（リソースごとではなく、フィールドと結果の組ごとに1行）。CFPackage（CASE JSON）インポートのみに適用され、CSV / xlsx は「空セル → 保持」の規則のままでクリア手段を持たない。
 - `identifier` → 既存値を保持する（上書きしない。identifier は upsert のマッチングキーであり、変更すると UNIQUE 制約違反や既存の Association・URI 参照の整合性が破壊される。`--doc` 指定時に外部 CFDocument の identifier が異なる場合も、既存ドキュメントの identifier を維持する）
 - `last_change_date_time` → 外部データの値をそのまま使用（外部データにもない場合はインポート実行時のUTCタイムスタンプ）
 - 既存の CFItem / CFAssociation は**テナント内全体**で identifier 一致検索し upsert する。一致した既存アイテムが別ドキュメントに属する場合は `cf_document_id` を現在のドキュメントに付け替える（一致しないものは新規作成）。付け替えが発生した場合は警告を出力する（「Item '{identifier}' moved from document '{old_doc_identifier}' to current document」。CSVインポートの同等の警告と同一方針）
@@ -892,7 +892,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `language` → `language`（10文字以下であることを検証する。超過の場合は NULL として保存し警告出力。CSV インポートと同一ルール）
 - `version` → `version`
 - `adoptionStatus` → `adoption_status`
-- `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。形式不正の場合は NULL として保存し警告出力。CFItem と同一ルール）
+- `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。新規作成時、形式不正なら NULL として保存し警告出力。更新時、形式不正なら警告を出したうえで既存の日付を**保持**する（パースできない値はクリア指示ではない）。CFItem と同一ルール）
 - `statusEndDate` → `status_end_date`（`statusStartDate` と同一ルール）。更新時、null / 空文字列は既存の日付を保持する（`--allow-status-clear` 指定時のみクリア。上記「例外：ライフサイクル日付」を参照）
 - `licenseURI` → `cf_license_id`（`licenseURI.identifier` で同一テナント内の cf_license を検索し、内部PK を設定する。一致する cf_license がない場合は `cf_license_id = NULL` とし、警告を出力する。CFItem の CFItemTypeURI FK 解決と同一パターン）
 - `officialSourceURL` → `official_source_url`
@@ -922,7 +922,7 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 - `listEnumeration` → `list_enumeration`
 - `language` → `language`（10文字以下であることを検証する。超過の場合は NULL として保存し警告出力。CSV インポートと同一ルール）
 - `licenseURI` → `cf_license_id`（`licenseURI.identifier` で同一テナント内の cf_license を検索し、内部PK を設定する。一致する cf_license がない場合は `cf_license_id = NULL` とし、警告を出力する。CFDocument の licenseURI FK 解決と同一パターン）
-- `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。形式不正の場合は NULL として保存し警告出力）
+- `statusStartDate` → `status_start_date`（`YYYY-MM-DD` 形式の文字列 → DATE 型。新規作成時、形式不正なら NULL として保存し警告出力。更新時、形式不正なら警告を出したうえで既存の日付を**保持**する）
 - `statusEndDate` → `status_end_date`（`statusStartDate` と同一ルール）。更新時、null / 空文字列は既存の日付を保持する（`--allow-status-clear` 指定時のみクリア。上記「例外：ライフサイクル日付」を参照）
 - `educationLevel` → `education_level`（JSONB。外部データをそのまま保存）
 - `subject` → `subject`（JSONB 文字列配列。外部データをそのまま保存。v1.1 new）
