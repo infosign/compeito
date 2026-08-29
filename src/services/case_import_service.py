@@ -31,6 +31,7 @@ from src.models.cf_rubric import CFRubric
 from src.models.cf_rubric_criterion import CFRubricCriterion
 from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
+from src.services import uri_service
 from src.services.csv_import_service import _calculate_depths
 
 
@@ -51,7 +52,9 @@ def _extract_link_uri_source(link_uri) -> str | None:
     return None
 
 
-def _resolve_uri(source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
+def _resolve_uri(
+    source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID, report: CaseImportReport | None = None
+) -> str:
     """Return the source CFPackage's `uri` if present, else build a compeito-native URI.
 
     Per FR-7.2, CFPackage import must preserve external URIs and identifiers
@@ -66,8 +69,37 @@ def _resolve_uri(source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID) -> s
     """
     src_uri = source.get("uri")
     if isinstance(src_uri, str) and src_uri.strip():
+        if report is not None:
+            # B9: a URI of ours addressed to the wrong tenant is stored verbatim
+            # like any other, and nothing rewrites it later. Count it rather than
+            # rejecting it — the import stays lenient — but do not let it pass
+            # unremarked either.
+            kind = uri_service.self_uri_tenant_mismatch(src_uri, tenant_id)
+            if kind is not None:
+                report.uri_tenant_mismatches[kind] = report.uri_tenant_mismatches.get(kind, 0) + 1
         return src_uri
     return _build_uri(tenant_id, identifier)
+
+
+def _summarize_uri_tenant_mismatches(report: CaseImportReport) -> None:
+    """One warning per kind, not per resource (B9).
+
+    A package built against the wrong tenant gets every URI wrong at once, so
+    per-resource warnings would bury the report under thousands of identical
+    lines.
+    """
+    counts = report.uri_tenant_mismatches
+    if counts.get("slug"):
+        report.warnings.append(
+            f"{counts['slug']} URI(s) address this instance by tenant slug instead of the tenant UUID. "
+            "Slugs are renameable UI aliases, so those URIs stop resolving when the slug changes; "
+            "re-import with UUID-based URIs to fix them."
+        )
+    if counts.get("other-tenant"):
+        report.warnings.append(
+            f"{counts['other-tenant']} URI(s) address a different tenant on this instance. "
+            "They are stored verbatim as sent (FR-7.2) and will keep pointing elsewhere."
+        )
 
 
 @dataclass
@@ -103,6 +135,10 @@ class CaseImportReport:
     rubrics_created: int = 0
     rubrics_updated: int = 0
     rubrics_skipped: int = 0
+    # B9: counts of stored URIs that point at this instance but at the wrong
+    # tenant, by kind ("slug" / "other-tenant"). Summarized into warnings at the
+    # end of the import.
+    uri_tenant_mismatches: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
 
@@ -525,7 +561,7 @@ async def _upsert_definition(
 
     # Common fields
     field_map = {
-        "uri": _resolve_uri(data, tenant_id, ident_uuid),
+        "uri": _resolve_uri(data, tenant_id, ident_uuid, report),
         "title": title,
         "description": data.get("description"),
         "extensions": data.get("extensions"),
@@ -570,7 +606,7 @@ async def _upsert_definition(
             elif db_col in ("uri", "title", "last_change_date_time"):
                 # Required fields
                 if db_col == "uri":
-                    kwargs[db_col] = _resolve_uri(data, tenant_id, ident_uuid)
+                    kwargs[db_col] = _resolve_uri(data, tenant_id, ident_uuid, report)
                 elif db_col == "title":
                     kwargs[db_col] = title
                 elif db_col == "last_change_date_time":
@@ -578,7 +614,7 @@ async def _upsert_definition(
 
         # Ensure required fields
         if "uri" not in kwargs or not kwargs["uri"]:
-            kwargs["uri"] = _resolve_uri(data, tenant_id, ident_uuid)
+            kwargs["uri"] = _resolve_uri(data, tenant_id, ident_uuid, report)
         if "title" not in kwargs:
             kwargs["title"] = title
         if "last_change_date_time" not in kwargs:
@@ -890,6 +926,8 @@ async def import_case_from_dict(
     _calculate_depths(doc, all_items, all_assocs, report.warnings)
     await session.flush()
 
+    _summarize_uri_tenant_mismatches(report)
+
     return report
 
 
@@ -996,7 +1034,7 @@ def _create_document(
         id=uuid.uuid4(),
         tenant_id=tenant_id,
         identifier=ident,
-        uri=_resolve_uri(data, tenant_id, ident),
+        uri=_resolve_uri(data, tenant_id, ident, report),
         title=data["title"],  # verbatim, like fullStatement (see _import_items)
         creator=creator,
         publisher=data.get("publisher"),
@@ -1029,7 +1067,7 @@ def _update_document(
     warnings = report.warnings
 
     # Preserve source URI when present (FR-7.2); fall back to compeito-native URI.
-    doc.uri = _resolve_uri(data, tenant_id, doc.identifier)
+    doc.uri = _resolve_uri(data, tenant_id, doc.identifier, report)
     # CFPackageURI verbatim preservation (round-trip cat G). When the source
     # field is absent we leave the existing stored value alone — same as
     # other "missing → keep existing" semantics in this function.
@@ -1278,7 +1316,7 @@ async def _import_items(
                 old_ident = str(old_doc.identifier) if old_doc else "unknown"
                 report.warnings.append(f"Item '{ident_str}' moved from document '{old_ident}' to current document")
             existing.cf_document_id = doc.id
-            existing.uri = _resolve_uri(item_data, tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(item_data, tenant_id, ident_uuid, report)
             if fs:
                 existing.full_statement = fs
             if item_data.get("humanCodingScheme") is not None:
@@ -1330,7 +1368,7 @@ async def _import_items(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_resolve_uri(item_data, tenant_id, ident_uuid),
+                uri=_resolve_uri(item_data, tenant_id, ident_uuid, report),
                 full_statement=fs,
                 human_coding_scheme=item_data.get("humanCodingScheme"),
                 abbreviated_statement=item_data.get("abbreviatedStatement"),
@@ -1437,7 +1475,7 @@ async def _import_associations(
                     f"CFAssociation '{ident_str}' moved from document '{old_ident}' to current document"
                 )
             existing.cf_document_id = doc.id
-            existing.uri = _resolve_uri(assoc_data, tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(assoc_data, tenant_id, ident_uuid, report)
             if assoc_data.get("associationType") is not None:
                 existing.association_type = assoc_data["associationType"]
             existing.origin_node_identifier = _normalize_node_identifier(origin.get("identifier", ""))
@@ -1462,7 +1500,7 @@ async def _import_associations(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_resolve_uri(assoc_data, tenant_id, ident_uuid),
+                uri=_resolve_uri(assoc_data, tenant_id, ident_uuid, report),
                 association_type=assoc_data["associationType"],
                 origin_node_identifier=_normalize_node_identifier(origin.get("identifier", "")),
                 origin_node_uri=origin_node_uri,
@@ -1568,7 +1606,7 @@ async def _import_rubrics(
 
         if existing is not None:
             existing.cf_document_id = doc.id
-            existing.uri = _resolve_uri(rubric_data, tenant_id, ident_uuid)
+            existing.uri = _resolve_uri(rubric_data, tenant_id, ident_uuid, report)
             if rubric_data.get("title") is not None:
                 existing.title = rubric_data["title"]
             if rubric_data.get("description") is not None:
@@ -1584,7 +1622,7 @@ async def _import_rubrics(
                 tenant_id=tenant_id,
                 cf_document_id=doc.id,
                 identifier=ident_uuid,
-                uri=_resolve_uri(rubric_data, tenant_id, ident_uuid),
+                uri=_resolve_uri(rubric_data, tenant_id, ident_uuid, report),
                 title=rubric_data.get("title"),
                 description=rubric_data.get("description"),
                 extensions=rubric_data.get("extensions"),
@@ -1663,7 +1701,7 @@ async def _import_rubric_criteria(
 
         if existing_crit is not None:
             existing_crit.cf_rubric_id = rubric.id
-            existing_crit.uri = _resolve_uri(crit_data, tenant_id, crit_ident_uuid)
+            existing_crit.uri = _resolve_uri(crit_data, tenant_id, crit_ident_uuid, report)
             if crit_data.get("category") is not None:
                 existing_crit.category = crit_data["category"]
             if crit_data.get("description") is not None:
@@ -1686,7 +1724,7 @@ async def _import_rubric_criteria(
                 id=uuid.uuid4(),
                 cf_rubric_id=rubric.id,
                 identifier=crit_ident_uuid,
-                uri=_resolve_uri(crit_data, tenant_id, crit_ident_uuid),
+                uri=_resolve_uri(crit_data, tenant_id, crit_ident_uuid, report),
                 cf_item_id=cf_item_id,
                 cf_item_uri_source=cf_item_uri_source,
                 rubric_id=rubric_id_val,
@@ -1753,7 +1791,7 @@ async def _import_rubric_criterion_levels(
 
         if existing_level is not None:
             existing_level.cf_rubric_criterion_id = criterion.id
-            existing_level.uri = _resolve_uri(level_data, tenant_id, level_ident_uuid)
+            existing_level.uri = _resolve_uri(level_data, tenant_id, level_ident_uuid, report)
             if level_data.get("description") is not None:
                 existing_level.description = level_data["description"]
             if level_data.get("quality") is not None:
@@ -1775,7 +1813,7 @@ async def _import_rubric_criterion_levels(
                 cf_rubric_criterion_id=criterion.id,
                 rubric_criterion_id=rc_id_val,
                 identifier=level_ident_uuid,
-                uri=_resolve_uri(level_data, tenant_id, level_ident_uuid),
+                uri=_resolve_uri(level_data, tenant_id, level_ident_uuid, report),
                 description=level_data.get("description"),
                 quality=level_data.get("quality"),
                 score=level_data.get("score"),

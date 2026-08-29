@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.models.cf_association import CFAssociation
 from src.models.cf_concept import CFConcept
 from src.models.cf_document import CFDocument
@@ -2325,3 +2326,83 @@ class TestWhitespacePreservation:
         doc_id, item_id = uuid.uuid4(), uuid.uuid4()
         with pytest.raises(ValueError, match="title is missing or empty"):
             await import_case_from_dict(db_session, tenant.id, self._package(doc_id, item_id, "stmt", title="   "))
+
+
+class TestSelfUriTenantMismatch:
+    """B9: a URI of ours addressed to the wrong tenant is stored verbatim, so
+    the import has to say so (docs/dev/backlog.md B9)."""
+
+    @staticmethod
+    def _package(doc_id: uuid.UUID, item_id: uuid.UUID, item_uri: str) -> dict:
+        return {
+            "CFDocument": {
+                "identifier": str(doc_id),
+                "uri": f"https://example.com/uri/{doc_id}",
+                "title": "Doc",
+                "creator": "Test",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            },
+            "CFItems": [
+                {
+                    "identifier": str(item_id),
+                    "uri": item_uri,
+                    "fullStatement": "stmt",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ],
+            "CFAssociations": [],
+        }
+
+    async def _import(self, db_session: AsyncSession, tenant: Tenant, uri: str) -> CaseImportReport:
+        report = await import_case_from_dict(db_session, tenant.id, self._package(uuid.uuid4(), uuid.uuid4(), uri))
+        await db_session.flush()
+        return report
+
+    async def test_slug_addressed_uri_warns(self, db_session: AsyncSession, tenant: Tenant):
+        """The slug is a renameable alias, so such a URI dies at the next rename."""
+        report = await self._import(db_session, tenant, f"{settings.base_url}/my-slug/uri/{uuid.uuid4()}")
+        assert any("tenant slug" in w for w in report.warnings)
+
+    async def test_other_tenant_uri_warns(self, db_session: AsyncSession, tenant: Tenant):
+        report = await self._import(db_session, tenant, f"{settings.base_url}/{uuid.uuid4()}/uri/{uuid.uuid4()}")
+        assert any("different tenant" in w for w in report.warnings)
+
+    async def test_correct_tenant_is_silent(self, db_session: AsyncSession, tenant: Tenant):
+        report = await self._import(db_session, tenant, f"{settings.base_url}/{tenant.id}/uri/{uuid.uuid4()}")
+        assert not any("tenant" in w and "URI" in w for w in report.warnings)
+
+    async def test_external_uri_is_silent(self, db_session: AsyncSession, tenant: Tenant):
+        """Another host is a legitimate external reference, not our business."""
+        report = await self._import(db_session, tenant, "https://other.example.org/whatever/uri/x")
+        assert not any("URI(s)" in w for w in report.warnings)
+
+    async def test_warnings_are_aggregated_by_kind(self, db_session: AsyncSession, tenant: Tenant):
+        """A package built against the wrong tenant gets every URI wrong at once."""
+        doc_id = uuid.uuid4()
+        wrong_tenant = uuid.uuid4()
+        pkg = self._package(doc_id, uuid.uuid4(), f"{settings.base_url}/{wrong_tenant}/uri/{uuid.uuid4()}")
+        pkg["CFItems"] += [
+            {
+                "identifier": str(uuid.uuid4()),
+                "uri": f"{settings.base_url}/{wrong_tenant}/uri/{uuid.uuid4()}",
+                "fullStatement": f"stmt {n}",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            }
+            for n in range(3)
+        ]
+        report = await import_case_from_dict(db_session, tenant.id, pkg)
+        await db_session.flush()
+
+        matching = [w for w in report.warnings if "different tenant" in w]
+        assert len(matching) == 1
+        assert "4 URI(s)" in matching[0]
+
+    async def test_the_uri_is_still_stored_verbatim(self, db_session: AsyncSession, tenant: Tenant):
+        """Warning, not rejection: import stays lenient (FR-7.2)."""
+        item_id = uuid.uuid4()
+        uri = f"{settings.base_url}/my-slug/uri/{item_id}"
+        await import_case_from_dict(db_session, tenant.id, self._package(uuid.uuid4(), item_id, uri))
+        await db_session.flush()
+
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
+        assert item.uri == uri
