@@ -54,7 +54,15 @@ identifier がどこにも要りません。
 
 半角スペース2つで1階層です。
 タブは2スペース換算。
+インデント幅は一貫していれば2つでなくても正しい木になります（4つでも可。ただし深さが飛んだという警告は出ます）。
+崩れるのは幅が不揃いなときです。
+
+**全角スペース（U+3000）は数えられません。**
+インデントに混じると、その行は警告も出ないままルート扱いになります。
+日本語の Excel から起こした原稿では起きがちなので、半角に揃えてください。
+
 列は左から `fullStatement` / `humanCodingScheme` / `CFItemType` / `educationLevel` の4つで、5列目以降は無視されます。
+`#title` 行は必須です（無いと `Document title is required` で止まります。CLI の `--doc-title` でも代用できます）。
 
 取り込んだら、そのままエクスポートしてください。
 
@@ -63,6 +71,8 @@ uv run python cli.py import csv --tenant {tenant-uuid} --file draft.csv --dry-ru
 uv run python cli.py import csv --tenant {tenant-uuid} --file draft.csv
 uv run python cli.py export csv --tenant {tenant-uuid} --doc {doc-uuid} --file current.csv
 ```
+
+`--doc` に渡す UUID は、取り込みが `Imported into '情報活用能力' (UUID)` の形で表示します。
 
 出てきた `current.csv` は UUID の入った custom CSV です。
 以後の追記・修正はこのファイルを起点にします（次節）。
@@ -75,8 +85,10 @@ UUID でない値は警告を出してルート扱いになります。
 そして親として指せるのは、**他の行の `Identifier` 列に書かれた UUID だけ**です。
 
 つまり `Identifier` を全行空にすると、`parentIdentifier` に書ける値が存在しなくなります。
-取り込みは成功し、件数も合い、警告も出ませんが、**全項目がルートに並んだ平坦な文書**ができます。
+取り込みは成功し、件数も合いますが、**全項目がルートに並んだ平坦な文書**ができます。
 この事故はレポートのどの数値にも現れません。
+唯一の手がかりは、AI が `Identifier` だけ空にして `parentIdentifier` に UUID を残した場合に出る `Parent '...' not found, treated as root` の警告です。
+両方とも空なら、それも出ません。
 
 custom CSV で階層を作るなら、AI に新しい UUID v4 を生成させるしかありません。
 そのときは次の2つをプロンプトで押さえてください。
@@ -127,6 +139,10 @@ AI がメタデータ行を書き直してこの行を落とすと、取り込�
 
 英語版は[下の EN 節](#prompt-template)にあります。
 
+**1つめのルールは経路ごとに差し替えてください。**
+下のテンプレートの既定は「階層のない新規作成」向けです。
+階層のある新規作成とエクスポート起点の更新には、テンプレートの後に差し替え用のルールを載せてあります。
+
 ```
 添付の Excel をコンピテンシーフレームワークの CSV に変換してください。
 
@@ -147,13 +163,25 @@ AI がメタデータ行を書き直してこの行を落とすと、取り込�
 #language,ja
 ```
 
-階層を持つ新規作成でこのテンプレートを使う場合は、1つめのルールを次に差し替えます。
+**階層を持つ新規作成**では、1つめのルールを次に差し替えます。
 
 ```
 - Identifier 列には、行ごとに新しい UUID v4 を生成して入れる。
   例示・仕様書・他のファイルから UUID をコピーしない。
   parentIdentifier には、親の行の Identifier に書いた UUID をそのまま書く
 ```
+
+**エクスポート起点の更新**では、次に差し替えます。
+
+```
+- Identifier 列の既存の値は書き換えない。空にもしない。parentIdentifier も同様。
+  UUID を作ったり、どこかからコピーしたりしない
+```
+
+ここを既定のまま（`Identifier` 列を空にする）渡すと事故ります。
+`humanCodingScheme` を持たない項目は既存項目と結びつかず、**新しい項目として作り直されます**。
+旧項目は孤児として残り、項目数が倍になり、木は平坦に潰れます。
+`lostAssociationsCount` が立つのでガードは発火しますが、そもそも起こさないのが正しい。
 
 `#creator` は入れてください。
 取り込みは通りますが、CASE v1.1 の公式スキーマは `creator` を必須にしています。
@@ -170,7 +198,7 @@ CSV の取り込みは creator の欠落を警告しないので、ここで入�
 | メタデータ行を書き直す | `#identifier` が落ちると更新が新規作成に化け、全項目が移動する | 更新では `--doc` を付ける |
 | `associationType` の綴り違い | CSV では列ごと黙って無視される（エラーにならない）。CASE JSON では該当の関連が飛ばされる | 正しい値は下記。dry-run で `associationsCreated` が想定どおりか見る |
 | 区切り文字の混同 | 値が1つの文字列として入る | `educationLevel` と `conceptKeywords` はカンマ区切り、関連列のターゲットは `\|` 区切り |
-| インデントの崩れ（simple 形式） | 深さが飛ぶと（0 → 2）警告つきで直前の項目の子として扱われる | 半角スペース2個で1階層。タブは2スペース換算 |
+| インデントの崩れ（simple 形式） | 幅が不揃いだと木が壊れる。幅が一貫していれば、深さが飛んだ警告が出ても木は正しい | 半角スペースで幅を揃える。全角スペースは数えられない |
 | 日付や列挙値の形式違い | 日付は警告を出して既存値を保持（新規なら空）。`adoption_status` は既定の4値以外だと警告を出したうえで、値はそのまま保存される | 日付は `YYYY-MM-DD`。`adoption_status` は `Draft` / `Private Draft` / `Adopted` / `Deprecated` |
 
 ### 関連の書き方は CSV と CASE JSON で違う
@@ -202,8 +230,9 @@ CSV では、列名が一致しなければその列ごと無視されます。
 uv run python cli.py import csv --tenant {tenant-uuid} --file converted.csv --dry-run --report report.json
 ```
 
-`--dry-run` は結果をコンソールに要約しません。
-`--report` と併用してください。
+dry-run でも件数と警告はコンソールに出ます。
+出ないのは、破壊的変更の見出しと、消える関連の一覧（最大20件）だけです。
+内訳を機械的に検査するには `--report` を使ってください。
 
 `report.json` で次を見ます。
 
@@ -215,7 +244,7 @@ uv run python cli.py import csv --tenant {tenant-uuid} --file converted.csv --dr
 | `issues` | 空が理想。飛ばされた行は `Invalid Identifier` / `fullStatement is empty, skipped` として出る |
 | `applied` | dry-run では `false`。本番実行の記録では `true` |
 
-`counts.itemsSkipped` は CSV の取り込みでは常に 0 です。
+`counts.itemsSkipped` は CSV の取り込みでは常に 0 です（コンソールの `Items: ... 0 skipped` も同じ）。
 飛ばされた行は `issues` にしか出ないので、件数の突き合わせは `itemsCreated + itemsUpdated` で行ってください。
 `itemsSkipped` が意味を持つのは `import case`（CASE JSON）だけです。
 
@@ -245,8 +274,9 @@ AI に「この項目を修正して」と頼むと、修正した行だけを�
 既存の文書への更新であれば、ガードはこれを検知します。
 CSV 経路では全ての項目がちょうど1本の `isChildOf` を持つ（ルート項目は宛先が CFDocument になる）ので、項目を落とせば必ずその関連が失われるからです。
 
-**ガードが沈黙するのは、新規文書として取り込まれた場合です。**
+**関連の消失についてガードが沈黙するのは、新規文書として取り込まれた場合です。**
 削除が一切走らないので、比較の対象がありません。
+項目の移動（`itemsMoved`）のほうは、新規文書でも生きています。
 `#identifier` が落ちて更新が新規作成に化けたときが、まさにこの形に片足を突っ込みます。
 だから更新では `--doc` を付け、行数は自分で数えます。
 
@@ -261,12 +291,14 @@ This section covers the parts you would copy into a prompt, plus the checks that
 
 ## Which format
 
-- **New framework with a hierarchy → simple format.** Indentation alone expresses the tree, so no identifier is needed anywhere. Import it, then `export csv` to get a custom CSV with UUIDs filled in, and work from that export afterwards.
+- **New framework with a hierarchy → simple format.** Indentation alone expresses the tree, so no identifier is needed anywhere. Two spaces per level (any consistent width works); a full-width space (U+3000) is not counted as indentation and silently flattens the row to the root. `#title` is required. Import it, then `export csv` to get a custom CSV with UUIDs filled in, and work from that export afterwards.
 - **New framework in custom CSV.** `parentIdentifier` accepts a UUID only, and it can only point at a UUID written in another row's `Identifier` column. Leaving every `Identifier` empty therefore produces a **flat document** — the import succeeds, the counts match, and nothing warns. If you need custom CSV for a hierarchy, have the model generate a fresh UUID v4 per row and use `destructive.itemsMoved` as the collision check.
 - **Updating an existing framework → export first, edit the export, import the whole thing back with `--doc`.** An update import treats the file as the complete tree of that document. Rows you leave out lose their associations.
 - **CASE JSON** requires an identifier on every item; items without one, or with a malformed one, are skipped. Have the model generate fresh UUID v4 values.
 
 ## Prompt template
+
+**Swap the first rule to match your route.** The default below is for a *flat new* framework; replacements for the other two routes follow the block.
 
 ```
 Convert the attached Excel file into a competency framework CSV.
@@ -290,13 +322,26 @@ Only if the sample file has no `#` rows, start the file with:
 #language,ja
 ```
 
-For a **new** hierarchical framework in custom CSV, replace the first rule with:
+For a **new hierarchical** framework in custom CSV, replace the first rule with:
 
 ```
 - Put a freshly generated UUID v4 in the Identifier column of every row.
   Never copy a UUID from an example, a specification, or another file.
   In parentIdentifier, write the UUID you put in the parent row's Identifier.
 ```
+
+When **editing an export to update an existing** framework, replace it with:
+
+```
+- Keep every existing value in the Identifier column exactly as it is. Never
+  blank it out. Same for parentIdentifier. Never invent or copy UUIDs.
+```
+
+Leaving the default rule in place on this route is destructive: items without a
+`humanCodingScheme` are not matched to the existing ones, so they are re-created.
+The old items are left orphaned, the item count doubles, and the tree collapses
+to a flat list. The guard does fire (`lostAssociationsCount`), but do not get
+there.
 
 The second rule is not cosmetic.
 **A present association column means "these are all the links of this type"**, so an empty column deletes every existing link of that type in the document.
@@ -326,15 +371,20 @@ If links do not appear after an import, check the column name first.
 uv run python cli.py import csv --tenant {tenant-uuid} --file converted.csv --dry-run --report report.json
 ```
 
-`--dry-run` prints no summary of its own, so pass `--report`.
+A dry run does print the counts and warnings. What it withholds is the destructive-change heading and the list of disappearing links, so pass `--report` when you want to inspect the breakdown mechanically.
 
 In `report.json`: `destructive.itemsMoved` should be 0 (anything else means a UUID collided with an item in another document), `destructive.lostAssociationsCount` should be 0 unless you meant it, and `issues` should be empty.
-Reconcile the row count against `counts.itemsCreated + itemsUpdated` — `counts.itemsSkipped` is always 0 for CSV imports, and skipped rows appear only as `issues`.
+Reconcile the row count against `counts.itemsCreated + itemsUpdated` — `counts.itemsSkipped` is always 0 for CSV imports (on the console too), and skipped rows appear only as `issues`.
 `required_field_missing` appears for CASE JSON imports only; it means the source data left out a field the official CASE schema requires — fix it at the source, because compeito will not invent a value.
 
 Without `--dry-run`, a destructive change triggers a confirmation prompt (up to 20 of the disappearing links are listed).
 There is no prompt in a non-interactive environment: the run stops with exit code 1 unless you pass `--yes`.
 Look at a dry run first, then add `--yes`.
+
+When an AI edits a document for you, it may return only the rows it changed.
+Count the rows before importing: on an update, the items you dropped lose their parents.
+The guard catches that for an existing document, but goes quiet on the association side when the file is imported as a *new* document, because nothing is deleted.
+(UUIDs assigned during a dry run are discarded by the rollback; the real run picks different ones.)
 
 Finally, open the tree in the web UI.
 The counts can be right while the hierarchy is not.
