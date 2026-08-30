@@ -37,6 +37,7 @@ from src.services.import_issues import (
     ASSOCIATION_MOVED,
     ITEM_MOVED,
     REQUIRED_FIELD_MISSING,
+    URI_TENANT_MISMATCH,
     IssueCollector,
     ValidationIssue,
 )
@@ -97,15 +98,21 @@ def _summarize_uri_tenant_mismatches(report: CaseImportReport) -> None:
     """
     counts = report.uri_tenant_mismatches
     if counts.get("slug"):
-        report.warnings.append(
+        report.warn(
             f"{counts['slug']} URI(s) address this instance by tenant slug instead of the tenant UUID. "
             "Slugs are renameable UI aliases, so those URIs stop resolving when the slug changes; "
-            "re-import with UUID-based URIs to fix them."
+            "re-import with UUID-based URIs to fix them.",
+            code=URI_TENANT_MISMATCH,
+            kind="slug",
+            count=counts["slug"],
         )
     if counts.get("other-tenant"):
-        report.warnings.append(
+        report.warn(
             f"{counts['other-tenant']} URI(s) address a different tenant on this instance. "
-            "They are stored verbatim as sent (FR-7.2) and will keep pointing elsewhere."
+            "They are stored verbatim as sent (FR-7.2) and will keep pointing elsewhere.",
+            code=URI_TENANT_MISMATCH,
+            kind="other-tenant",
+            count=counts["other-tenant"],
         )
 
 
@@ -1100,9 +1107,16 @@ def _update_document(
             # Per import-logic.md, missing/null fields keep the existing value on update.
             # A blank string is a likely source-data issue, so warn but still retain existing value.
             if raw_creator is not None:
-                warnings.append(
+                # Coded like the create path: re-importing an existing document
+                # is the main CASE route, so C3 has to be machine-readable here
+                # too or the producer never learns what to fix.
+                report.warn(
                     f"CFDocument '{doc.identifier}': creator is missing "
-                    "(CASE v1.1 requires it); existing value retained"
+                    "(CASE v1.1 requires it); existing value retained",
+                    code=REQUIRED_FIELD_MISSING,
+                    resource_type="CFDocument",
+                    identifier=str(doc.identifier),
+                    field="creator",
                 )
         else:
             doc.creator = raw_creator

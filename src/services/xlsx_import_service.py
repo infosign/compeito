@@ -44,6 +44,7 @@ from src.services.csv_import_service import (
     _is_valid_uuid,
     _now_utc,
     import_csv,
+    record_lost_links,
 )
 
 # CF Doc sheet column index → metadata key for the custom CSV "#" header rows.
@@ -298,6 +299,13 @@ async def _import_associations(
             last_change_date_time=now,
         )
         session.add(assoc)
+        # B6: this pass re-creates what the CSV stage deleted (the generated
+        # header lists every association column, so Step 7.5 clears them all).
+        # Without recording the creations here, an untouched xlsx round trip
+        # would report every association as lost and trip the guard.
+        report.created_link_keys.add(
+            (assoc.association_type, assoc.origin_node_identifier, assoc.destination_node_identifier)
+        )
         report.associations_created += 1
 
 
@@ -368,5 +376,8 @@ async def import_xlsx(
         )
         doc = res.scalar_one()
         await _import_associations(session, tenant_id, doc, assoc_rows, _now_utc(), report)
+
+    # Settle the net loss now that the second pass has re-created its links.
+    record_lost_links(report)
 
     return report

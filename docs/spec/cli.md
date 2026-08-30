@@ -99,8 +99,10 @@ uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
 #
 # A destructive change is a NET loss, not a delete count: (a) associations
 # deleted and not re-created (an item the CSV stopped mentioning), (b) resources
-# moved in from another document. Re-ordering or re-parenting recreates the same
-# links and does not trigger the guard.
+# moved in from another document.
+# Re-ordering does NOT trigger the guard (sequenceNumber is not part of the key).
+# Re-parenting DOES: the link to the old parent really is gone. That is
+# deliberate over-detection on the safe side.
 #
 # Exit codes: 0 success (or dry-run), 1 refused / non-interactive without --yes,
 # 2 declined at the prompt.
@@ -339,7 +341,8 @@ uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
 #
 # 破壊的変更は削除件数ではなく**正味の損失**で判定する。(a) 削除され再作成されない関連
 # （CSV が言及しなくなった項目）、(b) 他ドキュメントから移動してきたリソース。
-# 並び替えや親の変更は同じ関連が再作成されるので、ガードには掛からない。
+# 並び替えは掛からない（sequenceNumber は比較キーに含めないため）。
+# 親の変更は掛かる。旧親との関連は実際に消えるためで、安全側に倒した意図的な過剰検知である。
 #
 # 終了コード: 0 成功（dry-run 含む）、1 拒否／非対話環境で --yes 無し、2 プロンプトで拒否。
 uv run python cli.py import csv --tenant {uuid} --file framework.csv --dry-run --report /tmp/report.json

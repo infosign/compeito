@@ -30,27 +30,32 @@ from src.services.import_issues import ITEM_MOVED, LOST_ASSOCIATIONS, IssueColle
 
 
 _LOST_LINK_SAMPLE = 20
+_LOST_LINK_WARNING_PREFIX = "Lost associations: "
 
 
-def _record_lost_links(
-    report: ImportReport,
-    deleted: set[tuple[str, str, str]],
-    created: set[tuple[str, str, str]],
-) -> None:
-    """Net association loss for this import (B6).
+def record_lost_links(report: ImportReport) -> None:
+    """Net association loss for this import (B6). Safe to call again.
 
     A document-level rebuild deletes every association of the present types and
     re-creates them, so the delete count says nothing. What matters is the triple
-    that did not come back: that is an item the CSV stopped mentioning, and its
-    link is gone for good.
+    that did not come back: an item the CSV stopped mentioning, whose link is
+    gone for good.
+
+    Recomputable on purpose: the xlsx path adds its own creations in a second
+    pass after this module is done, and calls this again to settle the number.
     """
-    lost = sorted(deleted - created)
-    if not lost:
-        return
+    lost = sorted(report.deleted_link_keys - report.created_link_keys)
+    previous = [w for w in report.warnings if w.startswith(_LOST_LINK_WARNING_PREFIX)]
+    for w in previous:  # drop the earlier, provisional figure
+        report.warnings.remove(w)
+    report.issues[:] = [i for i in report.issues if i.code != LOST_ASSOCIATIONS]
+
     report.lost_associations_count = len(lost)
     report.lost_associations_sample = lost[:_LOST_LINK_SAMPLE]
+    if not lost:
+        return
     report.warn(
-        f"{len(lost)} existing association(s) were deleted and not re-created "
+        f"{_LOST_LINK_WARNING_PREFIX}{len(lost)} association(s) were deleted and not re-created "
         f"(items omitted from this import lose their links)",
         code=LOST_ASSOCIATIONS,
         count=len(lost),
@@ -80,6 +85,11 @@ class ImportReport(IssueCollector):
     items_moved: int = 0
     lost_associations_count: int = 0
     lost_associations_sample: list[tuple[str, str, str]] = field(default_factory=list)
+    # Raw material for the calculation above. Kept on the report because the
+    # xlsx path re-creates associations in a second pass AFTER import_csv
+    # returns; without these it would count every one of them as lost.
+    deleted_link_keys: set[tuple[str, str, str]] = field(default_factory=set)
+    created_link_keys: set[tuple[str, str, str]] = field(default_factory=set)
     warnings: list[str] = field(default_factory=list)
     issues: list[ValidationIssue] = field(default_factory=list)
 
@@ -1742,10 +1752,6 @@ async def import_csv(
         # Update parent_identifier references with actual identifiers
         # (identifiers were auto-generated in _upsert_item)
 
-    # B6: destructive-change tracking spans Step 7 and Step 7.5.
-    deleted_link_keys: set[tuple[str, str, str]] = set()
-    created_link_keys: set[tuple[str, str, str]] = set()
-
     # Step 7: isChildOf Association generation
     # Delete existing isChildOf if updating — but ONLY when the CSV actually
     # contains items to (re)build the tree from. A metadata-only CSV (no data
@@ -1768,7 +1774,7 @@ async def import_csv(
         # computed after the rebuild. Re-ordering or re-parenting recreates the
         # same (type, origin, destination) triple and is not a loss; omitting an
         # item from the CSV does not, and that is the case worth stopping for.
-        deleted_link_keys |= {
+        report.deleted_link_keys |= {
             (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in existing_assocs
         }
 
@@ -1792,7 +1798,7 @@ async def import_csv(
     )
     for assoc in new_assocs:
         session.add(assoc)
-    created_link_keys |= {
+    report.created_link_keys |= {
         (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in new_assocs
     }
     await session.flush()
@@ -1813,7 +1819,7 @@ async def import_csv(
                 )
             )
             existing_nc = list(result.scalars().all())
-            deleted_link_keys |= {
+            report.deleted_link_keys |= {
                 (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in existing_nc
             }
             for assoc in existing_nc:
@@ -1832,7 +1838,7 @@ async def import_csv(
         )
         for assoc in new_nc_assocs:
             session.add(assoc)
-        created_link_keys |= {
+        report.created_link_keys |= {
             (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in new_nc_assocs
         }
         await session.flush()
@@ -1855,6 +1861,6 @@ async def import_csv(
     _calculate_depths(doc, all_doc_items, all_doc_assocs, report.warnings)
     await session.flush()
 
-    _record_lost_links(report, deleted_link_keys, created_link_keys)
+    record_lost_links(report)
 
     return report

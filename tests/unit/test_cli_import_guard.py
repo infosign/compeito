@@ -125,7 +125,9 @@ class TestDryRun:
         )
         payload = json.loads(report_path.read_text(encoding="utf-8"))
         assert payload["dryRun"] is True
-        assert payload["destructive"]["lostAssociations"] == 1
+        assert payload["applied"] is False
+        assert payload["reportVersion"] == 1
+        assert payload["destructive"]["lostAssociationsCount"] == 1
         assert payload["destructive"]["lostAssociationsSample"][0]["associationType"] == "isChildOf"
         assert "lost_associations" in [i["code"] for i in payload["issues"]]
 
@@ -188,6 +190,89 @@ class TestDestructiveGuard:
         assert _assoc_count() == 2
 
 
+class TestInteractiveBranch:
+    """CliRunner has no tty, so the prompt path needs isatty patched.
+
+    Without this the guard's whole reason for existing — a human deciding — is
+    never executed by the suite.
+    """
+
+    def _invoke(self, runner, monkeypatch, tmp, answer: str):  # noqa: F811
+        from cli import cli
+
+        # Patch the helper, not sys.stdin: CliRunner replaces sys.stdin during
+        # invoke(), so a patch on the stream object is thrown away.
+        monkeypatch.setattr("cli._stdin_is_a_tty", lambda: True)
+        return runner.invoke(
+            cli,
+            ["import", "csv", "--tenant", str(TENANT_ID), "--file", _write(tmp, "p.csv", PARTIAL)],
+            input=f"{answer}\n",
+        )
+
+    def test_yes_at_the_prompt_commits(self, runner, seeded, monkeypatch):  # noqa: F811
+        result = self._invoke(runner, monkeypatch, seeded, "y")
+        assert result.exit_code == 0, result.output
+        assert _assoc_count() == 1
+
+    def test_declining_rolls_back_with_exit_2(self, runner, seeded, monkeypatch):  # noqa: F811
+        before = _assoc_count()
+        result = self._invoke(runner, monkeypatch, seeded, "N")
+        assert result.exit_code == 2
+        assert _assoc_count() == before
+
+    def test_declining_marks_the_report_cancelled(self, runner, seeded, monkeypatch):  # noqa: F811
+        """A refused run writes a report too; nothing else says it was refused."""
+        from cli import cli
+
+        monkeypatch.setattr("cli._stdin_is_a_tty", lambda: True)
+        report_path = seeded / "cancelled.json"
+        runner.invoke(
+            cli,
+            [
+                "import",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--file",
+                _write(seeded, "p.csv", PARTIAL),
+                "--report",
+                str(report_path),
+            ],
+            input="N\n",
+        )
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        assert payload["applied"] is False
+        assert payload["cancelled"] is True
+
+
+class TestReParenting:
+    """Re-parenting IS destructive; re-ordering is not.
+
+    The old parent's link genuinely disappears, so the guard fires. That is
+    deliberate over-detection on the safe side, and the docs used to claim the
+    opposite.
+    """
+
+    def test_reparenting_fires_the_guard(self, runner, seeded):  # noqa: F811
+        from cli import cli
+
+        orphaned = _csv(f"{PARENT},Parent,,,,,,,,,,,,,,\n{CHILD},Child,,,,,,,,,,,,,,\n")
+        result = runner.invoke(
+            cli, ["import", "csv", "--tenant", str(TENANT_ID), "--file", _write(seeded, "rp.csv", orphaned)]
+        )
+        assert result.exit_code == 1
+        assert "isChildOf" in result.output
+
+    def test_reordering_does_not(self, runner, seeded):  # noqa: F811
+        from cli import cli
+
+        reordered = _csv(f"{PARENT},Parent,,,,,,,,,,,,,,\n{CHILD},Child,,{PARENT},99,,,,,,,,,,,\n")
+        result = runner.invoke(
+            cli, ["import", "csv", "--tenant", str(TENANT_ID), "--file", _write(seeded, "ro.csv", reordered)]
+        )
+        assert result.exit_code == 0, result.output
+
+
 class TestReportContents:
     def test_written_on_a_real_import_too(self, runner, seeded):  # noqa: F811
         from cli import cli
@@ -208,8 +293,32 @@ class TestReportContents:
         )
         payload = json.loads(report_path.read_text(encoding="utf-8"))
         assert payload["dryRun"] is False
+        assert payload["applied"] is True
         assert payload["counts"]["itemsUpdated"] == 2
         assert payload["destructive"]["total"] == 0
+
+    def test_unwritable_report_path_fails_before_the_import(self, runner, seeded):  # noqa: F811
+        """click.Path(writable=True) does not check a path that does not exist,
+        so without the pre-check the failure lands after the whole import."""
+        from cli import cli
+
+        before = _assoc_count()
+        result = runner.invoke(
+            cli,
+            [
+                "import",
+                "csv",
+                "--tenant",
+                str(TENANT_ID),
+                "--file",
+                _write(seeded, "again.csv", FULL),
+                "--report",
+                "/proc/definitely/not/writable/r.json",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "report" in result.output.lower()
+        assert _assoc_count() == before
 
     def test_warnings_are_never_dropped(self, runner, seeded):  # noqa: F811
         """Unclassified warnings still reach the file, or the report would be a

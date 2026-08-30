@@ -49,6 +49,7 @@
     "help_dry_run": "取り込みを実行してロールバックし、何が変わるかだけ報告する",
     "help_yes": "破壊的変更をプロンプト無しで承認する（自動化向け）",
     "help_report_path": "構造化された JSON の検証レポートをこのパスに書き出す",
+    "err_report_path": "レポートを '{path}' に書き出せません: {reason}",
     "msg_dry_run_rolled_back": "dry-run: 何もコミットしていません。",
     "msg_report_written": "検証レポートを書き出しました: {path}",
     "msg_destructive_detected": "破壊的変更を検知しました: 再作成されない関連の削除 {lost} 件、他ドキュメントからの移動 {moved} 件。",

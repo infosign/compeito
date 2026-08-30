@@ -46,15 +46,19 @@ class ValidationIssue:
     """One warning, optionally classified.
 
     `message` stays the human-readable English string the CLI has always shown,
-    so nothing regresses for someone reading the terminal.
+    so nothing regresses for someone reading the terminal. `severity` is always
+    "warning" today — import stays lenient and rejects nothing — but consumers
+    should read it rather than assume, since an "error" level is the natural
+    next step if that ever changes.
     """
 
     message: str
     code: str | None = None
+    severity: str = "warning"
     context: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
-        out: dict[str, Any] = {"message": self.message, "code": self.code}
+        out: dict[str, Any] = {"message": self.message, "code": self.code, "severity": self.severity}
         if self.context:
             out["context"] = self.context
         return out
@@ -74,7 +78,10 @@ class IssueCollector:
     issues: list[ValidationIssue]
 
     def warn(self, message: str, code: str | None = None, **context: Any) -> None:
-        assert code is None or code in KNOWN_CODES, f"unknown issue code: {code}"
+        # ValueError, not assert: the code set is an external contract and
+        # `python -O` would strip an assertion.
+        if code is not None and code not in KNOWN_CODES:
+            raise ValueError(f"unknown issue code: {code}")
         self.warnings.append(message)
         self.issues.append(ValidationIssue(message=message, code=code, context=context or {}))
 
@@ -89,8 +96,22 @@ def _counts(report: Any) -> dict[str, Any]:
     return out
 
 
-def build_report_json(report: Any, *, dry_run: bool, destructive: dict[str, Any] | None = None) -> dict[str, Any]:
+REPORT_VERSION = 1
+
+
+def build_report_json(
+    report: Any,
+    *,
+    dry_run: bool,
+    applied: bool,
+    cancelled: bool = False,
+    destructive: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """The `--report <path>` payload.
+
+    `applied` is not derivable from `dryRun`: a run refused at the guard also
+    writes a report, and without this flag it would be indistinguishable from a
+    successful one for anything reading only the file.
 
     `issues` holds what was classified; `warnings` holds every message including
     the unclassified ones, so the file is never a lossy view of the run.
@@ -98,9 +119,12 @@ def build_report_json(report: Any, *, dry_run: bool, destructive: dict[str, Any]
     classified = {i.message for i in getattr(report, "issues", [])}
     unclassified = [w for w in report.warnings if w not in classified]
     return {
+        "reportVersion": REPORT_VERSION,
         "documentTitle": report.document_title,
         "documentIdentifier": report.document_identifier,
         "dryRun": dry_run,
+        "applied": applied,
+        "cancelled": cancelled,
         "counts": _counts(report),
         "destructive": destructive or {},
         "issues": [i.to_json() for i in getattr(report, "issues", [])]
