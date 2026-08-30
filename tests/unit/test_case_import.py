@@ -2487,3 +2487,112 @@ class TestSelfUriTenantMismatch:
 
         item = (await db_session.execute(select(CFItem).where(CFItem.identifier == item_id))).scalar_one()
         assert item.uri == uri
+
+
+class TestUpdateOverwriteRules:
+    """The documented split between "omitting preserves" and "omitting clears".
+
+    A consumer computing the expected state after an update cannot derive this
+    from the package — only the importer knows it — so import-logic.md lists it.
+    These tests exist so the list cannot drift away from the code silently
+    (to-case#24).
+    """
+
+    DOC_ID = uuid.UUID("cccc0000-0000-0000-0000-00000000000d")
+    ITEM_ID = uuid.UUID("cccc0000-0000-0000-0000-00000000000e")
+    ASSOC_ID = uuid.UUID("cccc0000-0000-0000-0000-00000000000f")
+
+    def _package(self, *, doc_extra: dict, item_extra: dict, assoc_extra: dict) -> dict:
+        return {
+            "CFDocument": {
+                "identifier": str(self.DOC_ID),
+                "uri": f"https://example.com/uri/{self.DOC_ID}",
+                "title": "Doc",
+                "creator": "Creator",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                **doc_extra,
+            },
+            "CFItems": [
+                {
+                    "identifier": str(self.ITEM_ID),
+                    "uri": f"https://example.com/uri/{self.ITEM_ID}",
+                    "fullStatement": "stmt",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                    **item_extra,
+                }
+            ],
+            "CFAssociations": [
+                {
+                    "identifier": str(self.ASSOC_ID),
+                    "uri": f"https://example.com/uri/{self.ASSOC_ID}",
+                    "associationType": "isChildOf",
+                    "originNodeURI": {
+                        "identifier": str(self.ITEM_ID),
+                        "uri": f"https://example.com/uri/{self.ITEM_ID}",
+                    },
+                    "destinationNodeURI": {
+                        "identifier": str(self.DOC_ID),
+                        "uri": f"https://example.com/uri/{self.DOC_ID}",
+                    },
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                    **assoc_extra,
+                }
+            ],
+        }
+
+    async def _import(self, db_session: AsyncSession, tenant: Tenant, **kwargs) -> None:
+        await import_case_from_dict(db_session, tenant.id, self._package(**kwargs))
+        await db_session.flush()
+
+    async def _rows(self, db_session: AsyncSession):
+        doc = (await db_session.execute(select(CFDocument).where(CFDocument.identifier == self.DOC_ID))).scalar_one()
+        item = (await db_session.execute(select(CFItem).where(CFItem.identifier == self.ITEM_ID))).scalar_one()
+        assoc = (
+            await db_session.execute(select(CFAssociation).where(CFAssociation.identifier == self.ASSOC_ID))
+        ).scalar_one()
+        return doc, item, assoc
+
+    async def _seed_then_omit(self, db_session: AsyncSession, tenant: Tenant):
+        """Import everything populated, then re-import with the fields omitted."""
+        await self._import(
+            db_session,
+            tenant,
+            doc_extra={"publisher": "Pub", "notes": "doc notes"},
+            item_extra={"notes": "item notes", "humanCodingScheme": "A-1"},
+            assoc_extra={
+                "sequenceNumber": 10,
+                "notes": "assoc notes",
+                "originNodeURI": {
+                    "identifier": str(self.ITEM_ID),
+                    "uri": f"https://example.com/uri/{self.ITEM_ID}",
+                    "title": "Origin title",
+                },
+                "destinationNodeURI": {
+                    "identifier": str(self.DOC_ID),
+                    "uri": f"https://example.com/uri/{self.DOC_ID}",
+                },
+            },
+        )
+        await self._import(db_session, tenant, doc_extra={}, item_extra={}, assoc_extra={})
+        return await self._rows(db_session)
+
+    async def test_guarded_fields_survive_omission(self, db_session: AsyncSession, tenant: Tenant):
+        doc, item, assoc = await self._seed_then_omit(db_session, tenant)
+        assert doc.publisher == "Pub"
+        assert doc.notes == "doc notes"
+        assert item.notes == "item notes"
+        assert item.human_coding_scheme == "A-1"
+        assert assoc.notes == "assoc notes"
+        assert assoc.association_type == "isChildOf"
+
+    async def test_association_sequence_number_is_cleared_by_omission(self, db_session: AsyncSession, tenant: Tenant):
+        """The one that surprised the producer: sequenceNumber is a property of
+        THIS link, so a package omitting it says "no ordering", not "keep it"."""
+        _doc, _item, assoc = await self._seed_then_omit(db_session, tenant)
+        assert assoc.sequence_number is None
+
+    async def test_association_endpoints_are_replaced_wholesale(self, db_session: AsyncSession, tenant: Tenant):
+        """An endpoint is a composite; a half-updated one would pair a new
+        identifier with an old title."""
+        _doc, _item, assoc = await self._seed_then_omit(db_session, tenant)
+        assert assoc.origin_node_title is None

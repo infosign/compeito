@@ -252,6 +252,20 @@ Same as CSV import: on update, Step 3 acquires `SELECT ... FOR UPDATE` on the ta
 **Update rules (same for CFDocument / CFItem / CFAssociation / CFDefinitions):**
 - External CFPackage has a value → overwrite.
 - External CFPackage lacks a value (null / missing) → preserve the existing value.
+- **Which fields a missing value actually preserves.** The rule above ("no external value → preserve") is the majority case, not a universal one. Some fields are assigned unconditionally on update, so omitting them **clears** the stored value. A consumer computing "what should this resource look like after the update?" cannot derive the split from the package alone — only this implementation knows it — so it is listed here.
+
+  | Resource | Assigned unconditionally (omitting clears) | Guarded by `is not None` (omitting preserves) |
+  |---|---|---|
+  | CFDocument | `uri`, `lastChangeDateTime` | everything else (`publisher`, `description`, `notes`, `language`, `version`, `adoptionStatus`, `officialSourceURL`, `subject`, `subjectURI`, …) |
+  | CFItem | `uri`, `lastChangeDateTime`, owning document | everything else (`humanCodingScheme`, `abbreviatedStatement`, `alternativeLabel`, `notes`, `extensions`, `listEnumeration`, `language`, `educationLevel`, `conceptKeywords`, `subject`, `subjectURI`); the FK fields are guarded by the presence of their `…URI` object |
+  | **CFAssociation** | `uri`, `lastChangeDateTime`, owning document, **both endpoints in full** (`identifier` / `uri` / `title` / `targetType`), **`sequenceNumber`**, `CFAssociationGroupingURI` | `associationType`, `notes`, `extensions` |
+  | CFRubric | `uri`, `lastChangeDateTime`, owning document | `title`, `description`, `extensions` |
+  | Lookups (CFItemType / CFSubject / CFConcept / CFLicense / CFAssociationGrouping) | — | all of them (`uri`, `title`, `description`, `extensions`, `lastChangeDateTime` and the type-specific fields are only written when non-null) |
+
+  The association row is the one that surprises. An endpoint is a composite (`identifier` + `uri` + `title` + `targetType`), and a half-updated one would be incoherent — a new `identifier` next to the old `title` — so the whole endpoint is replaced. `sequenceNumber` follows the same logic: it is a property of *this* link, and a package that omits it is saying the link has no ordering, not "keep whatever was there".
+
+  `statusStartDate` / `statusEndDate` belong to neither column; see the exception above.
+
 - **Exception — lifecycle dates.** `statusStartDate` / `statusEndDate` (CFDocument and CFItem) carry a resource's retirement state, so clearing them is destructive in a way the other nullable fields are not. A value always overwrites, but a null / blank value **preserves** the existing date unless the import opts in with `import case --allow-status-clear`; the report warns either way (kept / cleared) when a stored value was involved. The opt-in exists because many exporters — OpenCASE, and compeito's own `export case` (`exclude_none=False`) — emit these fields as explicit `null` even when they do not manage them, so honouring a null unconditionally would silently revive every retired item on a routine re-import. A blank string behaves exactly like `null`; an unparsable value (e.g. `"n/a"`) is not a clear request at all and preserves regardless of the flag. Outcomes are aggregated in the report — one line per field per outcome, not one per resource. Applies to CFPackage (CASE JSON) import only — CSV / xlsx keep the "empty cell → preserve" rule and have no clearing path.
 
   > **These are the only two fields where `null` means anything.** Everywhere else a `null` and an absent key are the same thing ("no value"), and downstream tools rely on that: a producer's round-trip comparison can treat key-missing and `null` as equal precisely because compeito assigns no meaning to the difference. **Giving `null` a meaning in a third field is therefore a contract change for consumers, not just for us — announce it before shipping it** (see infosign/to-case#14 for how the lifecycle-date exception was agreed).
@@ -839,6 +853,20 @@ CSVインポートと同様に、既存ドキュメント更新時は Step 3 で
 **更新時の動作（CFDocument / CFItem / CFAssociation / CFDefinitions 共通）:**
 - 外部 CFPackage に値があるフィールド → 上書き
 - 外部 CFPackage に値がないフィールド（null/未存在） → 既存値を保持
+- **値が無いときに実際に温存されるフィールド**。上の規則（「外部に値が無い → 既存値を保持」）は多数派の挙動であって、全体の規則ではない。更新時に無条件で代入されるフィールドがあり、これらは省くと格納値が**クリアされる**。差分更新の消費側は「この更新後にリソースがどうなるか」を計算するとき、この区別をパッケージだけからは導出できない（知っているのは実装だけである）。したがってここに一覧する。
+
+  | リソース | 無条件に代入（省くとクリア） | `is not None` で保護（省くと保持） |
+  |---|---|---|
+  | CFDocument | `uri`、`lastChangeDateTime` | それ以外すべて（`publisher`、`description`、`notes`、`language`、`version`、`adoptionStatus`、`officialSourceURL`、`subject`、`subjectURI` 等） |
+  | CFItem | `uri`、`lastChangeDateTime`、所属ドキュメント | それ以外すべて（`humanCodingScheme`、`abbreviatedStatement`、`alternativeLabel`、`notes`、`extensions`、`listEnumeration`、`language`、`educationLevel`、`conceptKeywords`、`subject`、`subjectURI`）。FK 系は対応する `…URI` オブジェクトの有無で保護される |
+  | **CFAssociation** | `uri`、`lastChangeDateTime`、所属ドキュメント、**両端の endpoint 一式**（`identifier` / `uri` / `title` / `targetType`）、**`sequenceNumber`**、`CFAssociationGroupingURI` | `associationType`、`notes`、`extensions` |
+  | CFRubric | `uri`、`lastChangeDateTime`、所属ドキュメント | `title`、`description`、`extensions` |
+  | lookup 系（CFItemType / CFSubject / CFConcept / CFLicense / CFAssociationGrouping） | — | すべて（`uri`、`title`、`description`、`extensions`、`lastChangeDateTime` および型固有のフィールドは、非 null のときだけ書き込む） |
+
+  意外なのは association の行である。endpoint は `identifier` + `uri` + `title` + `targetType` の複合であり、半分だけ更新されると矛盾する（新しい `identifier` の隣に古い `title` が残る）ため、endpoint ごと置き換える。`sequenceNumber` も同じ理屈で、**この関連**が持つ順序であり、省いたパッケージは「順序を持たない」と言っているのであって「前の値を残せ」と言っているのではない。
+
+  `statusStartDate` / `statusEndDate` はどちらの列にも属さない（上記の例外を参照）。
+
 - **例外：ライフサイクル日付**。`statusStartDate` / `statusEndDate`（CFDocument および CFItem）は、リソースの廃止状態を表すため、クリアが他の nullable フィールドより破壊的である。値がある場合は通常どおり上書きするが、null / 空文字列の場合は既存の日付を**保持**する。クリアするには `import case --allow-status-clear` で明示的に opt-in する。既存値があった場合はいずれの経路でもレポートに警告を出す（保持／クリア）。この opt-in が必要な理由は、OpenCASE や compeito 自身の `export case`（`exclude_none=False`）を含む多くのエクスポーターが、これらのフィールドを管理していなくても明示的な `null` として出力するためである。null を無条件にクリアと解釈すると、通常の再インポートで廃止項目がすべて無警告で復活してしまう。空文字列は `null` と同じ扱いとする。パースできない値（例: `"n/a"`）はクリア指示ではなく、フラグの有無にかかわらず既存値を保持する。結果はレポートで集約する（リソースごとではなく、フィールドと結果の組ごとに1行）。CFPackage（CASE JSON）インポートのみに適用され、CSV / xlsx は「空セル → 保持」の規則のままでクリア手段を持たない。
 
   > **`null` に意味があるのはこの2フィールドだけである。** 他の全フィールドでは `null` とキー未存在は同義（「値が無い」）であり、下流のツールはその前提に乗っている。生成側のラウンドトリップ比較がキー欠落と `null` を同一に扱えるのは、compeito がその差に意味を与えていないからである。**したがって3つ目のフィールドで `null` に意味を持たせることは、こちらの都合ではなく利用側との契約の変更にあたる。出荷前に周知すること**（ライフサイクル日付の例外を合意した経緯は infosign/to-case#14）。
