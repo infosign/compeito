@@ -486,6 +486,8 @@ A **destructive change** is a net loss, not a delete count:
 
 Threshold is 1. In a non-interactive process (`stdin` is not a tty) without `--yes`, the import rolls back and exits 1 rather than hanging on a prompt or proceeding silently.
 
+**The definition lives in the service layer, the gate does not.** `import_issues.destructive_summary(report)` returns the counts and a capped sample from any import report; deciding what to do about them — prompting, refusing, committing — belongs to whoever owns the transaction. The CLI owns it for `cli.py`; a consumer that calls the import services directly (compeito-aws's Admin API does) owns its own and can reuse the same definition rather than reimplementing it.
+
 **`--report <path>`** writes the run as JSON: `counts`, `destructive`, and `issues` (each with a `code` where one applies — `required_field_missing`, `lost_associations`, `item_moved`, …). Unclassified warnings are included too, so the file is never a lossy view of the run. The required-field entries are the operational half of [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C3: compeito does not fabricate values on output, so the gap is closed by fixing the source data, and this is how the producer learns what to fix.
 
 ## Rubric CSV import flow
@@ -1103,6 +1105,8 @@ CASE v1.0 の CFPackage レスポンスをフェッチ後、バリデーショ�
 - **移動したリソース** — CFItem や CFAssociation が他ドキュメントから付け替えられたもの。移動元ドキュメントの木が壊れる。identifier の照合はテナント全体で行うため、identifier をコピーしたり捏造したりすると起きる
 
 閾値は 1。非対話環境（`stdin` が tty でない）で `--yes` が無い場合は、プロンプトを出さずにロールバックして exit 1 とする。ハングも、黙って先に進むことも防ぐ。
+
+**判定の定義はサービス層に置き、ゲートは置かない。** `import_issues.destructive_summary(report)` はどのインポートレポートからも件数と（上限つきの）サンプルを返す。それを見てどうするか — 確認を求める、拒否する、commit する — はトランザクションを持つ側の判断である。`cli.py` では CLI が持ち、インポートのサービス関数を直接呼ぶ利用者（compeito-aws の Admin API がそうである）は自分で持つ。判定そのものは同じものを使えばよく、二重に実装するとやがて食い違う。
 
 **`--report <path>`** は実行結果を JSON で書き出す。`counts`、`destructive`、`issues`（該当するものには `code` が付く。`required_field_missing` / `lost_associations` / `item_moved` 等）。分類されなかった警告も含めるので、ファイルが実行結果の欠落した写しになることはない。required 項目のエントリは[適合性バックログ](../dev/case-v1p1-conformance-backlog.md) C3 の運用側にあたる。compeito は出力側で値を捏造しないため、ギャップは元データを直して閉じる。生成側が何を直すべきかを知る経路がこれである。
 

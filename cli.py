@@ -845,31 +845,6 @@ def _stdin_is_a_tty() -> bool:
     return bool(getattr(sys.stdin, "isatty", lambda: False)())
 
 
-def _destructive_summary(report) -> dict:
-    """What this import would take away, measured after the fact.
-
-    Counted from the report the service actually produced, not from a guess made
-    before running: the delete scope depends on which columns the header has and
-    how many rows are valid, so any pre-estimate would be a second
-    implementation of the importer to keep in sync.
-    """
-    lost = getattr(report, "lost_associations_count", 0)
-    items_moved = getattr(report, "items_moved", 0)
-    assocs_moved = getattr(report, "associations_moved", 0)
-    return {
-        "lostAssociationsCount": lost,
-        "lostAssociationsSample": [
-            {"associationType": a, "origin": o, "destination": d}
-            for a, o, d in getattr(report, "lost_associations_sample", [])
-        ],
-        # Kept apart: an item taken from another document breaks that document's
-        # tree, a re-attached association does not necessarily.
-        "itemsMoved": items_moved,
-        "associationsMoved": assocs_moved,
-        "total": lost + items_moved + assocs_moved,
-    }
-
-
 async def _finalize_import(session, report, *, dry_run: bool, yes: bool, report_path: str | None) -> None:
     """Write the report, then commit / roll back.
 
@@ -877,9 +852,9 @@ async def _finalize_import(session, report, *, dry_run: bool, yes: bool, report_
     service has already done the work, so the numbers are real, and refusing
     still costs nothing because nothing is committed yet.
     """
-    from src.services.import_issues import build_report_json
+    from src.services.import_issues import build_report_json, destructive_summary
 
-    destructive = _destructive_summary(report)
+    destructive = destructive_summary(report)
 
     def write_report(*, applied: bool, cancelled: bool = False) -> None:
         if not report_path:
