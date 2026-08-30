@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 
 import pytest
 from click.testing import CliRunner
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from src.config import settings
+from src.models.cf_association import CFAssociation
 from src.models.cf_document import CFDocument
 from src.models.tenant import Tenant
 
@@ -126,6 +127,37 @@ def test_document(test_tenant):
 
     asyncio.run(_db_exec(_create))
     return DOC_IDENT
+
+
+ASSOC_IDENT = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+
+
+@pytest.fixture
+def test_association(test_document):
+    """A replacedBy association, committed to DB."""
+
+    async def _create(session):
+        session.add(
+            CFAssociation(
+                tenant_id=TENANT_ID,
+                cf_document_id=(await session.execute(select(CFDocument).where(CFDocument.identifier == DOC_IDENT)))
+                .scalar_one()
+                .id,
+                identifier=ASSOC_IDENT,
+                uri=f"https://example.com/assoc/{ASSOC_IDENT}",
+                association_type="replacedBy",
+                origin_node_uri="https://example.com/uri/old",
+                origin_node_identifier="11111111-2222-3333-4444-555555555555",
+                origin_node_title="Old item",
+                destination_node_uri="https://example.com/uri/new",
+                destination_node_identifier="66666666-7777-8888-9999-000000000000",
+                destination_node_title="New item",
+                last_change_date_time=NOW,
+            )
+        )
+
+    asyncio.run(_db_exec(_create))
+    return ASSOC_IDENT
 
 
 # ---------------------------------------------------------------------------
@@ -1059,3 +1091,133 @@ class TestXlsxCli:
 
         result = runner.invoke(cli, ["import", "xlsx", "--tenant", str(TENANT_ID), "--file", str(bad)])
         assert result.exit_code == 1
+
+
+def _assoc_count() -> int:
+    """How many rows the association identifier still has (0 or 1)."""
+    found = []
+
+    async def _count(session):
+        from sqlalchemy import func
+
+        result = await session.execute(
+            select(func.count(CFAssociation.id)).where(CFAssociation.identifier == ASSOC_IDENT)
+        )
+        found.append(result.scalar())
+
+    asyncio.run(_db_exec(_count))
+    return found[0]
+
+
+class TestAssocDelete:
+    """B8-7: taking back a wrong `replacedBy`.
+
+    Import is additive for associations — a package cannot say "this link is
+    gone" — so a wrong successor link survives every re-import and keeps sending
+    readers to the wrong item. This command is the way back.
+    """
+
+    def _invoke(self, runner, ident, *extra, input=None):
+        from cli import cli
+
+        return runner.invoke(
+            cli, ["assoc", "delete", "--tenant", str(TENANT_ID), "--id", str(ident), *extra], input=input
+        )
+
+    def test_delete_with_force(self, runner, env_docker, test_association):
+        result = self._invoke(runner, test_association, "--force")
+        assert result.exit_code == 0
+        assert "replacedBy" in result.output
+        assert _assoc_count() == 0
+
+    def test_confirm_shows_both_endpoints(self, runner, env_docker, test_association):
+        """The operator has to see what the link points at before removing it."""
+        result = self._invoke(runner, test_association, input="N\n")
+        assert result.exit_code == 2
+        assert "11111111-2222-3333-4444-555555555555" in result.output
+        assert "66666666-7777-8888-9999-000000000000" in result.output
+
+    def test_cancel_keeps_it(self, runner, env_docker, test_association):
+        self._invoke(runner, test_association, input="N\n")
+        assert _assoc_count() == 1
+
+    def test_not_found(self, runner, env_docker, test_tenant):
+        result = self._invoke(runner, uuid.uuid4(), "--force")
+        assert result.exit_code == 1
+
+    def test_other_tenant_cannot_delete_it(self, runner, env_docker, test_association):
+        """Tenant scope is enforced, not just tenant existence.
+
+        A nonexistent tenant would exit at the existence check without ever
+        reaching the association query — that passes even with the scope removed.
+        The second tenant here has to be real.
+        """
+        from cli import cli
+
+        other_tenant = uuid.uuid4()
+
+        async def _create(session):
+            session.add(Tenant(id=other_tenant, name="Other", is_private=False))
+
+        asyncio.run(_db_exec(_create))
+
+        result = runner.invoke(
+            cli,
+            ["assoc", "delete", "--tenant", str(other_tenant), "--id", str(test_association), "--force"],
+        )
+        assert result.exit_code == 1
+        assert _assoc_count() == 1
+
+    def test_is_child_of_is_refused(self, runner, env_docker, test_document):
+        """Deleting a hierarchy link would drop the item out of the tree.
+
+        `cf_items.depth` is stored and only recomputed on import, and the tree
+        finds roots and orphans by `depth == 0`; a cut child sits at depth >= 1
+        with no parent and disappears from the Web UI until the next import.
+        """
+        ident = uuid.uuid4()
+
+        async def _create(session):
+            doc = (await session.execute(select(CFDocument).where(CFDocument.identifier == DOC_IDENT))).scalar_one()
+            session.add(
+                CFAssociation(
+                    tenant_id=TENANT_ID,
+                    cf_document_id=doc.id,
+                    identifier=ident,
+                    uri=f"https://example.com/assoc/{ident}",
+                    association_type="isChildOf",
+                    origin_node_uri="https://example.com/uri/child",
+                    origin_node_identifier=str(uuid.uuid4()),
+                    destination_node_uri="https://example.com/uri/parent",
+                    destination_node_identifier=str(uuid.uuid4()),
+                    last_change_date_time=NOW,
+                )
+            )
+
+        asyncio.run(_db_exec(_create))
+
+        from cli import cli
+
+        result = runner.invoke(cli, ["assoc", "delete", "--tenant", str(TENANT_ID), "--id", str(ident), "--force"])
+        assert result.exit_code == 1
+
+        found = []
+
+        async def _count(session):
+            from sqlalchemy import func
+
+            found.append(
+                (
+                    await session.execute(select(func.count(CFAssociation.id)).where(CFAssociation.identifier == ident))
+                ).scalar()
+            )
+
+        asyncio.run(_db_exec(_count))
+        assert found == [1]
+
+    def test_prompt_shows_endpoint_titles(self, runner, env_docker, test_association):
+        """Two bare UUIDs are not enough to decide whether a link should go."""
+        result = self._invoke(runner, test_association, input="N\n")
+        assert "Old item" in result.output
+        assert "New item" in result.output
+        assert "Test Document" in result.output

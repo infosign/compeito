@@ -28,7 +28,7 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 
 前提とする不変条件: **任意の一版のパッケージを単独で取り込んだだけで正しい状態になること**。
 テナントが全ての版を順に取り込むとは限らないので、墓標も後継関連も、毎版すべて含まれる前提で扱う。
-ただしこの不変条件はリソースのフィールド値に限る。association は additive only のため、一度張られた `replacedBy` はパッケージ側から取り消せない（B8-7）。
+ただしこの不変条件はリソースのフィールド値に限る。association は additive only のため、一度張られた `replacedBy` はパッケージ側から取り消せない。取り消しは CLI の `assoc delete` で行う（B8-7）。
 
 初回公開に必要なものは B8-1〜B8-4 で、すべて完了している。
 
@@ -47,7 +47,7 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 |---|------|:--:|
 | B8-5 | キーワード検索（B4）・意味検索（B2）の設計に、廃止項目の既定除外と `includeRetired` の切り替えを追記 | 完了（[B4](./designs/web-ui-keyword-search.md) / [B2](./designs/semantic-search.md) に反映。実装は各項目の実装時） |
 | B8-6 | 改訂プロトコル運用ガイド（B5）に、日付の意味の書き分け（CFItem = 廃止が確定した日／CFDocument = 有効期間の最終日）と墓標の保持方針を追記 | 完了（B5 の設計に畳み込み。ガイド本体は B5 の実装時に書かれる） |
-| B8-7 | 誤って張られた `replacedBy` の取り消し手段。association は additive only なので、パッケージの再インポートでは消せない | 未着手 |
+| B8-7 | 誤って張られた `replacedBy` の取り消し手段。association は additive only なので、パッケージの再インポートでは消せない | 完了（CLI `assoc delete`。`isChildOf` は木構造を壊すため拒否する） |
 
 B6（インポート dry-run / validation report）へ引き継ぐ3点:
 
