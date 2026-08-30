@@ -21,6 +21,7 @@
 - **スコープ**: ツリービュー内の検索は**現在のドキュメントに限定**（`cf_document_id` で絞る）。
   テナント横断・複数ドキュメント横断は非対象（将来 B2 の検索 API と統合）。クエリは常に
   `tenant_id` スコープ厳守（private テナントの秘匿を壊さない）。
+- **廃止項目は既定で除外する**（B8-5）。`?includeRetired=1` で含め、そのとき結果行に廃止バッジを出す。除外は SQL で行い、ツリーの `hidden_identifiers()` は使わない（後述「廃止項目の扱い」）。バッジのために行契約とテンプレートを触るので、下記「`subject_items.html` は無改修」の決定はその範囲で緩める。
 - **検索の入口はツリービューのみ**: `tenant.html`（フレームワーク一覧）には**今回は置かない**。
   テナントページに置く検索は必然的に複数ドキュメント横断になり、結果 UI（ドキュメント別グルー
   ピング等）の設計が別物になる。B2 の `GET /{tenant}/search`（テナントスコープの JSON API）実装時に
@@ -171,9 +172,10 @@ async def search_fragment(
    （`tree_service.get_document_for_tree` が None）→ 404 フラグメント（`error_document_not_found`）。
    **ドキュメント実在チェックが tenant スコープを兼ねる**（他テナントの doc は None になる）。
 3. `q = q.strip()[:SEARCH_Q_MAX]`。空なら `HTMLResponse("", 200)`（結果クリア）。
-4. `rows = await cf_item_repository.search_items(session, tenant_obj.id, q, document_id=doc.id, limit=SEARCH_LIMIT + 1)`
+4. `include_retired = request.query_params.get("includeRetired") == "1"`（ツリーと同じ規則。`"1"` だけを真とする）。
+   `rows = await cf_item_repository.search_items(session, tenant_obj.id, q, document_id=doc.id, include_retired=include_retired, limit=SEARCH_LIMIT + 1)`
 5. `truncated = len(rows) > SEARCH_LIMIT`、`rows = rows[:SEARCH_LIMIT]`。
-6. `fragments/search_results.html` を描画（ctx: `q, rows, truncated, tenant_url, t`。
+6. `fragments/search_results.html` を描画（ctx: `q, rows, truncated, include_retired, tenant_url, t`。
    `tenant_url` は `_tenant_url_segment(tenant, tenant_obj)` — sticky UUID/slug 規約に従う）。
 
 **Cache-Control**: `CACHE_CONTROL_FRAGMENT`（`public, max-age=86400`）を設定する。
@@ -194,6 +196,47 @@ async def search_fragment(
 - `?item=` と `?q=` が同時に付いた場合は両方独立に処理する（ペインは item、結果ブロックは q）。
 - ページ自体の Cache-Control は既存どおり `public, max-age=3600`（変更なし）。
 
+## 廃止項目の扱い（B8-5）
+
+検索結果からは、**廃止された CFItem を既定で除外する**。`?includeRetired=1` を付けたときだけ含める。
+
+そのとき、**結果行には廃止バッジを出す**。廃止項目を生きた項目と同じ見え方で並べると、B8 が防ごうとしている誤った対応づけがそのまま起きるためである。これには本設計の「`subject_items.html` は無改修」という決定の変更が要る。
+
+- `_list_items_where` の返す行に `status_end_date` を足す（現状は `{identifier, human_coding_scheme, full_statement, doc_identifier, doc_title}` の5キー）
+- 行を描画するテンプレートに、`status_end_date` が今日以前ならバッジを出す分岐を足す。バッジの見た目はツリーと揃える（[retired-item-ui.md](./retired-item-ui.md)）
+- この行契約は `subject_items.html`（主題・型の逆引き）と共有されている。キーが1つ増えるだけなので既存の描画は壊れないが、**バッジの分岐を共有テンプレートに入れると逆引き一覧にも出る**。そこは B8 の対象外なので、検索用の描画を分けるか、バッジの表示を明示的なフラグで制御する
+
+### ツリーの `hidden_identifiers` を流用しない
+
+ツリーは「廃止済みでも、生きた子孫を持つなら残す」規則を採っている。生きた項目への経路が切れるからである。
+
+**検索結果に経路は無い。** 平坦な一覧なので、廃止項目を残す理由がそのまま消える。したがって判定は `retirement.is_retired(item, today)` を直接使い、`hidden_identifiers()` は使わない。流用すると「生きた子孫を持つ廃止項目」が検索結果に出続け、除外した意味が薄くなる。
+
+### SQL で絞る（後段フィルタにしない）
+
+条件は `_list_items_where` の `conditions` に足す。
+
+```python
+if not include_retired:
+    conditions.append(
+        or_(CFItem.status_end_date.is_(None), CFItem.status_end_date > today)
+    )
+```
+
+**取得後に Python で除くのは誤りである。** この設計は `SEARCH_LIMIT + 1` 件を取り、余りの有無で「打ち切り表示」を決める。後段で除くと表示件数が上限を下回り、しかも打ち切りの表示が実態と食い違う。「51件目があるから打ち切った」と言いながら、実際には 40 件しか出ていない、という状態になる。
+
+`today` は呼び出し側が UTC で1回求めて渡す（SQL 側で `CURRENT_DATE` を使わない。テストで日付を固定できなくなる）。
+
+### パラメータの引き継ぎ
+
+`includeRetired` は検索フォームの hidden input と、検索フラグメントの `hx-get` に載せる（この設計はページネーションを持たないので、載せる先はこの2つだけである）。結果行から項目へ飛ぶリンクにも載せる。ツリー側のリンクには B8-4 で既に乗っているので、検索とツリーを行き来してもモードが落ちない。
+
+判定は `includeRetired == "1"` のみを真とする（`src/routers/web.py` のツリー側と同じ規則。`true` / `yes` は受けない）。
+
+### インデックス
+
+`status_end_date` の条件が付いても、既存の `ix_cf_items_tenant_document_coding` で対象ドキュメントに絞ってから ILIKE と日付の両方を評価する形は変わらない。B8-4 で足した部分インデックス `ix_cf_items_doc_retired` は墓標だけを含むので、この用途（生きた項目を残す条件）には効かない。追加のインデックスは要らない。
+
 ## リポジトリ（src/repositories/cf_item_repository.py）
 
 既存の `_list_items_where` ヘルパ（label/link 列 + doc join + 安定ソート + offset/limit）を
@@ -212,6 +255,8 @@ async def search_items(
     query: str,
     *,
     document_id: uuid.UUID | None = None,
+    include_retired: bool = False,
+    today: date | None = None,  # None → _utc_today() 内部で解決する（後述）
     offset: int = 0,
     limit: int = 51,
 ) -> list[dict]:
@@ -232,6 +277,13 @@ async def search_items(
     ]
     if document_id is not None:
         conditions.append(CFItem.cf_document_id == document_id)
+    if not include_retired:
+        # B8-5: retired items are dropped in SQL, never after the fetch (the
+        # limit+1 truncation check breaks if rows disappear afterwards).
+        # `today` must be a real date here: SQLAlchemy raises ArgumentError on
+        # `Column > None` ("Only '=', '!=', 'is_()' … can be used with None").
+        today = today or _utc_today()
+        conditions.append(or_(CFItem.status_end_date.is_(None), CFItem.status_end_date > today))
     return await _list_items_where(session, conditions, offset, limit)
 ```
 
@@ -307,16 +359,16 @@ async def search_items(
 
 | ファイル | 変更内容 |
 |---|---|
-| `src/repositories/cf_item_repository.py` | `_escape_like()` / `search_items()` を追加（`_list_items_where` 再利用、`or_` import 追加） |
-| `src/routers/web.py` | `SEARCH_LIMIT` / `SEARCH_Q_MAX` 定数、`search_fragment` ルート（`GET /{tenant}/cftree/doc/{doc_id}/search`）を追加。`tree_view` に `q` クエリパラメータ、`_render_tree_page` に SSR 検索を追加 |
-| `src/templates/fragments/search_results.html` | 新規: 件数/0件/打ち切り + `subject_items.html` を include した行リスト |
-| `src/templates/cftree.html` | 左ペイン上部に検索フォーム + `#search-results`（`{% if q %}` で SSR 結果を include） |
-| `src/locales/en.json` / `src/locales/ja.json` | `search_*` 6 キーを追加 |
+| `src/repositories/cf_item_repository.py` | `_escape_like()` / `search_items()` を追加（`_list_items_where` 再利用、`or_` import 追加）。`_list_items_where` の返す行に `status_end_date` を追加（B8-5 のバッジ用） |
+| `src/routers/web.py` | `SEARCH_LIMIT` / `SEARCH_Q_MAX` 定数、`search_fragment` ルート（`GET /{tenant}/cftree/doc/{doc_id}/search`）を追加。`tree_view` に `q` クエリパラメータ、`_render_tree_page` に SSR 検索を追加。両経路で `includeRetired` を受け、`search_items` と描画コンテキストへ渡す |
+| `src/templates/fragments/search_results.html` | 新規: 件数/0件/打ち切り + 行リスト。廃止項目のバッジはここで出す（`subject_items.html` と共有すると主題・型の逆引き一覧にも出てしまうため、検索側で描画するか明示的なフラグで制御する） |
+| `src/templates/cftree.html` | 左ペイン上部に検索フォーム + `#search-results`（`{% if q %}` で SSR 結果を include）。フォームの hidden input と `hx-get` に `includeRetired` を載せる |
+| `src/locales/en.json` / `src/locales/ja.json` | `search_*` 6 キーを追加（廃止バッジは B8-3 の `retired_badge` を再利用する） |
 | `tests/unit/test_web_search.py` | 新規（下記テスト方針） |
 | `docs/spec/web-ui.md` | ツリービュー節に「検索」サブセクション（EN/JA 両方）: フォーム位置・`/search` フラグメントルート・`?q=` SSR・上限 50・Cache-Control を追記。URL 設計表に `/search` 行を追加 |
 | `docs/dev/backlog.md` | 本項目の行を追加し本設計ドキュメントへリンク（B2 の前段である旨を記載） |
 
-`fragments/subject_items.html` は**無改修**（`has_more=False` で行のみ再利用）。
+`fragments/subject_items.html` の行契約にキーが1つ増える（`status_end_date`）。既存の描画は壊れないが、**バッジの分岐を共有テンプレートに入れないこと**（主題・型の逆引き一覧は B8 の対象外）。
 マイグレーションなし・依存追加なし・静的アセット追加なし。
 
 ## テスト方針（tests/unit/test_web_search.py）
@@ -328,6 +380,10 @@ async def search_items(
 
 - 3 フィールドそれぞれの部分一致でヒット（`full_statement` のみ / `human_coding_scheme` のみ /
   `abbreviated_statement` のみに語を仕込んだ 3 項目）。
+- **廃止項目（B8-5）**: 既定で結果に出ないこと。`include_retired=True` で出ること。
+  未来日の `statusEndDate` は現役として既定でも出ること。
+  **除外が SQL 側で効いていること**（`SEARCH_LIMIT + 1` 件を超えるヒットのうち一部を廃止にし、
+  打ち切り判定と表示件数が食い違わないことを見る。後段フィルタの実装ではここが落ちる）。
 - `notes` にだけ語がある項目はヒット**しない**。
 - 大文字小文字無視: `q="CRITICAL"` が "critical thinking" にヒット。
 - 日本語部分一致: `q="批判"` が「批判的思考ができる」にヒット。語中一致（`q="的思考"`）も確認。
