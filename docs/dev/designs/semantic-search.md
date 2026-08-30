@@ -79,7 +79,7 @@ compeito には常駐ワーカー/キューが無いため、**明示的な CLI 
 - `GET /{tenant}/search?q=<text>&limit=<n>&doc=<uuid>`
   - `q` 必須。`limit` 既定10・**検索専用の小さめ cap（例 50）**を新規定義（CFDocuments の `LIMIT_CAP=500` は流用しない）。`doc` 任意でドキュメント絞り込み。
   - 処理: `q` を `query:` 接頭辞付きで埋め込み → 同一 `model_id`・`tenant_id`（+任意 `cf_document_id`）で pgvector コサイン近傍 top-k → CFItem を返す。
-  - レスポンス: `{ "items": [ { identifier, fullStatement, humanCodingScheme, uri, score } ... ], "modelId": "...", ... }`。各 item に `score`（類似度）。**CASE 標準ではない拡張**なので形は compeito 独自。本文は CFItem 実体から引く。
+  - レスポンス: `{ "items": [ { identifier, fullStatement, humanCodingScheme, uri, score } ... ], "modelId": "...", ... }`（`includeRetired=1` のときは各 item に `statusEndDate` を足す。B8-5）。各 item に `score`（類似度）。**CASE 標準ではない拡張**なので形は compeito 独自。本文は CFItem 実体から引く。
   - **エラー契約（must-fix）**: `main.py` の imsx ハンドラは `/ims/case/v1p1/` を含むパスにしか効かない（[main.py](src/main.py)）。本エンドポイントはそのパス外なので、**ルート内で 400（q 欠落・不正 limit）/404（テナント無し）/503（後述）等を明示的に `errors.imsx_error_response` で imsx 形式に整形して返す**。グローバルハンドラには依存しない。
   - **`embedding_enabled=false` 時**: 機能オフ。**503 Service Unavailable** を imsx 形式で返す（検索不可を明示）。テスト対象に含める。
   - `Cache-Control`: 既定方針（public, max-age=3600）に合わせる。
@@ -88,6 +88,7 @@ compeito には常駐ワーカー/キューが無いため、**明示的な CLI 
 - **廃止項目の扱い（B8-5）**: 既定で除外し、`includeRetired=1` のときだけ含める（含めた項目には `statusEndDate` を返し、UI 側でバッジを出せるようにする）。
   - 判定は `retirement.is_retired()` の規則（`statusEndDate <= 今日`、日付は UTC）。ツリーの `hidden_identifiers()` は使わない。あちらが「廃止済みでも生きた子孫があれば残す」のは経路を保つためで、平坦な検索結果にその理由は無い（[web-ui-keyword-search.md](./web-ui-keyword-search.md) の同名節と同じ判断）。
   - **絞り込みは近傍検索の WHERE 句に入れる**。`ORDER BY embedding <=> :q LIMIT k` の結果から後段で除くと、返る件数が k を下回り、しかも「除いたぶん次の候補が繰り上がる」ことも起きない。利用者から見ると、廃止項目が多い文書ほど検索結果が静かに痩せる。
+  - **条件は `cf_items` との結合で書く。`cf_item_embeddings` に `status_end_date` を非正規化しない。** `cf_document_id` を非正規化した理由（join 無しで絞る）から素直に延長すると同じ形にしたくなるが、こちらは壊れる。`source_hash` は埋め込み元テキストから作るので、項目を廃止しても hash は変わらず、`index build` はその行をスキップする。非正規化した `status_end_date` は古いまま残り、墓標が検索に出続ける。非正規化するなら再計算の判定に `status_end_date` を含める必要があり、結合のほうが単純である。
   - HNSW は近似検索なので、選択率の低い WHERE と組むと `ef_search` 次第で取りこぼす。**墓標は全体のごく一部**という前提（B8 の想定）では選択率は高いままなので実害は無いが、墓標が増えた文書で件数が不足する兆候が出たら `ef_search` の引き上げか反復取得を検討する。この注意は実装時に測ってから判断する。
 
 - 後続: Web UI（ツリーに検索ボックス、HTMX）／CLI `search`。今回は API のみ。
