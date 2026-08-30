@@ -24,6 +24,39 @@ from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 
 
+def self_uri_tenant_mismatch(uri: str | None, tenant_id: uuid.UUID) -> str | None:
+    """Classify a resource's own ``uri`` that points at THIS instance but not at
+    ``tenant_id``. Returns ``"slug"``, ``"other-tenant"``, or None when fine.
+
+    Import stores the source ``uri`` verbatim (FR-7.2), which is right for
+    external URIs but means a wrong one is kept forever: nothing rewrites it
+    later. The two ways to get one wrong on this instance:
+
+    - ``slug``: the tenant segment is a slug rather than the UUID. The slug is a
+      renameable UI alias — CASE responses never emit it — so the stored URI
+      stops resolving the day the slug changes.
+    - ``other-tenant``: it addresses a different tenant on this instance.
+
+    A URI on another host is a legitimate external reference and returns None.
+    So is any other path on this host: an instance often serves an ordinary web
+    site next to compeito, and a CFDocument may well point its `uri` at a page
+    there. Only the tenant-addressed shapes this app actually routes
+    (``/{tenant}/uri/{id}`` and ``/{tenant}/ims/...``) are judged.
+    """
+    if not uri:
+        return None
+    prefix = settings.base_url.rstrip("/") + "/"
+    if not uri.startswith(prefix):
+        return None  # external host: not ours to judge
+    parts = [p for p in uri[len(prefix) :].split("/") if p]
+    if len(parts) < 2 or parts[1] not in ("uri", "ims"):
+        return None  # some other page on this host, not a tenant-addressed URI
+    try:
+        return None if uuid.UUID(parts[0]) == tenant_id else "other-tenant"
+    except (ValueError, AttributeError):
+        return "slug"
+
+
 def parse_internal_tenant_id(uri: str | None) -> uuid.UUID | None:
     """If `uri` is a compeito-internal CFItem permalink on THIS instance, return
     the tenant UUID it points at; otherwise None.

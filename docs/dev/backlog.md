@@ -18,7 +18,7 @@
 | B6 | **インポート dry-run/確認ガード ＋ AI 変換ガイド** — import 系 CLI に `--dry-run`・破壊的変更の確認プロンプト・構造化 validation report（strict 出力 C3 対応(a)を兼ねる）。AI による Excel→CASE 変換の利用ガイド（docs/guide/ai-conversion.md）も含む | 設計済み（実装順未定） | [designs/import-dry-run-and-ai-guide.md](./designs/import-dry-run-and-ai-guide.md) |
 | B7 | **新版複製 CLI `doc duplicate`** — new UUIDs 採番＋ `replacedBy` 自動生成。B5 ガイドの手作業レシピの自動化 | 未着手 | — |
 | B8 | **廃止項目（墓標）の受け入れ** — 元ソースから消えた CFItem を、削除せず `statusEndDate` ＋ `replacedBy` の**状態**として受け入れる。配信では全件返し、UI と検索で既定除外する。発行済み OB v3 バッジの alignment 先を壊さないための方針。内訳は下記 | 実装中（初回公開に必要な4項目は完了） | — |
-| B9 | **自ホスト URI のテナント不一致を警告** — インポート時、保存しようとしている `uri` が自分の `BASE_URL` を指しているのに、テナントセグメントが取り込み先テナントの UUID と一致しない場合に警告する。現状は無検査。slug 入りや別テナントの URI が入ると、slug のリネームやテナント移動で保存済み URI が解決しなくなる（インポートは `uri` を verbatim 保存する仕様のため、後から直らない） | 未着手 | — |
+| B9 | **自ホスト URI のテナント不一致を警告** — インポート時、保存しようとしている `uri` が自分の `BASE_URL` を指しているのに、テナントセグメントが取り込み先テナントの UUID と一致しない場合に警告する。現状は無検査。slug 入りや別テナントの URI が入ると、slug のリネームやテナント移動で保存済み URI が解決しなくなる（インポートは `uri` を verbatim 保存する仕様のため、後から直らない） | 完了 | — |
 
 ## B8 の内訳（廃止項目の受け入れ）
 
@@ -69,9 +69,11 @@ compeito は slug を「UI 上の別名」と位置づけ、CASE API のレス�
 **警告に留める理由**: 外部の CASE サーバーから取り込んだパッケージが他ホストの URI を持つのは正常であり、拒否はできない。
 検査対象は「`uri` が自分の `BASE_URL` を指しているのに、テナントセグメントが取り込み先テナントの UUID と一致しない」場合に限る。
 
-**優先度**: 高くない。個々の投入ツール側で `--base` を検証する対処が実際に行われており（[infosign/to-case#17](https://github.com/infosign/to-case/pull/17)）、現実的に踏む経路は減っている。
-ただし投入側の検証はその投入側にしか効かないので、手書き JSON や他のエディタからの取り込みには compeito 側の検査が要る。
-B6（インポート dry-run / validation report）の検査項目として実装するのが自然。
+**実装済み（2026-08）**: B6 を待たず単独で実装した。`uri_service.self_uri_tenant_mismatch()` が `slug` / `other-tenant` を分類し、インポートのレポートに種類ごと1行で集約する。拒否はしない（FR-7.2 の verbatim 保存を維持）。
+
+判定は**このアプリがルーティングする形に限る**（`/{tenant}/uri/{id}`、`/{tenant}/ims/...`）。同一ホストで通常の Web サイトを配信している構成では、そこを指す `uri` が正当なため。
+
+**当面の対象外**: 関連の endpoint URI（`originNodeURI` / `destinationNodeURI`）。別テナントや外部フレームワークを指すのが正当で、slug 入りの URI が最も入りやすいのは改訂プロトコルで人が手書きするこのセルだが、正当な用途と区別する規則を先に決める必要がある。
 
 ## 参考: 別ファイルで管理する将来要望（要件未確定）
 
