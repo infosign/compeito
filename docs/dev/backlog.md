@@ -17,7 +17,7 @@
 | B5 | **フレームワーク改訂プロトコル運用ガイド** — 新版複製（全 UUID 新規採番）＋ `replacedBy`/`exactMatchOf` ＋ 旧版 Deprecated 化の手順書（docs/guide/framework-revision.md、実装なし）。発行済み OB v3 バッジを壊さない年度改訂サイクルを支援 | 設計済み（実装順未定） | [designs/framework-revision-guide.md](./designs/framework-revision-guide.md) |
 | B6 | **インポート dry-run/確認ガード ＋ AI 変換ガイド** — import 系 CLI に `--dry-run`・破壊的変更の確認プロンプト・構造化 validation report（strict 出力 C3 対応(a)を兼ねる）。AI による Excel→CASE 変換の利用ガイド（docs/guide/ai-conversion.md）も含む | 設計済み（実装順未定） | [designs/import-dry-run-and-ai-guide.md](./designs/import-dry-run-and-ai-guide.md) |
 | B7 | **新版複製 CLI `doc duplicate`** — new UUIDs 採番＋ `replacedBy` 自動生成。B5 ガイドの手作業レシピの自動化 | 未着手 | — |
-| B8 | **廃止項目（墓標）の受け入れ** — 元ソースから消えた CFItem を、削除せず `statusEndDate` ＋ `replacedBy` の**状態**として受け入れる。配信では全件返し、UI と検索で既定除外する。発行済み OB v3 バッジの alignment 先を壊さないための方針。内訳は下記 | 実装中（初回公開に必要な4項目は完了） | — |
+| B8 | **廃止項目（墓標）の受け入れ** — 元ソースから消えた CFItem を、削除せず `statusEndDate` ＋ `replacedBy` の**状態**として受け入れる。配信では全件返し、UI と検索で既定除外する。発行済み OB v3 バッジの alignment 先を壊さないための方針。内訳は下記 | 完了（B8-1〜B8-7 すべて） | — |
 | B9 | **自ホスト URI のテナント不一致を警告** — インポート時、保存しようとしている `uri` が自分の `BASE_URL` を指しているのに、テナントセグメントが取り込み先テナントの UUID と一致しない場合に警告する。現状は無検査。slug 入りや別テナントの URI が入ると、slug のリネームやテナント移動で保存済み URI が解決しなくなる（インポートは `uri` を verbatim 保存する仕様のため、後から直らない） | 完了 | — |
 
 ## B8 の内訳（廃止項目の受け入れ）
@@ -30,7 +30,7 @@ CASE には項目の廃止を表す削除操作が無く、compeito のインポ
 テナントが全ての版を順に取り込むとは限らないので、墓標も後継関連も、毎版すべて含まれる前提で扱う。
 ただしこの不変条件はリソースのフィールド値に限る。association は additive only のため、一度張られた `replacedBy` はパッケージ側から取り消せない。取り消しは CLI の `assoc delete` で行う（B8-7）。
 
-初回公開に必要なものは B8-1〜B8-4 で、すべて完了している。
+B8-1〜B8-7 はすべて完了している（B8-5 / B8-6 は設計への反映が成果物で、実装は B4 / B2 / B5 の実装時に行う）。
 
 優先度の高いもの:
 
