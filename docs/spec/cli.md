@@ -87,6 +87,26 @@ uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
 # Delete association 'replacedBy' in 'Framework' (origin=Old item (uuid), destination=New item (uuid))? [y/N]: y
 # Deleted association: {assoc-uuid} (replacedBy)
 
+# All four import commands take --dry-run / --yes / --report (backlog B6).
+# --dry-run:  run the import for real inside the transaction, then roll back.
+#             The numbers are measured, not estimated — the delete scope depends
+#             on which columns the header has, so a pre-estimate would be a
+#             second implementation to keep in sync.
+# --yes:      approve destructive changes without prompting (for automation).
+# --report:   write a structured JSON validation report (issue codes, counts,
+#             destructive summary). Also the operational half of conformance
+#             backlog C3: it lists the required fields the source data left empty.
+#
+# A destructive change is a NET loss, not a delete count: (a) associations
+# deleted and not re-created (an item the CSV stopped mentioning), (b) resources
+# moved in from another document. Re-ordering or re-parenting recreates the same
+# links and does not trigger the guard.
+#
+# Exit codes: 0 success (or dry-run), 1 refused / non-interactive without --yes,
+# 2 declined at the prompt.
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --dry-run --report /tmp/report.json
+uv run python cli.py import csv --tenant {uuid} --file partial.csv --yes
+
 # External CASE import (v1.1 supported; v1.0 Phase 2; upsert).
 # Exactly one of --url / --file must be given.
 # --url:  CASE API base path or a direct CFPackage URL (see import-logic.md).
@@ -308,6 +328,22 @@ uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framewo
 uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
 # 'フレームワーク' の関連 'replacedBy'（origin=旧項目 (uuid), destination=新項目 (uuid)）を削除しますか? [y/N]: y
 # 関連を削除しました: {assoc-uuid} (replacedBy)
+
+# 4つの import コマンドはいずれも --dry-run / --yes / --report を受ける（バックログ B6）。
+# --dry-run: トランザクション内で実際に取り込み、commit せずロールバックする。
+#            数値は推定ではなく実測。削除範囲はヘッダにどの列があるかで決まるため、
+#            事前推定は取り込み処理の二重実装になる。
+# --yes:     破壊的変更をプロンプト無しで承認する（自動化向け）。
+# --report:  構造化 JSON の検証レポートを書き出す（issue コード・件数・破壊的変更の要約）。
+#            適合性バックログ C3 の運用側でもある（元データで空だった required 項目の一覧）。
+#
+# 破壊的変更は削除件数ではなく**正味の損失**で判定する。(a) 削除され再作成されない関連
+# （CSV が言及しなくなった項目）、(b) 他ドキュメントから移動してきたリソース。
+# 並び替えや親の変更は同じ関連が再作成されるので、ガードには掛からない。
+#
+# 終了コード: 0 成功（dry-run 含む）、1 拒否／非対話環境で --yes 無し、2 プロンプトで拒否。
+uv run python cli.py import csv --tenant {uuid} --file framework.csv --dry-run --report /tmp/report.json
+uv run python cli.py import csv --tenant {uuid} --file partial.csv --yes
 
 # 外部CASEインポート (v1.1対応、v1.0はPhase 2、upsert)。--url / --file のどちらか一方を指定する。
 # --url:  CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）

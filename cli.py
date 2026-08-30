@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -813,6 +815,89 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
 
 
 # ---------------------------------------------------------------------------
+# import: dry-run / confirmation guard / report (backlog B6)
+# ---------------------------------------------------------------------------
+
+
+def _destructive_summary(report) -> dict:
+    """What this import would take away, measured after the fact.
+
+    Counted from the report the service actually produced, not from a guess made
+    before running: the delete scope depends on which columns the header has and
+    how many rows are valid, so any pre-estimate would be a second
+    implementation of the importer to keep in sync.
+    """
+    lost = getattr(report, "lost_associations_count", 0)
+    moved = getattr(report, "items_moved", 0) + getattr(report, "associations_moved", 0)
+    return {
+        "lostAssociations": lost,
+        "lostAssociationsSample": [
+            {"associationType": a, "origin": o, "destination": d}
+            for a, o, d in getattr(report, "lost_associations_sample", [])
+        ],
+        "moved": moved,
+        "total": lost + moved,
+    }
+
+
+async def _finalize_import(session, report, *, dry_run: bool, yes: bool, report_path: str | None) -> None:
+    """Write the report, then commit / roll back.
+
+    The guard runs here, at the commit gate, inside the same transaction: the
+    service has already done the work, so the numbers are real, and refusing
+    still costs nothing because nothing is committed yet.
+    """
+    from src.services.import_issues import build_report_json
+
+    destructive = _destructive_summary(report)
+
+    if report_path:
+        payload = build_report_json(report, dry_run=dry_run, destructive=destructive)
+        Path(report_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        console.print(t("msg_report_written", path=report_path))
+
+    if dry_run:
+        await session.rollback()
+        console.print(f"[yellow]{t('msg_dry_run_rolled_back')}[/yellow]")
+        return
+
+    if destructive["total"] > 0:
+        _print_destructive(destructive)
+        if not yes:
+            if not sys.stdin.isatty():
+                # Neither hang waiting for input nor proceed silently.
+                await session.rollback()
+                err_console.print(f"[red]{t('err_confirm_noninteractive')}[/red]")
+                raise SystemExit(1)
+            answer = click.prompt(
+                t(
+                    "prompt_destructive_import",
+                    lost=str(destructive["lostAssociations"]),
+                    moved=str(destructive["moved"]),
+                ),
+                default="N",
+                show_default=False,
+            )
+            if answer.lower() not in ("y", "yes"):
+                await session.rollback()
+                console.print(t("msg_cancelled"))
+                raise SystemExit(2)
+
+    await session.commit()
+
+
+def _print_destructive(destructive: dict) -> None:
+    message = t(
+        "msg_destructive_detected",
+        lost=str(destructive["lostAssociations"]),
+        moved=str(destructive["moved"]),
+    )
+    console.print(f"[yellow]{message}[/yellow]")
+    for link in destructive["lostAssociationsSample"]:
+        console.print(f"  [yellow]- {link['associationType']}: {link['origin']} -> {link['destination']}[/yellow]")
+
+
+# ---------------------------------------------------------------------------
 # import csv
 # ---------------------------------------------------------------------------
 
@@ -829,6 +914,15 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
     default="auto",
     help=t("help_import_profile"),
 )
+@click.option("--dry-run", "dry_run", is_flag=True, default=False, help=t("help_dry_run"))
+@click.option("--yes", "yes", is_flag=True, default=False, help=t("help_yes"))
+@click.option(
+    "--report",
+    "report_path",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help=t("help_report_path"),
+)
 def import_csv_cmd(
     tenant_id: str,
     file_path: str,
@@ -836,6 +930,9 @@ def import_csv_cmd(
     doc_title: str | None,
     doc_version: str | None,
     profile: str,
+    dry_run: bool,
+    yes: bool,
+    report_path: str | None,
 ):
     """Import items from a CSV file."""
     _check_db()
@@ -902,7 +999,7 @@ def import_csv_cmd(
                 except ValueError as e:
                     err_console.print(f"[red]{e}[/red]")
                     raise SystemExit(1) from e
-                await session.commit()
+                await _finalize_import(session, report, dry_run=dry_run, yes=yes, report_path=report_path)
 
             console.print(
                 t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),
@@ -940,7 +1037,18 @@ def import_csv_cmd(
     help=t("help_xlsx_file"),
 )
 @click.option("--doc", "doc_id", default=None, help=t("help_doc_uuid_update"))
-def import_xlsx_cmd(tenant_id: str, file_path: str, doc_id: str | None):
+@click.option("--dry-run", "dry_run", is_flag=True, default=False, help=t("help_dry_run"))
+@click.option("--yes", "yes", is_flag=True, default=False, help=t("help_yes"))
+@click.option(
+    "--report",
+    "report_path",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help=t("help_report_path"),
+)
+def import_xlsx_cmd(
+    tenant_id: str, file_path: str, doc_id: str | None, dry_run: bool, yes: bool, report_path: str | None
+):
     """Import an OpenSALT-format Excel (.xlsx) workbook."""
     _check_db()
     tid = _parse_uuid(tenant_id)
@@ -978,7 +1086,7 @@ def import_xlsx_cmd(tenant_id: str, file_path: str, doc_id: str | None):
                 except ValueError as e:
                     err_console.print(f"[red]{e}[/red]")
                     raise SystemExit(1) from e
-                await session.commit()
+                await _finalize_import(session, report, dry_run=dry_run, yes=yes, report_path=report_path)
 
             console.print(
                 t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),
@@ -1023,12 +1131,24 @@ def import_xlsx_cmd(tenant_id: str, file_path: str, doc_id: str | None):
     default=False,
     help=t("help_allow_status_clear"),
 )
+@click.option("--dry-run", "dry_run", is_flag=True, default=False, help=t("help_dry_run"))
+@click.option("--yes", "yes", is_flag=True, default=False, help=t("help_yes"))
+@click.option(
+    "--report",
+    "report_path",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help=t("help_report_path"),
+)
 def import_case(
     tenant_id: str,
     url: str | None,
     file_path: str | None,
     doc_id: str | None,
     allow_status_clear: bool,
+    dry_run: bool,
+    yes: bool,
+    report_path: str | None,
 ):
     """Import a CASE CFPackage from a URL (--url) or a local JSON file (--file).
 
@@ -1045,8 +1165,6 @@ def import_case(
 
     data = None
     if file_path:
-        import json
-
         try:
             with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
@@ -1099,7 +1217,7 @@ def import_case(
                         doc_identifier=did,
                         allow_status_clear=allow_status_clear,
                     )
-                await session.commit()
+                await _finalize_import(session, report, dry_run=dry_run, yes=yes, report_path=report_path)
 
             console.print(
                 t("msg_imported", title=report.document_title, id=str(report.document_identifier)),
@@ -1283,7 +1401,18 @@ def export_xlsx_cmd(tenant_id: str, doc_id: str, file_path: str):
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--doc", "doc_id", required=True, help=t("help_doc_uuid"))
 @click.option("--file", "file_path", required=True, type=click.Path(exists=True), help=t("help_csv_file"))
-def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
+@click.option("--dry-run", "dry_run", is_flag=True, default=False, help=t("help_dry_run"))
+@click.option("--yes", "yes", is_flag=True, default=False, help=t("help_yes"))
+@click.option(
+    "--report",
+    "report_path",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help=t("help_report_path"),
+)
+def import_csv_rubric_cmd(
+    tenant_id: str, doc_id: str, file_path: str, dry_run: bool, yes: bool, report_path: str | None
+):
     """Import rubrics from a CSV file."""
     _check_db()
     tid = _parse_uuid(tenant_id)
@@ -1317,7 +1446,7 @@ def import_csv_rubric_cmd(tenant_id: str, doc_id: str, file_path: str):
 
             with console.status(t("msg_importing_rubric_csv")):
                 report = await import_rubric_csv(session, tid, did, csv_data)
-                await session.commit()
+                await _finalize_import(session, report, dry_run=dry_run, yes=yes, report_path=report_path)
 
             console.print(
                 t("msg_imported_into", title=report.document_title, id=str(report.document_identifier)),

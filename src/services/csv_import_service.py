@@ -22,14 +22,43 @@ from src.models.cf_item import CFItem
 from src.models.cf_item_type import CFItemType
 from src.models.cf_license import CFLicense
 from src.models.cf_subject import CFSubject
+from src.services.import_issues import ITEM_MOVED, LOST_ASSOCIATIONS, IssueCollector, ValidationIssue
 
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
 
+_LOST_LINK_SAMPLE = 20
+
+
+def _record_lost_links(
+    report: ImportReport,
+    deleted: set[tuple[str, str, str]],
+    created: set[tuple[str, str, str]],
+) -> None:
+    """Net association loss for this import (B6).
+
+    A document-level rebuild deletes every association of the present types and
+    re-creates them, so the delete count says nothing. What matters is the triple
+    that did not come back: that is an item the CSV stopped mentioning, and its
+    link is gone for good.
+    """
+    lost = sorted(deleted - created)
+    if not lost:
+        return
+    report.lost_associations_count = len(lost)
+    report.lost_associations_sample = lost[:_LOST_LINK_SAMPLE]
+    report.warn(
+        f"{len(lost)} existing association(s) were deleted and not re-created "
+        f"(items omitted from this import lose their links)",
+        code=LOST_ASSOCIATIONS,
+        count=len(lost),
+    )
+
+
 @dataclass
-class ImportReport:
+class ImportReport(IssueCollector):
     document_title: str = ""
     document_identifier: str = ""
     items_created: int = 0
@@ -44,7 +73,15 @@ class ImportReport:
     licenses_existing: int = 0
     subjects_created: int = 0
     subjects_existing: int = 0
+    # B6: destructive-change counters. `lost_associations_count` is a NET loss —
+    # the document-level rebuild deletes and re-creates on every update, so a
+    # raw delete count would fire the guard every time and train people to
+    # ignore it.
+    items_moved: int = 0
+    lost_associations_count: int = 0
+    lost_associations_sample: list[tuple[str, str, str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
 
 @dataclass
@@ -950,10 +987,15 @@ async def _upsert_item(
         if existing.cf_document_id != doc.id:
             old_doc = await session.get(CFDocument, existing.cf_document_id)
             old_doc_ident = str(old_doc.identifier) if old_doc else "unknown"
-            report.warnings.append(
+            report.warn(
                 f"Row {pr.row_number}: Item '{existing.identifier}' moved from "
-                f"document '{old_doc_ident}' to current document"
+                f"document '{old_doc_ident}' to current document",
+                code=ITEM_MOVED,
+                identifier=str(existing.identifier),
+                from_document=old_doc_ident,
+                row=pr.row_number,
             )
+            report.items_moved += 1
             existing.cf_document_id = doc.id
 
         # Update fields only if present in CSV
@@ -1700,6 +1742,10 @@ async def import_csv(
         # Update parent_identifier references with actual identifiers
         # (identifiers were auto-generated in _upsert_item)
 
+    # B6: destructive-change tracking spans Step 7 and Step 7.5.
+    deleted_link_keys: set[tuple[str, str, str]] = set()
+    created_link_keys: set[tuple[str, str, str]] = set()
+
     # Step 7: isChildOf Association generation
     # Delete existing isChildOf if updating — but ONLY when the CSV actually
     # contains items to (re)build the tree from. A metadata-only CSV (no data
@@ -1717,6 +1763,14 @@ async def import_csv(
         )
         existing_assocs = list(result.scalars().all())
         existing_count = len(existing_assocs)
+
+        # B6: keep the identity of what is being deleted so the net loss can be
+        # computed after the rebuild. Re-ordering or re-parenting recreates the
+        # same (type, origin, destination) triple and is not a loss; omitting an
+        # item from the CSV does not, and that is the case worth stopping for.
+        deleted_link_keys |= {
+            (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in existing_assocs
+        }
 
         for assoc in existing_assocs:
             await session.delete(assoc)
@@ -1738,6 +1792,9 @@ async def import_csv(
     )
     for assoc in new_assocs:
         session.add(assoc)
+    created_link_keys |= {
+        (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in new_assocs
+    }
     await session.flush()
     report.associations_created = len(new_assocs)
 
@@ -1756,6 +1813,9 @@ async def import_csv(
                 )
             )
             existing_nc = list(result.scalars().all())
+            deleted_link_keys |= {
+                (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in existing_nc
+            }
             for assoc in existing_nc:
                 await session.delete(assoc)
             await session.flush()
@@ -1772,6 +1832,9 @@ async def import_csv(
         )
         for assoc in new_nc_assocs:
             session.add(assoc)
+        created_link_keys |= {
+            (a.association_type, a.origin_node_identifier, a.destination_node_identifier) for a in new_nc_assocs
+        }
         await session.flush()
         report.associations_created += len(new_nc_assocs)
 
@@ -1791,5 +1854,7 @@ async def import_csv(
 
     _calculate_depths(doc, all_doc_items, all_doc_assocs, report.warnings)
     await session.flush()
+
+    _record_lost_links(report, deleted_link_keys, created_link_keys)
 
     return report
