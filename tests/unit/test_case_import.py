@@ -2333,11 +2333,11 @@ class TestSelfUriTenantMismatch:
     the import has to say so (docs/dev/backlog.md B9)."""
 
     @staticmethod
-    def _package(doc_id: uuid.UUID, item_id: uuid.UUID, item_uri: str) -> dict:
+    def _package(doc_id: uuid.UUID, item_id: uuid.UUID, item_uri: str, doc_uri: str | None = None) -> dict:
         return {
             "CFDocument": {
                 "identifier": str(doc_id),
-                "uri": f"https://example.com/uri/{doc_id}",
+                "uri": doc_uri or f"https://example.com/uri/{doc_id}",
                 "title": "Doc",
                 "creator": "Test",
                 "lastChangeDateTime": "2025-01-01T00:00:00Z",
@@ -2396,6 +2396,87 @@ class TestSelfUriTenantMismatch:
         matching = [w for w in report.warnings if "different tenant" in w]
         assert len(matching) == 1
         assert "4 URI(s)" in matching[0]
+
+    async def test_every_resource_kind_is_counted(self, db_session: AsyncSession, tenant: Tenant):
+        """`_resolve_uri` is called from 15 places. Covering only CFItem would let
+        a missing `report` argument anywhere else slip through."""
+        wrong = uuid.uuid4()
+
+        def bad(kind: str) -> str:
+            return f"{settings.base_url}/{wrong}/uri/{uuid.uuid4()}"
+
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        pkg = self._package(doc_id, item_id, bad("item"), doc_uri=bad("doc"))
+        pkg["CFAssociations"] = [
+            {
+                "identifier": str(uuid.uuid4()),
+                "uri": bad("assoc"),
+                "associationType": "isChildOf",
+                "originNodeURI": {"identifier": str(item_id), "uri": f"https://example.com/uri/{item_id}"},
+                "destinationNodeURI": {"identifier": str(doc_id), "uri": f"https://example.com/uri/{doc_id}"},
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            }
+        ]
+        pkg["CFDefinitions"] = {
+            "CFItemTypes": [
+                {
+                    "identifier": str(uuid.uuid4()),
+                    "uri": bad("itemtype"),
+                    "title": "Type",
+                    "lastChangeDateTime": "2025-01-01T00:00:00Z",
+                }
+            ]
+        }
+        pkg["CFRubrics"] = [
+            {
+                "identifier": str(uuid.uuid4()),
+                "uri": bad("rubric"),
+                "title": "Rubric",
+                "lastChangeDateTime": "2025-01-01T00:00:00Z",
+            }
+        ]
+
+        report = await import_case_from_dict(db_session, tenant.id, pkg)
+        await db_session.flush()
+
+        # document + item + association + item type + rubric
+        assert report.uri_tenant_mismatches.get("other-tenant") == 5
+
+    async def test_doubled_slash_uri_is_not_a_false_positive(self, db_session: AsyncSession, tenant: Tenant):
+        """A BASE_URL ending in "/" used to produce `host//{tenant}/uri/{id}`.
+
+        Read back, the empty first segment failed to parse as a UUID and the URI
+        was reported as slug-addressed — i.e. re-importing our own export warned
+        about every resource in it.
+        """
+        doc_id, item_id = uuid.uuid4(), uuid.uuid4()
+        doubled = f"{settings.base_url.rstrip('/')}//{tenant.id}/uri/{item_id}"
+        report = await import_case_from_dict(db_session, tenant.id, self._package(doc_id, item_id, doubled))
+        await db_session.flush()
+
+        assert report.uri_tenant_mismatches == {}
+
+        # …and the empty segment must be skipped, not merely make the URI
+        # unrecognisable: with the wrong tenant, the same shape still warns.
+        wrong = f"{settings.base_url.rstrip('/')}//{uuid.uuid4()}/uri/{uuid.uuid4()}"
+        report = await import_case_from_dict(db_session, tenant.id, self._package(uuid.uuid4(), uuid.uuid4(), wrong))
+        await db_session.flush()
+        assert report.uri_tenant_mismatches.get("other-tenant") == 1
+
+    async def test_build_uri_never_doubles_the_slash(self, monkeypatch):
+        """The other half of the same bug: do not emit such a URI in the first place."""
+        from src.config import settings as live_settings
+        from src.services.case_import_service import _build_uri
+
+        monkeypatch.setattr(live_settings, "base_url", live_settings.base_url.rstrip("/") + "/")
+        built = _build_uri(uuid.uuid4(), uuid.uuid4())
+        assert "//" not in built.split("://", 1)[1]
+
+    async def test_other_page_on_this_host_is_not_flagged(self, db_session: AsyncSession, tenant: Tenant):
+        """An instance often serves an ordinary site next to compeito, and a
+        document may point at a page there."""
+        report = await self._import(db_session, tenant, f"{settings.base_url}/curriculum/2025.pdf")
+        assert report.uri_tenant_mismatches == {}
 
     async def test_the_uri_is_still_stored_verbatim(self, db_session: AsyncSession, tenant: Tenant):
         """Warning, not rejection: import stays lenient (FR-7.2)."""

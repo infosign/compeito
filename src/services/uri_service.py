@@ -38,15 +38,21 @@ def self_uri_tenant_mismatch(uri: str | None, tenant_id: uuid.UUID) -> str | Non
     - ``other-tenant``: it addresses a different tenant on this instance.
 
     A URI on another host is a legitimate external reference and returns None.
+    So is any other path on this host: an instance often serves an ordinary web
+    site next to compeito, and a CFDocument may well point its `uri` at a page
+    there. Only the tenant-addressed shapes this app actually routes
+    (``/{tenant}/uri/{id}`` and ``/{tenant}/ims/...``) are judged.
     """
     if not uri:
         return None
     prefix = settings.base_url.rstrip("/") + "/"
     if not uri.startswith(prefix):
         return None  # external host: not ours to judge
-    segment = uri[len(prefix) :].split("/", 1)[0]
+    parts = [p for p in uri[len(prefix) :].split("/") if p]
+    if len(parts) < 2 or parts[1] not in ("uri", "ims"):
+        return None  # some other page on this host, not a tenant-addressed URI
     try:
-        return None if uuid.UUID(segment) == tenant_id else "other-tenant"
+        return None if uuid.UUID(parts[0]) == tenant_id else "other-tenant"
     except (ValueError, AttributeError):
         return "slug"
 

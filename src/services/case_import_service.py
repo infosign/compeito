@@ -36,7 +36,10 @@ from src.services.csv_import_service import _calculate_depths
 
 
 def _build_uri(tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
-    return f"{settings.base_url}/{tenant_id}/uri/{identifier}"
+    # rstrip: a BASE_URL ending in "/" would otherwise produce a doubled slash,
+    # which makes our own URI unparseable (empty tenant segment) to anything that
+    # reads it back — including self_uri_tenant_mismatch.
+    return f"{settings.base_url.rstrip('/')}/{tenant_id}/uri/{identifier}"
 
 
 def _extract_link_uri_source(link_uri) -> str | None:
@@ -52,9 +55,7 @@ def _extract_link_uri_source(link_uri) -> str | None:
     return None
 
 
-def _resolve_uri(
-    source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID, report: CaseImportReport | None = None
-) -> str:
+def _resolve_uri(source: dict, tenant_id: uuid.UUID, identifier: uuid.UUID, report: CaseImportReport) -> str:
     """Return the source CFPackage's `uri` if present, else build a compeito-native URI.
 
     Per FR-7.2, CFPackage import must preserve external URIs and identifiers
@@ -69,14 +70,13 @@ def _resolve_uri(
     """
     src_uri = source.get("uri")
     if isinstance(src_uri, str) and src_uri.strip():
-        if report is not None:
-            # B9: a URI of ours addressed to the wrong tenant is stored verbatim
-            # like any other, and nothing rewrites it later. Count it rather than
-            # rejecting it — the import stays lenient — but do not let it pass
-            # unremarked either.
-            kind = uri_service.self_uri_tenant_mismatch(src_uri, tenant_id)
-            if kind is not None:
-                report.uri_tenant_mismatches[kind] = report.uri_tenant_mismatches.get(kind, 0) + 1
+        # B9: a URI of ours addressed to the wrong tenant is stored verbatim like
+        # any other, and nothing rewrites it later. Count it rather than rejecting
+        # it — the import stays lenient — but do not let it pass unremarked.
+        # `report` is required so a new call site cannot silently skip the check.
+        kind = uri_service.self_uri_tenant_mismatch(src_uri, tenant_id)
+        if kind is not None:
+            report.uri_tenant_mismatches[kind] = report.uri_tenant_mismatches.get(kind, 0) + 1
         return src_uri
     return _build_uri(tenant_id, identifier)
 
