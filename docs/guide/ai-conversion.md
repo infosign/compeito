@@ -56,6 +56,8 @@ identifier がどこにも要りません。
 タブは2スペース換算。
 インデント幅は一貫していれば2つでなくても正しい木になります（4つでも可。ただし深さが飛んだという警告は出ます）。
 崩れるのは幅が不揃いなときです。
+**この警告は幅の飛びを知らせるだけで、木が正しいかは見ていません。**
+幅が不揃いで入れ子が逆転しても、警告は出ません。
 
 **全角スペース（U+3000）は数えられません。**
 インデントに混じると、その行は警告も出ないままルート扱いになります。
@@ -174,8 +176,11 @@ AI がメタデータ行を書き直してこの行を落とすと、取り込�
 **エクスポート起点の更新**では、次に差し替えます。
 
 ```
-- Identifier 列の既存の値は書き換えない。空にもしない。parentIdentifier も同様。
-  UUID を作ったり、どこかからコピーしたりしない
+- 既存の行の Identifier と parentIdentifier は、値をそのまま残す。書き換えない。
+  空にもしない
+- 行を足すときは、その行の Identifier だけ空にする（compeito が採番する）。
+  親にしたい既存項目の UUID を parentIdentifier に書く。
+  足した行をさらに別の行の親にしたいときだけ、新しい UUID v4 を1つ生成して入れる
 ```
 
 ここを既定のまま（`Identifier` 列を空にする）渡すと事故ります。
@@ -292,7 +297,7 @@ This section covers the parts you would copy into a prompt, plus the checks that
 ## Which format
 
 - **New framework with a hierarchy → simple format.** Indentation alone expresses the tree, so no identifier is needed anywhere. Two spaces per level (any consistent width works); a full-width space (U+3000) is not counted as indentation and silently flattens the row to the root. `#title` is required. Import it, then `export csv` to get a custom CSV with UUIDs filled in, and work from that export afterwards.
-- **New framework in custom CSV.** `parentIdentifier` accepts a UUID only, and it can only point at a UUID written in another row's `Identifier` column. Leaving every `Identifier` empty therefore produces a **flat document** — the import succeeds, the counts match, and nothing warns. If you need custom CSV for a hierarchy, have the model generate a fresh UUID v4 per row and use `destructive.itemsMoved` as the collision check.
+- **New framework in custom CSV.** `parentIdentifier` accepts a UUID only, and it can only point at a UUID written in another row's `Identifier` column. Leaving every `Identifier` empty therefore produces a **flat document** — the import succeeds and the counts match. The only hint is `Parent '...' not found, treated as root`, which appears if the model blanks `Identifier` but leaves a UUID in `parentIdentifier`; blank both and nothing warns at all. If you need custom CSV for a hierarchy, have the model generate a fresh UUID v4 per row and use `destructive.itemsMoved` as the collision check.
 - **Updating an existing framework → export first, edit the export, import the whole thing back with `--doc`.** An update import treats the file as the complete tree of that document. Rows you leave out lose their associations.
 - **CASE JSON** requires an identifier on every item; items without one, or with a malformed one, are skipped. Have the model generate fresh UUID v4 values.
 
@@ -333,8 +338,11 @@ For a **new hierarchical** framework in custom CSV, replace the first rule with:
 When **editing an export to update an existing** framework, replace it with:
 
 ```
-- Keep every existing value in the Identifier column exactly as it is. Never
-  blank it out. Same for parentIdentifier. Never invent or copy UUIDs.
+- On existing rows, keep the Identifier and parentIdentifier values exactly as
+  they are. Never rewrite them, never blank them out.
+- To add a row, leave only that row's Identifier empty (compeito assigns one)
+  and put the parent item's existing UUID in parentIdentifier. Generate a fresh
+  UUID v4 only if the added row must itself be the parent of another row.
 ```
 
 Leaving the default rule in place on this route is destructive: items without a
