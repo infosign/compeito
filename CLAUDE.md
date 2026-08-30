@@ -28,6 +28,7 @@ CASE v1.1 公式仕様との照合が必要な場合は `docs/reference/` 配下
 | docs/spec/cli.md                                 | CLIコマンド仕様                                   |
 | docs/guide/initial-setup.md                      | 初期データセットアップガイド（テナント作成〜ルーブリック取り込みまで）         |
 | docs/guide/opencase-interop.md                   | OpenCASE 相互運用ガイド（公開/プライベートの配置パターンと運用フロー）         |
+| docs/guide/ai-conversion.md                      | 生成 AI で Excel をフレームワークに変換するガイド（プロンプト例・失敗パターン・dry-run での検証） |
 | docs/dev/conventions.md                          | コミット・PR・リリースノートの書き方規約                       |
 | docs/dev/local-setup.md                          | ローカル開発セットアップ（ハイブリッド/全 Docker 両構成）             |
 | docs/dev/backlog.md                              | **機能/相互運用バックログ**（未完了項目の索引。「バックログ」はまずここ）   |
