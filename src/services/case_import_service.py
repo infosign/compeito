@@ -33,6 +33,14 @@ from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
 from src.models.cf_subject import CFSubject
 from src.services import uri_service
 from src.services.csv_import_service import _calculate_depths
+from src.services.import_issues import (
+    ASSOCIATION_MOVED,
+    ITEM_MOVED,
+    REQUIRED_FIELD_MISSING,
+    URI_TENANT_MISMATCH,
+    IssueCollector,
+    ValidationIssue,
+)
 
 
 def _build_uri(tenant_id: uuid.UUID, identifier: uuid.UUID) -> str:
@@ -90,20 +98,26 @@ def _summarize_uri_tenant_mismatches(report: CaseImportReport) -> None:
     """
     counts = report.uri_tenant_mismatches
     if counts.get("slug"):
-        report.warnings.append(
+        report.warn(
             f"{counts['slug']} URI(s) address this instance by tenant slug instead of the tenant UUID. "
             "Slugs are renameable UI aliases, so those URIs stop resolving when the slug changes; "
-            "re-import with UUID-based URIs to fix them."
+            "re-import with UUID-based URIs to fix them.",
+            code=URI_TENANT_MISMATCH,
+            kind="slug",
+            count=counts["slug"],
         )
     if counts.get("other-tenant"):
-        report.warnings.append(
+        report.warn(
             f"{counts['other-tenant']} URI(s) address a different tenant on this instance. "
-            "They are stored verbatim as sent (FR-7.2) and will keep pointing elsewhere."
+            "They are stored verbatim as sent (FR-7.2) and will keep pointing elsewhere.",
+            code=URI_TENANT_MISMATCH,
+            kind="other-tenant",
+            count=counts["other-tenant"],
         )
 
 
 @dataclass
-class CaseImportReport:
+class CaseImportReport(IssueCollector):
     document_title: str = ""
     document_identifier: str = ""
     items_created: int = 0
@@ -139,7 +153,13 @@ class CaseImportReport:
     # tenant, by kind ("slug" / "other-tenant"). Summarized into warnings at the
     # end of the import.
     uri_tenant_mismatches: dict[str, int] = field(default_factory=dict)
+    # B6: CASE import never deletes, but tenant-wide identifier matching can
+    # reattach a resource from another document — that breaks the source
+    # document's tree, so it counts as destructive.
+    items_moved: int = 0
+    associations_moved: int = 0
     warnings: list[str] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1007,7 +1027,13 @@ def _create_document(
     if _is_blank_creator(creator):
         # CASE v1.1 OpenAPI defines creator as required, but our DB allows null
         # to accommodate sources that omit it. Surface the gap as a warning.
-        warnings.append(f"CFDocument '{ident}': creator is missing (CASE v1.1 requires it); stored as null")
+        report.warn(
+            f"CFDocument '{ident}': creator is missing (CASE v1.1 requires it); stored as null",
+            code=REQUIRED_FIELD_MISSING,
+            resource_type="CFDocument",
+            identifier=str(ident),
+            field="creator",
+        )
         creator = None
 
     lang = _validate_language(data.get("language"), "CFDocument", warnings)
@@ -1081,9 +1107,16 @@ def _update_document(
             # Per import-logic.md, missing/null fields keep the existing value on update.
             # A blank string is a likely source-data issue, so warn but still retain existing value.
             if raw_creator is not None:
-                warnings.append(
+                # Coded like the create path: re-importing an existing document
+                # is the main CASE route, so C3 has to be machine-readable here
+                # too or the producer never learns what to fix.
+                report.warn(
                     f"CFDocument '{doc.identifier}': creator is missing "
-                    "(CASE v1.1 requires it); existing value retained"
+                    "(CASE v1.1 requires it); existing value retained",
+                    code=REQUIRED_FIELD_MISSING,
+                    resource_type="CFDocument",
+                    identifier=str(doc.identifier),
+                    field="creator",
                 )
         else:
             doc.creator = raw_creator
@@ -1314,7 +1347,13 @@ async def _import_items(
             if existing.cf_document_id != doc.id:
                 old_doc = await session.get(CFDocument, existing.cf_document_id)
                 old_ident = str(old_doc.identifier) if old_doc else "unknown"
-                report.warnings.append(f"Item '{ident_str}' moved from document '{old_ident}' to current document")
+                report.warn(
+                    f"Item '{ident_str}' moved from document '{old_ident}' to current document",
+                    code=ITEM_MOVED,
+                    identifier=str(ident_str),
+                    from_document=old_ident,
+                )
+                report.items_moved += 1
             existing.cf_document_id = doc.id
             existing.uri = _resolve_uri(item_data, tenant_id, ident_uuid, report)
             if fs:
@@ -1471,9 +1510,13 @@ async def _import_associations(
             if existing.cf_document_id != doc.id:
                 old_doc = await session.get(CFDocument, existing.cf_document_id)
                 old_ident = str(old_doc.identifier) if old_doc else "unknown"
-                report.warnings.append(
-                    f"CFAssociation '{ident_str}' moved from document '{old_ident}' to current document"
+                report.warn(
+                    f"CFAssociation '{ident_str}' moved from document '{old_ident}' to current document",
+                    code=ASSOCIATION_MOVED,
+                    identifier=str(ident_str),
+                    from_document=old_ident,
                 )
+                report.associations_moved += 1
             existing.cf_document_id = doc.id
             existing.uri = _resolve_uri(assoc_data, tenant_id, ident_uuid, report)
             if assoc_data.get("associationType") is not None:

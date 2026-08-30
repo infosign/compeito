@@ -20,10 +20,11 @@ from src.models.cf_item import CFItem
 from src.models.cf_rubric import CFRubric
 from src.models.cf_rubric_criterion import CFRubricCriterion
 from src.models.cf_rubric_criterion_level import CFRubricCriterionLevel
+from src.services.import_issues import IssueCollector, ValidationIssue
 
 
 @dataclass
-class RubricImportReport:
+class RubricImportReport(IssueCollector):
     document_title: str = ""
     document_identifier: str = ""
     rubrics_created: int = 0
@@ -36,6 +37,7 @@ class RubricImportReport:
     levels_updated: int = 0
     levels_skipped: int = 0
     warnings: list[str] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
 
 def _is_valid_uuid(s: str) -> bool:

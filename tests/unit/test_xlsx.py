@@ -488,3 +488,42 @@ class TestXlsxImportErrors:
         wb.save(buf)
         with pytest.raises(ValueError, match="CF Item"):
             await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+
+
+class TestXlsxDestructiveGuard:
+    """An untouched xlsx round trip must not look destructive (B6).
+
+    The generated custom CSV carries every association column, so Step 7.5
+    deletes all of them and the CSV stage re-creates none; the second pass
+    rebuilds them from the CF Association sheet afterwards. Counting the loss
+    before that pass reported every association as lost — exactly the "fires on
+    every import" failure the guard was designed to avoid.
+    """
+
+    async def test_round_trip_reports_no_loss(self, db_session: AsyncSession):
+        src_doc = await _seed_source(db_session)
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+
+        report = await import_xlsx(db_session, TENANT_ID, data)
+        await db_session.flush()
+
+        assert report.lost_associations_count == 0, report.lost_associations_sample
+        assert not any("deleted and not re-created" in w for w in report.warnings)
+
+    async def test_a_real_loss_is_still_reported(self, db_session: AsyncSession):
+        """The counter still works on this path; it is not simply disabled."""
+        src_doc = await _seed_source(db_session)
+        data = await export_xlsx(db_session, TENANT_ID, src_doc)
+
+        # Drop the CF Association sheet's only data row: that link is now gone
+        # from both passes, so it is a genuine loss.
+        wb = load_workbook(io.BytesIO(data))
+        wb["CF Association"].delete_rows(2)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        report = await import_xlsx(db_session, TENANT_ID, buf.getvalue())
+        await db_session.flush()
+
+        assert report.lost_associations_count == 1
+        assert report.lost_associations_sample[0][0] == "isRelatedTo"

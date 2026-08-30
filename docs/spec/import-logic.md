@@ -471,6 +471,23 @@ For CASE v1.0 CFPackage responses, normalize to v1.1 form after fetch and before
 **Output:**
 - When v1.0 is detected, emit a warning ("Detected CASE v1.0 response, normalizing to v1.1 format").
 
+## Dry run and the destructive-change guard (B6)
+
+All four import commands accept `--dry-run`, `--yes` and `--report <path>`.
+
+**`--dry-run` runs the real import and rolls it back.** The services only `flush()`; the CLI owns the transaction, so skipping the commit is enough. Nothing is estimated ahead of time: the delete scope depends on which columns the header carries and how many rows are valid, and a pre-estimate would be a second implementation of the importer to keep in sync with the first.
+
+**The guard fires at the commit gate**, after the service has run, inside the same transaction. The numbers are therefore measured, and refusing still costs nothing because nothing has been committed.
+
+A **destructive change** is a net loss, not a delete count:
+
+- **lost associations** — deleted and not re-created, compared as `(associationType, origin, destination)`. The document-level rebuild deletes every association of the present types on each update and re-creates what the file still mentions, so a raw delete count would fire on every import and train the operator to ignore it. Re-ordering recreates the same triple and does not fire; `sequenceNumber` is not part of the key. **Re-parenting does fire** — the link to the old parent genuinely disappears — which is deliberate over-detection on the safe side. Omitting an item fires too, and that is the case worth stopping for.
+- **moved resources** — a CFItem or CFAssociation reattached from another document, which breaks the source document's tree. Identifier matching is tenant-wide, so this happens when an identifier is copied or invented.
+
+Threshold is 1. In a non-interactive process (`stdin` is not a tty) without `--yes`, the import rolls back and exits 1 rather than hanging on a prompt or proceeding silently.
+
+**`--report <path>`** writes the run as JSON: `counts`, `destructive`, and `issues` (each with a `code` where one applies — `required_field_missing`, `lost_associations`, `item_moved`, …). Unclassified warnings are included too, so the file is never a lossy view of the run. The required-field entries are the operational half of [conformance backlog](../dev/case-v1p1-conformance-backlog.md) C3: compeito does not fabricate values on output, so the gap is closed by fixing the source data, and this is how the producer learns what to fix.
+
 ## Rubric CSV import flow
 
 ```
@@ -1071,6 +1088,23 @@ CASE v1.0 の CFPackage レスポンスをフェッチ後、バリデーショ�
 
 **出力:**
 - v1.0 検出時に警告「Detected CASE v1.0 response, normalizing to v1.1 format」を出力
+
+## dry-run と確認ガード（B6）
+
+4つの import コマンドはいずれも `--dry-run` / `--yes` / `--report <path>` を受け付ける。
+
+**`--dry-run` は実際に取り込んでからロールバックする。** サービス層は `flush()` しかせず、トランザクションは CLI が持っているので、commit を飛ばすだけで成立する。事前の推定はしない。削除範囲はヘッダにどの列があるか、何行が有効かで決まるため、事前推定は取り込み処理の二重実装になり、本体と同期を取り続ける必要が生じる。
+
+**ガードは commit ゲートで発火する。** サービスの実行後、同一トランザクション内で判定するので、数値は実測であり、拒否してもまだ何も commit していないためコストが無い。
+
+**破壊的変更**は削除件数ではなく正味の損失である。
+
+- **失われる関連** — 削除され再作成されないもの。`(associationType, origin, destination)` の組で比較する。ドキュメント単位の再構築は更新のたびに該当タイプの関連を全削除して再作成するので、削除件数そのもので判定すると毎回発火し、運用者はプロンプトを読まなくなる。並び替えは同じ組を再作成するので発火しない（`sequenceNumber` は比較キーに含めない）。**親の変更は発火する。** 旧親との関連は実際に消えるためで、安全側に倒した意図的な過剰検知である。項目を省いた場合も発火し、止める価値があるのはこちらである
+- **移動したリソース** — CFItem や CFAssociation が他ドキュメントから付け替えられたもの。移動元ドキュメントの木が壊れる。identifier の照合はテナント全体で行うため、identifier をコピーしたり捏造したりすると起きる
+
+閾値は 1。非対話環境（`stdin` が tty でない）で `--yes` が無い場合は、プロンプトを出さずにロールバックして exit 1 とする。ハングも、黙って先に進むことも防ぐ。
+
+**`--report <path>`** は実行結果を JSON で書き出す。`counts`、`destructive`、`issues`（該当するものには `code` が付く。`required_field_missing` / `lost_associations` / `item_moved` 等）。分類されなかった警告も含めるので、ファイルが実行結果の欠落した写しになることはない。required 項目のエントリは[適合性バックログ](../dev/case-v1p1-conformance-backlog.md) C3 の運用側にあたる。compeito は出力側で値を捏造しないため、ギャップは元データを直して閉じる。生成側が何を直すべきかを知る経路がこれである。
 
 ## ルーブリックCSVインポート処理フロー
 
