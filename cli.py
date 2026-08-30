@@ -792,9 +792,7 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
                         "prompt_delete_association",
                         type=assoc_obj.association_type,
                         doc=assoc_obj.cf_document.title if assoc_obj.cf_document else "-",
-                        origin=_endpoint_label(
-                            assoc_obj.origin_node_title, assoc_obj.origin_node_identifier
-                        ),
+                        origin=_endpoint_label(assoc_obj.origin_node_title, assoc_obj.origin_node_identifier),
                         destination=_endpoint_label(
                             assoc_obj.destination_node_title, assoc_obj.destination_node_identifier
                         ),
