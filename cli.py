@@ -725,6 +725,14 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
 # ---------------------------------------------------------------------------
 
 
+def _endpoint_label(title: str | None, identifier: str) -> str:
+    """`title (uuid)` when the association stored a title, else the bare uuid.
+
+    A bare pair of UUIDs is not enough to decide whether a link should go.
+    """
+    return f"{title} ({identifier})" if title else identifier
+
+
 @assoc.command("delete", help=t("cmd_assoc_delete"))
 @click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
 @click.option("--id", "assoc_id", required=True, help=t("help_assoc_uuid"))
@@ -744,6 +752,7 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
 
     async def _run_delete():
         from sqlalchemy import select
+        from sqlalchemy.orm import joinedload
 
         from src.models.cf_association import CFAssociation
         from src.models.tenant import Tenant
@@ -755,7 +764,9 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
                 raise SystemExit(1)
 
             result = await session.execute(
-                select(CFAssociation).where(
+                select(CFAssociation)
+                .options(joinedload(CFAssociation.cf_document))
+                .where(
                     CFAssociation.tenant_id == tid,
                     CFAssociation.identifier == aid,
                 ),
@@ -765,13 +776,28 @@ def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
                 err_console.print(t("err_assoc_not_found", value=str(aid)))
                 raise SystemExit(1)
 
+            # isChildOf carries the tree. `cf_items.depth` is a stored column
+            # recomputed only by import, and the tree view finds roots and
+            # orphans by `depth == 0`, so cutting one link leaves the item at
+            # depth >= 1 with no parent: invisible in the Web UI (though still
+            # served by the CASE API) until the next import. Changing hierarchy
+            # is an import-side operation, not a delete.
+            if assoc_obj.association_type == "isChildOf":
+                err_console.print(t("err_assoc_is_child_of"))
+                raise SystemExit(1)
+
             if not force:
                 answer = click.prompt(
                     t(
                         "prompt_delete_association",
                         type=assoc_obj.association_type,
-                        origin=assoc_obj.origin_node_identifier,
-                        destination=assoc_obj.destination_node_identifier,
+                        doc=assoc_obj.cf_document.title if assoc_obj.cf_document else "-",
+                        origin=_endpoint_label(
+                            assoc_obj.origin_node_title, assoc_obj.origin_node_identifier
+                        ),
+                        destination=_endpoint_label(
+                            assoc_obj.destination_node_title, assoc_obj.destination_node_identifier
+                        ),
                     ),
                     default="N",
                     show_default=False,

@@ -79,8 +79,12 @@ uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framewo
 # cannot express "this link is gone", so a wrong `replacedBy` survives every
 # re-import and keeps sending readers to the wrong successor. This takes one back.
 # Scope is the tenant: the identifier alone will not delete another tenant's row.
+# `isChildOf` is refused — it carries the tree, and `cf_items.depth` is only
+# recomputed on import, so a cut child would sit at depth >= 1 with no parent and
+# vanish from the tree view (the CASE API keeps serving it). Change hierarchy by
+# re-importing the document.
 uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
-# Delete association 'replacedBy' (origin=..., destination=...)? [y/N]: y
+# Delete association 'replacedBy' in 'Framework' (origin=Old item (uuid), destination=New item (uuid))? [y/N]: y
 # Deleted association: {assoc-uuid} (replacedBy)
 
 # External CASE import (v1.1 supported; v1.0 Phase 2; upsert).
@@ -298,8 +302,11 @@ uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framewo
 # 「この関連は無くなった」をパッケージ側で表現できない。誤った `replacedBy` は
 # 再インポートを繰り返しても残り、読み手を誤った後継に送り続ける。これがその取り消し。
 # スコープはテナント: identifier だけでは別テナントの行は消せない。
+# `isChildOf` は拒否する。木構造を担っており、`cf_items.depth` はインポートでしか
+# 再計算されないため、切り離された子は depth >= 1 のまま親を持たず、ツリービューから
+# 消える（CASE API は返し続ける）。階層の変更はドキュメントの再インポートで行う。
 uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
-# 関連 'replacedBy'（origin=..., destination=...）を削除しますか? [y/N]: y
+# 'フレームワーク' の関連 'replacedBy'（origin=旧項目 (uuid), destination=新項目 (uuid)）を削除しますか? [y/N]: y
 # 関連を削除しました: {assoc-uuid} (replacedBy)
 
 # 外部CASEインポート (v1.1対応、v1.0はPhase 2、upsert)。--url / --file のどちらか一方を指定する。

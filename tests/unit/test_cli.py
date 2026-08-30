@@ -148,8 +148,10 @@ def test_association(test_document):
                 association_type="replacedBy",
                 origin_node_uri="https://example.com/uri/old",
                 origin_node_identifier="11111111-2222-3333-4444-555555555555",
+                origin_node_title="Old item",
                 destination_node_uri="https://example.com/uri/new",
                 destination_node_identifier="66666666-7777-8888-9999-000000000000",
+                destination_node_title="New item",
                 last_change_date_time=NOW,
             )
         )
@@ -1144,12 +1146,78 @@ class TestAssocDelete:
         assert result.exit_code == 1
 
     def test_other_tenant_cannot_delete_it(self, runner, env_docker, test_association):
-        """Tenant scope is enforced: the identifier alone is not enough."""
+        """Tenant scope is enforced, not just tenant existence.
+
+        A nonexistent tenant would exit at the existence check without ever
+        reaching the association query — that passes even with the scope removed.
+        The second tenant here has to be real.
+        """
         from cli import cli
+
+        other_tenant = uuid.uuid4()
+
+        async def _create(session):
+            session.add(Tenant(id=other_tenant, name="Other", is_private=False))
+
+        asyncio.run(_db_exec(_create))
 
         result = runner.invoke(
             cli,
-            ["assoc", "delete", "--tenant", str(uuid.uuid4()), "--id", str(test_association), "--force"],
+            ["assoc", "delete", "--tenant", str(other_tenant), "--id", str(test_association), "--force"],
         )
         assert result.exit_code == 1
         assert _assoc_count() == 1
+
+    def test_is_child_of_is_refused(self, runner, env_docker, test_document):
+        """Deleting a hierarchy link would drop the item out of the tree.
+
+        `cf_items.depth` is stored and only recomputed on import, and the tree
+        finds roots and orphans by `depth == 0`; a cut child sits at depth >= 1
+        with no parent and disappears from the Web UI until the next import.
+        """
+        ident = uuid.uuid4()
+
+        async def _create(session):
+            doc = (await session.execute(select(CFDocument).where(CFDocument.identifier == DOC_IDENT))).scalar_one()
+            session.add(
+                CFAssociation(
+                    tenant_id=TENANT_ID,
+                    cf_document_id=doc.id,
+                    identifier=ident,
+                    uri=f"https://example.com/assoc/{ident}",
+                    association_type="isChildOf",
+                    origin_node_uri="https://example.com/uri/child",
+                    origin_node_identifier=str(uuid.uuid4()),
+                    destination_node_uri="https://example.com/uri/parent",
+                    destination_node_identifier=str(uuid.uuid4()),
+                    last_change_date_time=NOW,
+                )
+            )
+
+        asyncio.run(_db_exec(_create))
+
+        from cli import cli
+
+        result = runner.invoke(cli, ["assoc", "delete", "--tenant", str(TENANT_ID), "--id", str(ident), "--force"])
+        assert result.exit_code == 1
+
+        found = []
+
+        async def _count(session):
+            from sqlalchemy import func
+
+            found.append(
+                (
+                    await session.execute(select(func.count(CFAssociation.id)).where(CFAssociation.identifier == ident))
+                ).scalar()
+            )
+
+        asyncio.run(_db_exec(_count))
+        assert found == [1]
+
+    def test_prompt_shows_endpoint_titles(self, runner, env_docker, test_association):
+        """Two bare UUIDs are not enough to decide whether a link should go."""
+        result = self._invoke(runner, test_association, input="N\n")
+        assert "Old item" in result.output
+        assert "New item" in result.output
+        assert "Test Document" in result.output
