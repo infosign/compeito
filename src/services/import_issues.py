@@ -96,6 +96,42 @@ def _counts(report: Any) -> dict[str, Any]:
     return out
 
 
+LOST_LINK_SAMPLE_CAP = 20
+
+
+def destructive_summary(report: Any) -> dict[str, Any]:
+    """What an import would take away, measured after the fact.
+
+    Lives here rather than in the CLI because the CLI is not the only consumer:
+    anything that calls the import services directly (compeito-aws's Admin API
+    does) needs the same answer, and two implementations of "what counts as
+    destructive" would drift apart. The transaction gate — prompting, refusing,
+    committing — stays with whoever owns the transaction.
+
+    Counted from the report the service actually produced, not from a guess made
+    beforehand: the delete scope depends on which columns the header carries and
+    how many rows are valid, so a pre-estimate would be a second implementation
+    of the importer to keep in sync.
+
+    Reports that cannot lose anything (rubric import) simply return zeroes.
+    """
+    lost = getattr(report, "lost_associations_count", 0)
+    items_moved = getattr(report, "items_moved", 0)
+    assocs_moved = getattr(report, "associations_moved", 0)
+    return {
+        "lostAssociationsCount": lost,
+        "lostAssociationsSample": [
+            {"associationType": a, "origin": o, "destination": d}
+            for a, o, d in getattr(report, "lost_associations_sample", [])[:LOST_LINK_SAMPLE_CAP]
+        ],
+        # Kept apart: an item taken from another document breaks that document's
+        # tree, a re-attached association does not necessarily.
+        "itemsMoved": items_moved,
+        "associationsMoved": assocs_moved,
+        "total": lost + items_moved + assocs_moved,
+    }
+
+
 REPORT_VERSION = 1
 
 

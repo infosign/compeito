@@ -2596,3 +2596,42 @@ class TestUpdateOverwriteRules:
         identifier with an old title."""
         _doc, _item, assoc = await self._seed_then_omit(db_session, tenant)
         assert assoc.origin_node_title is None
+
+
+class TestDestructiveSummary:
+    """`destructive_summary` is shared with consumers that bypass the CLI.
+
+    compeito-aws's Admin API calls the import services directly, so the CLI's
+    transaction gate never runs there. The *definition* of a destructive change
+    has to be importable, or it gets reimplemented and the two drift.
+    """
+
+    def test_zeroes_for_a_report_without_the_counters(self):
+        """Rubric import cannot lose anything and has no counters at all."""
+        from src.services.csv_rubric_import_service import RubricImportReport
+        from src.services.import_issues import destructive_summary
+
+        assert destructive_summary(RubricImportReport())["total"] == 0
+
+    def test_counts_moves_from_a_case_report(self):
+        from src.services.import_issues import destructive_summary
+
+        report = CaseImportReport()
+        report.items_moved = 2
+        report.associations_moved = 3
+        summary = destructive_summary(report)
+        assert summary["itemsMoved"] == 2
+        assert summary["associationsMoved"] == 3
+        assert summary["total"] == 5
+
+    def test_sample_is_capped(self):
+        """A wholesale rebuild can lose thousands; the summary is for reading."""
+        from src.services.csv_import_service import ImportReport
+        from src.services.import_issues import LOST_LINK_SAMPLE_CAP, destructive_summary
+
+        report = ImportReport()
+        report.lost_associations_count = 500
+        report.lost_associations_sample = [("isChildOf", f"o{n}", f"d{n}") for n in range(500)]
+        summary = destructive_summary(report)
+        assert summary["lostAssociationsCount"] == 500
+        assert len(summary["lostAssociationsSample"]) == LOST_LINK_SAMPLE_CAP
