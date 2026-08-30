@@ -194,6 +194,15 @@ def doc():
 doc.help = t("doc_group")
 
 
+@cli.group()
+def assoc():
+    """Association management commands."""
+    pass
+
+
+assoc.help = t("assoc_group")
+
+
 @cli.group(name="import")
 def import_group():
     """Import commands."""
@@ -707,6 +716,74 @@ def doc_delete(tenant_id: str, doc_id: str, force: bool):
             await session.delete(doc)
             await session.commit()
             console.print(t("msg_deleted_document", id=ident_str, title=title))
+
+    _run(_run_delete())
+
+
+# ---------------------------------------------------------------------------
+# assoc delete
+# ---------------------------------------------------------------------------
+
+
+@assoc.command("delete", help=t("cmd_assoc_delete"))
+@click.option("--tenant", "tenant_id", required=True, help=t("help_tenant_uuid"))
+@click.option("--id", "assoc_id", required=True, help=t("help_assoc_uuid"))
+@click.option("--force", is_flag=True, default=False, help=t("help_skip_confirm"))
+def assoc_delete(tenant_id: str, assoc_id: str, force: bool):
+    """Delete one CFAssociation by identifier.
+
+    Associations are additive on import: re-importing a package that no longer
+    contains an association does not remove it (the package cannot express "this
+    link is gone"). A `replacedBy` pointing at the wrong successor therefore
+    survives every re-import, and a reader following it lands on the wrong item.
+    This is the way to take one back.
+    """
+    _check_db()
+    tid = _parse_uuid(tenant_id)
+    aid = _parse_uuid(assoc_id)
+
+    async def _run_delete():
+        from sqlalchemy import select
+
+        from src.models.cf_association import CFAssociation
+        from src.models.tenant import Tenant
+
+        async with _get_session() as session:
+            result = await session.execute(select(Tenant).where(Tenant.id == tid))
+            if result.scalar_one_or_none() is None:
+                err_console.print(t("err_tenant_not_found", value=str(tid)))
+                raise SystemExit(1)
+
+            result = await session.execute(
+                select(CFAssociation).where(
+                    CFAssociation.tenant_id == tid,
+                    CFAssociation.identifier == aid,
+                ),
+            )
+            assoc_obj = result.scalar_one_or_none()
+            if assoc_obj is None:
+                err_console.print(t("err_assoc_not_found", value=str(aid)))
+                raise SystemExit(1)
+
+            if not force:
+                answer = click.prompt(
+                    t(
+                        "prompt_delete_association",
+                        type=assoc_obj.association_type,
+                        origin=assoc_obj.origin_node_identifier,
+                        destination=assoc_obj.destination_node_identifier,
+                    ),
+                    default="N",
+                    show_default=False,
+                )
+                if answer.lower() not in ("y", "yes"):
+                    console.print(t("msg_cancelled"))
+                    raise SystemExit(2)
+
+            atype = assoc_obj.association_type
+            await session.delete(assoc_obj)
+            await session.commit()
+            console.print(t("msg_deleted_association", id=str(aid), type=atype))
 
     _run(_run_delete())
 

@@ -189,6 +189,7 @@ uv run python cli.py doc update --tenant {tenant_id} --doc {old_doc_id} --displa
   - 廃止項目はテナントに残り続ける。UI では既定で隠れ、`?includeRetired=1` で表示できる（生きた子孫を持つ廃止項目は経路を保つため隠れず、バッジ付きで残る）
   - permalink（`/{tenant}/uri/{uuid}`）は廃止後も解決し、廃止バナーと後継リンクを表示する
   - 誤って廃止にした項目を戻すには、`statusEndDate` を明示的な `null` にした CASE パッケージを `import case --allow-status-clear` で取り込む。**CSV / xlsx では戻せない**（空セルは「未指定」の意味で、クリアを表現できない）
+  - 誤って張った `replacedBy` は、パッケージの再インポートでは消えない（association は additive）。`assoc delete --tenant X --id <uuid>` で1件ずつ取り消す
   - 外部の生成側と連携する場合、墓標と取り消しは**毎版すべて含める**前提で設計する（取り込む側が全ての版を順に適用するとは限らない）
 - **1 項目が複数に分割された場合**: replacedBy は複数張れる（CSV では `|` 区切り、JSON では association を複数個）。統合（多→1）も同様に各旧項目から同じ新項目へ。
 - **テナントをまたぐ参照**: destinationNodeURI に他テナント/外部の完全 URI も書ける（CSV では完全 URI セル、検証無しで verbatim 格納）が、本プロトコルは同一テナント内の新旧 2 ドキュメントを想定、と範囲を明示。

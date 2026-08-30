@@ -75,6 +75,14 @@ uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile o
 uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
 uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framework.xlsx
 
+# Association delete (B8-7). Associations are additive on import: a package
+# cannot express "this link is gone", so a wrong `replacedBy` survives every
+# re-import and keeps sending readers to the wrong successor. This takes one back.
+# Scope is the tenant: the identifier alone will not delete another tenant's row.
+uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
+# Delete association 'replacedBy' (origin=..., destination=...)? [y/N]: y
+# Deleted association: {assoc-uuid} (replacedBy)
+
 # External CASE import (v1.1 supported; v1.0 Phase 2; upsert).
 # Exactly one of --url / --file must be given.
 # --url:  CASE API base path or a direct CFPackage URL (see import-logic.md).
@@ -285,6 +293,14 @@ uv run python cli.py import csv --tenant {uuid} --file framework.csv --profile o
 # 稼働中の OpenSALT で動作確認済（アイテム・階層・item type が往復する）。
 uv run python cli.py import xlsx --tenant {uuid} --file framework.xlsx
 uv run python cli.py import xlsx --tenant {uuid} --doc {doc-uuid} --file framework.xlsx
+
+# 関連の削除（B8-7）。インポートは association については additive で、
+# 「この関連は無くなった」をパッケージ側で表現できない。誤った `replacedBy` は
+# 再インポートを繰り返しても残り、読み手を誤った後継に送り続ける。これがその取り消し。
+# スコープはテナント: identifier だけでは別テナントの行は消せない。
+uv run python cli.py assoc delete --tenant {uuid} --id {assoc-uuid} [--force]
+# 関連 'replacedBy'（origin=..., destination=...）を削除しますか? [y/N]: y
+# 関連を削除しました: {assoc-uuid} (replacedBy)
 
 # 外部CASEインポート (v1.1対応、v1.0はPhase 2、upsert)。--url / --file のどちらか一方を指定する。
 # --url:  CASE APIベースパス or CFPackage直接URL（詳細は import-logic.md 参照）
