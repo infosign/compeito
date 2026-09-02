@@ -49,9 +49,9 @@ The 1EdTech CASE ecosystem has several active open-source implementations:
 
 - **[OpenCASE](https://github.com/1EdTech/OpenCASE)** — the 1EdTech reference implementation. A full platform combining a visual framework editor, Keycloak-based multi-tenant authentication, immutable version history, and a certified publishing server. A good fit for organizations that want a single integrated stack covering editing through publishing.
 - **[OpenSALT](https://github.com/opensalt/opensalt)** — the long-standing community implementation by PCG Education. The latest stable release (3.2.0, September 2023) targets CASE v1.0; v1.1 work is underway on the `develop` branch. A full-featured framework editor with a large existing user base, especially around US K-12 standards.
-- **COMPEITO** — a lightweight, distribution-focused server developed in Japan. It started out as a CASE v1.1 delivery server designed for full compatibility with OpenSALT (CASE v1.0); today it takes one-way imports from OpenSALT / OpenCASE and is working toward passing the 1EdTech CASE v1.1 conformance test (see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md)). English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks.
+- **Compeito** — a lightweight, distribution-focused server developed in Japan. It started out as a CASE v1.1 delivery server designed for full compatibility with OpenSALT (CASE v1.0); today it takes one-way imports from OpenSALT / OpenCASE and is working toward passing the 1EdTech CASE v1.1 conformance test (see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md)). English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks.
 
-These projects are designed to **interoperate via the CASE standard**. COMPEITO can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by COMPEITO can be consumed by any CASE-conformant client (e.g., Open Badge Factory). COMPEITO's specific niche is: a small focused publishing component to pair with an external editor, or a Japanese-language CASE endpoint for use with Open Badge Factory, QTI Testing, and similar reference clients.
+These projects are designed to **interoperate via the CASE standard**. Compeito can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by Compeito can be consumed by any CASE-conformant client (e.g., Open Badge Factory). Compeito's specific niche is: a small focused publishing component to pair with an external editor, or a Japanese-language CASE endpoint for use with Open Badge Factory, QTI Testing, and similar reference clients.
 
 ## Referenced specifications
 
@@ -125,9 +125,9 @@ CLIは `DATABASE_URL`（環境変数または `.env` ファイル）で PostgreS
 
 - **[OpenCASE](https://github.com/1EdTech/OpenCASE)** — 1EdTech 公式のリファレンス実装。ビジュアルなフレームワークエディタ、Keycloak ベースのマルチテナント認証、不変なバージョン履歴、認定済み配信サーバーを一体で提供するフルプラットフォーム。編集から配信までを一つのスタックで完結させたい組織に向いている。
 - **[OpenSALT](https://github.com/opensalt/opensalt)** — 長年コミュニティで使われてきた PCG Education 開発の実装。安定リリース 3.2.0 (2023 年 9 月) は CASE v1.0 対応、v1.1 対応は `develop` ブランチで作業中。フル機能のエディタで、米国の K-12 標準など大きな既存ユーザーベースを持つ。
-- **COMPEITO** — 日本で開発される軽量・配信特化サーバー。当初は OpenSALT (CASE v1.0) との完全互換を保った CASE v1.1 配信サーバーとして出発し、現在は OpenSALT / OpenCASE からの取り込みを一方通行と位置づけ、**CASE v1.1 コンフォーマンステストのパス**を目指している（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) 参照）。英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視している。
+- **Compeito** — 日本で開発される軽量・配信特化サーバー。当初は OpenSALT (CASE v1.0) との完全互換を保った CASE v1.1 配信サーバーとして出発し、現在は OpenSALT / OpenCASE からの取り込みを一方通行と位置づけ、**CASE v1.1 コンフォーマンステストのパス**を目指している（[conformance backlog](../dev/case-v1p1-conformance-backlog.md) 参照）。英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視している。
 
-これらは **CASE 標準を介して相互運用すること** を前提に設計されている。COMPEITO は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、COMPEITO が公開するフレームワークは CASE 準拠の任意のクライアント（例: Open Badge Factory）から参照可能。COMPEITO の独自の立ち位置は、既存エディタと組み合わせて配信を担当する軽量コンポーネントとして、または Open Badge Factory / QTI Testing 等の参照クライアントと繋ぐ日本語環境向けの CASE エンドポイントとして機能することにある。
+これらは **CASE 標準を介して相互運用すること** を前提に設計されている。Compeito は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、Compeito が公開するフレームワークは CASE 準拠の任意のクライアント（例: Open Badge Factory）から参照可能。Compeito の独自の立ち位置は、既存エディタと組み合わせて配信を担当する軽量コンポーネントとして、または Open Badge Factory / QTI Testing 等の参照クライアントと繋ぐ日本語環境向けの CASE エンドポイントとして機能することにある。
 
 ## 参照仕様
 

@@ -1,5 +1,5 @@
 {
-    "cli_description": "COMPEITO CLI.",
+    "cli_description": "Compeito CLI.",
     "tenant_group": "Tenant management commands.",
     "doc_group": "Document management commands.",
     "assoc_group": "Association management commands.",

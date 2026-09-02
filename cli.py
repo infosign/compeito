@@ -1,4 +1,4 @@
-"""COMPEITO CLI — tenant/doc management, import/export, db migrate."""
+"""Compeito CLI — tenant/doc management, import/export, db migrate."""
 
 from __future__ import annotations
 
@@ -192,7 +192,7 @@ def _validate_slug(slug: str) -> str | None:
 
 @click.group()
 def cli():
-    """COMPEITO CLI."""
+    """Compeito CLI."""
     pass
 
 
@@ -1514,7 +1514,7 @@ def export_case_cmd(tenant_id: str, doc_id: str, file_path: str):
     The output has the same payload shape as `GET /ims/case/v1p1/CFPackages/{id}`
     (pretty-printed for readability; the API serves compact JSON) and can be
     imported into any CASE-conformant tool (OpenCASE, OpenSALT, etc.) via their
-    respective import endpoints, or back into COMPEITO via `import case --file`.
+    respective import endpoints, or back into Compeito via `import case --file`.
     """
     _check_db()
     tid = _parse_uuid(tenant_id)

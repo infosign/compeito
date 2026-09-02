@@ -1,4 +1,4 @@
-# Contributing to COMPEITO
+# Contributing to Compeito
 
 Thanks for your interest in contributing! This document covers how to set up a development environment, the workflow we follow, and what to expect when you open an issue or pull request.
 
@@ -60,9 +60,9 @@ See [CLAUDE.md](./CLAUDE.md) for the full house style.
 
 ---
 
-# COMPEITO への貢献ガイド（日本語）
+# Compeito への貢献ガイド（日本語）
 
-COMPEITO への貢献を検討いただきありがとうございます。本ドキュメントは開発環境のセットアップ、ワークフロー、Issue / PR を出すときの流れをまとめたものです。
+Compeito への貢献を検討いただきありがとうございます。本ドキュメントは開発環境のセットアップ、ワークフロー、Issue / PR を出すときの流れをまとめたものです。
 
 本プロジェクトへの参加にあたっては [行動規範](./CODE_OF_CONDUCT.md) を遵守ください。
 

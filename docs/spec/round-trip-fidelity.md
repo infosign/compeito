@@ -201,7 +201,7 @@ not round-trip.
 - **Full fidelity / archival / cross-framework** (need `targetType`, `notes`,
   `extensions`, definition resources, rubrics): use **CASE JSON (CFPackage)**.
   This is also what the OpenCASE interop flow uses end-to-end, so OpenCASE ↔
-  COMPEITO keeps everything.
+  Compeito keeps everything.
 - **OpenSALT interchange:** use **Excel** (3-sheet workbook) — the highest-fidelity
   flat-file path, but it still drops `targetType`, `notes`, `extensions`, and
   rubrics.

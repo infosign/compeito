@@ -15,7 +15,7 @@ from src.routers.web import router as web_router
 _CASE_API_MARKER = "/ims/case/v1p1/"
 
 app = FastAPI(
-    title="COMPEITO",
+    title="Compeito",
     description="1EdTech CASE v1.1 compatible web service",
 )
 

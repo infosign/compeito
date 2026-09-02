@@ -59,7 +59,7 @@ console = Console()
 
 @click.group()
 def cli():
-    """COMPEITO — CASE v1.1 Server CLI"""
+    """Compeito — CASE v1.1 Server CLI"""
     pass
 
 

@@ -108,12 +108,12 @@ class TestDetectLangFromEnv:
 class TestCliTranslator:
     def test_cli_en(self):
         t = get_translator("en", cli=True)
-        assert t("cli_description") == "COMPEITO CLI."
+        assert t("cli_description") == "Compeito CLI."
         assert t("cmd_tenant_create") == "Create a new tenant."
 
     def test_cli_ja(self):
         t = get_translator("ja", cli=True)
-        assert t("cli_description") == "COMPEITO CLI。"
+        assert t("cli_description") == "Compeito CLI。"
         assert t("cmd_tenant_create") == "新しいテナントを作成する。"
 
     def test_cli_placeholder(self):

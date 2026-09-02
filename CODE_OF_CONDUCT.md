@@ -4,7 +4,7 @@ This project adopts the [Contributor Covenant Code of Conduct, version 2.1](http
 
 ## Our Pledge
 
-We as members, contributors, and leaders pledge to make participation in COMPEITO a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+We as members, contributors, and leaders pledge to make participation in Compeito a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 We pledge to act and interact in ways that contribute to an open, welcoming, diverse, inclusive, and healthy community.
 
@@ -46,7 +46,7 @@ This Code of Conduct is adapted from the [Contributor Covenant](https://www.cont
 
 ## 私たちの誓い
 
-COMPEITO のメンバー、貢献者、リーダーである私たちは、年齢、体格、目に見える/見えない障害、民族性、性別の特性、性自認とその表現、経験のレベル、教育、社会経済的地位、国籍、容姿、人種、宗教、性的アイデンティティーや性的指向に関わらず、私たちのコミュニティへの参加が誰にとってもハラスメントのない体験となるようにすることを誓います。
+Compeito のメンバー、貢献者、リーダーである私たちは、年齢、体格、目に見える/見えない障害、民族性、性別の特性、性自認とその表現、経験のレベル、教育、社会経済的地位、国籍、容姿、人種、宗教、性的アイデンティティーや性的指向に関わらず、私たちのコミュニティへの参加が誰にとってもハラスメントのない体験となるようにすることを誓います。
 
 そして開かれた、温かく、多様で、包括的で健全なコミュニティに貢献するように行動し、相互に交流することを誓います。
 

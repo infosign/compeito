@@ -45,11 +45,11 @@
 A two-pane layout inspired by OpenSALT's tree view. Visually, use a modern Tailwind CSS default (do not copy OpenSALT's look).
 
 **HTML `<title>`** per page:
-- `GET /`: "COMPEITO" (fixed).
-- `GET /{tenant}/`: "{tenant name} - COMPEITO".
-- `GET /{tenant}/cftree/doc/{doc}`: "{document title} - {tenant name} - COMPEITO".
-- `GET /{tenant}/uri/{uuid}`: depends on the resource type. CFItem → "{first 50 chars of fullStatement} - COMPEITO". CFDocument → "{title} - COMPEITO". Lookup / CFAssociation → "{title or identifier} - COMPEITO".
-- Error pages: "{status code} - COMPEITO".
+- `GET /`: "Compeito" (fixed).
+- `GET /{tenant}/`: "{tenant name} - Compeito".
+- `GET /{tenant}/cftree/doc/{doc}`: "{document title} - {tenant name} - Compeito".
+- `GET /{tenant}/uri/{uuid}`: depends on the resource type. CFItem → "{first 50 chars of fullStatement} - Compeito". CFDocument → "{title} - Compeito". Lookup / CFAssociation → "{title or identifier} - Compeito".
+- Error pages: "{status code} - Compeito".
 
 **HTML `<html lang>`**: `base.html` sets `lang` from the request language (`{{ lang|default('en') }}`), which is negotiated from the `Accept-Language` header (default `en`; see `i18n.parse_accept_language`). The UI itself is bilingual (en/ja). Note: this is the *UI chrome* language; the content language of a resource is expressed separately by the resource's own `language` field and does not drive `<html lang>`.
 
@@ -428,11 +428,11 @@ The `uri` field of CASE resources points at `/uri/{uuid}` (same pattern as OpenS
 OpenSALT のツリービューを参考にした 2 ペイン構成。見た目は Tailwind CSS のデフォルトスタイルでモダンに仕上げる（OpenSALT の見た目をコピーしない）。
 
 **HTML `<title>` 要素:** ページごとに設定する:
-- `GET /`: 「COMPEITO」（固定）
-- `GET /{tenant}/`: 「{テナント名} - COMPEITO」
-- `GET /{tenant}/cftree/doc/{doc}`: 「{ドキュメントタイトル} - {テナント名} - COMPEITO」
-- `GET /{tenant}/uri/{uuid}`: リソース種別による。CFItem → 「{fullStatement の先頭50文字} - COMPEITO」。CFDocument → 「{title} - COMPEITO」。lookup/CFAssociation → 「{title or identifier} - COMPEITO」
-- エラーページ: 「{ステータスコード} - COMPEITO」
+- `GET /`: 「Compeito」（固定）
+- `GET /{tenant}/`: 「{テナント名} - Compeito」
+- `GET /{tenant}/cftree/doc/{doc}`: 「{ドキュメントタイトル} - {テナント名} - Compeito」
+- `GET /{tenant}/uri/{uuid}`: リソース種別による。CFItem → 「{fullStatement の先頭50文字} - Compeito」。CFDocument → 「{title} - Compeito」。lookup/CFAssociation → 「{title or identifier} - Compeito」
+- エラーページ: 「{ステータスコード} - Compeito」
 
 **HTML `<html lang>` 属性:** `base.html` はリクエスト言語（`{{ lang|default('en') }}`）から `lang` を設定する。言語は `Accept-Language` ヘッダーから決定（既定は `en`。`i18n.parse_accept_language` 参照）。UI は en/ja のバイリンガル。これは*UI の言語*であり、リソースのコンテンツ言語は別途リソース自身の `language` フィールドで表現され、`<html lang>` には影響しない。
 

@@ -1,4 +1,4 @@
-# COMPEITO — Claude Code Instructions
+# Compeito — Claude Code Instructions
 
 ## プロジェクト概要
 
