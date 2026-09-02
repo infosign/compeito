@@ -1,6 +1,6 @@
 [project]
 name = "compeito"
-version = "0.1.0"
+version = "2.7.0"
 description = "1EdTech CASE v1.1 compatible web service"
 license = "Apache-2.0"
 requires-python = ">=3.12"

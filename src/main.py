@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from src import __version__
 from src.errors import InvalidUUIDError, OutputModeConflictError, ResourceNotFoundError, imsx_error_response
 from src.routers.case_api import router as case_api_router
 from src.routers.web import router as web_router
@@ -17,6 +18,7 @@ _CASE_API_MARKER = "/ims/case/v1p1/"
 app = FastAPI(
     title="Compeito",
     description="1EdTech CASE v1.1 compatible web service",
+    version=__version__,
 )
 
 
