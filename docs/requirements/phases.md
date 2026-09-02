@@ -28,7 +28,7 @@
 
 Priority within the phase reflects an OpenCASE conformance-gap analysis: items 1 and 2 addressed the endpoint portion of concrete spec / discovery gaps and were done first; the rest carry forward from earlier planning.
 
-> **Goal shift (2026-07):** COMPEITO originally aimed to be a CASE v1.1 delivery server fully compatible with OpenSALT (CASE v1.0). The project now aims to **pass the 1EdTech CASE v1.1 conformance test**, treating OpenSALT / OpenCASE as one-way import sources (imports stay tolerant). Output-side OpenSALT-flavoured behaviours are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md).
+> **Goal shift (2026-07):** Compeito originally aimed to be a CASE v1.1 delivery server fully compatible with OpenSALT (CASE v1.0). The project now aims to **pass the 1EdTech CASE v1.1 conformance test**, treating OpenSALT / OpenCASE as one-way import sources (imports stay tolerant). Output-side OpenSALT-flavoured behaviours are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md).
 
 1. ✅ **CASE v1.1 Service Discovery endpoint** — `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` returning the official OpenAPI 3 schema as static JSON. (endpoint done; the document is not yet localized as §2.5 requires, so clients cannot yet discover compeito's own API surface from it — see C18 in the [conformance backlog](../dev/case-v1p1-conformance-backlog.md))
 2. ✅ **CASE v1.1 optional fields**: `notes` (CFItem / CFAssociation / CFDocument), `alternativeLabel` (CFItem), `extensions` (all resources). Persisted in DB and emitted in API responses. (done)
@@ -77,7 +77,7 @@ These features are not on the roadmap. The positioning rationale is documented h
 
 フェーズ内の優先順は OpenCASE との conformance ギャップ分析を反映している。1・2 は CASE v1.1 仕様 / discovery のギャップのうちエンドポイント部分を埋めるため先行し、それ以降は従来の計画を引き継ぐ。
 
-> **ゴールの転換（2026-07）**: COMPEITO は当初「OpenSALT (CASE v1.0) 完全互換の CASE v1.1 配信サーバー」を目指していた。現在は **1EdTech CASE v1.1 コンフォーマンステストのパス**を目標とし、OpenSALT / OpenCASE は取り込みの一方通行ソースと位置づける（import の寛容さは維持）。出力側の OpenSALT 互換挙動は段階的な退役対象 — 詳細は [conformance backlog](../dev/case-v1p1-conformance-backlog.md)。
+> **ゴールの転換（2026-07）**: Compeito は当初「OpenSALT (CASE v1.0) 完全互換の CASE v1.1 配信サーバー」を目指していた。現在は **1EdTech CASE v1.1 コンフォーマンステストのパス**を目標とし、OpenSALT / OpenCASE は取り込みの一方通行ソースと位置づける（import の寛容さは維持）。出力側の OpenSALT 互換挙動は段階的な退役対象 — 詳細は [conformance backlog](../dev/case-v1p1-conformance-backlog.md)。
 
 1. ✅ **CASE v1.1 Service Discovery エンドポイント** — `GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json` で公式 OpenAPI 3 スキーマを静的 JSON として返す（エンドポイントは完了。ただし §2.5 が要求する localize が未了で、クライアントはここから compeito 自身の API サーフェスを discover できない → [適合性バックログ](../dev/case-v1p1-conformance-backlog.md) の C18）
 2. ✅ **CASE v1.1 オプションフィールド対応**: `notes`（CFItem / CFAssociation / CFDocument）、`alternativeLabel`（CFItem）、`extensions`（全リソース）。DB に永続化し API レスポンスに含める（完了）

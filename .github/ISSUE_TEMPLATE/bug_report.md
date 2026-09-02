@@ -14,7 +14,7 @@ assignees: ''
 
 ## Environment
 
-- COMPEITO version (or commit SHA):
+- Compeito version (or commit SHA):
 - Deployment mode: [ ] full Docker  [ ] hybrid (DB Docker + native app)  [ ] other
 - OS / arch:
 - Python version (hybrid mode only):
@@ -47,7 +47,7 @@ assignees: ''
 
 ## 環境
 
-- COMPEITO バージョン（またはコミット SHA）:
+- Compeito バージョン（またはコミット SHA）:
 - 実行モード: [ ] 全 Docker  [ ] ハイブリッド（DB は Docker、アプリはネイティブ）  [ ] その他
 - OS / アーキテクチャ:
 - Python バージョン（ハイブリッドの場合のみ）:

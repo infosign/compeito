@@ -2,7 +2,7 @@
 
 *English | [日本語](#サードパーティ表記)*
 
-COMPEITO is licensed under the [Apache License 2.0](LICENSE). That license covers
+Compeito is licensed under the [Apache License 2.0](LICENSE). That license covers
 the code and documentation written for this project. It does **not** cover the
 third-party material listed below. Some of it is redistributed as part of this
 repository under its own terms; the rest is acknowledged because it is used at
@@ -34,7 +34,7 @@ This is an unmodified, verbatim copy. The file's own `info.license` and
 
 **Why it is here.** The CASE v1.1 REST/JSON Binding, §2.5 Service Discovery,
 requires a Service Provider to *provide a localized version of the OpenAPI file
-at a prescribed endpoint* in order to enable service discovery. COMPEITO
+at a prescribed endpoint* in order to enable service discovery. Compeito
 implements that endpoint (`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`,
 see `src/routers/discovery.py`) and this file is the upstream artifact it serves
 from.
@@ -42,7 +42,7 @@ from.
 Two things this does **not** claim. The specification does not require anyone to
 place the file in a public source repository; that is our packaging choice.
 And the copy shipped here is not yet localized — its `servers` block is still the
-published template — so COMPEITO does not currently meet §2.5 in full. That gap
+published template — so Compeito does not currently meet §2.5 in full. That gap
 is tracked as item C18 in
 [docs/dev/case-v1p1-conformance-backlog.md](docs/dev/case-v1p1-conformance-backlog.md),
 separately from this notice.
@@ -56,7 +56,7 @@ keeps no comprehensive local mirror or restatement of the CASE specification, an
 
 Documents such as `docs/spec/case-overview.md`, `docs/spec/data-model-overview.md`
 and `docs/spec/api-spec.md` do describe CASE concepts, but their purpose is to
-record what COMPEITO implements and how it differs from the specification. They
+record what Compeito implements and how it differs from the specification. They
 cite the official documents rather than substituting for them.
 
 ## Contributor Covenant — Code of Conduct
@@ -114,7 +114,7 @@ it does not affect source-only distribution of this repository.
 ## Interoperability targets referenced in documentation
 
 No code or content from these projects is redistributed here. They are named
-because COMPEITO interoperates with them, and their observable behavior is
+because Compeito interoperates with them, and their observable behavior is
 documented for that purpose.
 
 | Project | Terms | Where referenced |
@@ -128,7 +128,7 @@ documented for that purpose.
 
 *[English](#third-party-notices) | 日本語*
 
-COMPEITO のライセンスは [Apache License 2.0](LICENSE)。これは本プロジェクトのために
+Compeito のライセンスは [Apache License 2.0](LICENSE)。これは本プロジェクトのために
 書かれたコードとドキュメントに適用される。以下に挙げる第三者素材は**対象外**であり、
 一部は各自の条項のもとで本リポジトリの一部として再配布しており、残りはビルド時に使用しているか
 ドキュメントで言及しているために記載している。どちらに当たるかは各節に記す。
@@ -156,7 +156,7 @@ COMPEITO のライセンスは [Apache License 2.0](LICENSE)。これは本プ�
 
 **ここに置いてある理由。** CASE v1.1 REST/JSON Binding の §2.5 Service Discovery は、
 service discovery を可能にするため、Service Provider が*所定のエンドポイントで
-localized version の OpenAPI ファイルを提供すること*を要求している。COMPEITO は
+localized version の OpenAPI ファイルを提供すること*を要求している。Compeito は
 そのエンドポイント（`GET /ims/case/v1p1/discovery/imscasev1p1_openapi3_v1p0.json`、
 実装は `src/routers/discovery.py`）を実装しており、このファイルはその配信元となる上流成果物である。
 
@@ -171,7 +171,7 @@ localized version の OpenAPI ファイルを提供すること*を要求して�
 網羅的なローカルミラーや再構成を持たず、`docs/reference/` は公式文書へのリンクに留める。
 
 `docs/spec/case-overview.md`、`docs/spec/data-model-overview.md`、`docs/spec/api-spec.md` は
-CASE の概念に言及しているが、その目的は COMPEITO が何を実装し仕様とどう異なるかを
+CASE の概念に言及しているが、その目的は Compeito が何を実装し仕様とどう異なるかを
 記録することである。公式文書を代替するものではなく、公式文書を参照する位置づけである。
 
 ## Contributor Covenant — 行動規範
@@ -225,7 +225,7 @@ CASE の概念に言及しているが、その目的は COMPEITO が何を実�
 
 ## ドキュメントで言及している相互運用先
 
-これらのプロジェクトのコードやコンテンツは再配布していない。COMPEITO が相互運用する
+これらのプロジェクトのコードやコンテンツは再配布していない。Compeito が相互運用する
 対象として名前を挙げ、その目的のために観測可能な挙動を記録している。
 
 | プロジェクト | 条項 | 言及箇所 |

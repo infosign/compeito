@@ -1338,7 +1338,7 @@ class TestDepthCalculation:
         """OpenCASE / similar editors don't emit `isChildOf -> CFDocument`.
 
         Root items have NO isChildOf at all; child items point at the root.
-        COMPEITO should treat such items as document roots and BFS from there.
+        Compeito should treat such items as document roots and BFS from there.
         """
         root_ident = "bbbb0000-0000-0000-0000-000000000010"
         child1_ident = "bbbb0000-0000-0000-0000-000000000011"

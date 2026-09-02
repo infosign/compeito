@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-How to run COMPEITO on a Linux server with Docker and expose it to the internet.
+How to run Compeito on a Linux server with Docker and expose it to the internet.
 
 ## Prerequisites
 
@@ -305,7 +305,7 @@ If only the server IP changes, restoring the backup is enough.
 
 # 本番デプロイガイド（日本語）
 
-Linux マシンで COMPEITO を Docker で動かし、インターネットに公開するための手順と運用方法。
+Linux マシンで Compeito を Docker で動かし、インターネットに公開するための手順と運用方法。
 
 ## 前提条件
 

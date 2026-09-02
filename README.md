@@ -1,4 +1,4 @@
-# COMPEITO
+# Compeito
 
 **Comp**etency **E**xchange & **I**nteroperability **To**ol
 
@@ -101,9 +101,9 @@ The 1EdTech CASE ecosystem has several active open-source implementations, each 
 
 - **[OpenSALT](https://github.com/opensalt/opensalt)** — the long-standing community implementation (by PCG Education). The latest stable release (3.2.0, September 2023) targets CASE v1.0; v1.1 work is underway on the `develop` branch. A full-featured framework editor with a large existing user base, especially around US K-12 standards.
 
-- **COMPEITO** — a lightweight, distribution-focused server developed in Japan. It started out as a CASE v1.1 delivery server designed for full compatibility with OpenSALT (CASE v1.0); today it takes one-way imports from OpenSALT / OpenCASE and is working toward passing the 1EdTech CASE v1.1 conformance test (known gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md)). English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks. A good fit when you already have an editor (OpenCASE, OpenSALT, or any CASE-conformant tool) and want a small, focused publishing component — or when you need a Japanese-language deployment of a CASE endpoint.
+- **Compeito** — a lightweight, distribution-focused server developed in Japan. It started out as a CASE v1.1 delivery server designed for full compatibility with OpenSALT (CASE v1.0); today it takes one-way imports from OpenSALT / OpenCASE and is working toward passing the 1EdTech CASE v1.1 conformance test (known gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md)). English/Japanese bilingual UI / CLI / docs, custom-and-OpenSALT CSV import paths, and an emphasis on being easy to embed in existing stacks. A good fit when you already have an editor (OpenCASE, OpenSALT, or any CASE-conformant tool) and want a small, focused publishing component — or when you need a Japanese-language deployment of a CASE endpoint.
 
-These projects are designed to **interoperate via the CASE standard**. COMPEITO can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by COMPEITO are consumed by practical CASE clients (e.g., Open Badge Factory); remaining strict-conformance gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md). Importing competency frameworks from external CASE sources is a first-class capability.
+These projects are designed to **interoperate via the CASE standard**. Compeito can import CFPackages published by OpenSALT or OpenCASE, and frameworks published by Compeito are consumed by practical CASE clients (e.g., Open Badge Factory); remaining strict-conformance gaps are tracked in the [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md). Importing competency frameworks from external CASE sources is a first-class capability.
 
 ## Roadmap
 
@@ -116,7 +116,7 @@ These projects are designed to **interoperate via the CASE standard**. COMPEITO 
 [Apache License 2.0](LICENSE)
 
 Third-party material redistributed in this repository — most notably the official
-1EdTech CASE v1.1 OpenAPI definition, which COMPEITO serves from the CASE service
+1EdTech CASE v1.1 OpenAPI definition, which Compeito serves from the CASE service
 discovery endpoint — is **not** covered by that license. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
@@ -126,7 +126,7 @@ discovery endpoint — is **not** covered by that license. See
 
 ---
 
-# COMPEITO（日本語）
+# Compeito（日本語）
 
 **Comp**etency **E**xchange & **I**nteroperability **To**ol
 
@@ -229,9 +229,9 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 - **[OpenSALT](https://github.com/opensalt/opensalt)** — 長年コミュニティで使われてきた実装（PCG Education 開発）。安定リリース 3.2.0 (2023 年 9 月) は CASE v1.0 対応で、v1.1 対応は `develop` ブランチで作業中です。フル機能のエディタで、米国の K-12 標準など大きな既存ユーザーベースを持ちます。
 
-- **COMPEITO** — 日本で開発される軽量・配信特化のサーバーです。当初は OpenSALT (CASE v1.0) との完全互換を保った CASE v1.1 配信サーバーとして出発し、現在は OpenSALT / OpenCASE からの取り込みを一方通行と位置づけ、**1EdTech CASE v1.1 コンフォーマンステストのパス**を目指しています（既知のギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視しています。既存のエディタ（OpenCASE、OpenSALT、その他 CASE 準拠ツール）と組み合わせて配信を担当させたい場合や、日本語環境に CASE エンドポイントを設けたい場合に向いています。
+- **Compeito** — 日本で開発される軽量・配信特化のサーバーです。当初は OpenSALT (CASE v1.0) との完全互換を保った CASE v1.1 配信サーバーとして出発し、現在は OpenSALT / OpenCASE からの取り込みを一方通行と位置づけ、**1EdTech CASE v1.1 コンフォーマンステストのパス**を目指しています（既知のギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。英日両対応の UI / CLI / ドキュメント、独自 CSV と OpenSALT 互換 CSV のインポート、既存スタックへの組み込みやすさを重視しています。既存のエディタ（OpenCASE、OpenSALT、その他 CASE 準拠ツール）と組み合わせて配信を担当させたい場合や、日本語環境に CASE エンドポイントを設けたい場合に向いています。
 
-これらは **CASE 標準を介して相互運用すること** を前提に設計されています。COMPEITO は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、COMPEITO が公開するフレームワークは実用的な CASE クライアント（例: Open Badge Factory）から参照されています（厳密適合の残ギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。外部 CASE ソースからのインポートは中核機能の一つです。
+これらは **CASE 標準を介して相互運用すること** を前提に設計されています。Compeito は OpenSALT や OpenCASE が公開する CFPackage を取り込むことができ、Compeito が公開するフレームワークは実用的な CASE クライアント（例: Open Badge Factory）から参照されています（厳密適合の残ギャップは [conformance backlog](docs/dev/case-v1p1-conformance-backlog.md) で管理）。外部 CASE ソースからのインポートは中核機能の一つです。
 
 ## ロードマップ
 
@@ -243,7 +243,7 @@ GET /{tenant}/ims/case/v1p1/CFSubjects/{id}
 
 [Apache License 2.0](LICENSE)
 
-本リポジトリに同梱している第三者素材 — 特に、COMPEITO が CASE の service discovery
+本リポジトリに同梱している第三者素材 — 特に、Compeito が CASE の service discovery
 エンドポイントから配信している公式 1EdTech CASE v1.1 OpenAPI 定義 — は
 このライセンスの**対象外**。[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照。
 

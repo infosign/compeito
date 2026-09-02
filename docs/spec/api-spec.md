@@ -1,6 +1,6 @@
 # CASE v1.1 API Specification
 
-API path: `/{tenant}/ims/case/v1p1/` (COMPEITO's current API path; the tenant prefix is a COMPEITO extension, not part of CASE v1.1 — see "Intentional differences") + `/{tenant}/ims/case/v1p0/` (backward compatibility).
+API path: `/{tenant}/ims/case/v1p1/` (Compeito's current API path; the tenant prefix is a Compeito extension, not part of CASE v1.1 — see "Intentional differences") + `/{tenant}/ims/case/v1p0/` (backward compatibility).
 
 **Meaning of the `{id}` path parameter:** in every endpoint, `{id}` is the CASE identifier (the DB `identifier` column), not the internal PK (`id`).
 
@@ -306,7 +306,7 @@ Standard values per the CASE v1.1 information model:
 
 ## Intentional differences from CASE v1.1
 
-Notable design choices that diverge from the CASE v1.1 OpenAPI schema. Historical note: most of these stem from COMPEITO's original goal of full OpenSALT (CASE v1.0) compatibility with two-way data exchange. As of 2026-07 the project instead aims to pass the 1EdTech CASE v1.1 conformance test (imports from OpenSALT / OpenCASE stay tolerant and one-way), so the output-side OpenSALT-flavoured behaviours below are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md):
+Notable design choices that diverge from the CASE v1.1 OpenAPI schema. Historical note: most of these stem from Compeito's original goal of full OpenSALT (CASE v1.0) compatibility with two-way data exchange. As of 2026-07 the project instead aims to pass the 1EdTech CASE v1.1 conformance test (imports from OpenSALT / OpenCASE stay tolerant and one-way), so the output-side OpenSALT-flavoured behaviours below are slated for phased retirement — see the [conformance backlog](../dev/case-v1p1-conformance-backlog.md):
 
 1. **Response wrapper structure:** strictly per the OpenAPI schema, single-resource fetches (`GET /CFDocuments/{id}`, etc.) return the DType at the root (no wrapper). We wrap with a root key — `{"CFDocument": {...}}` — to match the convention used by OpenSALT and other CASE implementations. **Under `?strict=1` the wrapper is removed** and the DType is returned at the root, per the official binding. **Exception:** `GET /CFPackages/{id}` returns the `CFPackageDType` at the top level (no wrapper) so that CASE clients reading `CFDocument` / `CFItems` from the root can interpret the framework. OpenSALT does the same.
 2. **Empty arrays allowed:** `CFDocumentSetDType` (`minItems: 1`) and `CFAssociationSetDType` (`minItems: 1`) are documented as non-empty in the spec, but we return empty arrays when the result is 0 (see relevant sections).
@@ -353,7 +353,7 @@ When `Accept`-based variants matter for caches, the response should also vary on
 
 # CASE v1.1 API 仕様（日本語）
 
-APIパス: `/{tenant}/ims/case/v1p1/`（COMPEITO の現行 API パス。テナントプレフィックスは CASE v1.1 仕様にない COMPEITO 独自拡張 — 「意図的な差異」参照） + `/{tenant}/ims/case/v1p0/`（後方互換）
+APIパス: `/{tenant}/ims/case/v1p1/`（Compeito の現行 API パス。テナントプレフィックスは CASE v1.1 仕様にない Compeito 独自拡張 — 「意図的な差異」参照） + `/{tenant}/ims/case/v1p0/`（後方互換）
 
 **パスパラメータ `{id}` の意味:** 全エンドポイントの `{id}` は CASE 識別子（DB の `identifier` カラム）を指す。内部PK（`id` カラム）ではない。
 

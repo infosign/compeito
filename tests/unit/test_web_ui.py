@@ -266,7 +266,7 @@ class TestIndexPage:
 
     async def test_html_title(self, db_client):
         resp = await db_client.get("/")
-        assert "<title>COMPEITO</title>" in resp.text
+        assert "<title>Compeito</title>" in resp.text
 
     async def test_html_lang_ja(self, db_client):
         resp = await db_client.get("/")
@@ -326,7 +326,7 @@ class TestTenantPage:
 
     async def test_html_title(self, db_session, db_client, tenant):
         resp = await db_client.get(f"/{tenant.id}/")
-        assert f"<title>{tenant.name} - COMPEITO</title>" in resp.text
+        assert f"<title>{tenant.name} - Compeito</title>" in resp.text
 
     async def test_private_tenant_accessible(self, db_session, db_client):
         """Private tenants are accessible via direct URL."""

@@ -652,7 +652,7 @@ class TestUriDetailPage:
         await db_session.flush()
 
         resp = await db_client.get(f"/{tenant.id}/uri/{item.identifier}")
-        assert f"<title>{stmt[:50]} - COMPEITO</title>" in resp.text
+        assert f"<title>{stmt[:50]} - Compeito</title>" in resp.text
 
     async def test_html_title_document(
         self,
@@ -662,7 +662,7 @@ class TestUriDetailPage:
         sample_document: CFDocument,
     ):
         resp = await db_client.get(f"/{tenant.id}/uri/{sample_document.identifier}")
-        assert f"<title>{sample_document.title} - COMPEITO</title>" in resp.text
+        assert f"<title>{sample_document.title} - Compeito</title>" in resp.text
 
     async def test_cache_control(
         self,

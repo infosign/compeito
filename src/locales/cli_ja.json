@@ -1,5 +1,5 @@
 {
-    "cli_description": "COMPEITO CLI。",
+    "cli_description": "Compeito CLI。",
     "tenant_group": "テナント管理コマンド。",
     "doc_group": "ドキュメント管理コマンド。",
     "assoc_group": "関連（association）管理コマンド。",
