@@ -54,11 +54,60 @@
 
     // Copy-to-clipboard: delegated handler reading data-copy. The value lives in
     // an HTML attribute (safely autoescaped), never inline JS — see copy_btn.
+    // navigator.clipboard only exists in a secure context, so a server reached
+    // over plain http by IP or bare hostname (a common on-prem deployment) has
+    // to fall back to the deprecated execCommand path.
+    function copyText(text) {
+        if (window.isSecureContext && navigator.clipboard) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.top = '-1000px';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            ta.setSelectionRange(0, ta.value.length);
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            document.body.removeChild(ta);
+            if (ok) { resolve(); } else { reject(); }
+        });
+    }
+    // Flash the button so both paths report an outcome — silence used to be
+    // indistinguishable from a broken button.
+    function flashCopyResult(btn, ok) {
+        if (btn.dataset.copyFlashTimer) {
+            clearTimeout(Number(btn.dataset.copyFlashTimer));
+        } else {
+            // copy_btn and copy_chip carry different resting colours, so record
+            // what was actually there instead of assuming one of them.
+            btn.dataset.copyTitle = btn.getAttribute('title') || '';
+            btn.dataset.copyRestingColor = btn.classList.contains('text-stone-500') ? 'text-stone-500' : 'text-stone-400';
+        }
+        btn.setAttribute('title', ok ? 'Copied' : 'Copy failed');
+        btn.classList.remove('text-stone-400', 'text-stone-500');
+        btn.classList.add(ok ? 'text-violet-600' : 'text-red-600');
+        btn.dataset.copyFlashTimer = setTimeout(function() {
+            btn.setAttribute('title', btn.dataset.copyTitle);
+            btn.classList.remove('text-violet-600', 'text-red-600');
+            btn.classList.add(btn.dataset.copyRestingColor);
+            delete btn.dataset.copyFlashTimer;
+            delete btn.dataset.copyTitle;
+            delete btn.dataset.copyRestingColor;
+        }, 1200);
+    }
     document.addEventListener('click', function(evt) {
         var btn = evt.target.closest && evt.target.closest('.copy-btn');
         if (!btn) return;
         var text = btn.getAttribute('data-copy') || '';
-        if (navigator.clipboard) navigator.clipboard.writeText(text);
+        copyText(text).then(
+            function() { flashCopyResult(btn, true); },
+            function() { flashCopyResult(btn, false); }
+        );
     });
     function formatLocalDates(root) {
         (root || document).querySelectorAll('time[datetime]').forEach(function(el) {
