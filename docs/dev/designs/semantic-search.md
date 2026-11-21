@@ -79,7 +79,21 @@ compeito には常駐ワーカー/キューが無いため、**明示的な CLI 
 - `GET /{tenant}/search?q=<text>&limit=<n>&doc=<uuid>`
   - `q` 必須。`limit` 既定10・**検索専用の小さめ cap（例 50）**を新規定義（CFDocuments の `LIMIT_CAP=500` は流用しない）。`doc` 任意でドキュメント絞り込み。
   - 処理: `q` を `query:` 接頭辞付きで埋め込み → 同一 `model_id`・`tenant_id`（+任意 `cf_document_id`）で pgvector コサイン近傍 top-k → CFItem を返す。
-  - レスポンス: `{ "items": [ { identifier, fullStatement, humanCodingScheme, uri, score } ... ], "modelId": "...", ... }`（`includeRetired=1` のときは各 item に `statusEndDate` を足す。B8-5）。各 item に `score`（類似度）。**CASE 標準ではない拡張**なので形は compeito 独自。本文は CFItem 実体から引く。
+  - レスポンス: `{ "items": [ { identifier, fullStatement, humanCodingScheme, uri, CFDocumentURI, score } ... ], "modelId": "...", ... }`（`includeRetired=1` のときは各 item に `statusEndDate` を足す。B8-5）。各 item に `score`（類似度）。**CASE 標準ではない拡張**なので形は compeito 独自。本文は CFItem 実体から引く。
+  - **`CFDocumentURI`（所属フレームワーク）**: 各 item に所属 CFDocument を LinkURI 型（`{title, identifier, uri}`）で返す。名前と形は単独 CFItem 取得の `CFDocumentURI` にそろえ、組み立ては `case_query_service._build_document_uri` を流用する。取得は CFItem 実体を引く同じクエリで `cf_documents` を結合し、項目ごとの追加取得はしない。
+    - 理由1: `doc=` を省いたテナント横断検索では、同じ文言の項目が複数フレームワークから返りうる。所属が無いと利用者も呼び出し側も区別できない。
+    - 理由2: 検索結果を Open Badges v3 の `Alignment` に写す用途（エージェントがバッジを作る際に alignment 候補を選ぶ等）で、検索1回で全フィールドを埋められる。対応は下表のとおり。
+
+      | OB v3 `Alignment` | 検索結果の値 |
+      | --- | --- |
+      | `targetUrl`（必須） | `uri` |
+      | `targetName`（必須） | `fullStatement` |
+      | `targetCode` | `humanCodingScheme` |
+      | `targetType` | 固定値 `CFItem` |
+      | `targetFramework` | `CFDocumentURI.title` |
+
+    - 2026-09 時点の Open Badge Factory は alignment に `targetFramework` を持たせられない。OBF 向けには使われない値だが、OB v3 仕様上のフィールドであり、理由1だけでも返す価値があるので設計に含める。
+    - `score` は意味の近さであって対応の正しさを保証しない。発行済みバッジの alignment は後から直せないため、利用ガイドを書く際は「上位候補を提示し、人が選んで確定する」運用を添える（compeito の仕様ではなく利用側の運用）。
   - **エラー契約（must-fix）**: `main.py` の imsx ハンドラは `/ims/case/v1p1/` を含むパスにしか効かない（[main.py](src/main.py)）。本エンドポイントはそのパス外なので、**ルート内で 400（q 欠落・不正 limit）/404（テナント無し）/503（後述）等を明示的に `errors.imsx_error_response` で imsx 形式に整形して返す**。グローバルハンドラには依存しない。
   - **`embedding_enabled=false` 時**: 機能オフ。**503 Service Unavailable** を imsx 形式で返す（検索不可を明示）。テスト対象に含める。
   - `Cache-Control`: 既定方針（public, max-age=3600）に合わせる。
@@ -119,7 +133,7 @@ compeito には常駐ワーカー/キューが無いため、**明示的な CLI 
 - pgvector を使うため**テスト DB も pgvector イメージ**に。`tests/conftest.py` はテーブル削除を手書きしているので、**`cf_item_embeddings` を cleanup 順（cf_items より先＝CASCADE 前）に追加**する。
 - **Embedder インターフェース＋フェイク**: CI で実モデルをロードしないよう、決定的なベクトルを返すフェイク Embedder を注入してテスト（検索ランキングの正しさを安定検証）。実モデルのスモークテストは別途任意。
 - 単体: 埋め込み元テキスト構築（接頭辞 `passage:`/`query:`、連結、切詰）、mean pooling + L2 正規化（フェイクで形だけでも）、`source_hash` による差分スキップ、dim 整合。
-- 結合: `index build` 後に `GET /search` が意味的に近い順で返す（フェイク埋め込みで順位を制御）。`doc` 絞り込み・テナントスコープ・空インデックス時の挙動・limit cap・`embedding_enabled=false` 時に 503(imsx) を返すこと。
+- 結合: `index build` 後に `GET /search` が意味的に近い順で返す（フェイク埋め込みで順位を制御）。各 item の `CFDocumentURI` が所属 CFDocument を指すこと（2文書にまたがるテナント横断検索で確認）。`doc` 絞り込み・テナントスコープ・空インデックス時の挙動・limit cap・`embedding_enabled=false` 時に 503(imsx) を返すこと。
 
 ## エッジケース
 
